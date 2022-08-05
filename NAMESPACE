@@ -1,0 +1,154 @@
+useDynLib(SparseArray)
+
+import(methods)
+importFrom(stats, rnorm, rpois)
+importClassFrom(Matrix, dgCMatrix, lgCMatrix, dgRMatrix, lgRMatrix)
+importFrom(Matrix, sparseMatrix, crossprod, tcrossprod)
+
+import(BiocGenerics)
+import(MatrixGenerics)
+import(S4Vectors)
+import(IRanges)
+import(XVector)
+import(S4Arrays)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Export S4 classes
+###
+
+exportClasses(
+    ## SparseArray-class.R:
+    SparseArray, SparseMatrix,
+
+    ## COO_SparseArray-class.R:
+    COO_SparseArray, COO_SparseMatrix,
+
+    ## SVT_SparseArray-class.R:
+    NULL_OR_list, SVT_SparseArray, SVT_SparseMatrix
+)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Export S3 methods
+###
+
+S3method(aperm, COO_SparseArray)
+
+S3method(as.array, COO_SparseArray)
+S3method(as.array, SVT_SparseArray)
+
+S3method(mean, SparseArray)
+
+S3method(range, COO_SparseArray)
+S3method(range, SVT_SparseArray)
+
+S3method(rowsum, dgCMatrix)
+
+S3method(t, SVT_SparseMatrix)
+
+### We also export them thru the export() directive so that (a) they can be
+### called directly, (b) tab-completion on the name of the generic shows them,
+### and (c) methods() doesn't asterisk them.
+
+export(
+    aperm.COO_SparseArray,
+
+    as.array.COO_SparseArray,
+    as.array.SVT_SparseArray,
+
+    range.COO_SparseArray,
+    range.SVT_SparseArray,
+
+    rowsum.dgCMatrix,
+
+    t.SVT_SparseMatrix
+)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Export S4 methods for generics not defined in SparseArray
+###
+
+exportMethods(
+    ## Methods for generics defined in the base package:
+    dim, dimnames,
+    drop,
+    "[", "[<-",
+    "[[",
+    as.array,
+    t,
+    which,
+    min, max, range, sum, prod, any, all,   # "Summary" group generic
+    mean,
+    anyNA,
+    var,
+    nchar,
+    crossprod,
+
+    ## Methods for generics defined in the methods package:
+    coerce, show,
+
+    ## Methods for generics defined in the BiocGenerics package:
+    cbind, rbind,
+    type, "type<-",
+
+    ## Methods for generics defined in the S4Vectors package:
+    bindROWS,
+
+    ## Methods for generics defined in the S4Arrays package:
+    aperm, arbind, acbind, extract_array
+)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Export non-generic functions
+###
+
+export(
+    ## SparseArray-class.R:
+    sparsity,
+
+    ## COO_SparseArray-class.R:
+    COO_SparseArray, dense2sparse, sparse2dense,
+
+    ## SVT_SparseArray-class.R:
+    SVT_SparseArray, SparseArray,
+
+    ## randomSparseArray.R:
+    randomSparseArray, randomSparseMatrix,
+    poissonSparseArray, poissonSparseMatrix,
+
+    ## readSparseCSV.R:
+    writeSparseCSV, readSparseCSV, readSparseTable
+)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Export S4 generics defined in SparseArray, and corresponding methods
+###
+
+export(
+    ## sparseMatrix-utils.R:
+    rowsum, colsum,
+
+    ## SparseArray-class.R:
+    is_sparse, "is_sparse<-", nzcount,
+
+    ## COO_SparseArray-class.R:
+    nzcoo, nzvals,
+
+    ## SparseArray-subsetting.R:
+    extract_sparse_array
+)
+
+### Same list as above.
+exportMethods(
+    rowsum, colsum,
+    is_sparse,
+    #"is_sparse<-",  # no methods defined in SparseArray!
+    nzcount,
+    nzcoo, nzvals,
+    extract_sparse_array
+)
+
