@@ -1,5 +1,5 @@
 ### =========================================================================
-### Some summarization methods that operate natively on dgCMatrix objects
+### Low-level manipulation of sparseMatrix derivatives
 ### -------------------------------------------------------------------------
 ###
 

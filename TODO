@@ -4,6 +4,8 @@
   Note that this will require that ExtendableJaggedArray structs are able
   to support other types of columns (only support int at the moment).
 
+- Speed up row selection: x[row_idx, ]
+
 - Implement C_subassign_SVT_with_Rarray() and C_subassign_SVT_with_SVT().
 
 - Implement table() method for SVT_SparseArray objects of type logical,

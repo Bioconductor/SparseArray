@@ -26,7 +26,7 @@ Collate: sparseMatrix-utils.R
 	SparseArray-summarize.R
 	SparseArray-utils.R
 	SparseMatrix-mult.R
-	SparseMatrix-stats.R
+	matrixStats-methods.R
 	randomSparseArray.R
 	readSparseCSV.R
 	zzz.R

@@ -92,6 +92,9 @@ exportMethods(
     ## Methods for generics defined in the BiocGenerics package:
     cbind, rbind,
     type, "type<-",
+    rowSums, colSums, rowMeans, colMeans,
+
+    ## Methods for generics defined in the MatrixGenerics package:
 
     ## Methods for generics defined in the S4Vectors package:
     bindROWS,
