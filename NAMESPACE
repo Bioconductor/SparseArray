@@ -95,6 +95,7 @@ exportMethods(
     rowSums, colSums, rowMeans, colMeans,
 
     ## Methods for generics defined in the MatrixGenerics package:
+    rowMedians, colMedians,
 
     ## Methods for generics defined in the S4Vectors package:
     bindROWS,

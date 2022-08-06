@@ -46,7 +46,8 @@
             function(lv) {
                 if (is.null(lv))
                     return(0)
-                sum(lv[[2L]], na.rm=na.rm)
+                lv_vals <- lv[[2L]]
+                sum(lv_vals, na.rm=na.rm)
             }, numeric(1), USE.NAMES=FALSE)
     }
     setNames(ans, colnames(x))
@@ -75,7 +76,8 @@ setMethod("rowSums", "SVT_SparseMatrix", .rowSums_SVT_SparseMatrix)
             function(lv) {
                 if (is.null(lv))
                     return(0L)
-                sum(is.na(lv[[2L]]))
+                lv_vals <- lv[[2L]]
+                sum(is.na(lv_vals))
             }, integer(1), USE.NAMES=FALSE)
     }
     setNames(ans, colnames(x))
@@ -113,4 +115,119 @@ setMethod("colMeans", "SVT_SparseMatrix", .colMeans_SVT_SparseMatrix)
     .colMeans_SVT_SparseMatrix(t(x), na.rm=na.rm)
 }
 setMethod("rowMeans", "SVT_SparseMatrix", .rowMeans_SVT_SparseMatrix)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### colMedians/rowMedians
+###
+
+.check_rows_cols <- function(rows, cols, method)
+{
+    if (!(is.null(rows) && is.null(cols)))
+        stop(wmsg("\"", method, "\" method for SparseMatrix objects ",
+                  "does not support arguments 'rows' and 'cols'"))
+}
+
+.check_useNames <- function(useNames)
+{
+    if (!(is.logical(useNames) && length(useNames) == 1L))
+        stop(wmsg("'useNames' must be a single logical value"))
+}
+
+### All values in 'x' are **assumed** to be >= 0 but we don't check this!
+### 'padding' is expected to be < length(x).
+.positive_padded_median <- function(x, padding=0L)
+{
+    x_len <- length(x)
+    stopifnot(padding < x_len)
+    n <- padding + x_len
+    if (n %% 2L == 1L) {
+        middle <- (n + 1L) %/% 2L
+        partial <- middle - padding
+        return(sort(x, partial=partial)[partial])
+    }
+    i1 <- n %/% 2L - padding
+    i2 <- i1 + 1L
+    mean(sort(x, partial=i2)[i1:i2])
+}
+
+.padded_median <- function(x, padding=0L, na.rm=FALSE)
+{
+    if (na.rm) {
+        x <- x[!is.na(x)]
+    } else {
+        if (anyNA(x))
+            return(NA_real_)
+    }
+    n <- padding + length(x)
+    if (n == 0L)
+        return(NA_real_)
+    if (padding > length(x))
+        return(0)
+
+    ## Handle case where we have more positive values than non-positive values.
+    pos_idx <- which(x > 0L)
+    pos_count <- length(pos_idx)
+    nonpos_count <- n - pos_count
+    if (pos_count > nonpos_count) {
+        ans <- .positive_padded_median(x[pos_idx], padding=nonpos_count)
+        return(ans)
+    }
+
+    ## Handle case where we have more negative values than non-negative values.
+    neg_count <- length(x) - pos_count
+    nonneg_count <- n - neg_count
+    if (neg_count > nonneg_count) {
+        ans <- - .positive_padded_median(-x[-pos_idx], padding=nonneg_count)
+        return(ans)
+    }
+
+    if (n %% 2L == 1L)
+        return(0)
+
+    half <- n %/% 2L
+    if (pos_count == half) {
+        right <- min(x[pos_idx])
+    } else {
+        right <- 0
+    }
+    if (neg_count == half) {
+        left <- max(x[-pos_idx])
+    } else {
+        left <- 0
+    }
+    (left + right) * 0.5
+}
+
+.colMedians_SVT_SparseMatrix <-
+    function(x, na.rm=FALSE, useNames=NA)
+{
+    if (!isTRUEorFALSE(na.rm))
+        stop(wmsg("'na.rm' must be TRUE or FALSE"))
+    .check_useNames(useNames)
+    if (is.null(x@SVT)) {
+        ans <- numeric(ncol(x))
+        if (nrow(x) == 0L)
+            ans[] <- NA_real_
+    } else {
+        ans <- vapply(x@SVT,
+            function(lv) {
+                if (is.null(lv))
+                    return(0)
+                lv_vals <- lv[[2L]]
+                padding <- nrow(x) - length(lv_vals)
+                .padded_median(lv_vals, padding, na.rm=na.rm)
+            }, numeric(1), USE.NAMES=FALSE)
+    }
+    if (!isFALSE(useNames))
+        ans <- setNames(ans, colnames(x))
+    ans
+}
+setMethod("colMedians", "SVT_SparseMatrix",
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
+    {
+        .check_rows_cols(rows, cols, "colMedians")
+        .colMedians_SVT_SparseMatrix(x, na.rm=na.rm, useNames=useNames, ...)
+    }
+)
 
