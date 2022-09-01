@@ -46,8 +46,8 @@ setMethod("Summary", "COO_SparseArray",
     function(x, ..., na.rm=FALSE)
     {
         if (length(list(...)) != 0L)
-            stop(wmsg(.Generic, "() method for COO_SparseArray objects ",
-                      "only accepts a single object"))
+            stop(wmsg("the ", .Generic, "() method for COO_SparseArray ",
+                      "objects only accepts a single object"))
         .summarize_COO_SparseArray(.Generic, x, na.rm=na.rm)
     }
 )
@@ -67,8 +67,8 @@ setMethod("Summary", "SVT_SparseArray",
     function(x, ..., na.rm=FALSE)
     {
         if (length(list(...)) != 0L)
-            stop(wmsg(.Generic, "() method for SVT_SparseArray objects ",
-                      "only accepts a single object"))
+            stop(wmsg("the ", .Generic, "() method for SVT_SparseArray ",
+                      "objects only accepts a single object"))
         ans <- .summarize_SVT_SparseArray(.Generic, x, na.rm=na.rm)
         if (na.rm)
             attr(ans, "na_rm_count") <- NULL
@@ -93,7 +93,7 @@ range.COO_SparseArray <- function(..., na.rm=FALSE, finite=FALSE)
 {
     objects <- list(...)
     if (length(objects) != 1L)
-        stop(wmsg("range() method for COO_SparseArray objects ",
+        stop(wmsg("the range() method for COO_SparseArray objects ",
                   "only accepts a single object"))
     x <- objects[[1L]]
     x_has_zeros <- length(x@nzvals) < length(x)
@@ -116,11 +116,11 @@ setMethod("range", "COO_SparseArray",
 range.SVT_SparseArray <- function(..., na.rm=FALSE, finite=FALSE)
 {
     if (!identical(finite, FALSE))
-        stop(wmsg("range() method for SVT_SparseArray objects ",
+        stop(wmsg("the range() method for SVT_SparseArray objects ",
                   "does not support the 'finite' argument"))
     objects <- list(...)
     if (length(objects) != 1L)
-        stop(wmsg("range() method for SVT_SparseArray objects ",
+        stop(wmsg("the range() method for SVT_SparseArray objects ",
                   "only accepts a single object"))
     x <- objects[[1L]]
     ans <- .summarize_SVT_SparseArray("range", x, na.rm=na.rm)
@@ -192,7 +192,7 @@ setMethod("anyNA", "SVT_SparseArray",
     function(x, recursive=FALSE)
     {
         if (!identical(recursive, FALSE))
-            stop(wmsg("anyNA() method for SVT_SparseArray objects ",
+            stop(wmsg("the anyNA() method for SVT_SparseArray objects ",
                       "does not support the 'recursive' argument"))
         .Call2("C_anyNA_SVT_SparseArray",
                x@dim, x@type, x@SVT, PACKAGE="SparseArray")
@@ -262,10 +262,10 @@ setMethod("var", "SparseArray",
     function(x, y = NULL, na.rm = FALSE, use)
     {
         if (!is.null(y))
-            stop(wmsg("var() method for SparseArray objects ",
+            stop(wmsg("the var() method for SparseArray objects ",
                       "does not support the 'y' argument"))
         if (!missing(use))
-            stop(wmsg("var() method for SparseArray objects ",
+            stop(wmsg("the var() method for SparseArray objects ",
                       "does not support the 'use' argument"))
         .var_SparseArray(x, na.rm=na.rm, method=2L)
     }

@@ -28,15 +28,15 @@
 .check_dims <- function(dims, method)
 {
     if (!identical(dims, 1))
-        stop(wmsg("\"", method, "\" method for SVT_SparseMatrix ",
-                  "objects does not support the 'dims' argument"))
+        stop(wmsg("the ", method, "() method for SVT_SparseMatrix objects ",
+                  "does not support the 'dims' argument"))
 }
 
 .check_rows_cols <- function(rows, cols, method)
 {
     if (!(is.null(rows) && is.null(cols)))
-        stop(wmsg("\"", method, "\" method for SparseMatrix objects ",
-                  "does not support arguments 'rows' and 'cols'"))
+        stop(wmsg("the ", method, "() method for SVT_SparseMatrix objects ",
+                  "does not support the 'rows' or 'cols' argument"))
 }
 
 .check_useNames <- function(useNames)
@@ -354,7 +354,7 @@ setMethod("rowMedians", "SVT_SparseMatrix",
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### colVars/rowVars
+### colVars/rowVars and colSds/rowSds
 ###
 
 ### Equivalent to 'var(c(x, integer(padding)), ...)' but doesn't actually
@@ -440,6 +440,24 @@ setMethod("rowVars", "SVT_SparseMatrix",
         .check_rows_cols(rows, cols, "rowVars")
         .colVars_SVT_SparseMatrix(t(x), na.rm=na.rm, center=center,
                                   useNames=useNames, ...)
+    }
+)
+
+setMethod("colSds", "SVT_SparseMatrix",
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+             ..., useNames=NA)
+    {
+        .check_rows_cols(rows, cols, "colSds")
+        sqrt(colVars(x, na.rm=na.rm, center=center, useNames=useNames, ...))
+    }
+)
+
+setMethod("rowSds", "SVT_SparseMatrix",
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+             ..., useNames=NA)
+    {
+        .check_rows_cols(rows, cols, "rowSds")
+        sqrt(rowVars(x, na.rm=na.rm, center=center, useNames=useNames, ...))
     }
 )
 
