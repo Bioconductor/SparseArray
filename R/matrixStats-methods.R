@@ -2,7 +2,7 @@
 ### matrixStats methods for SparseMatrix objects
 ### -------------------------------------------------------------------------
 ###
-### matrixStats usage in Bioconductor: Based on some quick grep-based
+### About matrixStats usage in Bioconductor: Based on some quick grep-based
 ### inspection, the matrixStats operations used by Bioconductor software
 ### packages are (looking at the col* functions only):
 ###   (1) Heavily used: colSums, colMeans, colMedians, colVars, colSds,
@@ -12,12 +12,38 @@
 ###   (3) Marginally used: colAlls, colCumsums, colWeightedMeans, colAnyNAs
 ###
 ### Notes:
-### - colSums() and colMeans() are base functions (i.e. from the base
-###   package), and the colSums() and colMeans() generics are defined
-###   in the BiocGenerics package.
+### - colSums() and colMeans() are functions actually defined in the base
+###   package but we still count them as part of the matrixStats family.
+### - The colSums() and colMeans() generics are defined in the BiocGenerics
+###   package.
 ### - All other matrix row/column summarization operations are from the
 ###   matrixStats package with corresponding generics defined in the
 ###   MatrixGenerics package.
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Low-level helpers
+###
+
+.check_dims <- function(dims, method)
+{
+    if (!identical(dims, 1))
+        stop(wmsg("\"", method, "\" method for SVT_SparseMatrix ",
+                  "objects does not support the 'dims' argument"))
+}
+
+.check_rows_cols <- function(rows, cols, method)
+{
+    if (!(is.null(rows) && is.null(cols)))
+        stop(wmsg("\"", method, "\" method for SparseMatrix objects ",
+                  "does not support arguments 'rows' and 'cols'"))
+}
+
+.check_useNames <- function(useNames)
+{
+    if (!(is.logical(useNames) && length(useNames) == 1L))
+        stop(wmsg("'useNames' must be a single logical value"))
+}
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -26,13 +52,6 @@
 ### Like base::colSums() and base::rowSums(), the colSums() and rowSums()
 ### generics in BiocGenerics have a 'dims' argument. We do NOT support it.
 ### base::colSums() and base::rowSums() propagate the colnames and rownames.
-
-.check_dims <- function(dims, method)
-{
-    if (!identical(dims, 1))
-        stop(wmsg("\"", method, "\" method for SVT_SparseMatrix ",
-                  "objects does not support the 'dims' argument"))
-}
 
 .colSums_SVT_SparseMatrix <- function(x, na.rm=FALSE, dims=1)
 {
@@ -118,21 +137,109 @@ setMethod("rowMeans", "SVT_SparseMatrix", .rowMeans_SVT_SparseMatrix)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### colMedians/rowMedians
+### colMins/rowMins, colMaxs/rowMaxs, and colRanges/rowRanges
 ###
 
-.check_rows_cols <- function(rows, cols, method)
+.colMinsMaxs_SVT_SparseMatrix <- function(x, FUN, na.rm=FALSE, useNames=NA)
 {
-    if (!(is.null(rows) && is.null(cols)))
-        stop(wmsg("\"", method, "\" method for SparseMatrix objects ",
-                  "does not support arguments 'rows' and 'cols'"))
+    if (!isTRUEorFALSE(na.rm))
+        stop(wmsg("'na.rm' must be TRUE or FALSE"))
+    .check_useNames(useNames)
+    x_nrow <- nrow(x)
+    x_ncol <- ncol(x)
+    if (x_ncol == 0L) {
+        ans <- vector(type(x), length=0L)
+    } else if (x_nrow == 0L) {
+        ans <- rep.int(suppressWarnings(FUN()), x_ncol)
+    } else if (is.null(x@SVT)) {
+        ans <- vector(type(x), length=x_ncol)
+    } else {
+        zero <- vector(type(x), length=1L)
+        ## We use lapply() rather than vapply() because we don't know in
+        ## advance the type of the result we're going to get for each column.
+        ans <- unlist(lapply(x@SVT,
+            function(lv) {
+                if (is.null(lv))
+                    return(zero)
+                lv_vals <- lv[[2L]]
+                ## Suppress the warning that min() or max() will issue
+                ## if 'na.rm' is TRUE and 'lv_vals' contains no non-NA values.
+                res <- suppressWarnings(FUN(lv_vals, na.rm=na.rm))
+                if (length(lv_vals) < x_nrow)
+                    res <- FUN(res, zero)
+                res
+            }), use.names=FALSE)
+    }
+    if (isTRUE(useNames))
+        names(ans) <- colnames(x)
+    ans
 }
 
-.check_useNames <- function(useNames)
+setMethod("colMins", "SVT_SparseMatrix",
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
+    {
+        .check_rows_cols(rows, cols, "colMins")
+        .colMinsMaxs_SVT_SparseMatrix(x, base::min, na.rm=na.rm,
+                                      useNames=useNames, ...)
+    }
+)
+
+setMethod("rowMins", "SVT_SparseMatrix",
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
+    {
+        .check_rows_cols(rows, cols, "rowMins")
+        .colMinsMaxs_SVT_SparseMatrix(t(x), base::min, na.rm=na.rm,
+                                      useNames=useNames, ...)
+    }
+)
+
+setMethod("colMaxs", "SVT_SparseMatrix",
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
+    {
+        .check_rows_cols(rows, cols, "colMaxs")
+        .colMinsMaxs_SVT_SparseMatrix(x, base::max, na.rm=na.rm,
+                                      useNames=useNames, ...)
+    }
+)
+
+setMethod("rowMaxs", "SVT_SparseMatrix",
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
+    {
+        .check_rows_cols(rows, cols, "rowMaxs")
+        .colMinsMaxs_SVT_SparseMatrix(t(x), base::max, na.rm=na.rm,
+                                      useNames=useNames, ...)
+    }
+)
+
+.colRanges_SVT_SparseMatrix <- function(x, na.rm=FALSE, useNames=NA)
 {
-    if (!(is.logical(useNames) && length(useNames) == 1L))
-        stop(wmsg("'useNames' must be a single logical value"))
+    mins <- .colMinsMaxs_SVT_SparseMatrix(x, base::min, na.rm=na.rm,
+                                          useNames=useNames)
+    maxs <- .colMinsMaxs_SVT_SparseMatrix(x, base::max, na.rm=na.rm,
+                                          useNames=FALSE)
+    cbind(mins, maxs, deparse.level=0L)
 }
+
+setMethod("colRanges", "SVT_SparseMatrix",
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
+    {
+        .check_rows_cols(rows, cols, "colRanges")
+        .colRanges_SVT_SparseMatrix(x, na.rm=na.rm, useNames=useNames)
+    }
+)
+
+setMethod("rowRanges", "SVT_SparseMatrix",
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
+    {
+        .check_rows_cols(rows, cols, "rowRanges")
+        .colRanges_SVT_SparseMatrix(t(x), na.rm=na.rm, useNames=useNames)
+    }
+)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### colMedians/rowMedians
+###
 
 ### All values in 'x' are **assumed** to be >= 0 but we don't check this!
 ### 'padding' is expected to be < length(x).
@@ -199,8 +306,7 @@ setMethod("rowMeans", "SVT_SparseMatrix", .rowMeans_SVT_SparseMatrix)
     (left + right) * 0.5
 }
 
-.colMedians_SVT_SparseMatrix <-
-    function(x, na.rm=FALSE, useNames=NA)
+.colMedians_SVT_SparseMatrix <- function(x, na.rm=FALSE, useNames=NA)
 {
     if (!isTRUEorFALSE(na.rm))
         stop(wmsg("'na.rm' must be TRUE or FALSE"))
@@ -219,15 +325,24 @@ setMethod("rowMeans", "SVT_SparseMatrix", .rowMeans_SVT_SparseMatrix)
                 .padded_median(lv_vals, padding, na.rm=na.rm)
             }, numeric(1), USE.NAMES=FALSE)
     }
-    if (!isFALSE(useNames))
-        ans <- setNames(ans, colnames(x))
+    if (isTRUE(useNames))
+        names(ans) <- colnames(x)
     ans
 }
+
 setMethod("colMedians", "SVT_SparseMatrix",
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
     {
         .check_rows_cols(rows, cols, "colMedians")
         .colMedians_SVT_SparseMatrix(x, na.rm=na.rm, useNames=useNames, ...)
+    }
+)
+
+setMethod("rowMedians", "SVT_SparseMatrix",
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
+    {
+        .check_rows_cols(rows, cols, "rowMedians")
+        .colMedians_SVT_SparseMatrix(t(x), na.rm=na.rm, useNames=useNames, ...)
     }
 )
 

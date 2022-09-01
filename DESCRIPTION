@@ -5,7 +5,7 @@ Description: Provides a convenient and efficient container for in-memory
 biocViews: Infrastructure, DataRepresentation
 URL: https://bioconductor.org/packages/SparseArray
 BugReports: https://github.com/Bioconductor/SparseArray/issues
-Version: 0.0.1
+Version: 0.0.2
 License: Artistic-2.0
 Encoding: UTF-8
 Author: Hervé Pagès <hpages.on.github@gmail.com>, Rafael A. Irizarry <rafa@ds.harvard.edu>, Vince Carey <stvjc@channing.harvard.edu>
