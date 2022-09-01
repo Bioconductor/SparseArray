@@ -247,7 +247,7 @@ setMethod("rowRanges", "SVT_SparseMatrix",
 {
     x_len <- length(x)
     stopifnot(padding < x_len)
-    n <- padding + x_len
+    n <- x_len + padding
     if (n %% 2L == 1L) {
         middle <- (n + 1L) %/% 2L
         partial <- middle - padding
@@ -258,6 +258,8 @@ setMethod("rowRanges", "SVT_SparseMatrix",
     mean(sort(x, partial=i2)[i1:i2])
 }
 
+### Equivalent to 'median(c(x, integer(padding)), ...)' but doesn't actually
+### realize the padding with zeros.
 .padded_median <- function(x, padding=0L, na.rm=FALSE)
 {
     if (na.rm) {
@@ -266,7 +268,7 @@ setMethod("rowRanges", "SVT_SparseMatrix",
         if (anyNA(x))
             return(NA_real_)
     }
-    n <- padding + length(x)
+    n <- length(x) + padding
     if (n == 0L)
         return(NA_real_)
     if (padding > length(x))
@@ -311,19 +313,23 @@ setMethod("rowRanges", "SVT_SparseMatrix",
     if (!isTRUEorFALSE(na.rm))
         stop(wmsg("'na.rm' must be TRUE or FALSE"))
     .check_useNames(useNames)
-    if (is.null(x@SVT)) {
-        ans <- numeric(ncol(x))
-        if (nrow(x) == 0L)
-            ans[] <- NA_real_
+    x_nrow <- nrow(x)
+    x_ncol <- ncol(x)
+    if (x_nrow == 0L) {
+        ans <- rep.int(NA_real_, x_ncol)
     } else {
-        ans <- vapply(x@SVT,
-            function(lv) {
-                if (is.null(lv))
-                    return(0)
-                lv_vals <- lv[[2L]]
-                padding <- nrow(x) - length(lv_vals)
-                .padded_median(lv_vals, padding, na.rm=na.rm)
-            }, numeric(1), USE.NAMES=FALSE)
+        ans <- numeric(x_ncol)
+        if (!is.null(x@SVT)) {
+            ans <- vapply(seq_along(x@SVT),
+                function(i) {
+                    lv <- x@SVT[[i]]
+                    if (is.null(lv))
+                        return(ans[[i]])
+                    lv_vals <- lv[[2L]]
+                    padding <- x_nrow - length(lv_vals)
+                    .padded_median(lv_vals, padding, na.rm=na.rm)
+                }, numeric(1), USE.NAMES=FALSE)
+        }
     }
     if (isTRUE(useNames))
         names(ans) <- colnames(x)
@@ -343,6 +349,97 @@ setMethod("rowMedians", "SVT_SparseMatrix",
     {
         .check_rows_cols(rows, cols, "rowMedians")
         .colMedians_SVT_SparseMatrix(t(x), na.rm=na.rm, useNames=useNames, ...)
+    }
+)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### colVars/rowVars
+###
+
+### Equivalent to 'var(c(x, integer(padding)), ...)' but doesn't actually
+### realize the padding with zeros.
+.padded_var <- function(x, padding=0L, na.rm=FALSE, center=NULL)
+{
+    if (na.rm)
+        x <- x[!is.na(x)]
+    nvals <- length(x) + padding
+    if (nvals <= 1L)
+        return(NA_real_)
+    if (is.null(center)) {
+        center <- sum(x) / nvals
+    } else {
+        stopifnot(isSingleNumberOrNA(center))
+    }
+    delta <- x - center
+    s <- sum(delta * delta) + center * center * padding
+    s / (nvals - 1L)
+}
+
+### Returns a numeric vector of length 'ncol(x)'.
+.normarg_center <- function(center, x, na.rm=FALSE)
+{
+    if (is.null(center))
+        return(colMeans(x, na.rm=na.rm))
+    if (!is.numeric(center))
+        stop(wmsg("'center' must be NULL or a numeric vector"))
+    x_ncol <- ncol(x)
+    if (length(center) != x_ncol) {
+        if (length(center) != 1L)
+            stop(wmsg("'center' must have one element per row ",
+                      "or column in the SparseMatrix object"))
+        center <- rep.int(center, x_ncol)
+    }
+    center
+}
+
+.colVars_SVT_SparseMatrix <- function(x, na.rm=FALSE, center=NULL, useNames=NA)
+{
+    if (!isTRUEorFALSE(na.rm))
+        stop(wmsg("'na.rm' must be TRUE or FALSE"))
+    .check_useNames(useNames)
+    x_nrow <- nrow(x)
+    x_ncol <- ncol(x)
+    if (x_nrow <= 1L) {
+        ans <- rep.int(NA_real_, x_ncol)
+    } else {
+        center <- .normarg_center(center, x, na.rm=na.rm)
+        ans <- center * center * x_nrow / (x_nrow - 1L)
+        if (!is.null(x@SVT)) {
+            ans <- vapply(seq_along(x@SVT),
+                function(i) {
+                    lv <- x@SVT[[i]]
+                    if (is.null(lv))
+                        return(ans[[i]])
+                    lv_vals <- lv[[2L]]
+                    padding <- x_nrow - length(lv_vals)
+                    .padded_var(lv_vals, padding, na.rm=na.rm,
+                                center=center[[i]])
+                }, numeric(1), USE.NAMES=FALSE)
+        }
+    }
+    if (isTRUE(useNames))
+        names(ans) <- colnames(x)
+    ans
+}
+
+setMethod("colVars", "SVT_SparseMatrix",
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+             ..., useNames=NA)
+    {
+        .check_rows_cols(rows, cols, "colVars")
+        .colVars_SVT_SparseMatrix(x, na.rm=na.rm, center=center,
+                                  useNames=useNames, ...)
+    }
+)
+
+setMethod("rowVars", "SVT_SparseMatrix",
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+             ..., useNames=NA)
+    {
+        .check_rows_cols(rows, cols, "rowVars")
+        .colVars_SVT_SparseMatrix(t(x), na.rm=na.rm, center=center,
+                                  useNames=useNames, ...)
     }
 )
 

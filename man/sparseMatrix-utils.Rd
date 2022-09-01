@@ -14,9 +14,9 @@
 \title{sparseMatrix utilities}
 
 \description{
-   Some utilities to operate natively on sparseMatrix objects (e.g. dgCMatrix
-   and lgCMatrix objects) from the \pkg{Matrix} package. Mostly for internal
-   use by the \pkg{DelayedArray} package.
+   Some utilities to operate natively on sparseMatrix derivatives (e.g.
+   dgCMatrix and lgCMatrix objects) from the \pkg{Matrix} package.
+   Mostly for internal use.
 }
 
 \usage{
@@ -55,9 +55,6 @@
 
 \seealso{
   \itemize{
-    \item \link{DelayedMatrix-utils} in this package for the \code{rowsum}
-          and \code{colsum} methods defined for \link{DelayedMatrix} objects.
-
     \item \code{base::\link[base]{rowsum}} in the \pkg{base} package for
           the default \code{rowsum} method.
 

@@ -1,7 +1,7 @@
 useDynLib(SparseArray)
 
 import(methods)
-importFrom(stats, rnorm, rpois)
+importFrom(stats, setNames, rnorm, rpois)
 importClassFrom(Matrix, dgCMatrix, lgCMatrix, dgRMatrix, lgRMatrix)
 importFrom(Matrix, sparseMatrix, crossprod, tcrossprod)
 
@@ -96,7 +96,7 @@ exportMethods(
 
     ## Methods for generics defined in the MatrixGenerics package:
     rowMins, colMins, rowMaxs, colMaxs, rowRanges, colRanges,
-    rowMedians, colMedians,
+    rowMedians, colMedians, rowVars, colVars,
 
     ## Methods for generics defined in the S4Vectors package:
     bindROWS,
