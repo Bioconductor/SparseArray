@@ -12,9 +12,6 @@
 \alias{dim,SparseArray-method}
 \alias{dimnames,SparseArray-method}
 \alias{dimnames<-,SparseArray-method}
-\alias{is_sparse}
-\alias{is_sparse<-}
-\alias{is_sparse,ANY-method}
 \alias{is_sparse,SparseArray-method}
 \alias{nzcount}
 \alias{nzcount,CsparseMatrix-method}
@@ -74,6 +71,8 @@
     \item S4 classes \linkS4class{dgCMatrix} and \linkS4class{lgCMatrix}
           defined in the \pkg{Matrix} package, for the de facto standard
           of sparse matrix representations in R.
+
+    \item \code{\link[S4Arrays]{is_sparse}} in the \pkg{S4Arrays} package.
 
     \item Ordinary \link[base]{array} objects in base R.
   }

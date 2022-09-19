@@ -252,17 +252,12 @@ setMethod("extract_array", "SVT_SparseArray",
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### is_sparse() and extract_sparse_array() methods for [d|l]g[C|R]Matrix
-### objects from the Matrix package
+### extract_sparse_array() methods for [d|l]g[C|R]Matrix objects from the
+### Matrix package
 ###
 ### TODO: Support more sparseMatrix derivatives (e.g. dgTMatrix, dgRMatrix)
 ### as the need arises.
 ###
-
-setMethod("is_sparse", "dgCMatrix", function(x) TRUE)
-setMethod("is_sparse", "lgCMatrix", function(x) TRUE)
-setMethod("is_sparse", "dgRMatrix", function(x) TRUE)
-setMethod("is_sparse", "lgRMatrix", function(x) TRUE)
 
 ### TODO: Return an SVT_SparseArray instead of a COO_SparseArray object when
 ### extracting from a dgCMatrix or lgCMatrix.

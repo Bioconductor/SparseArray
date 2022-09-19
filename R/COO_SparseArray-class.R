@@ -373,8 +373,8 @@ setAs("Matrix", "COO_SparseArray", function(from) as(from, "COO_SparseMatrix"))
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### aperm()
 ###
-### Extend base::aperm() by allowing dropping and/or adding ineffective
-### dimensions. See aperm2.R in the S4Arrays package.
+### Like aperm2() in S4Arrays, extend base::aperm() by allowing dropping
+### and/or adding ineffective dimensions.
 ###
 
 .aperm.COO_SparseArray <- function(a, perm)

@@ -102,7 +102,7 @@ exportMethods(
     bindROWS,
 
     ## Methods for generics defined in the S4Arrays package:
-    aperm, arbind, acbind, extract_array
+    aperm, arbind, acbind, extract_array, is_sparse
 )
 
 
@@ -138,7 +138,7 @@ export(
     rowsum, colsum,
 
     ## SparseArray-class.R:
-    is_sparse, "is_sparse<-", nzcount,
+    nzcount,
 
     ## COO_SparseArray-class.R:
     nzcoo, nzvals,
@@ -150,8 +150,6 @@ export(
 ### Same list as above.
 exportMethods(
     rowsum, colsum,
-    is_sparse,
-    #"is_sparse<-",  # no methods defined in SparseArray!
     nzcount,
     nzcoo, nzvals,
     extract_sparse_array

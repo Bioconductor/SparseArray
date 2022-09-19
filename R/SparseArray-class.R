@@ -66,7 +66,7 @@ setValidity2("SparseMatrix", .validate_SparseMatrix)
 ### SparseArray API:
 ### - Getters: dim(), length(), dimnames(), type().
 ### - Setters: `dimnames<-`(), `type<-`().
-### - is_sparse().
+### - An is_sparse() method that returns TRUE.
 
 setMethod("dim", "SparseArray", function(x) x@dim)
 
@@ -106,25 +106,8 @@ coercion_can_introduce_zeros <- function(from_type, to_type)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Generics is_sparse(), is_sparse<-(), nzcount(), and sparsity()
+### is_sparse(), nzcount(), and sparsity()
 ###
-
-### is_sparse() detects **structural** sparsity which is a global qualitative
-### property of array-like object 'x' rather than a quantitative one.
-### In other words it doesn't look at the data in 'x' to decide whether 'x'
-### should be considered sparse or not. Said otherwise, it is NOT about
-### quantitative sparsity measured by sparsity().
-### IMPORTANT: Seeds for which is_sparse() returns TRUE **must** support
-### extract_sparse_array(). More info about this in SparseArray-subsetting.R
-### where the extract_sparse_array() generic is defined.
-setGeneric("is_sparse", function(x) standardGeneric("is_sparse"))
-
-setGeneric("is_sparse<-", signature="x",
-    function(x, value) standardGeneric("is_sparse<-")
-)
-
-### By default, nothing is considered sparse.
-setMethod("is_sparse", "ANY", function(x) FALSE)
 
 setMethod("is_sparse", "SparseArray", function(x) TRUE)
 

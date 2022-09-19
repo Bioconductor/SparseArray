@@ -5,14 +5,14 @@ Description: Provides a convenient and efficient container for in-memory
 biocViews: Infrastructure, DataRepresentation
 URL: https://bioconductor.org/packages/SparseArray
 BugReports: https://github.com/Bioconductor/SparseArray/issues
-Version: 0.0.2
+Version: 0.0.3
 License: Artistic-2.0
 Encoding: UTF-8
 Author: Hervé Pagès <hpages.on.github@gmail.com>, Rafael A. Irizarry <rafa@ds.harvard.edu>, Vince Carey <stvjc@channing.harvard.edu>
 Maintainer: Hervé Pagès <hpages.on.github@gmail.com>
 Depends: R (>= 4.1.0), methods, stats, Matrix, BiocGenerics (>= 0.43.1),
-	MatrixGenerics, S4Vectors, IRanges, S4Arrays (>= 0.3.2)
-Imports: XVector
+	MatrixGenerics, S4Vectors, S4Arrays (>= 0.3.6)
+Imports: IRanges, XVector
 LinkingTo: S4Vectors, IRanges, XVector
 Suggests: DelayedArray, testthat, knitr, rmarkdown, BiocStyle
 VignetteBuilder: knitr
