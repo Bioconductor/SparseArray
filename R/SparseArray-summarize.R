@@ -24,16 +24,16 @@
         return(GENERIC(x@nzvals, na.rm=na.rm))
     ## Of course a typical COO_SparseArray object "contains" zeros
     ## (i.e. it would contain zeros if we converted it to a dense
-    ## representation with sparse2dense()). However, this is not
-    ## guaranteed so we need to make sure to properly handle the case
-    ## where it doesn't (admittedly unusual and definitely an inefficient
-    ## way to represent dense data!)
+    ## representation with as.array()). However, this is not guaranteed
+    ## so we need to make sure to properly handle the case where it
+    ## doesn't (admittedly unusual and definitely an inefficient way
+    ## to represent dense data!)
     x_has_zeros <- length(x@nzvals) < length(x)
     if (!x_has_zeros)
         return(GENERIC(x@nzvals, na.rm=na.rm))
     x_type <- typeof(x@nzvals)
     if (op == "all") {
-        ## Mimic what 'all(sparse2dense(x))' would do.
+        ## Mimic what 'all(as.array(x))' would do.
         if (x_type == "double")
             warning("coercing argument of type 'double' to logical")
         return(FALSE)

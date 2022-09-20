@@ -3,8 +3,25 @@
 ### -------------------------------------------------------------------------
 
 
-### Virtual class with 2 concrete subclasses: COO_SparseArray and
-### SVT_SparseArray.
+### SparseArray is virtual class with 2 concrete subclasses: COO_SparseArray
+### and SVT_SparseArray.
+###
+### The SparseArray API:
+### 1) Implemented in this file:
+###    - Getters dim(), length(), dimnames(), type()
+###    - Setters `dimnames<-`() and `type<-`()
+###    - An is_sparse() method that returns TRUE
+###    - nzcount() generic
+###    - sparsity()
+### 2) Implemented elsewhere:
+###    - nzcount() methods
+###    - as.array()
+###    - extract_array() and extract_sparse_array()
+###    - Subsetting (`[`) and subassignment (`[<-`)
+###    - read_block_as_dense() and read_block_as_sparse()
+###    - arbind() and acbind()
+###    - aperm()
+
 setClass("SparseArray",
     contains="Array",
     representation(
@@ -63,10 +80,8 @@ setValidity2("SparseMatrix", .validate_SparseMatrix)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### SparseArray API:
-### - Getters: dim(), length(), dimnames(), type().
-### - Setters: `dimnames<-`(), `type<-`().
-### - An is_sparse() method that returns TRUE.
+### dim(), dimnames(), and `dimnames<-`()
+###
 
 setMethod("dim", "SparseArray", function(x) x@dim)
 

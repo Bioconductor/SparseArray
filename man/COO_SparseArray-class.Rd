@@ -21,9 +21,6 @@
 
 \alias{nzcount,COO_SparseArray-method}
 
-\alias{dense2sparse}
-\alias{sparse2dense}
-
 \alias{as.array.COO_SparseArray}
 \alias{as.array,COO_SparseArray-method}
 
@@ -66,16 +63,12 @@ COO_SparseArray(dim, nzcoo=NULL, nzvals=NULL, dimnames=NULL, check=TRUE)
 ## Getters (in addition to dim(), length(), and dimnames()):
 nzcoo(x)
 nzvals(x)
-
-## Two low-level utilities:
-dense2sparse(x)
-sparse2dense(coo)
 }
 
 \arguments{
   \item{dim}{
     The dimensions (specified as an integer vector) of the
-    COO_SparseArray object to create.
+    COO_SparseArray or COO_SparseMatrix object to create.
   }
   \item{nzcoo}{
     A matrix containing the array coordinates of the nonzero values.
@@ -99,12 +92,7 @@ sparse2dense(coo)
     Should the object be validated upon construction?
   }
   \item{x}{
-    A COO_SparseArray object for the \code{nzcoo} and \code{nzvals} getters.
-
-    An array-like object for \code{dense2sparse}.
-  }
-  \item{coo}{
-    A COO_SparseArray object.
+    A COO_SparseArray or COO_SparseMatrix object.
   }
 }
 
@@ -117,11 +105,6 @@ sparse2dense(coo)
           of the nonzero values.
 
     \item For \code{nzvals()}: The vector of nonzero values.
-
-    \item For \code{dense2sparse()}: A COO_SparseArray or COO_SparseMatrix
-          object.
-
-    \item For \code{sparse2dense()}: An ordinary array.
   }
 }
 
@@ -162,8 +145,7 @@ nzvals(coo1)
 type(coo1)
 sparsity(coo1)
 
-sparse2dense(coo1)
-as.array(coo1)   # same as sparse2dense(coo1)
+as.array(coo1)  # back to a dense representation
 
 \dontrun{
 as.matrix(coo1)  # error!
@@ -172,7 +154,7 @@ as.matrix(coo1)  # error!
 ## EXAMPLE 2
 ## ---------------------------------------------------------------------
 m2 <- matrix(c(5:-2, rep.int(c(0L, 99L), 11)), ncol=6)
-coo2 <- dense2sparse(m2)
+coo2 <- as(m2, "COO_SparseArray")
 class(coo2)
 dim(coo2)
 length(coo2)
@@ -181,9 +163,7 @@ nzvals(coo2)
 type(coo2)
 sparsity(coo2)
 
-stopifnot(identical(sparse2dense(coo2), m2))
-
-as.matrix(coo2)  # same as sparse2dense(coo2)
+stopifnot(identical(as.matrix(coo2), m2))
 
 t(coo2)
 stopifnot(identical(as.matrix(t(coo2)), t(as.matrix(coo2))))
@@ -214,7 +194,7 @@ stopifnot(all.equal(as.matrix(coo2), as.matrix(coo2R)))
 ## lgCMatrix/lgRMatrix:
 
 m3 <- m2 == 99  # logical matrix
-coo3 <- dense2sparse(m3)
+coo3 <- as(m3, "COO_SparseArray")
 class(coo3)
 type(coo3)
 

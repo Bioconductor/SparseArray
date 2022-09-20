@@ -115,7 +115,7 @@ export(
     sparsity,
 
     ## COO_SparseArray-class.R:
-    COO_SparseArray, dense2sparse, sparse2dense,
+    COO_SparseArray,
 
     ## SVT_SparseArray-class.R:
     SVT_SparseArray, SparseArray,
@@ -143,8 +143,11 @@ export(
     ## COO_SparseArray-class.R:
     nzcoo, nzvals,
 
-    ## SparseArray-subsetting.R:
-    extract_sparse_array
+    ## extract_sparse_array.R:
+    extract_sparse_array,
+
+    ## read_block_as_sparse.R:
+    read_block_as_sparse
 )
 
 ### Same list as above.
@@ -152,6 +155,7 @@ exportMethods(
     rowsum, colsum,
     nzcount,
     nzcoo, nzvals,
-    extract_sparse_array
+    extract_sparse_array,
+    read_block_as_sparse
 )
 

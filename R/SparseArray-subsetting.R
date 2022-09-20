@@ -1,45 +1,6 @@
 ### =========================================================================
 ### SparseArray subsetting
 ### -------------------------------------------------------------------------
-###
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### The extract_sparse_array() generic
-###
-### extract_sparse_array() is the workhorse behind read_sparse_block(), and,
-### more generally, behind efficient subsetting of sparse array objects.
-### Similar to extract_array() except that:
-###   (1) The extracted array data must be returned as a SparseArray object.
-###       Methods should always operate on the sparse representation
-###       of the data and never "expand" it, that is, never turn it into a
-###       dense representation for example by doing something like
-###       'dense2sparse(extract_array(x, index))'. This would defeat the
-###       purpose of read_sparse_block().
-###   (2) It should be called only on an array-like object 'x' for which
-###       'is_sparse(x)' is TRUE.
-###   (3) The subscripts in 'index' should NOT contain duplicates.
-### IMPORTANT NOTE: For the sake of efficiency, (2) and (3) are NOT checked
-### and are the responsibility of the user. We'll refer to (2) and (3) as
-### the "extract_sparse_array() Terms of Use".
-
-setGeneric("extract_sparse_array",
-    function(x, index)
-    {
-        x_dim <- dim(x)
-        if (is.null(x_dim))
-            stop(wmsg("first argument to extract_sparse_array() ",
-                      "must be an array-like object"))
-        ans <- standardGeneric("extract_sparse_array")
-        expected_dim <- S4Arrays:::get_Nindex_lengths(index, x_dim)
-        ## TODO: Display a more user/developper-friendly error by
-        ## doing something like the extract_array() generic where
-        ## check_returned_array() is used to display a long and
-        ## detailed error message.
-        stopifnot(is(ans, "SparseArray"),
-                  identical(dim(ans), expected_dim))
-        ans
-    }
-)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -72,7 +33,13 @@ setGeneric("extract_sparse_array",
             next
         x_nzcoo[ , along] <- match(x_nzcoo[ , along], i)
     }
-    keep_idx <- which(!rowAnyNAs(x_nzcoo))
+    ## Note that calling rowAnyNAs() on ordinary matrix 'x_nzcoo' would
+    ## also work as it would call the rowAnyNAs() S4 generic defined in
+    ## MatrixGenerics, and the latter would eventually dispatch on
+    ## matrixStats::rowAnyNAs(). However, calling matrixStats::rowAnyNAs()
+    ## should be slightly more efficient. Also note that this call is the
+    ## only reason why we list matrixStats in the Imports field.
+    keep_idx <- which(!matrixStats::rowAnyNAs(x_nzcoo))
     ans_nzcoo <- x_nzcoo[keep_idx, , drop=FALSE]
     ans_nzvals <- x@nzvals[keep_idx]
     COO_SparseArray(ans_dim, ans_nzcoo, ans_nzvals, check=FALSE)
@@ -88,7 +55,7 @@ setMethod("extract_sparse_array", "COO_SparseArray",
     ## "incomplete" in the sense that it does not contain the nonzero data
     ## that should have been repeated according to the duplicates in the
     ## subscripts (see IMPORTANT NOTE above).
-    ans0 <- sparse2dense(coo0)
+    ans0 <- as.array(coo0)
     ## We "complete" 'ans0' by repeating the nonzero data according to the
     ## duplicates present in 'index'. Note that this is easy and cheap to
     ## do now because 'ans0' uses a dense representation (it's an ordinary
@@ -248,41 +215,5 @@ setMethod("[", "SVT_SparseArray", .single_bracket_SVT_SparseArray)
 setMethod("extract_array", "SVT_SparseArray",
     function(x, index)
         as.array(.subset_SVT_SparseArray(x, index, ignore.dimnames=TRUE))
-)
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### extract_sparse_array() methods for [d|l]g[C|R]Matrix objects from the
-### Matrix package
-###
-### TODO: Support more sparseMatrix derivatives (e.g. dgTMatrix, dgRMatrix)
-### as the need arises.
-###
-
-### TODO: Return an SVT_SparseArray instead of a COO_SparseArray object when
-### extracting from a dgCMatrix or lgCMatrix.
-.extract_sparse_array_from_dgCMatrix_or_lgCMatrix <- function(x, index)
-{
-    sm <- S4Arrays:::subset_by_Nindex(x, index)  # a [d|l]gCMatrix object
-    make_COO_SparseMatrix_from_dgCMatrix_or_lgCMatrix(sm, use.dimnames=FALSE)
-}
-
-.extract_sparse_array_from_dgRMatrix_or_lgRMatrix <- function(x, index)
-{
-    sm <- S4Arrays:::subset_by_Nindex(x, index)  # a [d|l]gRMatrix object
-    make_COO_SparseMatrix_from_dgRMatrix_or_lgRMatrix(sm, use.dimnames=FALSE)
-}
-
-setMethod("extract_sparse_array", "dgCMatrix",
-    .extract_sparse_array_from_dgCMatrix_or_lgCMatrix
-)
-setMethod("extract_sparse_array", "lgCMatrix",
-    .extract_sparse_array_from_dgCMatrix_or_lgCMatrix
-)
-setMethod("extract_sparse_array", "dgRMatrix",
-    .extract_sparse_array_from_dgRMatrix_or_lgRMatrix
-)
-setMethod("extract_sparse_array", "lgRMatrix",
-    .extract_sparse_array_from_dgRMatrix_or_lgRMatrix
 )
 

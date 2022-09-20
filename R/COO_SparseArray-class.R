@@ -10,15 +10,12 @@
 ### See https://en.wikipedia.org/wiki/Sparse_matrix#Coordinate_list_(COO)
 ### This layout is also used by https://sparse.pydata.org/
 ###
-### COO_SparseArray API:
-### - The SparseArray API.
-### - Getters: nzcoo(), nzvals().
-### - sparsity().
-### - dense2sparse(), sparse2dense().
-### - Based on sparse2dense(): extract_array(), as.array().
-### - Based on dense2sparse(): coercion to COO_SparseArray.
+### The COO_SparseArray API:
+### - The SparseArray API (see SparseArray-class.R)
+### - Getters nzcoo() and nzvals()
+### - Coercion from array to COO_SparseArray
 ### - Back and forth coercion between COO_SparseArray and [d|l]g[C|R]Matrix
-###   objects from the Matrix package.
+###   objects from the Matrix package
 ###
 
 setClass("COO_SparseArray",
@@ -223,13 +220,13 @@ COO_SparseArray <- function(dim, nzcoo=NULL, nzvals=NULL, dimnames=NULL,
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### dense2sparse() and sparse2dense()
+### .dense2sparse() and .sparse2dense()
 ###
 
 ### 'x' must be an array-like object that supports 'type()' and subsetting
 ### by an M-index subscript.
 ### Returns a COO_SparseArray object.
-dense2sparse <- function(x)
+.dense2sparse <- function(x)
 {
     x_dim <- dim(x)
     if (is.null(x_dim))
@@ -244,7 +241,7 @@ dense2sparse <- function(x)
 
 ### 'coo' must be a COO_SparseArray object.
 ### Return an ordinary array.
-sparse2dense <- function(coo)
+.sparse2dense <- function(coo)
 {
     if (!is(coo, "COO_SparseArray"))
         stop(wmsg("'coo' must be a COO_SparseArray object"))
@@ -261,12 +258,12 @@ sparse2dense <- function(coo)
 ###
 
 ### S3/S4 combo for as.array.COO_SparseArray
-as.array.COO_SparseArray <- function(x, ...) sparse2dense(x)
+as.array.COO_SparseArray <- function(x, ...) .sparse2dense(x)
 setMethod("as.array", "COO_SparseArray", as.array.COO_SparseArray)
 
-setAs("ANY", "COO_SparseArray", function(from) dense2sparse(from))
+setAs("ANY", "COO_SparseArray", function(from) .dense2sparse(from))
 setAs("ANY", "COO_SparseMatrix",
-    function(from) as(dense2sparse(from), "COO_SparseMatrix")
+    function(from) as(.dense2sparse(from), "COO_SparseMatrix")
 )
 
 ### Going back and forth between COO_SparseMatrix and [d|l]g[C|R]Matrix objects
@@ -334,7 +331,7 @@ setAs("COO_SparseMatrix", "lgCMatrix", .from_COO_SparseMatrix_to_lgCMatrix)
 setAs("COO_SparseMatrix", "dgRMatrix", .from_COO_SparseMatrix_to_dgRMatrix)
 setAs("COO_SparseMatrix", "lgRMatrix", .from_COO_SparseMatrix_to_lgRMatrix)
 
-make_COO_SparseMatrix_from_dgCMatrix_or_lgCMatrix <-
+.make_COO_SparseMatrix_from_dgCMatrix_or_lgCMatrix <-
     function(from, use.dimnames=TRUE)
 {
     i <- from@i + 1L
@@ -344,7 +341,7 @@ make_COO_SparseMatrix_from_dgCMatrix_or_lgCMatrix <-
     COO_SparseArray(dim(from), ans_nzcoo, from@x, ans_dimnames, check=FALSE)
 }
 
-make_COO_SparseMatrix_from_dgRMatrix_or_lgRMatrix <-
+.make_COO_SparseMatrix_from_dgRMatrix_or_lgRMatrix <-
     function(from, use.dimnames=TRUE)
 {
     i <- rep.int(seq_len(nrow(from)), diff(from@p))
@@ -355,16 +352,16 @@ make_COO_SparseMatrix_from_dgRMatrix_or_lgRMatrix <-
 }
 
 setAs("dgCMatrix", "COO_SparseMatrix",
-    function(from) make_COO_SparseMatrix_from_dgCMatrix_or_lgCMatrix(from)
+    function(from) .make_COO_SparseMatrix_from_dgCMatrix_or_lgCMatrix(from)
 )
 setAs("lgCMatrix", "COO_SparseMatrix",
-    function(from) make_COO_SparseMatrix_from_dgCMatrix_or_lgCMatrix(from)
+    function(from) .make_COO_SparseMatrix_from_dgCMatrix_or_lgCMatrix(from)
 )
 setAs("dgRMatrix", "COO_SparseMatrix",
-    function(from) make_COO_SparseMatrix_from_dgRMatrix_or_lgRMatrix(from)
+    function(from) .make_COO_SparseMatrix_from_dgRMatrix_or_lgRMatrix(from)
 )
 setAs("lgRMatrix", "COO_SparseMatrix",
-    function(from) make_COO_SparseMatrix_from_dgRMatrix_or_lgRMatrix(from)
+    function(from) .make_COO_SparseMatrix_from_dgRMatrix_or_lgRMatrix(from)
 )
 
 setAs("Matrix", "COO_SparseArray", function(from) as(from, "COO_SparseMatrix"))
