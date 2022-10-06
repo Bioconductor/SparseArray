@@ -34,3 +34,32 @@
   SVT_SparseMatrix and try to do the things that the curatedMetagenomicData
   folks usually do on it.
 
+- Do we need a dedicated container for SVT_SparseArray objects of type
+  logical with no NAs? There's only one possible nonzero value for these
+  objects (TRUE) so there's no need to store the nonzero values. More
+  precisely, the dedicated container could use the following simpler internal
+  representation: keep the tree structure of SVT_SparseArray objects but
+  instead of using a list of 2 parallel vectors for each non-NULL leaf (this
+  list stores the offset/value pairs), use an integer vector to only store
+  the offsets.
+  The dedicated container would be called OVT_SparseArray, for "Offset Vector
+  Tree". It would be another SparseArray subclass. Would inherit the "dim"
+  and "dimnames" slots from SparseArray and only add the "SVT" slot ("type"
+  slot not needed).
+  This would make the memory footprint of an OVT_SparseArray object half
+  that of an SVT_SparseArray of type logical!
+  Notes:
+    - The type of an OVT_SparseArray object would always be "logical".
+    - A typical operation that would return an OVT_SparseArray object is
+      calling is.na() on an SVT_SparseArray object.
+    - OVT_SparseArray is to SVT_SparseArray what ngCMatrix is to dgCMatrix.
+    - Coercion from SVT_SparseArray to OVT_SparseArray should be supported.
+      Would replace all sparse vectors in the tree with offset vectors, by
+      stripping off the "vals" component the non-NULL leaves.
+    - Coercion back from OVT_SparseArray to SVT_SparseArray should also be
+      supported. Would produce a SVT_SparseArray of type logical.
+    - Like with a logical SVT_SparseArray (and, conceptually, with any
+      array-like object of type "logical"), we should be able to use an
+      OVT_SparseArray object to subset another array-like object of identical
+      dimensions (conformable arrays).
+

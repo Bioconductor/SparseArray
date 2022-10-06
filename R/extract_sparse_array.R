@@ -34,7 +34,7 @@ check_returned_SparseArray <- function(ans, expected_dim, .Generic, x_class)
 
 ### extract_sparse_array() is the workhorse behind read_block_as_sparse(),
 ### and, more generally, behind efficient subsetting of sparse array objects.
-### Similar to extract_array() except that:
+### Similar to S4Arrays::extract_array(), except that:
 ###   (1) The extracted array data must be returned as a SparseArray object.
 ###       Methods should always operate on the sparse representation of the
 ###       data and never "expand" it, that is, never turn it into a dense
