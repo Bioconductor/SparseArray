@@ -76,7 +76,7 @@ nzvals(x)
     This must be an integer matrix of array coordinates like
     one returned by \code{base::\link[base]{arrayInd}} or
     \code{S4Arrays::\link[S4Arrays]{Lindex2Mindex}}, that is, a matrix
-    with \code{length(dim)} columns and where each row is an n-uplet
+    with \code{length(dim)} columns and where each row is an n-tuple
     representing the coordinates of an array element.
   }
   \item{nzvals}{

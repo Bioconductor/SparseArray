@@ -4,6 +4,12 @@
   Note that this will require that ExtendableJaggedArray structs are able
   to support other types of columns (only support int at the moment).
 
+- Implement readMatrixMarket() to read a Matrix Market file as a SparseMatrix
+  object, and writeMatrixMarket() to write a SparseMatrix object to a Matrix
+  Market file. These will be the analogs of readMM() and writeMM() from the
+  Matrix package.
+  See https://math.nist.gov/MatrixMarket/formats.html
+
 - Speed up row selection: x[row_idx, ]
 
 - Implement C_subassign_SVT_with_Rarray() and C_subassign_SVT_with_SVT().

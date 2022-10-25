@@ -48,10 +48,10 @@ readSparseCSV(filepath, sep=",", transpose=FALSE)
     columns written to or read from the lines in the CSV file.
 
     Note that using \code{transpose=TRUE} is semantically equivalent to
-    calling \code{t()} on the object before writting it or after reading
+    calling \code{t()} on the object before writing it or after reading
     it, but it will tend to be more efficient. Also it will work even if
     \code{x} does not support \code{t()} (not all matrix-like objects are
-    guaranteed to be transposables).
+    guaranteed to be transposable).
   }
   \item{write.zeros}{
     \code{TRUE} or \code{FALSE}. By default, the zero values in \code{x}
@@ -62,7 +62,7 @@ readSparseCSV(filepath, sep=",", transpose=FALSE)
     \code{writeSparseCSV()} uses a block-processing strategy to try to
     speed up things. By default blocks of 250 rows (or columns if
     \code{transpose=TRUE}) are used. In our experience trying to increase
-    this (e.g. to 500 or more) will generally not produce siginificant
+    this (e.g. to 500 or more) will generally not produce significant
     benefits while it will increase memory usage, so use carefully.
   }
 }

@@ -140,9 +140,9 @@ SVT_SparseArray(x, type=NA)
 
     \item An SVT_SparseArray object with 2 dimensions has its nonzero data
           stored in an SVT of depth 1. Such SVT is represented by a list of
-          length the extend of the 2nd dimension (nb of columns). Each list
-          element is an SVT of depth 0 (as described above), or a NULL if
-          the corresponding column is empty (i.e. has no nonzero data).
+          length the extend of the 2nd dimension (number of columns). Each
+          list element is an SVT of depth 0 (as described above), or a NULL
+          if the corresponding column is empty (i.e. has no nonzero data).
 
           For example, the nonzero data of an 8-column sparse matrix will be
           stored in an SVT that looks like this:
