@@ -8,11 +8,16 @@ BugReports: https://github.com/Bioconductor/SparseArray/issues
 Version: 0.0.4
 License: Artistic-2.0
 Encoding: UTF-8
-Author: Hervé Pagès <hpages.on.github@gmail.com>, Rafael A. Irizarry <rafa@ds.harvard.edu>, Vince Carey <stvjc@channing.harvard.edu>
-Maintainer: Hervé Pagès <hpages.on.github@gmail.com>
-Depends: R (>= 4.1.0), methods, stats, Matrix, BiocGenerics (>= 0.43.1),
+Authors@R: c(
+	person("Hervé", "Pagès", role=c("aut", "cre"),
+		email="hpages.on.github@gmail.com"),
+	person("Vince", "Carey", role="aut",
+		email="stvjc@channing.harvard.edu"),
+	person("Rafael A.", "Irizarry", role="aut",
+		email="rafa@ds.harvard.edu"))
+Depends: R (>= 4.1.0), methods, Matrix, BiocGenerics (>= 0.43.1),
 	MatrixGenerics, S4Vectors, S4Arrays (>= 0.3.7)
-Imports: matrixStats, IRanges, XVector
+Imports: stats, matrixStats, IRanges, XVector
 LinkingTo: S4Vectors, IRanges, XVector
 Suggests: DelayedArray, testthat, knitr, rmarkdown, BiocStyle
 VignetteBuilder: knitr
