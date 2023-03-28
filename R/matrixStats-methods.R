@@ -224,7 +224,7 @@ setMethod("colRanges", "SVT_SparseMatrix",
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
     {
         .check_rows_cols(rows, cols, "colRanges")
-        .colRanges_SVT_SparseMatrix(x, na.rm=na.rm, useNames=useNames)
+        .colRanges_SVT_SparseMatrix(x, na.rm=na.rm, useNames=useNames, ...)
     }
 )
 
@@ -232,7 +232,7 @@ setMethod("rowRanges", "SVT_SparseMatrix",
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
     {
         .check_rows_cols(rows, cols, "rowRanges")
-        .colRanges_SVT_SparseMatrix(t(x), na.rm=na.rm, useNames=useNames)
+        .colRanges_SVT_SparseMatrix(t(x), na.rm=na.rm, useNames=useNames, ...)
     }
 )
 

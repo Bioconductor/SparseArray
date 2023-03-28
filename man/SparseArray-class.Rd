@@ -23,8 +23,9 @@
 \title{SparseArray objects}
 
 \description{
-  SparseArray is a virtual class to be extended by classes that aim at
-  representing in-memory multidimensional sparse arrays.
+  The \pkg{SparseArray} package defines the SparseArray virtual class
+  whose purpose is to be extended by other S4 classes that aim
+  at representing in-memory multidimensional sparse arrays.
 
   It has currently two concrete subclasses, \link{COO_SparseArray}
   and \link{SVT_SparseArray}, that use two different internal
@@ -32,20 +33,33 @@
   the \emph{SVT layout}. These layouts are described in the
   \link{COO_SparseArray} and \link{SVT_SparseArray} man pages, respectively.
 
-  Here is where SparseArray and its two concrete subclasses fit in the
-  \link[S4Arrays]{Array} class hierarchy:
-  \preformatted{
-                          Array
-                            ^
-                            |
-                       SparseArray
-                       ^         ^
-                       |         |
-            COO_SparseArray   SVT_SparseArray}
+  The package also defines the SparseMatrix virtual class, as a subclass
+  of the SparseArray class, for the specific 2D case.
 }
 
 \details{
-  Any object that belongs to a class that extends SparseArray is called
+  The SparseArray class extends the \link[S4Arrays]{Array} virtual class
+  defined in the \pkg{S4Arrays} package. Here is the full SparseArray
+  sub-hierarchy as defined in the \pkg{SparseArray} package (virtual
+  classes are marked with an asterisk):
+  \preformatted{
+: Array class :                 Array*
+: hierarchy   :                   ^
+                                  |
+- - - - - - - - - - - - - - - - - | - - - - - - - - - - - - - - -
+: SparseArray   :            SparseArray*
+: sub-hierarchy :            ^    ^    ^
+                             |    |    |
+                 COO_SparseArray  |  SVT_SparseArray
+                        ^         |         ^
+- - - - - - - - - - - - | - - - - | - - - - | - - - - - - - - - -
+: SparseMatrix      :   |    SparseMatrix*  |
+: sub-sub-hierarchy :   |    ^         ^    |
+                        |    |         |    |
+                 COO_SparseMatrix    SVT_SparseMatrix}
+
+  Any object that belongs to a class that extends SparseArray e.g. (a
+  \link{SVT_SparseArray} or \link{SVT_SparseMatrix} object) is called
   a \emph{SparseArray derivative}.
 
   Most of the \emph{standard array API} defined in base R should work
@@ -70,9 +84,12 @@
 
     \item S4 classes \linkS4class{dgCMatrix} and \linkS4class{lgCMatrix}
           defined in the \pkg{Matrix} package, for the de facto standard
-          of sparse matrix representations in R.
+          for sparse matrix representations in R.
 
     \item \code{\link[S4Arrays]{is_sparse}} in the \pkg{S4Arrays} package.
+
+    \item The \link[S4Arrays]{Array} class defined in the \pkg{S4Arrays}
+          package.
 
     \item Ordinary \link[base]{array} objects in base R.
   }

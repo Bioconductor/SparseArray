@@ -14,9 +14,9 @@
 \title{sparseMatrix utilities}
 
 \description{
-   Some utilities to operate natively on sparseMatrix derivatives (e.g.
-   dgCMatrix and lgCMatrix objects) from the \pkg{Matrix} package.
-   Mostly for internal use.
+  Some utilities to operate natively on sparseMatrix derivatives (e.g.
+  dgCMatrix and lgCMatrix objects) from the \pkg{Matrix} package.
+  Mostly for internal use.
 }
 
 \usage{

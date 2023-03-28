@@ -16,7 +16,7 @@ Authors@R: c(
 	person("Rafael A.", "Irizarry", role="aut",
 		email="rafa@ds.harvard.edu"))
 Depends: R (>= 4.1.0), methods, Matrix, BiocGenerics (>= 0.43.1),
-	MatrixGenerics, S4Vectors, S4Arrays (>= 0.3.7)
+	MatrixGenerics (>= 1.11.1), S4Vectors, S4Arrays (>= 0.3.7)
 Imports: stats, matrixStats, IRanges, XVector
 LinkingTo: S4Vectors, IRanges, XVector
 Suggests: DelayedArray, testthat, knitr, rmarkdown, BiocStyle
