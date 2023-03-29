@@ -1,6 +1,7 @@
 \name{SparseArray-subsetting}
 
 \alias{SparseArray-subsetting}
+\alias{SparseArray_subsetting}
 
 \alias{extract_sparse_array,COO_SparseArray-method}
 \alias{extract_array,COO_SparseArray-method}
@@ -19,7 +20,7 @@
 
 \seealso{
   \itemize{
-    \item \link[base]{[} in base R.
+    \item \code{\link[base]{[}} in base R.
 
     \item \link{SparseArray} objects.
 

@@ -4,10 +4,10 @@
 \alias{readSparseCSV}
 \alias{readSparseTable}
 
-\title{Write/read a sparse matrix from/to a CSV file}
+\title{Read/write a sparse matrix from/to a CSV file}
 
 \description{
-  Write or read a sparse matrix from or to a CSV (comma-separated values) file.
+  Read/write a sparse matrix from/to a CSV (comma-separated values) file.
 }
 
 \usage{

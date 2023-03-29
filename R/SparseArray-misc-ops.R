@@ -19,6 +19,7 @@
 ### section return a COO_SparseArray object of the same dimensions as the
 ### input COO_SparseArray object.
 ###
+### TODO: Add methods for SVT_SparseArray objects.
 
 .UNARY_ISO_OPS <- c("is.na", "is.infinite", "is.nan", "tolower", "toupper")
 
@@ -45,6 +46,7 @@ setMethod("nchar", "COO_SparseArray",
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### which()
 ###
+### TODO: Add method for SVT_SparseArray objects.
 
 .nzcoo_order <- function(nzcoo)
     do.call(order, lapply(ncol(nzcoo):1L, function(along) nzcoo[ , along]))

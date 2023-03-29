@@ -11,7 +11,7 @@
 
 \alias{dim,SparseArray-method}
 \alias{dimnames,SparseArray-method}
-\alias{dimnames<-,SparseArray-method}
+\alias{dimnames<-,SparseArray,ANY-method}
 \alias{is_sparse,SparseArray-method}
 \alias{nzcount}
 \alias{nzcount,CsparseMatrix-method}
@@ -81,6 +81,14 @@
 \seealso{
   \itemize{
     \item The \link{COO_SparseArray} and \link{SVT_SparseArray} classes.
+
+    \item \link{SparseArray_subsetting} for subsetting a SparseArray object.
+
+    \item \link{SparseArray_misc_ops} for miscellaneous operations on a
+          SparseArray object.
+
+    \item \code{\link{readSparseCSV}} for reading/writing a sparse matrix
+          from/to a CSV (comma-separated values) file.
 
     \item S4 classes \linkS4class{dgCMatrix} and \linkS4class{lgCMatrix}
           defined in the \pkg{Matrix} package, for the de facto standard
