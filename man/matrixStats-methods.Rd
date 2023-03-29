@@ -75,11 +75,15 @@
 \S4method{rowMedians}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
 \S4method{colMedians}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
 
-\S4method{rowVars}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL, ..., useNames=NA)
-\S4method{colVars}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL, ..., useNames=NA)
+\S4method{rowVars}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+           ..., useNames=NA)
+\S4method{colVars}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+           ..., useNames=NA)
 
-\S4method{rowSds}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL, ..., useNames=NA)
-\S4method{colSds}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL, ..., useNames=NA)
+\S4method{rowSds}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+          ..., useNames=NA)
+\S4method{colSds}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+          ..., useNames=NA)
 }
 
 \arguments{
@@ -90,7 +94,7 @@
     Not supported.
   }
   \item{na.rm, dims, center, useNames}{
-    See man page for the corresponding generic in the \pkg{MatrixGenerics}
+    See man pages for the corresponding generics in the \pkg{MatrixGenerics}
     package (e.g. \code{?MatrixGenerics::\link[MatrixGenerics]{rowVars}})
     for a description of these arguments.
   }
@@ -102,7 +106,7 @@
 }
 
 \value{
-  See man page for the corresponding generic in the \pkg{MatrixGenerics}
+  See man pages for the corresponding generics in the \pkg{MatrixGenerics}
   package (e.g. \code{?MatrixGenerics::\link[MatrixGenerics]{colRanges}})
   for the value returned by these methods.
 }
