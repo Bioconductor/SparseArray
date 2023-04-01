@@ -15,8 +15,8 @@
 \title{Combine SparseArray objects by rows or columns}
 
 \description{
-  Like ordinary matrices in R, \link{SparseMatrix} derivatives can be combined
-  by rows or columns, with \code{rbind()} or \code{cbind()}.
+  Like ordinary matrices in base R, \link{SparseMatrix} derivatives can be
+  combined by rows or columns, with \code{rbind()} or \code{cbind()}.
 
   The \pkg{SparseArray} package extends these operations to \link{SparseArray}
   derivatives with an arbitrary number of dimensions, as long as the objects

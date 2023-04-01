@@ -14,7 +14,7 @@
 \title{Subsetting a SparseArray object}
 
 \description{
-  Like ordinary arrays in R, \link{SparseArray} derivatives support
+  Like ordinary arrays in base R, \link{SparseArray} derivatives support
   subsetting via the single bracket operator (\code{[}).
 }
 
@@ -34,60 +34,60 @@ a[c(1:2, 8, 10, 15:17, 20, 24, 40, 56:60)] <- (1:15)*10L
 svt <- SparseArray(a)
 svt
 
-svt[5:3, c(4L,2L,4L), 2:3]
+svt[5:3, c(4,2,4), 2:3]
 
-svt[ , c(4L,2L,4L), 2:3]
+svt[ , c(4,2,4), 2:3]
 
-svt[ , c(4L,2L,4L), -1]
+svt[ , c(4,2,4), -1]
 
-svt[ , c(4L,2L,4L), 1L]
+svt[ , c(4,2,4), 1]
 
-svt2 <- svt[ , c(4L,2L,4L), 1L, drop=FALSE]
+svt2 <- svt[ , c(4,2,4), 1, drop=FALSE]
 svt2
 
 ## Ineffective dimensions can always be dropped as a separate step:
 drop(svt2)
 
-svt[ , c(4L,2L,4L), integer(0)]
+svt[ , c(4,2,4), integer(0)]
 
 dimnames(a) <- list(letters[1:5], NULL, LETTERS[1:3])
 svt <- SparseArray(a)
 
-svt[c("d", "a"), c(4L,2L,4L), "C"]
+svt[c("d", "a"), c(4,2,4), "C"]
 
-svt2 <- svt["e", c(4L,2L,4L), , drop=FALSE]
+svt2 <- svt["e", c(4,2,4), , drop=FALSE]
 svt2
 
 drop(svt2)
 
 ## Sanity checks:
-svt2 <- svt[5:3, c(4L,2L,4L), 2:3]
-a2   <- a  [5:3, c(4L,2L,4L), 2:3]
+svt2 <- svt[5:3, c(4,2,4), 2:3]
+a2   <- a  [5:3, c(4,2,4), 2:3]
 stopifnot(identical(as.array(svt2), a2), identical(svt2, SparseArray(a2)))
-svt2 <- svt[ , c(4L,2L,4L), 2:3]
-a2   <- a  [ , c(4L,2L,4L), 2:3]
+svt2 <- svt[ , c(4,2,4), 2:3]
+a2   <- a  [ , c(4,2,4), 2:3]
 stopifnot(identical(as.array(svt2), a2), identical(svt2, SparseArray(a2)))
-svt2 <- svt[ , c(4L,2L,4L), -1]
-a2   <- a  [ , c(4L,2L,4L), -1]
+svt2 <- svt[ , c(4,2,4), -1]
+a2   <- a  [ , c(4,2,4), -1]
 stopifnot(identical(as.array(svt2), a2), identical(svt2, SparseArray(a2)))
-svt2 <- svt[ , c(4L,2L,4L), 1L]
-a2   <- a  [ , c(4L,2L,4L), 1L]
+svt2 <- svt[ , c(4,2,4), 1]
+a2   <- a  [ , c(4,2,4), 1]
 stopifnot(identical(as.array(svt2), a2), identical(svt2, SparseArray(a2)))
-svt2 <- svt[ , c(4L,2L,4L), 1L, drop=FALSE]
-a2   <- a  [ , c(4L,2L,4L), 1L, drop=FALSE]
+svt2 <- svt[ , c(4,2,4), 1, drop=FALSE]
+a2   <- a  [ , c(4,2,4), 1, drop=FALSE]
 stopifnot(identical(as.array(svt2), a2), identical(svt2, SparseArray(a2)))
 svt2 <- drop(svt2)
 a2 <- drop(a2)
 stopifnot(identical(as.array(svt2), a2), identical(svt2, SparseArray(a2)))
-svt2 <- svt[ , c(4L,2L,4L), integer(0)]
-a2   <- a  [ , c(4L,2L,4L), integer(0)]
+svt2 <- svt[ , c(4,2,4), integer(0)]
+a2   <- a  [ , c(4,2,4), integer(0)]
 stopifnot(identical(as.array(svt2), a2),
           identical(unname(svt2), unname(SparseArray(a2))))
-svt2 <- svt[c("d", "a"), c(4L,2L,4L), "C"]
-a2   <- a  [c("d", "a"), c(4L,2L,4L), "C"]
+svt2 <- svt[c("d", "a"), c(4,2,4), "C"]
+a2   <- a  [c("d", "a"), c(4,2,4), "C"]
 stopifnot(identical(as.array(svt2), a2), identical(svt2, SparseArray(a2)))
-svt2 <- svt["e", c(4L,2L,4L), , drop=FALSE]
-a2   <- a  ["e", c(4L,2L,4L), , drop=FALSE]
+svt2 <- svt["e", c(4,2,4), , drop=FALSE]
+a2   <- a  ["e", c(4,2,4), , drop=FALSE]
 stopifnot(identical(as.array(svt2), a2), identical(svt2, SparseArray(a2)))
 svt2 <- drop(svt2)
 a2 <- drop(a2)

@@ -118,7 +118,7 @@ nzvals(x)
 
     \item S4 classes \linkS4class{dgCMatrix} and \linkS4class{lgCMatrix}
           defined in the \pkg{Matrix} package, for the de facto standard
-          of sparse matrix representations in R.
+          of sparse matrix representations in the R ecosystem.
 
     \item \code{base::\link[base]{arrayInd}} in the \pkg{base} package.
 

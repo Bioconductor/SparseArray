@@ -12,26 +12,29 @@
   Note that this will require that ExtendableJaggedArray structs are able
   to support other types of columns (only support int at the moment).
 
+- Implement C_subassign_SVT_with_Rarray() and C_subassign_SVT_with_SVT().
+
+- Speed up row selection: x[row_idx, ]
+
 - Implement readMatrixMarket() to read a Matrix Market file as a SparseMatrix
   object, and writeMatrixMarket() to write a SparseMatrix object to a Matrix
   Market file. These will be the analogs of readMM() and writeMM() from the
   Matrix package.
   See https://math.nist.gov/MatrixMarket/formats.html
 
-- Speed up row selection: x[row_idx, ]
-
-- Implement C_subassign_SVT_with_Rarray() and C_subassign_SVT_with_SVT().
-
-- Implement table() method for SVT_SparseArray objects of type logical,
-  integer, or raw (should it go in R/SparseArray-summarize.R?)
-
-- Implement matrixStats methods for SVT_SparseMatrix objects.
+- Implement more matrixStats methods for SVT_SparseMatrix objects. Those
+  that are still missing and are actually used in Bioconductor are:
+  rowMeans2, rowSums2, rowRanks, rowQuantiles, rowMads, rowIQRs, rowAlls,
+  rowCumsums, rowWeightedMeans, rowAnyNAs) + corresponding col* methods.
 
 - Implement Ops methods (Arith, Compare, Logic) for SVT_SparseArray objects.
 
 - Implement Math2 methods and **some** Math methods (only those that
   preserve sparsity that is: abs, sign, sqrt, ceiling, floor, trunc, log1p,
   asin, asinh, atan, atanh, expm1, sin, sinh, sinpi, tan, tanh, and tanpi).
+
+- Implement table() method for SVT_SparseArray objects of type logical,
+  integer, or raw (should it go in R/SparseArray-summarize.R?)
 
 - Implement crossprod(), tcrossprod(), and %*%, for SVT_SparseMatrix objects.
 

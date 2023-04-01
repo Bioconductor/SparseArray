@@ -84,6 +84,8 @@
 
     \item \link{SparseArray_subsetting} for subsetting a SparseArray object.
 
+    \item \link{SparseArray_subassignment} for SparseArray subassignment.
+
     \item \link{SparseArray_combine} for combining SparseArray objects
           by rows or columns.
 
@@ -95,7 +97,7 @@
 
     \item S4 classes \linkS4class{dgCMatrix} and \linkS4class{lgCMatrix}
           defined in the \pkg{Matrix} package, for the de facto standard
-          for sparse matrix representations in R.
+          for sparse matrix representations in the R ecosystem.
 
     \item \code{\link[S4Arrays]{is_sparse}} in the \pkg{S4Arrays} package.
 

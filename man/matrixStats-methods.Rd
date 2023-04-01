@@ -53,7 +53,7 @@
   Note that these are \emph{S4 generic functions} defined in the
   \pkg{MatrixGenerics} package, with methods for ordinary matrices
   defined in the \pkg{matrixStats} package. This man page documents
-  the methods for \link{SVT_SparseMatrix} objects.
+  the methods defined for \link{SVT_SparseMatrix} objects.
 }
 
 \usage{
@@ -102,7 +102,9 @@
 
 \details{
   All these methods operate \emph{natively} on the \link{SVT_SparseMatrix}
-  representation, and so are fast and memory efficient.
+  representation for maximum efficiency.
+
+  Note that more row/col summarization methods will be added in the future.
 }
 
 \value{

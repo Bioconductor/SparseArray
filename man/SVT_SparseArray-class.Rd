@@ -172,7 +172,7 @@ vector  vector          vector  vector  vector  vector}
 
     \item S4 classes \linkS4class{dgCMatrix} and \linkS4class{lgCMatrix}
           defined in the \pkg{Matrix} package, for the de facto standard
-          of sparse matrix representations in R.
+          of sparse matrix representations in the R ecosystem.
 
     \item Ordinary \link[base]{array} objects in base R.
   }
