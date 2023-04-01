@@ -89,6 +89,12 @@
     \item \link{SparseArray_combine} for combining SparseArray objects
           by rows or columns.
 
+    \item \link{SparseArray_summarization} for SparseArray summarization
+          methods.
+
+    \item \link{matrixStats_methods} for SparseMatrix row/col summarization
+          methods.
+
     \item \link{SparseArray_misc_ops} for miscellaneous operations on a
           SparseArray object.
 

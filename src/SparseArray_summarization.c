@@ -1,9 +1,9 @@
 /****************************************************************************
  *              Summarization methods for SparseArray objects               *
  ****************************************************************************/
-#include "SparseArray_summarize.h"
+#include "SparseArray_summarization.h"
 
-#include "Rvector_summarize.h"
+#include "Rvector_summarization.h"
 #include "leaf_vector_utils.h"
 
 

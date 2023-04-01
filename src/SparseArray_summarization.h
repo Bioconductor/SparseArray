@@ -1,5 +1,5 @@
-#ifndef _SPARSEARRAY_SUMMARIZE_H_
-#define _SPARSEARRAY_SUMMARIZE_H_
+#ifndef _SPARSEARRAY_SUMMARIZATION_H_
+#define _SPARSEARRAY_SUMMARIZATION_H_
 
 #include <Rdefines.h>
 
@@ -24,5 +24,5 @@ SEXP C_anyNA_SVT_SparseArray(
 	SEXP x_SVT
 );
 
-#endif  /* _SPARSEARRAY_SUMMARIZE_H_ */
+#endif  /* _SPARSEARRAY_SUMMARIZATION_H_ */
 

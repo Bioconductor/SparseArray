@@ -1,7 +1,7 @@
 /****************************************************************************
- *                       Summarize an R atomic vector                       *
+ *                     Summarization an R atomic vector                     *
  ****************************************************************************/
-#include "Rvector_summarize.h"
+#include "Rvector_summarization.h"
 
 
 /****************************************************************************
@@ -451,8 +451,8 @@ static inline int sum_X_X2_doubles(void *init, const double *x, int n,
 	return status;
 }
 
-/* One of '*summarize_ints_FUN' or '*summarize_doubles_FUN' will be set
-   to NULL and the other one to a non-NULL value. */
+/* Only one of '*summarize_ints_FUN' or '*summarize_doubles_FUN' will be set
+   to a non-NULL value. The other one will be set to NULL. */
 static void select_summarize_FUN(int opcode, SEXPTYPE Rtype, double shift,
 		SummarizeInts_FUNType *summarize_ints_FUN,
 		SummarizeDoubles_FUNType *summarize_doubles_FUN,
@@ -587,7 +587,7 @@ static SEXP init2nakedSEXP(int opcode, SEXPTYPE Rtype, void *init, int status)
 		if (Rtype == INTSXP) {
 			/* When 'Rtype' is INTSXP, the only kind of NA that
 			   can end up in 'init0' is NA_REAL. No NaN. */
-			if (init0 == NA_REAL) {
+			if (R_IsNA(init0)) {
 				ans = PROTECT(NEW_INTEGER(2));
 				INTEGER(ans)[0] = INTEGER(ans)[1] = NA_INTEGER;
 				UNPROTECT(1);
@@ -622,8 +622,7 @@ static SEXP init2nakedSEXP(int opcode, SEXPTYPE Rtype, void *init, int status)
 	if (Rtype == REALSXP || opcode == SUM_SHIFTED_X2_OPCODE)
 		return ScalarReal(double_init[0]);
 
-	/* Direct comparison with NA_REAL is safe. No need to use R_IsNA(). */
-	if (double_init[0] == NA_REAL)
+	if (R_IsNA(double_init[0]))
 		return ScalarInteger(NA_INTEGER);
 	if (double_init[0] <= INT_MAX && double_init[0] >= -INT_MAX)
 		/* Round 'double_init[0]' to the nearest integer. */

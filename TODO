@@ -33,8 +33,11 @@
   preserve sparsity that is: abs, sign, sqrt, ceiling, floor, trunc, log1p,
   asin, asinh, atan, atanh, expm1, sin, sinh, sinpi, tan, tanh, and tanpi).
 
+- Implement more summarization methods for SVT_SparseArray objects.
+  See R/SparseArray-summarization.R
+
 - Implement table() method for SVT_SparseArray objects of type logical,
-  integer, or raw (should it go in R/SparseArray-summarize.R?)
+  integer, or raw (should it go in R/SparseArray-summarization.R?)
 
 - Implement crossprod(), tcrossprod(), and %*%, for SVT_SparseMatrix objects.
 

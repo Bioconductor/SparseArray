@@ -1,6 +1,7 @@
 \name{matrixStats-methods}
 
 \alias{matrixStats-methods}
+\alias{matrixStats_methods}
 
 \alias{colSums}
 \alias{colSums,SVT_SparseMatrix-method}
@@ -102,7 +103,7 @@
 
 \details{
   All these methods operate \emph{natively} on the \link{SVT_SparseMatrix}
-  representation for maximum efficiency.
+  representation, for maximum efficiency.
 
   Note that more row/col summarization methods will be added in the future.
 }

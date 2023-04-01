@@ -1,5 +1,5 @@
-#ifndef _RVECTOR_SUMMARIZE_H_
-#define _RVECTOR_SUMMARIZE_H_
+#ifndef _RVECTOR_SUMMARIZATION_H_
+#define _RVECTOR_SUMMARIZATION_H_
 
 #include <Rdefines.h>
 
@@ -65,5 +65,5 @@ int _count_Rvector_NAs(SEXP Rvector);
 
 int _Rvector_has_any_NA(SEXP Rvector);
 
-#endif  /* _RVECTOR_SUMMARIZE_H_ */
+#endif  /* _RVECTOR_SUMMARIZATION_H_ */
 
