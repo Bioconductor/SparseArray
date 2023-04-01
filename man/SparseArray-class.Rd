@@ -84,6 +84,9 @@
 
     \item \link{SparseArray_subsetting} for subsetting a SparseArray object.
 
+    \item \link{SparseArray_combine} for combining SparseArray objects
+          by rows or columns.
+
     \item \link{SparseArray_misc_ops} for miscellaneous operations on a
           SparseArray object.
 

@@ -9,11 +9,11 @@
 
 .TEST_arrays <- list(
     array(1:60, c(3, 5, 4),
-           dimnames=list(NULL, paste0("M1y", 1:5), NULL)),
+           dimnames=list(NULL, paste0("A1y", 1:5), NULL)),
     array(101:240, c(7, 5, 4),
-           dimnames=list(paste0("M2x", 1:7), paste0("M2y", 1:5), NULL)),
+           dimnames=list(paste0("A2x", 1:7), paste0("A2y", 1:5), NULL)),
     array(10001:10100, c(5, 5, 4),
-           dimnames=list(paste0("M3x", 1:5), NULL, paste0("M3z", 1:4)))
+           dimnames=list(paste0("A3x", 1:5), NULL, paste0("A3z", 1:4)))
 )
 
 test_that("rbind_SVT_SparseMatrix_objects", {
