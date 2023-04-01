@@ -6,8 +6,6 @@
 \alias{coerce,Array,RsparseMatrix-method}
 \alias{coerce,Array,sparseMatrix-method}
 
-\alias{rowsum,ANY-method}
-\alias{colsum,ANY-method}
 \alias{rowsum.dgCMatrix}
 \alias{rowsum,dgCMatrix-method}
 
@@ -20,18 +18,6 @@
 }
 
 \usage{
-## rowsum() and colsum() S4 generics:
-
-#rowsum(x, group, reorder=TRUE, ...)
-#colsum(x, group, reorder=TRUE, ...)
-
-## Default methods:
-
-\S4method{rowsum}{ANY}(x, group, reorder=TRUE, ...)
-\S4method{colsum}{ANY}(x, group, reorder=TRUE, ...)
-
-## rowsum() method for dgCMatrix objects:
-
 \S4method{rowsum}{dgCMatrix}(x, group, reorder=TRUE, ...)
 }
 
@@ -48,15 +34,13 @@
 \value{
   See \code{?base::\link[base]{rowsum}} for the value returned
   by the default \code{rowsum} method.
-
-  The default \code{colsum} method returns
-  \code{t(rowsum(t(x), group, reorder=reorder, ...))}.
 }
 
 \seealso{
   \itemize{
-    \item \code{base::\link[base]{rowsum}} in the \pkg{base} package for
-          the default \code{rowsum} method.
+    \item \code{S4Arrays::\link[S4Arrays]{rowsum}} in the \pkg{S4Arrays}
+          package for the \code{rowsum} and \code{colsum} S4 generic
+          functions.
 
     \item \linkS4class{dgCMatrix} objects in the \pkg{Matrix} package.
   }
