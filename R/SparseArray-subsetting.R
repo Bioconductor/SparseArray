@@ -159,7 +159,7 @@ setMethod("drop", "SVT_SparseArray",
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### SVT_SparseArray single-bracket subsetting (based on extract_sparse_array())
+### SVT_SparseArray single-bracket subsetting
 ###
 
 .subset_SVT_SparseArray_by_logical_array <- function(x, y, drop=TRUE)
