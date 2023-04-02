@@ -78,7 +78,8 @@ readSparseCSV(filepath, sep=",", transpose=FALSE)
   \itemize{
     \item \link{SparseArray} objects.
 
-    \item \linkS4class{dgCMatrix} objects in the \pkg{Matrix} package.
+    \item \linkS4class{dgCMatrix} objects implemented in the \pkg{Matrix}
+          package.
   }
 }
 

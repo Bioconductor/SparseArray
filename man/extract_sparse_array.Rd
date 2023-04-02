@@ -25,7 +25,8 @@ extract_sparse_array(x, index)
 
 \arguments{
   \item{x}{
-    An array-like object for which \code{is_sparse(x)} is \code{TRUE}.
+    An array-like object for which \code{\link[S4Arrays]{is_sparse}(x)}
+    is \code{TRUE}.
   }
   \item{index}{
     An unnamed list of integer vectors, one per dimension in \code{x}.
@@ -51,10 +52,12 @@ extract_sparse_array(x, index)
 
   For maximum efficiency, \code{extract_sparse_array()} methods should:
   \enumerate{
-    \item NOT check that \code{is_sparse(x)} is \code{TRUE}.
+    \item NOT check that \code{\link[S4Arrays]{is_sparse}(x)} is \code{TRUE}.
 
     \item NOT check that the individual list elements in \code{index}
           contain no duplicated indices.
+
+    \item NOT try to do anything with the dimnames on \code{x}.
 
     \item always operate natively on the sparse representation of the
           data in \code{x}, that is, they should never \emph{expand}
@@ -69,8 +72,6 @@ extract_sparse_array(x, index)
   return an M x 0 \link{SparseArray} derivative, and
   \code{extract_sparse_array(x, list(integer(0), integer(0)))}
   a 0 x 0 \link{SparseArray} derivative.
-
-  Finally, methods don't need to handle the dimnames on \code{x}.
 }
 
 \value{
@@ -85,6 +86,10 @@ extract_sparse_array(x, index)
 
 \seealso{
   \itemize{
+    \item \code{\link[S4Arrays]{is_sparse}} in the \pkg{S4Arrays} package
+          to check whether an object uses a sparse representation of the
+          data or not.
+
     \item \link{SparseArray} objects.
 
     \item \code{S4Arrays::\link[S4Arrays]{type}} in the \pkg{S4Arrays}
@@ -95,7 +100,8 @@ extract_sparse_array(x, index)
 
     \item \code{\link[S4Arrays]{extract_array}} in the \pkg{S4Arrays} package.
 
-    \item \linkS4class{dgCMatrix} objects in the \pkg{Matrix} package.
+    \item \linkS4class{dgCMatrix} objects implemented in the \pkg{Matrix}
+          package.
   }
 }
 
@@ -126,3 +132,5 @@ extract_sparse_array(svt, list(NULL, 4:2, 2:3))
 extract_sparse_array(svt, list(NULL, 4:2, integer(0)))
 }
 \keyword{internal}
+\keyword{array}
+\keyword{methods}

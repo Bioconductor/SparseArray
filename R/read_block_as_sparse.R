@@ -12,7 +12,7 @@
 ### object 'x' for which 'is_sparse(x)' is TRUE. This is considered
 ### responsibility of the caller and we trust the caller to do the right
 ### thing, so, for the sake of efficiency, individual read_block_as_sparse()
-### methods don't need to check this again. See SparseArray-subsetting.R
+### methods don't need to check this again. See extract_sparse_array.R
 ### for more information.
 ### Must also return a SparseArray object, like extract_sparse_array().
 ### Note that the S4Arrays::read_block() wrapper will take care of

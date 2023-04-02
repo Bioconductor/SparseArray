@@ -15,7 +15,7 @@
 ### efficient as possible, the code below does NOT repeat the nonzero data
 ### that corresponds to duplicates subscripts. It does not check for
 ### duplicates in 'index' either because this check could have a
-### non-negligible cost.
+### significant cost.
 ### All this is OK because .extract_COO_SparseArray_subset() should
 ### always be used in a context where 'index' does NOT contain duplicates.
 ### The only situation where 'index' CAN contain duplicates is when

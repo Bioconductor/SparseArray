@@ -34,5 +34,5 @@ svt[5:3, c(4,2,4), 2:3] <- -99L
 a[5:3, c(4,2,4), 2:3] <- -99L
 stopifnot(identical(as.array(svt), a), identical(svt, SparseArray(a)))
 }
-\keyword{methods}
 \keyword{array}
+\keyword{methods}

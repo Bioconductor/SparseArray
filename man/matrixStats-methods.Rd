@@ -165,7 +165,7 @@ stopifnot(
   identical(colVars(svt0, na.rm=TRUE), colVars(m0, na.rm=TRUE))
 )
 }
+\keyword{array}
 \keyword{methods}
 \keyword{algebra}
 \keyword{arith}
-\keyword{array}

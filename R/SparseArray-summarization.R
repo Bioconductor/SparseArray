@@ -128,7 +128,6 @@ range.SVT_SparseArray <- function(..., na.rm=FALSE, finite=FALSE)
         attr(ans, "na_rm_count") <- NULL
     ans
 }
-
 ### The signature of all the members in the Summary group generic is
 ### 'x, ..., na.rm' (see getGeneric("range")) which means that methods
 ### cannot add arguments after 'na.rm'. So we add the 'finite' argument

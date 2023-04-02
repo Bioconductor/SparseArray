@@ -74,5 +74,5 @@ sa3 <- rbind(sa1, sa2)
 a3 <- arbind(a1, a2)
 stopifnot(identical(as.array(sa3), a3), identical(sa3, SparseArray(a3)))
 }
-\keyword{methods}
 \keyword{array}
+\keyword{methods}

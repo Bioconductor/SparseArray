@@ -80,5 +80,5 @@ which(coo)
 
 stopifnot(identical(which(coo), as.integer(nzidx)))
 }
-\keyword{methods}
 \keyword{array}
+\keyword{methods}

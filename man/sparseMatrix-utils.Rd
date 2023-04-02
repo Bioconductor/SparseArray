@@ -42,7 +42,8 @@
           package for the \code{rowsum} and \code{colsum} S4 generic
           functions.
 
-    \item \linkS4class{dgCMatrix} objects in the \pkg{Matrix} package.
+    \item \linkS4class{dgCMatrix} objects implemented in the \pkg{Matrix}
+          package.
   }
 }
 
@@ -57,4 +58,5 @@ rs <- rowsum(m, group)
 
 stopifnot(identical(rs0, rs))
 }
+\keyword{array}
 \keyword{methods}

@@ -93,5 +93,5 @@ svt2 <- drop(svt2)
 a2 <- drop(a2)
 stopifnot(identical(as.array(svt2), a2), identical(svt2, SparseArray(a2)))
 }
-\keyword{methods}
 \keyword{array}
+\keyword{methods}

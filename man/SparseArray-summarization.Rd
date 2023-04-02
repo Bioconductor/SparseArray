@@ -3,7 +3,9 @@
 \alias{SparseArray-summarization}
 \alias{SparseArray_summarization}
 
+\alias{range.COO_SparseArray}
 \alias{range,COO_SparseArray-method}
+\alias{range.SVT_SparseArray}
 \alias{range,SVT_SparseArray-method}
 
 \alias{mean,SparseArray-method}
@@ -78,7 +80,7 @@ stopifnot(
   identical(anyNA(svt0), anyNA(m0))
 )
 }
+\keyword{array}
 \keyword{methods}
 \keyword{algebra}
 \keyword{arith}
-\keyword{array}
