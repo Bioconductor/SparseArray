@@ -252,8 +252,8 @@ SEXP _subassign_leaf_vector_with_Rvector(SEXP lv, SEXP index, SEXP Rvector)
 		} else {
 			/* *offs1_p == *offs2_p */
 			offs1_p++;
-			offs2_p++;
 			k1++;
+			offs2_p++;
 			k2++;
 		}
 		ans_len++;
@@ -288,8 +288,8 @@ SEXP _subassign_leaf_vector_with_Rvector(SEXP lv, SEXP index, SEXP Rvector)
 			copy_Rvector_elt_FUN(Rvector, (R_xlen_t) k2,
 					     ans_vals, (R_xlen_t) k);
 			offs1_p++;
-			offs2_p++;
 			k1++;
+			offs2_p++;
 			k2++;
 		}
 		ans_offs_p++;
@@ -344,5 +344,79 @@ int _summarize_leaf_vector(SEXP lv, int d,
 					     na_rm_count, status);
 	}
 	return status;
+}
+
+
+/****************************************************************************
+ * Dot product of leaf_vectors
+ */
+
+double _dotprod_leaf_vectors(SEXP lv1, SEXP lv2)
+{
+	int lv1_len, lv2_len, k1, k2;
+	SEXP lv1_offs, lv1_vals, lv2_offs, lv2_vals;
+	const int *offs1_p, *offs2_p;
+	const double *vals1_p, *vals2_p;
+	double ans, v1, v2;
+
+	lv1_len = _split_leaf_vector(lv1, &lv1_offs, &lv1_vals);
+	lv2_len = _split_leaf_vector(lv2, &lv2_offs, &lv2_vals);
+	offs1_p = INTEGER(lv1_offs);
+	vals1_p = REAL(lv1_vals);
+	offs2_p = INTEGER(lv2_offs);
+	vals2_p = REAL(lv2_vals);
+	k1 = k2 = 0;
+	ans = 0.0;
+	while (k1 < lv1_len && k2 < lv2_len) {
+		if (*offs1_p < *offs2_p) {
+			v1 = *vals1_p;
+			v2 = 0.0;
+			if (R_IsNA(v1))
+				return NA_REAL;
+			vals1_p++;
+			offs1_p++;
+			k1++;
+		} else if (*offs1_p > *offs2_p) {
+			v1 = 0.0;
+			v2 = *vals2_p;
+			if (R_IsNA(v2))
+				return NA_REAL;
+			vals2_p++;
+			offs2_p++;
+			k2++;
+		} else {
+			/* *offs1_p == *offs2_p */
+			v1 = *vals1_p;
+			v2 = *vals2_p;
+			if (R_IsNA(v1) || R_IsNA(v2))
+				return NA_REAL;
+			vals1_p++;
+			offs1_p++;
+			k1++;
+			vals2_p++;
+			offs2_p++;
+			k2++;
+		}
+		ans += v1 * v2;
+	}
+	return ans;
+}
+
+double _dotprod0_leaf_vector(SEXP lv)
+{
+	int lv_len, k;
+	SEXP lv_offs, lv_vals;
+	const double *vals_p;
+	double ans, v;
+
+	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
+	ans = 0.0;
+	for (k = 0, vals_p = REAL(lv_vals); k < lv_len; k++, vals_p++) {
+		v = *vals_p;
+		if (R_IsNA(v))
+			return NA_REAL;
+		ans += 0.0 * v;
+	}
+	return ans;
 }
 

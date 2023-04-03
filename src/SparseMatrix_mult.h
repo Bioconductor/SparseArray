@@ -3,12 +3,20 @@
 
 #include <Rdefines.h>
 
-SEXP C_SVT_SparseMatrix_crossprod(
+SEXP C_SVT_crossprod1(
+	SEXP x_dim,
+	SEXP x_SVT,
+	SEXP ans_type,
+	SEXP ans_dimnames
+);
+
+SEXP C_SVT_crossprod2(
 	SEXP x_dim,
 	SEXP x_SVT,
 	SEXP y_dim,
 	SEXP y_SVT,
-	SEXP ans_type
+	SEXP ans_type,
+	SEXP ans_dimnames
 );
 
 #endif  /* _SPARSEMATRIX_MULT_H_ */

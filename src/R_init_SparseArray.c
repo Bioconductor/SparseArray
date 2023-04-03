@@ -31,16 +31,16 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_from_SVT_SparseArray_to_COO_SparseArray, 3),
 	CALLMETHOD_DEF(C_transpose_SVT_SparseMatrix, 3),
 
+/* SparseArray_subsetting.c */
+	CALLMETHOD_DEF(C_drop_SVT_SparseArray_ineffective_dims, 4),
+	CALLMETHOD_DEF(C_subset_SVT_SparseArray, 4),
+
 /* SparseArray_subassignment.c */
 	CALLMETHOD_DEF(C_subassign_SVT_by_Mindex, 5),
 	CALLMETHOD_DEF(C_subassign_SVT_by_Lindex, 5),
 	CALLMETHOD_DEF(C_subassign_SVT_with_short_Rvector, 5),
 	CALLMETHOD_DEF(C_subassign_SVT_with_Rarray, 5),
 	CALLMETHOD_DEF(C_subassign_SVT_with_SVT, 7),
-
-/* SparseArray_subsetting.c */
-	CALLMETHOD_DEF(C_drop_SVT_SparseArray_ineffective_dims, 4),
-	CALLMETHOD_DEF(C_subset_SVT_SparseArray, 4),
 
 /* SparseArray_combine.c */
 	CALLMETHOD_DEF(C_abind_SVT_SparseArray_objects, 3),
@@ -51,7 +51,8 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_anyNA_SVT_SparseArray, 3),
 
 /* SparseMatrix_mult.c */
-	CALLMETHOD_DEF(C_SVT_SparseMatrix_crossprod, 5),
+	CALLMETHOD_DEF(C_SVT_crossprod1, 4),
+	CALLMETHOD_DEF(C_SVT_crossprod2, 6),
 
 /* randomSparseArray.c */
 	CALLMETHOD_DEF(C_simple_rpois, 2),

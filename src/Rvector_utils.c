@@ -4,6 +4,40 @@
  ****************************************************************************/
 #include "Rvector_utils.h"
 
+#include <string.h>  /* for memset() */
+
+
+/* The 7 types of R vectors (6 types of atomic vectors + the "list" type). */
+static const SEXPTYPE Rvector_types[] = {
+        LGLSXP,   // "logical"
+        INTSXP,   // "integer"
+        REALSXP,  // "double"
+        CPLXSXP,  // "complex"
+        RAWSXP,   // "raw"
+        STRSXP,   // "character"
+
+        VECSXP    // "list"
+};
+
+/* Return 0 if supplied 'type' is invalid string. */
+SEXPTYPE _get_Rtype_from_Rstring(SEXP type)
+{
+	SEXP type0;
+	SEXPTYPE Rtype;
+	int ntypes, i;
+
+	if (!IS_CHARACTER(type) || LENGTH(type) != 1)
+		return 0;
+	type0 = STRING_ELT(type, 0);
+	if (type0 == NA_STRING)
+		return 0;
+	Rtype = str2type(CHAR(type0));
+	ntypes = sizeof(Rvector_types) / sizeof(SEXPTYPE);
+	for (i = 0; i < ntypes; i++)
+		if (Rtype == Rvector_types[i])
+			return Rtype;
+	return 0;
+}
 
 size_t _get_Rtype_size(SEXPTYPE Rtype)
 {
@@ -15,7 +49,6 @@ size_t _get_Rtype_size(SEXPTYPE Rtype)
 	}
 	return 0;
 }
-
 
 /* Like allocVector() but with initialization of the vector elements. */
 SEXP _new_Rvector(SEXPTYPE Rtype, R_xlen_t len)
@@ -48,9 +81,9 @@ SEXP _new_Rarray(SEXPTYPE Rtype, SEXP dim, SEXP dimnames)
 	size_t Rtype_size;
 
 	ans = PROTECT(allocArray(Rtype, dim));
-	/* allocArray() is just a thin wrapper for allocVector() and the
-	   latter does NOT initialize the vector elements, except for a
-	   list or a character vector. */
+	/* allocArray() is just a thin wrapper around allocVector() and
+	   the latter does NOT initialize the vector elements, except for
+	   a list or a character vector. */
 	if (Rtype != STRSXP && Rtype != VECSXP) {
 		Rtype_size = _get_Rtype_size(Rtype);
 		if (Rtype_size == 0) {

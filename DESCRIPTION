@@ -27,8 +27,8 @@ Collate: sparseMatrix-utils.R
 	SVT_SparseArray-class.R
 	extract_sparse_array.R
 	read_block_as_sparse.R
-	SparseArray-subassignment.R
 	SparseArray-subsetting.R
+	SparseArray-subassignment.R
 	SparseArray-combine.R
 	SparseArray-summarization.R
 	SparseArray-misc-ops.R

@@ -3,6 +3,11 @@
 
 #include <Rdefines.h>
 
+
+/****************************************************************************
+ * typedefs
+ */
+
 typedef void (*CopyRVectorElt_FUNType)(
 	SEXP in,  R_xlen_t in_offset,
 	SEXP out, R_xlen_t out_offset);
@@ -11,6 +16,11 @@ typedef void (*CopyRVectorElts_FUNType)(
 	SEXP in,  R_xlen_t in_offset,
 	SEXP out, R_xlen_t out_offset,
 	R_xlen_t nelt);
+
+
+/****************************************************************************
+ * Inline functions
+ */
 
 static inline void _copy_INTEGER_elt(
 		SEXP in,  R_xlen_t in_offset,
@@ -136,7 +146,14 @@ static inline void _copy_LIST_elts(
 	return;
 }
 
+
+/****************************************************************************
+ * Function prototypes
+ */
+
 SEXPTYPE _get_Rtype_from_Rstring(SEXP type);
+
+size_t _get_Rtype_size(SEXPTYPE Rtype);
 
 SEXP _new_Rvector(
 	SEXPTYPE Rtype,

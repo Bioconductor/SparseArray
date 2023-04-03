@@ -257,7 +257,7 @@ setMethod("anyNA", "SVT_SparseArray",
     s / (nval - 1L)
 }
 
-setMethod("var", "SparseArray",
+setMethod("var", c("SparseArray", "ANY"),
     function(x, y = NULL, na.rm = FALSE, use)
     {
         if (!is.null(y))

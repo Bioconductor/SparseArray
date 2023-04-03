@@ -96,5 +96,12 @@ int _summarize_leaf_vector(
 	int status
 );
 
+double _dotprod_leaf_vectors(
+	SEXP lv1,
+	SEXP lv2
+);
+
+double _dotprod0_leaf_vector(SEXP lv);
+
 #endif  /* _LEAF_VECTOR_UTILS_H_ */
 

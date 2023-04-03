@@ -13,40 +13,7 @@
 #include <string.h>  /* for memset() */
 
 
-/* All the atomic types + "list". */
-static const SEXPTYPE supported_SVT_Rtypes[] = {
-	LGLSXP,   // "logical"
-	INTSXP,   // "integer"
-	REALSXP,  // "double"
-	CPLXSXP,  // "complex"
-	RAWSXP,   // "raw"
-	STRSXP,   // "character"
-
-	VECSXP    // "list"
-};
-
-/* Also checks the supplied 'type'. */
-SEXPTYPE _get_Rtype_from_Rstring(SEXP type)
-{
-	SEXP type0;
-	SEXPTYPE Rtype;
-	int ntypes, i;
-
-	if (!IS_CHARACTER(type) || LENGTH(type) != 1)
-		return 0;
-	type0 = STRING_ELT(type, 0);
-	if (type0 == NA_STRING)
-		return 0;
-	Rtype = str2type(CHAR(type0));
-	ntypes = sizeof(supported_SVT_Rtypes) / sizeof(SEXPTYPE);
-	for (i = 0; i < ntypes; i++)
-		if (Rtype == supported_SVT_Rtypes[i])
-			return Rtype;
-	return 0;
-}
-
-/* General purpose copy function.
-   We only support the 7 SEXP types listed in 'supported_SVT_Rtypes' above. */
+/* General purpose copy function. */
 static inline int copy_Rvector_elts(
 		SEXP in,  R_xlen_t in_offset,
 		SEXP out, R_xlen_t out_offset,

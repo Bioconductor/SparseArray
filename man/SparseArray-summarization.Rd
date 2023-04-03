@@ -13,7 +13,7 @@
 \alias{anyNA,COO_SparseArray-method}
 \alias{anyNA,SVT_SparseArray-method}
 
-\alias{var,SparseArray-method}
+\alias{var,SparseArray,ANY-method}
 
 \title{SparseArray summarization methods}
 
