@@ -96,6 +96,11 @@ int _summarize_leaf_vector(
 	int status
 );
 
+double _dotprod_leaf_vector_and_finite_col(
+	SEXP lv1,
+	const double *x2
+);
+
 double _dotprod_leaf_vectors(
 	SEXP lv1,
 	SEXP lv2

@@ -71,7 +71,8 @@ int _get_summarize_opcode(SEXP op, SEXPTYPE Rtype)
  * caller knows whether to bail out or not (break condition).
  */
 
-#define DOUBLE_IS_NA(x) (R_IsNA(x) || R_IsNaN(x))
+/* ISNAN(): True for *both* NA and NaN. See <R_ext/Arith.h> */
+#define DOUBLE_IS_NA(x) (ISNAN(x))
 
 /* Does NOT ignore 'status'. */
 static inline int min_ints(void *init, const int *x, int n,

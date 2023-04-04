@@ -351,6 +351,31 @@ int _summarize_leaf_vector(SEXP lv, int d,
  * Dot product of leaf_vectors
  */
 
+/* Safe to use if 'x2' is finite i.e. contains no NA, NaN, Inf, or -Inf,
+   or if 'lv1' and 'x2' represent the same numeric vector.
+   If not sure, use _dotprod_leaf_vectors() below.
+   The offsets in 'lv1' are assumed to be valid offsets in 'x2'. This
+   is NOT checked! */
+double _dotprod_leaf_vector_and_finite_col(SEXP lv1, const double *x2)
+{
+	int lv1_len, k1;
+	SEXP lv1_offs, lv1_vals;
+	const int *offs1_p;
+	const double *vals1_p;
+	double ans;
+
+	lv1_len = _split_leaf_vector(lv1, &lv1_offs, &lv1_vals);
+	offs1_p = INTEGER(lv1_offs);
+	vals1_p = REAL(lv1_vals);
+	ans = 0.0;
+	for (k1 = 0; k1 < lv1_len; k1++) {
+		ans += *vals1_p * x2[*offs1_p];
+		offs1_p++;
+		vals1_p++;
+	}
+	return ans;
+}
+
 double _dotprod_leaf_vectors(SEXP lv1, SEXP lv2)
 {
 	int lv1_len, lv2_len, k1, k2;

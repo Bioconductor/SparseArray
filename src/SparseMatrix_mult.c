@@ -8,15 +8,112 @@
 
 #include <string.h>  /* for memset() */
 
+static int lv_is_finite(SEXP lv)
+{
+	int lv_len, k;
+	SEXP lv_offs, lv_vals;
+	const double *vals_p;
+	double v;
+
+	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
+	vals_p = REAL(lv_vals);
+	for (k = 0; k < lv_len; k++) {
+		v = *vals_p;
+		/* ISNAN(): True for *both* NA and NaN. See <R_ext/Arith.h> */
+		if (ISNAN(v) || v == R_PosInf || v == R_NegInf)
+			return 0;
+		vals_p++;
+	}
+	return 1;
+}
+
+static void expand_double_lv(SEXP lv, double *x, int x_len)
+{
+	int lv_len;
+	SEXP lv_offs, lv_vals;
+
+	memset(x, 0, sizeof(double) * x_len);
+	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
+	_copy_doubles_to_offsets(REAL(lv_vals), INTEGER(lv_offs), lv_len, x);
+	return;
+}
+
+static void compute_dotprods_with_finite_col(SEXP SVT, int ncol, int j,
+		const double *col, double *out)
+{
+	double *out1, *out2;
+	int i;
+	SEXP subSVT1;
+
+	out1 = out + 1;
+	out2 = out + ncol;
+	for (i = j + 1; i < ncol; i++, out1++, out2 += ncol) {
+		subSVT1 = VECTOR_ELT(SVT, i);
+		if (subSVT1 == R_NilValue)
+			continue;
+		*out1 = *out2 =
+			_dotprod_leaf_vector_and_finite_col(subSVT1, col);
+	}
+	return;
+}
+
+static void compute_dotprods_with_right_lv(SEXP SVT, int ncol, int j,
+		SEXP lv2, double *out)
+{
+	double *out1, *out2, dp;
+	int i;
+	SEXP subSVT1;
+
+	out1 = out + 1;
+	out2 = out + ncol;
+	for (i = j + 1; i < ncol; i++, out1++, out2 += ncol) {
+		subSVT1 = VECTOR_ELT(SVT, i);
+		if (subSVT1 == R_NilValue) {
+			dp = _dotprod0_leaf_vector(lv2);
+		} else {
+			dp = _dotprod_leaf_vectors(subSVT1, lv2);
+		}
+		*out1 = *out2 = dp;
+	}
+}
+
+static void crossprod1_double(SEXP x_SVT, int x_nrow, int x_ncol, double *out)
+{
+	int i, j;
+	SEXP subSVT1, subSVT2;
+	double *col, *out1, *out2;
+
+	if (x_SVT == R_NilValue)
+		return;
+	col = (double *) R_alloc(x_nrow, sizeof(double));
+	for (j = 0; j < x_ncol; j++, out += x_ncol + 1) {
+		subSVT2 = VECTOR_ELT(x_SVT, j);
+		if (subSVT2 == R_NilValue) {
+			memset(col, 0, sizeof(double) * x_nrow);
+			compute_dotprods_with_finite_col(x_SVT, x_ncol, j,
+							 col, out);
+		} else if (lv_is_finite(subSVT2)) {
+			expand_double_lv(subSVT2, col, x_nrow);
+			*out =
+			  _dotprod_leaf_vector_and_finite_col(subSVT2, col);
+			compute_dotprods_with_finite_col(x_SVT, x_ncol, j,
+							 col, out);
+		} else {
+			*out = _dotprod_leaf_vectors(subSVT2, subSVT2);
+			compute_dotprods_with_right_lv(x_SVT, x_ncol, j,
+						       subSVT2, out);
+		}
+	}
+	return;
+}
 
 /* --- .Call ENTRY POINT --- */
 SEXP C_SVT_crossprod1(SEXP x_dim, SEXP x_SVT, SEXP ans_type, SEXP ans_dimnames)
 {
 	SEXPTYPE ans_Rtype;
 	size_t ans_Rtype_size;
-	int x_ncol, i, j;
-	SEXP ans, subSVT1, subSVT2;
-	double dp;
+	int x_nrow, x_ncol;
+	SEXP ans;
 
 	/* Check 'ans_type'. */
 	ans_Rtype = _get_Rtype_from_Rstring(ans_type);
@@ -34,6 +131,7 @@ SEXP C_SVT_crossprod1(SEXP x_dim, SEXP x_SVT, SEXP ans_type, SEXP ans_dimnames)
 	/* Check 'x_dim'. */
 	if (LENGTH(x_dim) != 2)
 		error("'x' must have 2 dimensions");
+	x_nrow = INTEGER(x_dim)[0];
 	x_ncol = INTEGER(x_dim)[1];
 
 	/* Allocate 'ans' and fill with zeros. */
@@ -45,34 +143,7 @@ SEXP C_SVT_crossprod1(SEXP x_dim, SEXP x_SVT, SEXP ans_type, SEXP ans_dimnames)
 	if (ans_Rtype != STRSXP && ans_Rtype != VECSXP)
 		memset(DATAPTR(ans), 0, ans_Rtype_size * XLENGTH(ans));
 
-	/* The easy case. */
-	if (x_SVT == R_NilValue) {
-		UNPROTECT(1);
-		return(ans);
-	}
-
-	/* The general case. */
-	for (j = 0; j < x_ncol; j++) {
-		subSVT2 = VECTOR_ELT(x_SVT, j);
-		if (subSVT2 != R_NilValue) {
-			dp = _dotprod_leaf_vectors(subSVT2, subSVT2);
-			REAL(ans)[j + j * x_ncol] = dp;
-		}
-		for (i = j + 1; i < x_ncol; i++) {
-			subSVT1 = VECTOR_ELT(x_SVT, i);
-			if (subSVT1 == R_NilValue && subSVT2 == R_NilValue)
-				continue;
-			if (subSVT1 == R_NilValue) {
-				dp = _dotprod0_leaf_vector(subSVT2);
-			} else if (subSVT2 == R_NilValue) {
-				dp = _dotprod0_leaf_vector(subSVT1);
-			} else {
-				dp = _dotprod_leaf_vectors(subSVT1, subSVT2);
-			}
-			REAL(ans)[i + j * x_ncol] = dp;
-			REAL(ans)[j + i * x_ncol] = dp;
-		}
-	}
+	crossprod1_double(x_SVT, x_nrow, x_ncol, REAL(ans));
 
 	UNPROTECT(1);
 	return ans;
