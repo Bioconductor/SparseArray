@@ -381,6 +381,7 @@ double _dotprod_leaf_vectors(SEXP lv1, SEXP lv2)
 	int lv1_len, lv2_len, k1, k2;
 	SEXP lv1_offs, lv1_vals, lv2_offs, lv2_vals;
 	const int *offs1_p, *offs2_p;
+	int off1, off2;
 	const double *vals1_p, *vals2_p;
 	double ans, v1, v2;
 
@@ -393,6 +394,30 @@ double _dotprod_leaf_vectors(SEXP lv1, SEXP lv2)
 	k1 = k2 = 0;
 	ans = 0.0;
 	while (k1 < lv1_len && k2 < lv2_len) {
+		off1 = offs1_p[k1];
+		off2 = offs2_p[k2];
+		if (off1 < off2) {
+			v1 = vals1_p[k1];
+			v2 = 0.0;
+			if (R_IsNA(v1))
+				return NA_REAL;
+			k1++;
+		} else if (off1 > off2) {
+			v1 = 0.0;
+			v2 = vals2_p[k2];
+			if (R_IsNA(v2))
+				return NA_REAL;
+			k2++;
+		} else {
+			// off1 == off2
+			v1 = vals1_p[k1];
+			v2 = vals2_p[k2];
+			if (R_IsNA(v1) || R_IsNA(v2))
+				return NA_REAL;
+			k1++;
+			k2++;
+		}
+/*
 		if (*offs1_p < *offs2_p) {
 			v1 = *vals1_p;
 			v2 = 0.0;
@@ -410,7 +435,7 @@ double _dotprod_leaf_vectors(SEXP lv1, SEXP lv2)
 			offs2_p++;
 			k2++;
 		} else {
-			/* *offs1_p == *offs2_p */
+			// *offs1_p == *offs2_p
 			v1 = *vals1_p;
 			v2 = *vals2_p;
 			if (R_IsNA(v1) || R_IsNA(v2))
@@ -422,6 +447,7 @@ double _dotprod_leaf_vectors(SEXP lv1, SEXP lv2)
 			offs2_p++;
 			k2++;
 		}
+*/
 		ans += v1 * v2;
 	}
 	return ans;

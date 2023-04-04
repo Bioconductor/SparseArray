@@ -57,6 +57,21 @@ static void compute_dotprods_with_finite_col(SEXP SVT, int ncol, int j,
 	return;
 }
 
+static void compute_dotprods2_with_finite_col(SEXP SVT, int nrow,
+		const double *col, double *out)
+{
+	int i;
+	SEXP subSVT1;
+
+	for (i = 0; i < nrow; i++, out++) {
+		subSVT1 = VECTOR_ELT(SVT, i);
+		if (subSVT1 == R_NilValue)
+			continue;
+		*out = _dotprod_leaf_vector_and_finite_col(subSVT1, col);
+	}
+	return;
+}
+
 static void compute_dotprods_with_right_lv(SEXP SVT, int ncol, int j,
 		SEXP lv2, double *out)
 {
@@ -75,13 +90,31 @@ static void compute_dotprods_with_right_lv(SEXP SVT, int ncol, int j,
 		}
 		*out1 = *out2 = dp;
 	}
+	return;
+}
+
+static void compute_dotprods2_with_right_lv(SEXP SVT, int nrow,
+		SEXP lv2, double *out)
+{
+	int i;
+	SEXP subSVT1;
+
+	for (i = 0; i < nrow; i++, out++) {
+		subSVT1 = VECTOR_ELT(SVT, i);
+		if (subSVT1 == R_NilValue) {
+			*out = _dotprod0_leaf_vector(lv2);
+		} else {
+			*out = _dotprod_leaf_vectors(subSVT1, lv2);
+		}
+	}
+	return;
 }
 
 static void crossprod1_double(SEXP x_SVT, int x_nrow, int x_ncol, double *out)
 {
-	int i, j;
-	SEXP subSVT1, subSVT2;
-	double *col, *out1, *out2;
+	int j;
+	SEXP subSVT2;
+	double *col;
 
 	if (x_SVT == R_NilValue)
 		return;
@@ -107,11 +140,79 @@ static void crossprod1_double(SEXP x_SVT, int x_nrow, int x_ncol, double *out)
 	return;
 }
 
+static void crossprod2_double(SEXP x_SVT, int x_nrow, int x_ncol,
+			      SEXP y_SVT, int y_ncol, double *out)
+{
+	int i, j;
+	SEXP subSVT2;
+	double *col;
+
+	if (x_SVT == R_NilValue) {
+		if (y_SVT == R_NilValue)
+			return;
+		for (j = 0; j < y_ncol; j++, out += x_ncol) {
+			subSVT2 = VECTOR_ELT(y_SVT, j);
+			if (subSVT2 == R_NilValue)
+				continue;
+			for (i = 0; i < x_ncol; i++)
+				out[i] = _dotprod0_leaf_vector(subSVT2);
+		}
+	}
+	col = (double *) R_alloc(x_nrow, sizeof(double));
+	subSVT2 = R_NilValue;
+	for (j = 0; j < y_ncol; j++, out += x_ncol) {
+		if (y_SVT != R_NilValue)
+			subSVT2 = VECTOR_ELT(y_SVT, j);
+		if (subSVT2 == R_NilValue) {
+			memset(col, 0, sizeof(double) * x_nrow);
+			compute_dotprods2_with_finite_col(x_SVT, x_ncol,
+							  col, out);
+		} else if (lv_is_finite(subSVT2)) {
+			expand_double_lv(subSVT2, col, x_nrow);
+			compute_dotprods2_with_finite_col(x_SVT, x_ncol,
+							  col, out);
+		} else {
+			compute_dotprods2_with_right_lv(x_SVT, x_ncol,
+						        subSVT2, out);
+		}
+	}
+	return;
+}
+
+/****************************************************************************
+ * C_SVT_crossprod1() and C_SVT_crossprod2()
+ */
+
+/* Like allocMatrix() but with initialization of the matrix elements.
+   Also set the dimnames. */
+static SEXP new_Rmatrix(SEXPTYPE Rtype, int nrow, int ncol, SEXP dimnames)
+{
+	SEXP ans;
+	size_t Rtype_size;
+
+	ans = PROTECT(allocMatrix(Rtype, nrow, ncol));
+	SET_DIMNAMES(ans, dimnames);
+	/* allocMatrix() is just a thin wrapper around allocVector() and
+	   the latter does NOT initialize the vector elements, except for
+	   a list or a character vector. */
+	if (Rtype != STRSXP && Rtype != VECSXP) {
+		Rtype_size = _get_Rtype_size(Rtype);
+		if (Rtype_size == 0) {
+			UNPROTECT(1);
+			error("SparseArray internal error in new_Rmatrix():\n"
+			      "    type \"%s\" is not supported",
+			      type2char(Rtype));
+		}
+		memset(DATAPTR(ans), 0, Rtype_size * XLENGTH(ans));
+	}
+	UNPROTECT(1);
+	return ans;
+}
+
 /* --- .Call ENTRY POINT --- */
 SEXP C_SVT_crossprod1(SEXP x_dim, SEXP x_SVT, SEXP ans_type, SEXP ans_dimnames)
 {
 	SEXPTYPE ans_Rtype;
-	size_t ans_Rtype_size;
 	int x_nrow, x_ncol;
 	SEXP ans;
 
@@ -126,7 +227,6 @@ SEXP C_SVT_crossprod1(SEXP x_dim, SEXP x_SVT, SEXP ans_type, SEXP ans_dimnames)
 		      "C_SVT_crossprod1():\n"
 		      "    type \"%s\" is not supported yet",
 		      type2char(ans_Rtype));
-	ans_Rtype_size = _get_Rtype_size(ans_Rtype);
 
 	/* Check 'x_dim'. */
 	if (LENGTH(x_dim) != 2)
@@ -135,13 +235,7 @@ SEXP C_SVT_crossprod1(SEXP x_dim, SEXP x_SVT, SEXP ans_type, SEXP ans_dimnames)
 	x_ncol = INTEGER(x_dim)[1];
 
 	/* Allocate 'ans' and fill with zeros. */
-	ans = PROTECT(allocMatrix(ans_Rtype, x_ncol, x_ncol));
-	SET_DIMNAMES(ans, ans_dimnames);
-        /* allocMatrix() is just a thin wrapper around allocVector() and
-           the latter does NOT initialize the vector elements, except for
-           a list or a character vector. */
-	if (ans_Rtype != STRSXP && ans_Rtype != VECSXP)
-		memset(DATAPTR(ans), 0, ans_Rtype_size * XLENGTH(ans));
+	ans = PROTECT(new_Rmatrix(ans_Rtype, x_ncol, x_ncol, ans_dimnames));
 
 	crossprod1_double(x_SVT, x_nrow, x_ncol, REAL(ans));
 
@@ -154,10 +248,8 @@ SEXP C_SVT_crossprod2(SEXP x_dim, SEXP x_SVT, SEXP y_dim, SEXP y_SVT,
 		      SEXP ans_type, SEXP ans_dimnames)
 {
 	SEXPTYPE ans_Rtype;
-	size_t ans_Rtype_size;
-	int x_ncol, y_ncol, i, j;
-	SEXP ans, subSVT1, subSVT2;
-	double dp;
+	int x_nrow, x_ncol, y_ncol;
+	SEXP ans;
 
 	/* Check 'ans_type'. */
 	ans_Rtype = _get_Rtype_from_Rstring(ans_type);
@@ -170,51 +262,20 @@ SEXP C_SVT_crossprod2(SEXP x_dim, SEXP x_SVT, SEXP y_dim, SEXP y_SVT,
 		      "C_SVT_crossprod2():\n"
 		      "    type \"%s\" is not supported yet",
 		      type2char(ans_Rtype));
-	ans_Rtype_size = _get_Rtype_size(ans_Rtype);
 
 	/* Check 'x_dim' and 'y_dim'. */
 	if (LENGTH(x_dim) != 2 || LENGTH(y_dim) != 2)
 		error("arguments must have 2 dimensions");
-	if (INTEGER(x_dim)[0] != INTEGER(y_dim)[0])
+	x_nrow = INTEGER(x_dim)[0];
+	if (x_nrow != INTEGER(y_dim)[0])
 		error("non-conformable arguments");
 	x_ncol = INTEGER(x_dim)[1];
 	y_ncol = INTEGER(y_dim)[1];
 
 	/* Allocate 'ans' and fill with zeros. */
-	ans = PROTECT(allocMatrix(ans_Rtype, x_ncol, y_ncol));
-	SET_DIMNAMES(ans, ans_dimnames);
-        /* allocMatrix() is just a thin wrapper around allocVector() and
-           the latter does NOT initialize the vector elements, except for
-           a list or a character vector. */
-	if (ans_Rtype != STRSXP && ans_Rtype != VECSXP)
-		memset(DATAPTR(ans), 0, ans_Rtype_size * XLENGTH(ans));
+	ans = PROTECT(new_Rmatrix(ans_Rtype, x_ncol, y_ncol, ans_dimnames));
 
-	/* The easy case. */
-	if (x_SVT == R_NilValue && y_SVT == R_NilValue) {
-		UNPROTECT(1);
-		return(ans);
-	}
-
-	/* The general case. */
-	subSVT1 = subSVT2 = R_NilValue;
-	for (j = 0; j < y_ncol; j++) {
-		if (y_SVT != R_NilValue)
-			subSVT2 = VECTOR_ELT(y_SVT, j);
-		for (i = 0; i < x_ncol; i++) {
-			if (x_SVT != R_NilValue)
-				subSVT1 = VECTOR_ELT(x_SVT, i);
-			if (subSVT1 == R_NilValue && subSVT2 == R_NilValue)
-				continue;
-			if (subSVT1 == R_NilValue) {
-				dp = _dotprod0_leaf_vector(subSVT2);
-			} else if (subSVT2 == R_NilValue) {
-				dp = _dotprod0_leaf_vector(subSVT1);
-			} else {
-				dp = _dotprod_leaf_vectors(subSVT1, subSVT2);
-			}
-			REAL(ans)[i + j * x_ncol] = dp;
-		}
-	}
+	crossprod2_double(x_SVT, x_nrow, x_ncol, y_SVT, y_ncol, REAL(ans));
 
 	UNPROTECT(1);
 	return ans;
