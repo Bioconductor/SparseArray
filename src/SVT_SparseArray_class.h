@@ -3,6 +3,11 @@
 
 #include <Rdefines.h>
 
+R_xlen_t _REC_get_SVT_nzcount(
+	SEXP SVT,
+	int ndim
+);
+
 SEXP C_get_SVT_SparseArray_nzcount(
 	SEXP x_dim,
 	SEXP x_SVT

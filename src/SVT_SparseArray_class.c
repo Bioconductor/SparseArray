@@ -42,7 +42,7 @@ static inline int copy_Rvector_elts(
  */
 
 /* Recursive. */
-static R_xlen_t REC_get_SVT_nzcount(SEXP SVT, int ndim)
+R_xlen_t _REC_get_SVT_nzcount(SEXP SVT, int ndim)
 {
 	R_xlen_t nzcount;
 	int SVT_len, i;
@@ -61,7 +61,7 @@ static R_xlen_t REC_get_SVT_nzcount(SEXP SVT, int ndim)
 	SVT_len = LENGTH(SVT);
 	for (i = 0; i < SVT_len; i++) {
 		subSVT = VECTOR_ELT(SVT, i);
-		nzcount += REC_get_SVT_nzcount(subSVT, ndim - 1);
+		nzcount += _REC_get_SVT_nzcount(subSVT, ndim - 1);
 	}
 	return nzcount;
 }
@@ -71,7 +71,7 @@ SEXP C_get_SVT_SparseArray_nzcount(SEXP x_dim, SEXP x_SVT)
 {
 	R_xlen_t nzcount;
 
-	nzcount = REC_get_SVT_nzcount(x_SVT, LENGTH(x_dim));
+	nzcount = _REC_get_SVT_nzcount(x_SVT, LENGTH(x_dim));
 	if (nzcount > INT_MAX)
 		return ScalarReal((double) nzcount);
 	return ScalarInteger((int) nzcount);
@@ -375,7 +375,7 @@ SEXP C_from_SVT_SparseMatrix_to_CsparseMatrix(SEXP x_dim,
 		error("object to coerce to [d|l]gCMatrix "
 		      "must have exactly 2 dimensions");
 
-	nzcount = REC_get_SVT_nzcount(x_SVT, 2);
+	nzcount = _REC_get_SVT_nzcount(x_SVT, 2);
 	if (nzcount > INT_MAX)
 		error("SVT_SparseMatrix object contains too many nonzero "
 		      "values to be turned into a dgCMatrix or lgCMatrix "
@@ -604,7 +604,7 @@ SEXP C_from_SVT_SparseArray_to_COO_SparseArray(SEXP x_dim,
 	int nzcoo_nrow, nzcoo_ncol, *rowbuf, nzdata_offset, ret;
 	SEXP nzcoo, nzvals, ans;
 
-	nzcount = REC_get_SVT_nzcount(x_SVT, LENGTH(x_dim));
+	nzcount = _REC_get_SVT_nzcount(x_SVT, LENGTH(x_dim));
 	if (nzcount > INT_MAX)
 		error("SVT_SparseArray object contains too many nonzero "
 		      "values to be turned into a COO_SparseArray object");
