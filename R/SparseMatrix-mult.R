@@ -48,7 +48,7 @@
     ans_dimnames <- list(colnames(x), colnames(y))
     ans_dimnames <- S4Arrays:::simplify_NULL_dimnames(ans_dimnames)
     .Call2("C_SVT_crossprod2", x@dim, x@type, x@SVT, y@dim, y@type, y@SVT,
-	   ans_type, ans_dimnames,
+           ans_type, ans_dimnames,
            PACKAGE="SparseArray")
 }
 
@@ -58,5 +58,57 @@ setMethod("crossprod", c("SVT_SparseMatrix", "missing"),
 
 setMethod("crossprod", c("SVT_SparseMatrix", "SVT_SparseMatrix"),
     .SVT_SparseMatrix_crossprod2
+)
+
+setMethod("crossprod", c("SVT_SparseMatrix", "ANY"),
+    function(x, y=NULL)
+        .SVT_SparseMatrix_crossprod2(x, as(y, "SVT_SparseMatrix"))
+)
+
+setMethod("crossprod", c("ANY", "SVT_SparseMatrix"),
+    function(x, y=NULL)
+        .SVT_SparseMatrix_crossprod2(as(x, "SVT_SparseMatrix"), y)
+)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### tcrossprod()
+###
+
+setMethod("tcrossprod", c("SVT_SparseMatrix", "missing"),
+    function(x, y=NULL) .SVT_SparseMatrix_crossprod1(t(x))
+)
+
+setMethod("tcrossprod", c("SVT_SparseMatrix", "SVT_SparseMatrix"),
+    function(x, y=NULL) .SVT_SparseMatrix_crossprod2(t(x), t(y))
+)
+
+setMethod("tcrossprod", c("SVT_SparseMatrix", "ANY"),
+    function(x, y=NULL)
+        .SVT_SparseMatrix_crossprod2(t(x), t(as(y, "SVT_SparseMatrix")))
+)
+
+setMethod("tcrossprod", c("ANY", "SVT_SparseMatrix"),
+    function(x, y=NULL)
+        .SVT_SparseMatrix_crossprod2(t(as(x, "SVT_SparseMatrix")), t(y))
+)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Matrix multiplication
+###
+
+setMethod("%*%", c("SVT_SparseMatrix", "SVT_SparseMatrix"),
+    function(x, y) .SVT_SparseMatrix_crossprod2(t(x), y)
+)
+
+setMethod("%*%", c("SVT_SparseMatrix", "ANY"),
+    function(x, y)
+        .SVT_SparseMatrix_crossprod2(t(x), as(y, "SVT_SparseMatrix"))
+)
+
+setMethod("%*%", c("ANY", "SVT_SparseMatrix"),
+    function(x, y)
+        .SVT_SparseMatrix_crossprod2(t(as(x, "SVT_SparseMatrix")), y)
 )
 

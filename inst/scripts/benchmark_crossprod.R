@@ -29,7 +29,7 @@ exec_and_print_scores <- function(FUN, list_of_args)
             if (i == 1L)
                 t1 <<- t
             label <- paste0(names(list_of_args)[[i]], ":")
-	    tm <- sprintf("%6.3fs", t)
+            tm <- sprintf("%6.3fs", t)
             score <- sprintf("%8.4g", t1/t)
             cat("  ", format(label, width=40), " ",
                       tm, " ", score, "\n", sep="")

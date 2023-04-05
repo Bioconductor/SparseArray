@@ -84,7 +84,7 @@ exportMethods(
     anyNA,
     var,
     nchar,
-    crossprod,
+    crossprod, tcrossprod, "%*%",
 
     ## Methods for generics defined in the methods package:
     coerce, show,
