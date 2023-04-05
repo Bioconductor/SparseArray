@@ -406,6 +406,15 @@ double _dotprod_leaf_vector_and_noNA_int_col(SEXP lv1, const int *x2)
 	return ans;
 }
 
+#define	ADD_DOUBLE_PROD0(vals_p, v)	\
+{					\
+	v = *vals_p;			\
+	if (R_IsNA(v))			\
+		return NA_REAL;		\
+	ans += v * 0.0;			\
+	vals_p++;			\
+}
+
 double _dotprod_leaf_vectors(SEXP lv1, SEXP lv2)
 {
 	int lv1_len, lv2_len, k1, k2;
@@ -424,61 +433,38 @@ double _dotprod_leaf_vectors(SEXP lv1, SEXP lv2)
 	k1 = k2 = 0;
 	ans = 0.0;
 	while (k1 < lv1_len && k2 < lv2_len) {
-		off1 = offs1_p[k1];
-		off2 = offs2_p[k2];
+		off1 = *offs1_p;
+		off2 = *offs2_p;
 		if (off1 < off2) {
-			v1 = vals1_p[k1];
-			v2 = 0.0;
-			if (R_IsNA(v1))
-				return NA_REAL;
+			ADD_DOUBLE_PROD0(vals1_p, v1);
+			offs1_p++;
 			k1++;
 		} else if (off1 > off2) {
-			v1 = 0.0;
-			v2 = vals2_p[k2];
-			if (R_IsNA(v2))
-				return NA_REAL;
+			ADD_DOUBLE_PROD0(vals2_p, v2);
+			offs2_p++;
 			k2++;
 		} else {
 			// off1 == off2
-			v1 = vals1_p[k1];
-			v2 = vals2_p[k2];
-			if (R_IsNA(v1) || R_IsNA(v2))
-				return NA_REAL;
-			k1++;
-			k2++;
-		}
-/*
-		if (*offs1_p < *offs2_p) {
-			v1 = *vals1_p;
-			v2 = 0.0;
-			if (R_IsNA(v1))
-				return NA_REAL;
-			vals1_p++;
-			offs1_p++;
-			k1++;
-		} else if (*offs1_p > *offs2_p) {
-			v1 = 0.0;
-			v2 = *vals2_p;
-			if (R_IsNA(v2))
-				return NA_REAL;
-			vals2_p++;
-			offs2_p++;
-			k2++;
-		} else {
-			// *offs1_p == *offs2_p
 			v1 = *vals1_p;
 			v2 = *vals2_p;
 			if (R_IsNA(v1) || R_IsNA(v2))
 				return NA_REAL;
-			vals1_p++;
+			ans += v1 * v2;
 			offs1_p++;
+			vals1_p++;
 			k1++;
-			vals2_p++;
 			offs2_p++;
+			vals2_p++;
 			k2++;
 		}
-*/
-		ans += v1 * v2;
+	}
+	while (k1 < lv1_len) {
+		ADD_DOUBLE_PROD0(vals1_p, v1);
+		k1++;
+	}
+	while (k2 < lv2_len) {
+		ADD_DOUBLE_PROD0(vals2_p, v2);
+		k2++;
 	}
 	return ans;
 }
@@ -493,13 +479,8 @@ double _dotprod0_leaf_vector(SEXP lv)
 	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
 	vals_p = REAL(lv_vals);
 	ans = 0.0;
-	for (k = 0; k < lv_len; k++) {
-		v = *vals_p;
-		if (R_IsNA(v))
-			return NA_REAL;
-		ans += 0.0 * v;
-		vals_p++;
-	}
+	for (k = 0; k < lv_len; k++)
+		ADD_DOUBLE_PROD0(vals_p, v);
 	return ans;
 }
 

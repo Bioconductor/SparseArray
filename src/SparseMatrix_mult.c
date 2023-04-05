@@ -286,7 +286,7 @@ static void crossprod1_double(SEXP SVT, int in_nrow, double *out, int out_ncol)
 }
 
 /* crossprod1_int() is the workhorse behind unary crossprod() when the
-   input object is a SVT_SparseMatrix object of type "integer". It
+   input object is an SVT_SparseMatrix object of type "integer". It
    works **natively** on the object. However, it turns out that going thru
    crossprod1_double() by doing:
 
