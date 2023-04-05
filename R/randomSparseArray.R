@@ -67,7 +67,7 @@ poissonSparseArray <- function(dim, lambda=-log(0.95), density=NA)
     if (!missing(lambda)) {
         if (!isSingleNumber(lambda) || lambda < 0)
             stop(wmsg("'lambda' must be a non-negative number"))
-    } else {
+    } else if (!identical(density, NA)) {
         if (!isSingleNumber(density) || density < 0 || density >= 1)
             stop(wmsg("'density' must be a number >= 0 and < 1"))
         lambda <- -log(1 - density)

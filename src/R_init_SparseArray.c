@@ -51,8 +51,8 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_anyNA_SVT_SparseArray, 3),
 
 /* SparseMatrix_mult.c */
-	CALLMETHOD_DEF(C_SVT_crossprod1, 4),
-	CALLMETHOD_DEF(C_SVT_crossprod2, 6),
+	CALLMETHOD_DEF(C_SVT_crossprod1, 5),
+	CALLMETHOD_DEF(C_SVT_crossprod2, 8),
 
 /* randomSparseArray.c */
 	CALLMETHOD_DEF(C_simple_rpois, 2),

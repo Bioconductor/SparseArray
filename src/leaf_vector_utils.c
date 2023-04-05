@@ -351,7 +351,8 @@ int _summarize_leaf_vector(SEXP lv, int d,
  * Dot product of leaf_vectors
  */
 
-/* Safe to use if 'x2' is finite i.e. contains no NA, NaN, Inf, or -Inf,
+/* 'lv1' must be a leaf vector containing doubles.
+   Safe to use if 'x2' is finite i.e. contains no NA, NaN, Inf, or -Inf,
    or if 'lv1' and 'x2' represent the same numeric vector.
    If not sure, use _dotprod_leaf_vectors() below.
    The offsets in 'lv1' are assumed to be valid offsets in 'x2'. This
@@ -370,6 +371,35 @@ double _dotprod_leaf_vector_and_finite_col(SEXP lv1, const double *x2)
 	ans = 0.0;
 	for (k1 = 0; k1 < lv1_len; k1++) {
 		ans += *vals1_p * x2[*offs1_p];
+		offs1_p++;
+		vals1_p++;
+	}
+	return ans;
+}
+
+/* 'lv1' must be a leaf vector containing ints.
+   Safe to use if 'x2' contains no NA, or if 'lv1' and 'x2' represent
+   the same integer vector.
+   The offsets in 'lv1' are assumed to be valid offsets in 'x2'. This
+   is NOT checked! */
+double _dotprod_leaf_vector_and_noNA_int_col(SEXP lv1, const int *x2)
+{
+	int lv1_len, k1;
+	SEXP lv1_offs, lv1_vals;
+	const int *offs1_p;
+	const int *vals1_p;
+	double ans;
+	int v1;
+
+	lv1_len = _split_leaf_vector(lv1, &lv1_offs, &lv1_vals);
+	offs1_p = INTEGER(lv1_offs);
+	vals1_p = INTEGER(lv1_vals);
+	ans = 0.0;
+	for (k1 = 0; k1 < lv1_len; k1++) {
+		v1 = *vals1_p;
+		if (v1 == NA_INTEGER)
+			return NA_REAL;
+		ans += (double) v1 * x2[*offs1_p];
 		offs1_p++;
 		vals1_p++;
 	}
@@ -461,12 +491,14 @@ double _dotprod0_leaf_vector(SEXP lv)
 	double ans, v;
 
 	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
+	vals_p = REAL(lv_vals);
 	ans = 0.0;
-	for (k = 0, vals_p = REAL(lv_vals); k < lv_len; k++, vals_p++) {
+	for (k = 0; k < lv_len; k++) {
 		v = *vals_p;
 		if (R_IsNA(v))
 			return NA_REAL;
 		ans += 0.0 * v;
+		vals_p++;
 	}
 	return ans;
 }
