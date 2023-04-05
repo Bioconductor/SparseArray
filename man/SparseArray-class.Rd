@@ -92,11 +92,14 @@
     \item \link{SparseArray_summarization} for SparseArray summarization
           methods.
 
-    \item \link{matrixStats_methods} for SparseMatrix row/col summarization
-          methods.
-
     \item \link{SparseArray_misc_ops} for miscellaneous operations on a
           SparseArray object.
+
+    \item \link{SparseMatrix_mult} for SparseMatrix multiplication and
+          cross-product.
+
+    \item \link{matrixStats_methods} for SparseMatrix row/col summarization
+          methods.
 
     \item \code{\link{readSparseCSV}} for reading/writing a sparse matrix
           from/to a CSV (comma-separated values) file.
