@@ -12,7 +12,7 @@ Description: The SparseArray package defines the SparseArray virtual class
 biocViews: Infrastructure, DataRepresentation
 URL: https://bioconductor.org/packages/SparseArray
 BugReports: https://github.com/Bioconductor/SparseArray/issues
-Version: 0.99.0
+Version: 0.99.1
 License: Artistic-2.0
 Encoding: UTF-8
 Authors@R: c(
