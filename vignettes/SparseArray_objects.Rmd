@@ -132,7 +132,9 @@ Note that assigning values of type `"double"` to an SVT\_SparseArray
 object of type `"integer"` will automatically change the type of the
 object to `"double"`:
 ```{r}
+type(svt2)
 svt2[5, 1, 3] <- NaN
+type(svt2)
 ```
 
 ## Combining objects by rows or columns
