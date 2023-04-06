@@ -15,9 +15,10 @@
 \title{Miscellaneous operations on a SparseArray object}
 
 \description{
-  This man page documents various base array operations that supported
-  by \link{SparseArray} derivatives, and that didn't belong in any of the
-  group of operations documented in other man pages.
+  This man page documents various base array operations that are
+  supported by \link{SparseArray} derivatives, and that didn't belong
+  to any of the groups of operations documented in the other man pages
+  of the \pkg{SparseArray} package.
 
   Note that only \link{COO_SparseArray} objects support these operations
   at the moment.
@@ -51,6 +52,23 @@
     See \code{?base::\link[base]{which}} for a description of
     these arguments.
   }
+}
+
+\details{
+  More operations will be added in the future. For example
+  \link{SVT_SparseArray} objects also need to support \code{which()},
+  \code{is.na()}, \code{is.infinite()}, \code{is.nan()}.
+
+  Other usefull additions are all the operations from the \code{Arith},
+  \code{Compare}, and \code{Math} groups.
+  See \code{?\link[base]{S4groupGeneric}} in base R for more information.
+}
+
+\value{
+  See man pages for the corresponding default methods in the
+  \pkg{base} package (e.g. \code{?base::\link[base]{which}},
+  \code{?base::\link[base]{is.na}}, etc...) for the value returned
+  by these methods.
 }
 
 \seealso{

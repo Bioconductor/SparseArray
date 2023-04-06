@@ -89,7 +89,7 @@ svt1 <- SparseArray(m)
 svt2 <- SparseArray(a)
 ```
 This is actually the most convenient way to turn an ordinary matrix or
-array into a SVT\_SparseArray object.
+array into an SVT\_SparseArray object.
 
 Coercion back to ordinary matrix or array is supported:
 ```{r}
@@ -127,18 +127,34 @@ sparsity(svt1)
 
 ## Subsetting and subassignment
 
+
+Note that assigning values of type `"double"` to an SVT\_SparseArray
+object of type `"integer"` will automatically change the type of the
+object to `"double"`:
+```{r}
+svt2[5, 1, 3] <- NaN
+```
+
 ## Combining objects by rows or columns
 
 ## Summarization methods (whole array)
 
-## Generate a random SVT\_SparseArray object
+```{r}
+anyNA(svt2)
+
+range(svt2, na.rm=TRUE)
+
+mean(svt2, na.rm=TRUE)
+```
 
 ## Other operations on SVT\_SparseArray objects
 
 More operations will be added in the future e.g. `which()`, `is.na()`,
-`is.infinite()`, `is.nan()`, `anyNA()`, etc..., as well as operations
-from the `Arith`, `Compare`, and `Math` groups (see `?S4groupGeneric`
-for more information).
+`is.infinite()`, `is.nan()`, etc..., as well as operations from
+the `Arith`, `Compare`, and `Math` groups (see `?S4groupGeneric` for
+more information).
+
+## Generate a random SVT\_SparseArray object
 
 
 # SVT\_SparseMatrix objects
