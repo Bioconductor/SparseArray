@@ -28,13 +28,15 @@
   at representing in-memory multidimensional sparse arrays.
 
   It has currently two concrete subclasses, \link{COO_SparseArray}
-  and \link{SVT_SparseArray}, that use two different internal
-  representations for the nonzero data, the \emph{COO layout} and
-  the \emph{SVT layout}. These layouts are described in the
-  \link{COO_SparseArray} and \link{SVT_SparseArray} man pages, respectively.
+  and \link{SVT_SparseArray}, both also defined in this package.
+  Each subclass uses its own internal representation for the nonzero
+  multidimensional data, the \emph{COO layout} for \link{COO_SparseArray},
+  and the \emph{SVT layout} for \link{SVT_SparseArray}. The two layouts
+  are described in the \link{COO_SparseArray} and \link{SVT_SparseArray}
+  man pages, respectively.
 
-  The package also defines the SparseMatrix virtual class, as a subclass
-  of the SparseArray class, for the specific 2D case.
+  Finally, the package also defines the SparseMatrix virtual class, as
+  a subclass of the SparseArray class, for the specific 2D case.
 }
 
 \details{
@@ -101,7 +103,10 @@
     \item \link{matrixStats_methods} for SparseMatrix row/col summarization
           methods.
 
-    \item \code{\link{readSparseCSV}} for reading/writing a sparse matrix
+    \item \code{\link{randomSparseArray}} to generate a random SparseArray
+          object.
+
+    \item \code{\link{readSparseCSV}} to read/write a sparse matrix
           from/to a CSV (comma-separated values) file.
 
     \item S4 classes \linkS4class{dgCMatrix} and \linkS4class{lgCMatrix}

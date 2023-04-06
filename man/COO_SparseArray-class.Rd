@@ -147,9 +147,8 @@ sparsity(coo1)
 
 as.array(coo1)  # back to a dense representation
 
-\dontrun{
-as.matrix(coo1)  # error!
-}
+#as.matrix(coo1)  # error!
+
 ## ---------------------------------------------------------------------
 ## EXAMPLE 2
 ## ---------------------------------------------------------------------

@@ -37,8 +37,8 @@
             object <- objects[[i]]
             nzcoo <- object@nzcoo
             if (i >= 2L)
-                nzcoo[ , along] = nzcoo[ , along, drop=FALSE] +
-                                  offsets[[i - 1L]]
+                nzcoo[ , along] <- nzcoo[ , along, drop=FALSE] +
+                                   offsets[[i - 1L]]
             nzcoo
         }
     )

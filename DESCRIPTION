@@ -1,7 +1,14 @@
 Package: SparseArray
 Title: Efficient in-memory representation of multidimensional sparse arrays
-Description: Provides a convenient and efficient container for in-memory
-	representation and manipulation of multidimensional sparse arrays.
+Description: The SparseArray package defines the SparseArray virtual class
+	to be extended by other S4 classes that wish to represent in-memory
+	multidimensional sparse arrays. One such extension is the
+	SVT_SparseArray class, also defined in the package, that provides
+	an efficient representation of the nonzero multidimensional data
+	via a novel layout called the "SVT layout". SVT_SparseArray objects
+	mimic the behavior of ordinary matrices or arrays in R as much as
+	possible. In particular, they suppport most of the "standard array
+	API" defined in base R.
 biocViews: Infrastructure, DataRepresentation
 URL: https://bioconductor.org/packages/SparseArray
 BugReports: https://github.com/Bioconductor/SparseArray/issues
@@ -15,7 +22,7 @@ Authors@R: c(
 		email="stvjc@channing.harvard.edu"),
 	person("Rafael A.", "Irizarry", role="aut",
 		email="rafa@ds.harvard.edu"))
-Depends: R (>= 4.1.0), methods, Matrix, BiocGenerics (>= 0.43.1),
+Depends: R (>= 4.3.0), methods, Matrix, BiocGenerics (>= 0.43.1),
 	MatrixGenerics (>= 1.11.1), S4Vectors, S4Arrays (>= 0.99.0)
 Imports: stats, matrixStats, IRanges, XVector
 LinkingTo: S4Vectors, IRanges, XVector

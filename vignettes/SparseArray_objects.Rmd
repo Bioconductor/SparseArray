@@ -1,0 +1,174 @@
+---
+title: "SparseArray objects"
+author:
+- name: Hervé Pagès
+  affiliation: Fred Hutchinson Cancer Research Center, Seattle, WA
+date: "Compiled `r doc_date()`;  Modified 5 April 2023"
+package: SparseArray
+vignette: |
+  %\VignetteIndexEntry{SparseArray objects}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+output:
+  BiocStyle::html_document
+---
+
+
+# Introduction
+
+`r Biocpkg("SparseArray")` is an infrastructure package that defines the
+SparseArray virtual class whose purpose is to be extended by other S4
+classes that wish to represent in-memory multidimensional sparse arrays.
+
+The package currently defines two concrete SparseArray subclasses:
+COO\_SparseArray and SVT\_SparseArray. Each subclass uses its own internal
+representation for the nonzero multidimensional data, the "COO layout"
+and the "SVT layout", respectively.
+
+This vignette focuses on SVT\_SparseArray objects.
+
+
+# Install and load the package
+
+```{r, eval=FALSE}
+if (!requireNamespace("BiocManager", quietly=TRUE))
+    install.packages("BiocManager")
+BiocManager::install("SparseArray")
+```
+
+```{r, message=FALSE}
+library(SparseArray)
+```
+
+
+# SVT\_SparseArray objects
+
+The SVT\_SparseArray class provides an efficient representation of the
+nonzero multidimensional data via a novel layout called the "SVT layout".
+
+Note that SVT\_SparseArray objects mimic the behavior of ordinary matrices
+or arrays in R as much as possible. In particular, they suppport most of
+the "standard array API" defined in base R.
+
+## Construction
+
+SVT\_SparseArray objects can be constructed in many ways. A common way
+is to coerce an ordinary matrix or array to SVT\_SparseArray:
+```{r}
+m <- matrix(0L, nrow=6, ncol=4)
+m[c(1:2, 8, 10, 15:17, 24)] <- (1:8)*10L
+svt1 <- as(m, "SVT_SparseArray")
+svt1
+
+a <- array(0L, 5:3)
+a[c(1:2, 8, 10, 15:17, 20, 24, 40, 56:60)] <- (1:15)*10L
+svt2 <- as(a, "SVT_SparseArray")
+svt2
+```
+Alternatively, the ordinary matrix or array can be passed to the
+`SVT_SparseArray` constructor function:
+```{r}
+svt1 <- SVT_SparseArray(m)
+svt2 <- SVT_SparseArray(a)
+```
+
+Note that coercing an ordinary matrix or array to SparseArray is also
+supported and will produce the same results:
+```{r}
+svt1 <- as(m, "SparseArray")
+svt2 <- as(a, "SparseArray")
+```
+This is because, for most use cases, the SVT\_SparseArray representation
+is more efficient than the COO\_SparseArray representation, so the former
+is usually preferred over the latter.
+
+For the same reason, the `SparseArray` constructor function will also
+give the preference to the SVT\_SparseArray representation:
+```{r}
+svt1 <- SparseArray(m)
+svt2 <- SparseArray(a)
+```
+This is actually the most convenient way to turn an ordinary matrix or
+array into a SVT\_SparseArray object.
+
+Coercion back to ordinary matrix or array is supported:
+```{r}
+as.array(svt1)  # same as as.matrix(svt1)
+
+as.array(svt2)
+```
+
+## Accesors
+
+The standard array accessors are supported:
+```{r}
+dim(svt2)
+
+length(svt2)
+
+dimnames(svt2) <- list(NULL, letters[1:4], LETTERS[1:3])
+svt2
+```
+
+Some additional accessors defined in the `r Biocpkg("S4Arrays")` /
+`r Biocpkg("SparseArray")` framework:
+```{r}
+type(svt1)
+
+type(svt1) <- "double"
+svt1
+
+is_sparse(svt1)
+
+nzcount(svt1)
+
+sparsity(svt1)
+```
+
+## Subsetting and subassignment
+
+## Combining objects by rows or columns
+
+## Summarization methods (whole array)
+
+## Generate a random SVT\_SparseArray object
+
+## Other operations on SVT\_SparseArray objects
+
+More operations will be added in the future e.g. `which()`, `is.na()`,
+`is.infinite()`, `is.nan()`, `anyNA()`, etc..., as well as operations
+from the `Arith`, `Compare`, and `Math` groups (see `?S4groupGeneric`
+for more information).
+
+
+# SVT\_SparseMatrix objects
+
+## Transposition
+
+```{r}
+t(svt1)
+```
+
+## Matrix multiplication and cross-product
+
+## matrixStats row/col summarization methods
+
+## Read/write a sparse matrix from/to a CSV file
+
+## Comparison with dgCMatrix objects
+
+
+# Learn more
+
+Please consult the individual man pages in the `r Biocpkg("SparseArray")`
+package to learn more about SVT\_SparseArray objects and about the
+package. A good starting point is the man page for SparseArray
+objects: `?SparseArray`
+
+
+# Session information
+
+```{r}
+sessionInfo()
+```
+
