@@ -61,7 +61,8 @@
 
   Other usefull additions are all the operations from the \code{Arith},
   \code{Compare}, and \code{Math} groups.
-  See \code{?\link[base]{S4groupGeneric}} in base R for more information.
+  See \code{?\link[methods]{S4groupGeneric}} in the \pkg{methods} package
+  for more information.
 }
 
 \value{
