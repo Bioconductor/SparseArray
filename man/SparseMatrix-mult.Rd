@@ -23,10 +23,12 @@
   Like ordinary matrices in base R, \link{SparseMatrix} derivatives can
   be multiplied with the \code{\%*\%} operator. They also support
   \code{\link[base]{crossprod}()} and \code{\link[base]{tcrossprod}()}.
+}
 
-  Note that \code{\%*\%}, \code{crossprod()} and \code{tcrossprod()}
-  always return an \emph{ordinary} matrix of \code{type()} \code{"double"}
-  on \link{SparseMatrix} derivatives.
+\value{
+  The \code{\%*\%}, \code{crossprod()} and \code{tcrossprod()} methods
+  for \link{SparseMatrix} objects always return an \emph{ordinary} matrix
+  of \code{type()} \code{"double"}.
 }
 
 \seealso{
