@@ -43,15 +43,19 @@ new_RsparseMatrix <- function(dim, p, j, x, dimnames=NULL)
 }
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### CsparseMatrix() -- NOT exported
+### High-level CsparseMatrix and RsparseMatrix constructors
 ###
-### A simpler version of Matrix::sparseMatrix() that is typically 50%-60%
-### faster and more memory efficient.
+### NOT exported
+###
+### Note that CsparseMatrix() is a simpler version of Matrix::sparseMatrix()
+### that is typically 50%-60% faster and more memory efficient.
+###
+### For both constructors:
+### - 'i', 'j', 'nzvals' must be **parallel** atomic vectors.
+### - 'i' and 'j' must be integer vectors with no NAs.
+### - 'nzvals' must be a double, integer, raw, or logical vector, with no
+###   zeros (NAs are ok).
 
-### 'i', 'j', 'nzvals' must be **parallel** atomic vectors.
-### 'i' and 'j' must be integer vectors with no NAs.
-### 'nzvals' must be a double, integer, raw, or logical vector, with no
-### zeros and possibly with NAs.
 CsparseMatrix <- function(dim, i, j, nzvals, dimnames=NULL)
 {
     stopifnot(is.integer(dim), length(dim) == 2L,
@@ -61,6 +65,17 @@ CsparseMatrix <- function(dim, i, j, nzvals, dimnames=NULL)
     ans_p <- c(0L, cumsum(tabulate(j[oo], nbins=dim[[2L]])))
     ans_x <- nzvals[oo]
     new_CsparseMatrix(dim, ans_p, ans_i, ans_x, dimnames=dimnames)
+}
+
+RsparseMatrix <- function(dim, i, j, nzvals, dimnames=NULL)
+{
+    stopifnot(is.integer(dim), length(dim) == 2L,
+              is.integer(i), is.integer(j), is.atomic(nzvals))
+    oo <- order(i, j)
+    ans_j <- j[oo] - 1L  # RsparseMatrix objects want this zero-based
+    ans_p <- c(0L, cumsum(tabulate(i[oo], nbins=dim[[1L]])))
+    ans_x <- nzvals[oo]
+    new_RsparseMatrix(dim, ans_p, ans_j, ans_x, dimnames=dimnames)
 }
 
 
@@ -95,22 +110,6 @@ setAs("Array", "sparseMatrix",
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### RsparseMatrix() -- NOT exported
-###
-
-RsparseMatrix <- function(dim, i, j, nzvals, dimnames=NULL)
-{
-    stopifnot(is.integer(dim), length(dim) == 2L,
-              is.integer(i), is.integer(j), is.atomic(nzvals))
-    oo <- order(i, j)
-    ans_j <- j[oo] - 1L  # RsparseMatrix objects want this zero-based
-    ans_p <- c(0L, cumsum(tabulate(i[oo], nbins=dim[[1L]])))
-    ans_x <- nzvals[oo]
-    new_RsparseMatrix(dim, ans_p, ans_j, ans_x, dimnames=dimnames)
-}
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### rowsum() method for dgCMatrix objects
 ###
 
@@ -139,7 +138,7 @@ setMethod("rowsum", "dgCMatrix", rowsum.dgCMatrix)
 ### colRanges_dgCMatrix()
 ### colVars_dgCMatrix()
 ###
-### NOT exported.
+### NOT exported
 ###
 ### Don't turn these into formal S4 methods for dgCMatrix objects to avoid
 ### conflict with the methods defined in the sparseMatrixStats package!

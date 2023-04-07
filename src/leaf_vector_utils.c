@@ -7,6 +7,7 @@
 
 #include "Rvector_utils.h"
 #include "coerceVector2.h"
+#include "SparseArray_class.h"
 
 #include <limits.h>  /* for INT_MAX */
 #include <string.h>  /* for memcpy() */
@@ -167,25 +168,19 @@ SEXP _remove_zeros_from_leaf_vector(SEXP lv, int *offs_buf)
  * the input "leaf vector".
  */
 
+/* Note that, in practice, _coerce_leaf_vector() is always called to
+   actually change the type of 'lv', so the code below does not bother
+   to check for the (trivial) no-op case. */
 SEXP _coerce_leaf_vector(SEXP lv, SEXPTYPE new_Rtype, int *warn, int *offs_buf)
 {
 	SEXP lv_offs, lv_vals, ans_vals, ans;
-	SEXPTYPE old_Rtype;
-	int can_add_zeros;
 
 	_split_leaf_vector(lv, &lv_offs, &lv_vals);
 	ans_vals = PROTECT(_coerceVector2(lv_vals, new_Rtype, warn));
 	ans = PROTECT(_new_leaf_vector(lv_offs, ans_vals));
 	/* The above coercion can introduce zeros in 'ans_vals' e.g. when
 	   going from double/complex to int/raw. We need to remove them. */
-	old_Rtype = TYPEOF(lv_vals);
-	can_add_zeros = new_Rtype == RAWSXP
-		|| (old_Rtype == REALSXP && new_Rtype == INTSXP)
-		|| (old_Rtype == CPLXSXP && (new_Rtype == INTSXP ||
-					     new_Rtype == REALSXP))
-		|| old_Rtype == STRSXP
-		|| old_Rtype == VECSXP;
-	if (can_add_zeros)
+	if (_coercion_can_introduce_zeros(TYPEOF(lv_vals), new_Rtype))
 		ans = _remove_zeros_from_leaf_vector(ans, offs_buf);
 	UNPROTECT(2);
 	return ans;

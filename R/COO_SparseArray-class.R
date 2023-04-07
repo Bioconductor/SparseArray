@@ -269,33 +269,18 @@ setAs("ANY", "COO_SparseMatrix",
 ### Going back and forth between COO_SparseMatrix and [d|l]g[C|R]Matrix objects
 ### from the Matrix package:
 
-.make_sparseMatrix_from_COO_SparseMatrix <- function(from, to_type, form)
+.make_sparseMatrix_from_COO_SparseMatrix <- function(from, to_type,
+                                                     orientation)
 {
     stopifnot(is(from, "COO_SparseMatrix"))
 
-    ## Coercion to dg[C|R]Matrix (i.e. to_type="double"):
-    ## If 'type(from)' is "logical", "integer", or "raw", we'll coerce 'nzvals'
-    ## to "double" right before passing it to [C|R]sparseMatrix() below. This
-    ## is ok because it won't introduce zeros in 'nzvals'. Also it should be
-    ## slightly more efficient than switching the type of 'from' now.
-    ## However, if the coercion to "double" can potentially introduce zeros
-    ## (e.g. if 'type(from)' is "complex"), then we need to switch the type
-    ## now. Otherwise we will end up with zeros in the "x" slot of the
-    ## resulting dg[C|R]Matrix object.
-
-    ## Coercion to lg[C|R]Matrix (i.e. to_type="logical"):
-    ## If 'type(from)' is "integer", "double", "complex", or "raw", we'll
-    ## coerce 'nzvals' to "logical" right before passing it to
-    ## [C|R]sparseMatrix() below. This is ok because it won't introduce
-    ## logical zeros (i.e. FALSEs) in 'nzvals'. Also it should be slightly
-    ## more efficient than switching the type of 'from' now.
-    ## However, if the coercion to "logical" can potentially introduce zeros
-    ## (e.g. if 'type(from)' is "character"), then we need to switch the type
-    ## now. Otherwise we will end up with zeros in the "x" slot of the
-    ## resulting lg[C|R]Matrix object.
-
-    postpone <- coercion_can_introduce_zeros(type(from), to_type)
-    if (!postpone)
+    ## Late type switching tends to be slightly more memory efficient.
+    ## However, switching to a smaller type (e.g. from "complex" to "double"
+    ## or from "integer" to "logical") can introduce zeros. In this case,
+    ## we must switch the type early. Otherwise we will end up with zeros
+    ## in the "x" slot of the resulting dgCMatrix or lgCMatrix object.
+    switch_type_early <- coercion_can_introduce_zeros(from@type, to_type)
+    if (switch_type_early)
         type(from) <- to_type  # early type switching
 
     i <- from@nzcoo[ , 1L]
@@ -303,10 +288,10 @@ setAs("ANY", "COO_SparseMatrix",
     nzvals <- from@nzvals
 
     ## This type switching is safe only if it does not introduce zeros.
-    if (postpone)
+    if (!switch_type_early)
         storage.mode(nzvals) <- to_type  # late type switching
 
-    if (form == "C") {
+    if (orientation == "C") {
         CsparseMatrix(dim(from), i, j, nzvals, dimnames=dimnames(from))
     } else {
         RsparseMatrix(dim(from), i, j, nzvals, dimnames=dimnames(from))

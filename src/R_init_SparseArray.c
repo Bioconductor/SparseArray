@@ -1,6 +1,7 @@
 #include <R_ext/Rdynload.h>
 
 #include "sparseMatrix_utils.h"
+#include "SparseArray_class.h"
 #include "SVT_SparseArray_class.h"
 #include "SparseArray_subassignment.h"
 #include "SparseArray_subsetting.h"
@@ -20,6 +21,9 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_colMaxs_dgCMatrix, 2),
 	CALLMETHOD_DEF(C_colRanges_dgCMatrix, 2),
 	CALLMETHOD_DEF(C_colVars_dgCMatrix, 2),
+
+/* SparseArray_class.c */
+	CALLMETHOD_DEF(C_coercion_can_introduce_zeros, 2),
 
 /* SVT_SparseArray_class.c */
 	CALLMETHOD_DEF(C_get_SVT_SparseArray_nzcount, 2),

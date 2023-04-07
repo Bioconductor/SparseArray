@@ -165,29 +165,13 @@ setAs("matrix", "SVT_SparseMatrix",
 {
     stopifnot(is(from, "SVT_SparseMatrix"))
 
-    ## Coercion to dgCMatrix (i.e. to_type="double"):
-    ## If 'from@type' is "logical", "integer", or "raw", we'll coerce 'ans_x'
-    ## to "double" right before passing it to new_CsparseMatrix() below. This
-    ## is ok because it won't introduce zeros in 'ans_x'. Also it should be
-    ## slightly more efficient than switching the type of 'from' now.
-    ## However, if the coercion to "double" can potentially introduce zeros
-    ## (e.g. if 'from@type' is "complex"), then we need to switch the type now.
-    ## Otherwise we will end up with zeros in the "x" slot of the resulting
-    ## dgCMatrix object.
-
-    ## Coercion to lgCMatrix (i.e. to_type="logical"):
-    ## If 'from@type' is "integer", "double", "complex", or "raw", we'll
-    ## coerce 'ans_x' to "logical" right before passing it to
-    ## new_CsparseMatrix() below. This is ok because it won't introduce
-    ## logical zeros (i.e. FALSEs) in 'ans_x'. Also it should be slightly
-    ## more efficient than switching the type of 'from' now.
-    ## However, if the coercion to "logical" can potentially introduce zeros
-    ## (e.g. if 'from@type' is "character"), then we need to switch the type
-    ## now. Otherwise we will end up with zeros in the "x" slot of the
-    ## resulting lgCMatrix object.
-
-    postpone <- coercion_can_introduce_zeros(from@type, to_type)
-    if (!postpone)
+    ## Late type switching tends to be slightly more memory efficient.
+    ## However, switching to a smaller type (e.g. from "complex" to "double"
+    ## or from "integer" to "logical") can introduce zeros. In this case,
+    ## we must switch the type early. Otherwise we will end up with zeros
+    ## in the "x" slot of the resulting dgCMatrix or lgCMatrix object.
+    switch_type_early <- coercion_can_introduce_zeros(from@type, to_type)
+    if (switch_type_early)
         type(from) <- to_type  # early type switching
 
     ## Returns 'ans_p', 'ans_i', and 'ans_x', in a list of length 3.
@@ -198,7 +182,7 @@ setAs("matrix", "SVT_SparseMatrix",
     ans_x <- C_ans[[3L]]  # same type as 'from'
 
     ## This type switching is safe only if it does not introduce zeros.
-    if (postpone)
+    if (!switch_type_early)
         storage.mode(ans_x) <- to_type  # late type switching
 
     new_CsparseMatrix(from@dim, ans_p, ans_i, ans_x, dimnames=from@dimnames)

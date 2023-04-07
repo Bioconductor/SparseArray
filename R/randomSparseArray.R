@@ -109,7 +109,6 @@ poissonSparseArray <- function(dim, lambda=-log(0.95), density=NA)
     list(nzidx, nzvals)
 }
 
-### NOT exported.
 ### Solution based on .sparse_rpois(). Equivalent to poissonSparseArray()
 ### but slower and uses more memory e.g.
 ###
@@ -119,6 +118,7 @@ poissonSparseArray <- function(dim, lambda=-log(0.95), density=NA)
 ###
 ###     poissonSparseArray(c(1e5, 2e4), density=0.02)
 ###
+### NOT exported
 poissonSparseArray2 <- function(dim, lambda=-log(0.95), density=NA)
 {
     dim <- S4Arrays:::normarg_dim(dim)

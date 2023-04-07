@@ -112,11 +112,14 @@ which_is_nonzero <- function(x, arr.ind=FALSE)
 
 coercion_can_introduce_zeros <- function(from_type, to_type)
 {
-    if (identical(to_type, "double"))
-        return(from_type %in% c("logical", "integer", "raw"))
-    if (identical(to_type, "logical"))
-        return(from_type %in% c("integer", "double", "complex", "raw"))
-    stop(wmsg("'to_type' must be \"double\" or \"logical\""))
+    if (!isSingleString(from_type))
+        stop(wmsg("'from_type' must be a single string"))
+    if (!isSingleString(to_type))
+        stop(wmsg("'to_type' must be a single string"))
+    if (!(to_type %in% c("double", "logical")))
+        stop(wmsg("'to_type' must be \"double\" or \"logical\""))
+    .Call2("C_coercion_can_introduce_zeros", from_type, to_type,
+           PACKAGE="SparseArray")
 }
 
 

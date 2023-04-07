@@ -131,15 +131,20 @@ static int REC_set_SVT_type(SEXP SVT, const int *dim, int ndim,
 SEXP C_set_SVT_SparseArray_type(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		SEXP new_type)
 {
-	SEXPTYPE new_Rtype;
+	SEXPTYPE x_Rtype, new_Rtype;
 	int warn, *offs_buf, ret;
 	SEXP ans;
 
+	x_Rtype = _get_Rtype_from_Rstring(x_type);
+	if (x_Rtype == 0)
+		error("SparseArray internal error in "
+		      "C_set_SVT_SparseArray_type():\n"
+		      "    invalid 'x_type' value");
 	new_Rtype = _get_Rtype_from_Rstring(new_type);
 	if (new_Rtype == 0)
 		error("invalid supplied type");
 
-	if (x_SVT == R_NilValue)
+	if (new_Rtype == x_Rtype || x_SVT == R_NilValue)
 		return x_SVT;
 
 	warn = 0;
