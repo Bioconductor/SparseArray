@@ -3,21 +3,39 @@
 
 #include <Rdefines.h>
 
-SEXP C_SVT_crossprod1(
+SEXP C_crossprod2_SVT_mat(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT,
+	SEXP y,
 	SEXP ans_type,
 	SEXP ans_dimnames
 );
 
-SEXP C_SVT_crossprod2(
+SEXP C_crossprod2_mat_SVT(
+	SEXP x,
+	SEXP y_dim,
+	SEXP y_type,
+	SEXP y_SVT,
+	SEXP ans_type,
+	SEXP ans_dimnames
+);
+
+SEXP C_crossprod2_SVT_SVT(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT,
 	SEXP y_dim,
 	SEXP y_type,
 	SEXP y_SVT,
+	SEXP ans_type,
+	SEXP ans_dimnames
+);
+
+SEXP C_crossprod1_SVT(
+	SEXP x_dim,
+	SEXP x_type,
+	SEXP x_SVT,
 	SEXP ans_type,
 	SEXP ans_dimnames
 );

@@ -3,16 +3,22 @@
 \alias{SparseMatrix-mult}
 \alias{SparseMatrix_mult}
 
-\alias{crossprod,SVT_SparseMatrix,missing-method}
+\alias{crossprod,SVT_SparseMatrix,matrix-method}
+\alias{crossprod,matrix,SVT_SparseMatrix-method}
 \alias{crossprod,SVT_SparseMatrix,SVT_SparseMatrix-method}
 \alias{crossprod,SVT_SparseMatrix,ANY-method}
 \alias{crossprod,ANY,SVT_SparseMatrix-method}
+\alias{crossprod,SVT_SparseMatrix,missing-method}
 
-\alias{tcrossprod,SVT_SparseMatrix,missing-method}
+\alias{tcrossprod,SVT_SparseMatrix,matrix-method}
+\alias{tcrossprod,matrix,SVT_SparseMatrix-method}
 \alias{tcrossprod,SVT_SparseMatrix,SVT_SparseMatrix-method}
 \alias{tcrossprod,SVT_SparseMatrix,ANY-method}
 \alias{tcrossprod,ANY,SVT_SparseMatrix-method}
+\alias{tcrossprod,SVT_SparseMatrix,missing-method}
 
+\alias{\%*\%,SVT_SparseMatrix,matrix-method}
+\alias{\%*\%,matrix,SVT_SparseMatrix-method}
 \alias{\%*\%,SVT_SparseMatrix,SVT_SparseMatrix-method}
 \alias{\%*\%,SVT_SparseMatrix,ANY-method}
 \alias{\%*\%,ANY,SVT_SparseMatrix-method}
