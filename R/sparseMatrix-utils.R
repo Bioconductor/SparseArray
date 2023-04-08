@@ -110,29 +110,6 @@ setAs("Array", "sparseMatrix",
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### rowsum() method for dgCMatrix objects
-###
-
-.rowsum_dgCMatrix <- function(x, group, reorder=TRUE, na.rm=FALSE)
-{
-    stopifnot(is(x, "dgCMatrix"))
-    ugroup <- S4Arrays:::compute_ugroup(group, nrow(x), reorder)
-    if (!isTRUEorFALSE(na.rm))
-        stop(wmsg("'na.rm' must be TRUE or FALSE"))
-    group <- match(group, ugroup)
-    ans <- .Call2("C_rowsum_dgCMatrix", x, group, length(ugroup), na.rm,
-                                        PACKAGE="SparseArray")
-    dimnames(ans) <- list(as.character(ugroup), colnames(x))
-    ans
-}
-
-### S3/S4 combo for rowsum.dgCMatrix
-rowsum.dgCMatrix <- function(x, group, reorder=TRUE, ...)
-    .rowsum_dgCMatrix(x, group, reorder=reorder, ...)
-setMethod("rowsum", "dgCMatrix", rowsum.dgCMatrix)
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### colMins_dgCMatrix()
 ### colMaxs_dgCMatrix()
 ### colRanges_dgCMatrix()

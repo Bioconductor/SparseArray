@@ -114,7 +114,7 @@ SEXP _make_leaf_vector_from_Rsubvec(
 
 /* Assumes that 'out_Rvector' is long enough, has the right type, and
    is already filled with zeros e.g. it was created with
-   _new_Rvector(TYPEOF(lv), d). */
+   _new_Rvector0(TYPEOF(lv), d). */
 int _expand_leaf_vector(SEXP lv, SEXP out_Rvector, R_xlen_t out_offset)
 {
 	SEXP lv_offs, lv_vals;

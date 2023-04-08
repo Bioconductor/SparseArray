@@ -1,62 +1,27 @@
 \name{sparseMatrix-utils}
 
 \alias{sparseMatrix-utils}
+\alias{sparseMatrix_utils}
 
 \alias{coerce,Array,CsparseMatrix-method}
 \alias{coerce,Array,RsparseMatrix-method}
 \alias{coerce,Array,sparseMatrix-method}
 
-\alias{rowsum.dgCMatrix}
-\alias{rowsum,dgCMatrix-method}
-
-\title{sparseMatrix utilities}
+\title{Internal utilities to handle sparseMatrix derivatives}
 
 \description{
-  Some utilities to operate natively on sparseMatrix derivatives (e.g.
-  dgCMatrix and lgCMatrix objects) from the \pkg{Matrix} package.
-  Mostly for internal use.
-}
-
-\usage{
-\S4method{rowsum}{dgCMatrix}(x, group, reorder=TRUE, ...)
-}
-
-\arguments{
-  \item{x}{
-    A numeric matrix-like object.
-  }
-  \item{group, reorder, ...}{
-    See \code{?base::\link[base]{rowsum}} for a description of
-    these arguments.
-  }
-}
-
-\value{
-  See \code{?base::\link[base]{rowsum}} for the value returned
-  by the default \code{rowsum} method.
+  The \pkg{SparseArray} package defines some utilities to handle
+  sparseMatrix derivatives (e.g. dgCMatrix and lgCMatrix objects)
+  from the \pkg{Matrix} package. These are for internal use only.
 }
 
 \seealso{
   \itemize{
-    \item \code{S4Arrays::\link[S4Arrays]{rowsum}} in the \pkg{S4Arrays}
-          package for the \code{rowsum} and \code{colsum} S4 generic
-          functions.
-
     \item \linkS4class{dgCMatrix} objects implemented in the \pkg{Matrix}
           package.
   }
 }
 
-\examples{
-m0 <- rsparsematrix(1e5, 800, density=0.15)  # sparse representation
-m <- as.matrix(m0)                           # dense representation
-group <- sample(20, nrow(m), replace=TRUE)
-
-## 'rowsum(m0)' is about 4x faster than 'rowsum(m)':
-rs0 <- rowsum(m0, group)
-rs <- rowsum(m, group)
-
-stopifnot(identical(rs0, rs))
-}
+\keyword{internal}
 \keyword{array}
 \keyword{methods}

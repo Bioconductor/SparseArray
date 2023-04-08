@@ -217,7 +217,7 @@ SEXP C_from_SVT_SparseArray_to_Rarray(SEXP x_dim, SEXP x_dimnames,
 		      "C_from_SVT_SparseArray_to_Rarray():\n"
 		      "    SVT_SparseArray object has invalid type");
 
-	ans = PROTECT(_new_Rarray(Rtype, x_dim, x_dimnames));
+	ans = PROTECT(_new_Rarray0(Rtype, x_dim, x_dimnames));
 	ret = REC_dump_SVT_to_Rsubarray(x_SVT,
 				INTEGER(x_dim), LENGTH(x_dim),
 				ans, 0, XLENGTH(ans));
@@ -397,7 +397,7 @@ SEXP C_from_SVT_SparseMatrix_to_CsparseMatrix(SEXP x_dim,
 	ans_i = PROTECT(NEW_INTEGER(nzcount));
 	ans_x = PROTECT(allocVector(x_Rtype, nzcount));
 	if (nzcount == 0) {
-		ans_p = PROTECT(_new_Rvector(INTSXP, (R_xlen_t) x_ncol + 1));
+		ans_p = PROTECT(_new_Rvector0(INTSXP, (R_xlen_t) x_ncol + 1));
 	} else {
 		ans_p = PROTECT(NEW_INTEGER(x_ncol + 1));
 		ret = dump_SVT_to_CsparseMatrix_slots(x_SVT, x_ncol,

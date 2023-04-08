@@ -3,99 +3,6 @@
  ****************************************************************************/
 #include "sparseMatrix_utils.h"
 
-#include "S4Vectors_interface.h"
-
-
-/****************************************************************************
- * rowsum()
- */
-
-static void check_group(SEXP group, int x_nrow, int ngroup)
-{
-	int i, g;
-
-	if (!IS_INTEGER(group))
-		error("the grouping vector must be "
-		      "an integer vector or factor");
-	if (LENGTH(group) != x_nrow)
-		error("the grouping vector must have "
-		      "one element per row in 'x'");
-	for (i = 0; i < x_nrow; i++) {
-		g = INTEGER(group)[i];
-		if (g == NA_INTEGER) {
-			if (ngroup < 1)
-				error("'ngroup' must be >= 1 when 'group' "
-				      "contains missing values");
-		} else {
-			if (g < 1 || g > ngroup)
-				error("all non-NA values in 'group' must "
-				      "be >= 1 and <= 'ngroup'");
-		}
-	}
-	return;
-}
-
-static void compute_rowsum(const double *x, const int *row, int x_len,
-			   const int *group, double *out, int out_len,
-			   int narm)
-{
-	int i, g;
-	double x_elt;
-
-	for (i = 0; i < out_len; i++)
-		out[i] = 0.0;
-	for (i = 0; i < x_len; i++) {
-		g = group[row[i]];
-		if (g == NA_INTEGER)
-			g = out_len;
-		g--;  // from 1-base to 0-base
-		x_elt = x[i];
-		if (narm && (R_IsNA(x_elt) || R_IsNaN(x_elt)))
-			continue;
-		out[g] += x_elt;
-	}
-	return;
-}
-
-/* --- .Call ENTRY POINT --- */
-SEXP C_rowsum_dgCMatrix(SEXP x, SEXP group, SEXP ngroup, SEXP na_rm)
-{
-	SEXP x_Dim, x_x, x_p, x_i, ans;
-	int x_nrow, x_ncol, narm, ans_nrow, j, offset, count;
-	double *ans_p;
-
-	x_Dim = GET_SLOT(x, install("Dim"));
-	x_nrow = INTEGER(x_Dim)[0];
-	x_ncol = INTEGER(x_Dim)[1];
-	x_x = GET_SLOT(x, install("x"));
-	x_p = GET_SLOT(x, install("p"));
-	x_i = GET_SLOT(x, install("i"));
-	narm = LOGICAL(na_rm)[0];
-
-	ans_nrow = INTEGER(ngroup)[0];
-	check_group(group, x_nrow, ans_nrow);
-
-	reset_ovflow_flag();
-	/* Only to detect a potential integer overflow. The returned value
-	   is actually not needed so we ignore it. */
-	safe_int_mult(ans_nrow, x_ncol);
-	if (get_ovflow_flag())
-		error("too many groups (matrix of sums will be too big)");
-
-	ans = PROTECT(allocMatrix(REALSXP, ans_nrow, x_ncol));
-	ans_p = REAL(ans);
-	for (j = 0; j < x_ncol; j++) {
-		offset = INTEGER(x_p)[j];
-		count = INTEGER(x_p)[j + 1] - offset;
-		compute_rowsum(REAL(x_x) + offset, INTEGER(x_i) + offset, count,
-			       INTEGER(group), ans_p, ans_nrow, narm);
-		ans_p += ans_nrow;
-	}
-
-	UNPROTECT(1);
-	return ans;
-}
-
 
 /****************************************************************************
  * colMins(), colMaxs(), colRanges()
@@ -280,7 +187,8 @@ static double col_sum(const double *x, int x_len, int nrow, int narm,
 	sum = 0.0;
 	for (i = 0; i < x_len; i++) {
 		xi = x[i];
-		if (narm && (R_IsNA(xi) || R_IsNaN(xi))) {
+		/* ISNAN(): True for *both* NA and NaN. See <R_ext/Arith.h> */
+		if (narm && ISNAN(xi)) {
 			(*sample_size)--;
 			continue;
 		}
@@ -299,7 +207,7 @@ static double col_var(const double *x, int x_len, int nrow, int narm)
 	sigma = mean * mean * (nrow - x_len);
 	for (i = 0; i < x_len; i++) {
 		xi = x[i];
-		if (narm && (R_IsNA(xi) || R_IsNaN(xi)))
+		if (narm && ISNAN(xi))
 			continue;
 		delta = xi - mean;
 		sigma += delta * delta;

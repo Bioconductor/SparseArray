@@ -23,7 +23,8 @@ static inline R_xlen_t get_Lidx(SEXP Lindex, long long atid_lloff)
 		Lidx = (R_xlen_t) i;
 	} else {
 		double x = REAL(Lindex)[atid_lloff];
-		if (R_IsNA(x) || R_IsNaN(x) || x < 1 ||
+		/* ISNAN(): True for *both* NA and NaN. See <R_ext/Arith.h> */
+		if (ISNAN(x) || x < 1 ||
 		    x >= 1.00 + R_XLEN_T_MAX)
 			error("'Lindex' contains invalid linear indices");
 		Lidx = (R_xlen_t) x;
@@ -1110,7 +1111,7 @@ static LeftBufs init_left_bufs(int d1, SEXP index1, SEXP short_Rvector)
 		      "    invalid short Rvector length");
 
 	left_bufs.offs = (int *) R_alloc(d1, sizeof(int));
-	left_bufs.Rvector = PROTECT(_new_Rvector(Rtype, d1));
+	left_bufs.Rvector = PROTECT(_new_Rvector0(Rtype, d1));
 	bottom_leaf = PROTECT(
 		precompute_bottom_leaf_from_short_Rvector(
 					d1, index1, short_Rvector,

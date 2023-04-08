@@ -51,7 +51,7 @@ size_t _get_Rtype_size(SEXPTYPE Rtype)
 }
 
 /* Like allocVector() but with initialization of the vector elements. */
-SEXP _new_Rvector(SEXPTYPE Rtype, R_xlen_t len)
+SEXP _new_Rvector0(SEXPTYPE Rtype, R_xlen_t len)
 {
 	SEXP ans;
 	size_t Rtype_size;
@@ -63,7 +63,33 @@ SEXP _new_Rvector(SEXPTYPE Rtype, R_xlen_t len)
 		Rtype_size = _get_Rtype_size(Rtype);
 		if (Rtype_size == 0) {
 			UNPROTECT(1);
-			error("SparseArray internal error in _new_Rvector():\n"
+			error("SparseArray internal error in _new_Rvector0():\n"
+			      "    type \"%s\" is not supported",
+			      type2char(Rtype));
+		}
+		memset(DATAPTR(ans), 0, Rtype_size * XLENGTH(ans));
+	}
+	UNPROTECT(1);
+	return ans;
+}
+
+/* Like allocMatrix() but with initialization of the matrix elements and
+   addition of the dimnames. */
+SEXP _new_Rmatrix0(SEXPTYPE Rtype, int nrow, int ncol, SEXP dimnames)
+{
+	SEXP ans;
+	size_t Rtype_size;
+
+	ans = PROTECT(allocMatrix(Rtype, nrow, ncol));
+	SET_DIMNAMES(ans, dimnames);
+	/* allocMatrix() is just a thin wrapper around allocVector() and
+	   the latter does NOT initialize the vector elements, except for
+	   a list or a character vector. */
+	if (Rtype != STRSXP && Rtype != VECSXP) {
+		Rtype_size = _get_Rtype_size(Rtype);
+		if (Rtype_size == 0) {
+			UNPROTECT(1);
+			error("SparseArray internal error in _new_Rmatrix0():\n"
 			      "    type \"%s\" is not supported",
 			      type2char(Rtype));
 		}
@@ -75,12 +101,13 @@ SEXP _new_Rvector(SEXPTYPE Rtype, R_xlen_t len)
 
 /* Like allocArray() but with initialization of the array elements and
    addition of the dimnames. */
-SEXP _new_Rarray(SEXPTYPE Rtype, SEXP dim, SEXP dimnames)
+SEXP _new_Rarray0(SEXPTYPE Rtype, SEXP dim, SEXP dimnames)
 {
 	SEXP ans;
 	size_t Rtype_size;
 
 	ans = PROTECT(allocArray(Rtype, dim));
+	SET_DIMNAMES(ans, dimnames);
 	/* allocArray() is just a thin wrapper around allocVector() and
 	   the latter does NOT initialize the vector elements, except for
 	   a list or a character vector. */
@@ -88,13 +115,12 @@ SEXP _new_Rarray(SEXPTYPE Rtype, SEXP dim, SEXP dimnames)
 		Rtype_size = _get_Rtype_size(Rtype);
 		if (Rtype_size == 0) {
 			UNPROTECT(1);
-			error("SparseArray internal error in _new_Rarray():\n"
+			error("SparseArray internal error in _new_Rarray0():\n"
 			      "    type \"%s\" is not supported",
 			      type2char(Rtype));
 		}
 		memset(DATAPTR(ans), 0, Rtype_size * XLENGTH(ans));
 	}
-	SET_DIMNAMES(ans, dimnames);
 	UNPROTECT(1);
 	return ans;
 }

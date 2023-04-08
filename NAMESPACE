@@ -44,6 +44,7 @@ S3method(range, COO_SparseArray)
 S3method(range, SVT_SparseArray)
 
 S3method(rowsum, dgCMatrix)
+S3method(rowsum, SVT_SparseMatrix)
 
 S3method(t, SVT_SparseMatrix)
 
@@ -61,6 +62,7 @@ export(
     range.SVT_SparseArray,
 
     rowsum.dgCMatrix,
+    rowsum.SVT_SparseMatrix,
 
     t.SVT_SparseMatrix
 )

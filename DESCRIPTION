@@ -41,6 +41,7 @@ Collate: sparseMatrix-utils.R
 	SparseArray-misc-ops.R
 	SparseMatrix-mult.R
 	matrixStats-methods.R
+	rowsum-methods.R
 	randomSparseArray.R
 	readSparseCSV.R
 	zzz.R

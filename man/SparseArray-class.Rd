@@ -103,6 +103,9 @@
     \item \link{matrixStats_methods} for SparseMatrix row/col summarization
           methods.
 
+    \item \link{rowsum_methods} for \code{rowsum()}  methods for sparse
+          matrices.
+
     \item \code{\link{randomSparseArray}} to generate a random SparseArray
           object.
 

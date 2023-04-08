@@ -49,6 +49,7 @@ static inline int LogicalFromInteger(int x)
 
 static inline int LogicalFromReal(double x)
 {
+	/* ISNAN(): True for *both* NA and NaN. See <R_ext/Arith.h> */
 	return ISNAN(x) ? NA_LOGICAL : x != 0.0;
 }
 
@@ -120,6 +121,7 @@ static inline int IntegerFromLogical(int x, int *warn)
 
 static inline int IntegerFromReal(double x, int *warn)
 {
+	/* ISNAN(): True for *both* NA and NaN. See <R_ext/Arith.h> */
 	if (ISNAN(x))
 		return NA_INTEGER;
 	if (x >= INT_MAX + 1.0 || x <= INT_MIN ) {
@@ -221,6 +223,7 @@ static inline double RealFromInteger(int x, int *warn)
 
 static inline double RealFromComplex(Rcomplex x, int *warn)
 {
+	/* ISNAN(): True for *both* NA and NaN. See <R_ext/Arith.h> */
 	if (ISNAN(x.r) || ISNAN(x.i))
 		return NA_REAL;
 	if (x.i != 0.0)
@@ -413,6 +416,7 @@ static inline Rbyte RawFromReal(double x, int *warn)
 {
 	int tmp;
 
+	/* ISNAN(): True for *both* NA and NaN. See <R_ext/Arith.h> */
 	if (ISNAN(x) || x <= -1.0 || x >= 256.0) {
 		*warn |= WARN_RAW;
 		return 0;

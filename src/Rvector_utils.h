@@ -155,12 +155,19 @@ SEXPTYPE _get_Rtype_from_Rstring(SEXP type);
 
 size_t _get_Rtype_size(SEXPTYPE Rtype);
 
-SEXP _new_Rvector(
+SEXP _new_Rvector0(
 	SEXPTYPE Rtype,
 	R_xlen_t len
 );
 
-SEXP _new_Rarray(
+SEXP _new_Rmatrix0(
+	SEXPTYPE Rtype,
+	int nrow,
+	int ncol,
+	SEXP dimnames
+);
+
+SEXP _new_Rarray0(
 	SEXPTYPE Rtype,
 	SEXP dim,
 	SEXP dimnames

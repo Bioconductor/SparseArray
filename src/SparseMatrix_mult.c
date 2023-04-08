@@ -941,32 +941,6 @@ static SEXPTYPE get_and_check_input_Rtype(SEXP type, const char *what)
 	return Rtype;
 }
 
-/* Like allocMatrix() but with initialization of the matrix elements.
-   Also set the dimnames. */
-static SEXP new_Rmatrix(SEXPTYPE Rtype, int nrow, int ncol, SEXP dimnames)
-{
-	SEXP ans;
-	size_t Rtype_size;
-
-	ans = PROTECT(allocMatrix(Rtype, nrow, ncol));
-	SET_DIMNAMES(ans, dimnames);
-	/* allocMatrix() is just a thin wrapper around allocVector() and
-	   the latter does NOT initialize the vector elements, except for
-	   a list or a character vector. */
-	if (Rtype != STRSXP && Rtype != VECSXP) {
-		Rtype_size = _get_Rtype_size(Rtype);
-		if (Rtype_size == 0) {
-			UNPROTECT(1);
-			error("SparseArray internal error in new_Rmatrix():\n"
-			      "    type \"%s\" is not supported",
-			      type2char(Rtype));
-		}
-		memset(DATAPTR(ans), 0, Rtype_size * XLENGTH(ans));
-	}
-	UNPROTECT(1);
-	return ans;
-}
-
 /* --- .Call ENTRY POINT --- */
 SEXP C_crossprod2_SVT_mat(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP y,
 			  SEXP transpose_y,
@@ -1010,7 +984,7 @@ SEXP C_crossprod2_SVT_mat(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP y,
 
 	/* Allocate 'ans' and fill with zeros. */
 	ans_ncol = tr_y ? y_nrow : y_ncol;
-	ans = PROTECT(new_Rmatrix(ans_Rtype, x_ncol, ans_ncol, ans_dimnames));
+	ans = PROTECT(_new_Rmatrix0(ans_Rtype, x_ncol, ans_ncol, ans_dimnames));
 
 	if (x_Rtype == REALSXP) {
 		crossprod2_SVT_mat_double(x_SVT, REAL(y), tr_y, x_nrow,
@@ -1065,7 +1039,7 @@ SEXP C_crossprod2_mat_SVT(SEXP x, SEXP y_dim, SEXP y_type, SEXP y_SVT,
 
 	/* Allocate 'ans' and fill with zeros. */
 	ans_nrow = tr_x ? x_nrow : x_ncol;
-	ans = PROTECT(new_Rmatrix(ans_Rtype, ans_nrow, y_ncol, ans_dimnames));
+	ans = PROTECT(_new_Rmatrix0(ans_Rtype, ans_nrow, y_ncol, ans_dimnames));
 
 	if (y_Rtype == REALSXP) {
 		crossprod2_mat_SVT_double(REAL(x), y_SVT, tr_x, y_nrow,
@@ -1119,7 +1093,7 @@ SEXP C_crossprod2_SVT_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		      type2char(ans_Rtype));
 
 	/* Allocate 'ans' and fill with zeros. */
-	ans = PROTECT(new_Rmatrix(ans_Rtype, x_ncol, y_ncol, ans_dimnames));
+	ans = PROTECT(_new_Rmatrix0(ans_Rtype, x_ncol, y_ncol, ans_dimnames));
 
 	/* Calculate the nb of ops if doing right preprocessing vs
 	   doing left preprocessing. */
@@ -1179,7 +1153,7 @@ SEXP C_crossprod1_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		      type2char(ans_Rtype));
 
 	/* Allocate 'ans' and fill with zeros. */
-	ans = PROTECT(new_Rmatrix(ans_Rtype, x_ncol, x_ncol, ans_dimnames));
+	ans = PROTECT(_new_Rmatrix0(ans_Rtype, x_ncol, x_ncol, ans_dimnames));
 
 	if (x_Rtype == REALSXP) {
 		crossprod1_double(x_SVT, x_nrow, REAL(ans), x_ncol);

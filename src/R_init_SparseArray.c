@@ -8,6 +8,7 @@
 #include "SparseArray_combine.h"
 #include "SparseArray_summarization.h"
 #include "SparseMatrix_mult.h"
+#include "rowsum_methods.h"
 #include "randomSparseArray.h"
 #include "readSparseCSV.h"
 
@@ -16,7 +17,6 @@
 static const R_CallMethodDef callMethods[] = {
 
 /* sparseMatrix_utils.c */
-	CALLMETHOD_DEF(C_rowsum_dgCMatrix, 4),
 	CALLMETHOD_DEF(C_colMins_dgCMatrix, 2),
 	CALLMETHOD_DEF(C_colMaxs_dgCMatrix, 2),
 	CALLMETHOD_DEF(C_colRanges_dgCMatrix, 2),
@@ -59,6 +59,10 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_crossprod2_mat_SVT, 7),
 	CALLMETHOD_DEF(C_crossprod2_SVT_SVT, 8),
 	CALLMETHOD_DEF(C_crossprod1_SVT, 5),
+
+/* rowsum_methods.c */
+	CALLMETHOD_DEF(C_rowsum_SVT, 6),
+	CALLMETHOD_DEF(C_rowsum_dgCMatrix, 4),
 
 /* randomSparseArray.c */
 	CALLMETHOD_DEF(C_simple_rpois, 2),

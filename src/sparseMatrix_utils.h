@@ -3,7 +3,6 @@
 
 #include <Rdefines.h>
 
-SEXP C_rowsum_dgCMatrix(SEXP x, SEXP group, SEXP ngroup, SEXP na_rm);
 SEXP C_colMins_dgCMatrix(SEXP x, SEXP na_rm);
 SEXP C_colMaxs_dgCMatrix(SEXP x, SEXP na_rm);
 SEXP C_colRanges_dgCMatrix(SEXP x, SEXP na_rm);
