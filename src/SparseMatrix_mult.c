@@ -432,7 +432,7 @@ static void crossprod2_mat_lv_double(const double *mat1, SEXP lv2,
    of doubles (on the right).
    'SVT1' must contain leaf vectors of type "double". */
 static void crossprod2_SVT_mat_double(SEXP SVT1, const double *mat2,
-		int in_nrow,
+		int tr_mat2, int in_nrow,
 		double *out, int out_nrow, int out_ncol)
 {
 	//int i;
@@ -441,7 +441,8 @@ static void crossprod2_SVT_mat_double(SEXP SVT1, const double *mat2,
 	if (SVT1 == R_NilValue)
 		return;
 	/* Outer loop: walk on SVT1.
-	   Inner loop: walk on the columns of 'mat2'. */
+	   Inner loop: walk on the columns of 'mat2'.
+	   Does NOT support 'tr_mat2' != 0. */
 /*
 	for (i = 0; i < out_nrow; i++, out++) {
 		subSVT1 = VECTOR_ELT(SVT1, i);
@@ -451,14 +452,32 @@ static void crossprod2_SVT_mat_double(SEXP SVT1, const double *mat2,
 					 out, out_nrow, out_ncol);
 	}
 */
-	/* Outer loop: walk on the columns of 'mat2'.
+	/* Outer loop: walk on the columns of 'mat2' (or on its rows
+	   if 'tr_mat2' is true).
 	   Inner loop: walk on SVT1.
 	   For some mysterious reason, this is faster than the above. */
-	int j;
+	double *colbuf;
+	int i, j;
 
-	for (j = 0; j < out_ncol; j++, mat2 += in_nrow, out += out_nrow)
-		compute_dotprods2_with_double_Rcol(SVT1, mat2, in_nrow,
-						   out, out_nrow);
+	if (tr_mat2) {
+		colbuf = (double *) R_alloc(in_nrow, sizeof(double));
+		for (j = 0; j < out_ncol; j++, out += out_nrow) {
+			/* Copy 'mat2[j, ]' to colbuf. */
+			for (i = 0; i < in_nrow; i++)
+				colbuf[i] = mat2[i * out_ncol];
+			compute_dotprods2_with_double_Rcol(SVT1, colbuf,
+						in_nrow,
+						out, out_nrow);
+			mat2++;
+		}
+	} else {
+		for (j = 0; j < out_ncol; j++, out += out_nrow) {
+			compute_dotprods2_with_double_Rcol(SVT1, mat2,
+						in_nrow,
+						out, out_nrow);
+			mat2 += in_nrow;
+		}
+	}
 	return;
 }
 
@@ -466,7 +485,7 @@ static void crossprod2_SVT_mat_double(SEXP SVT1, const double *mat2,
    and 'SVT2' (on the right).
    'SVT2' must contain leaf vectors of type "double". */
 static void crossprod2_mat_SVT_double(const double *mat1, SEXP SVT2,
-		int in_nrow,
+		int tr_mat1, int in_nrow,
 		double *out, int out_nrow, int out_ncol)
 {
 	//int j;
@@ -475,7 +494,8 @@ static void crossprod2_mat_SVT_double(const double *mat1, SEXP SVT2,
 	if (SVT2 == R_NilValue)
 		return;
 	/* Outer loop: walk on SVT2.
-	   Inner loop: walk on the columns of 'mat1'. */
+	   Inner loop: walk on the columns of 'mat1'.
+	   Does NOT support 'tr_mat1' != 0. */
 /*
 	for (j = 0; j < out_ncol; j++, out += out_nrow) {
 		subSVT2 = VECTOR_ELT(SVT2, j);
@@ -485,14 +505,32 @@ static void crossprod2_mat_SVT_double(const double *mat1, SEXP SVT2,
 					 out, out_nrow);
 	}
 */
-	/* Outer loop: walk on the columns of 'mat1'.
+	/* Outer loop: walk on the columns of 'mat1' (or on its rows
+	   if 'tr_mat1' is true).
 	   Inner loop: walk on SVT2.
 	   For some mysterious reason, this is faster than the above. */
-	int i;
+	double *colbuf;
+	int i, j;
 
-	for (i = 0; i < out_nrow; i++, mat1 += in_nrow, out++)
-		compute_dotprods2_with_double_Lcol(mat1, SVT2, in_nrow,
-						   out, out_nrow, out_ncol);
+	if (tr_mat1) {
+		colbuf = (double *) R_alloc(in_nrow, sizeof(double));
+		for (i = 0; i < out_nrow; i++, out++) {
+			/* Copy 'mat1[i, ]' to colbuf. */
+			for (j = 0; j < in_nrow; j++)
+				colbuf[j] = mat1[j * out_nrow];
+			compute_dotprods2_with_double_Lcol(colbuf, SVT2,
+						in_nrow,
+						out, out_nrow, out_ncol);
+			mat1++;
+		}
+	} else {
+		for (i = 0; i < out_nrow; i++, out++) {
+			compute_dotprods2_with_double_Lcol(mat1, SVT2,
+						in_nrow,
+						out, out_nrow, out_ncol);
+			mat1 += in_nrow;
+		}
+	}
 	return;
 }
 
@@ -500,18 +538,35 @@ static void crossprod2_mat_SVT_double(const double *mat1, SEXP SVT2,
    of ints (on the right).
    'SVT1' must contain leaf vectors of type "integer". */
 static void crossprod2_SVT_mat_int(SEXP SVT1, const int *mat2,
-		int in_nrow,
+		int tr_mat2, int in_nrow,
 		double *out, int out_nrow, int out_ncol)
 {
-	int j;
+	int *colbuf, i, j;
 
 	if (SVT1 == R_NilValue)
 		return;
-	/* Outer loop: walk on the columns of 'mat2'.
+	/* Outer loop: walk on the columns of 'mat2' (or on its rows
+	   if 'tr_mat2' is true).
 	   Inner loop: walk on SVT1. */
-	for (j = 0; j < out_ncol; j++, mat2 += in_nrow, out += out_nrow)
-		compute_dotprods2_with_int_Rcol(SVT1, mat2, in_nrow,
+	if (tr_mat2) {
+		colbuf = (int *) R_alloc(in_nrow, sizeof(int));
+		for (j = 0; j < out_ncol; j++, out += out_nrow) {
+			/* Copy 'mat2[j, ]' to colbuf. */
+			for (i = 0; i < in_nrow; i++)
+				colbuf[i] = mat2[i * out_ncol];
+			compute_dotprods2_with_int_Rcol(SVT1, colbuf,
+						in_nrow,
 						out, out_nrow);
+			mat2++;
+		}
+	} else {
+		for (j = 0; j < out_ncol; j++, out += out_nrow) {
+			compute_dotprods2_with_int_Rcol(SVT1, mat2,
+						in_nrow,
+						out, out_nrow);
+			mat2 += in_nrow;
+		}
+	}
 	return;
 }
 
@@ -519,18 +574,35 @@ static void crossprod2_SVT_mat_int(SEXP SVT1, const int *mat2,
    and 'SVT2' (on the right).
    'SVT2' must contain leaf vectors of type "int". */
 static void crossprod2_mat_SVT_int(const int *mat1, SEXP SVT2,
-		int in_nrow,
+		int tr_mat1, int in_nrow,
 		double *out, int out_nrow, int out_ncol)
 {
-	int i;
+	int *colbuf, i, j;
 
 	if (SVT2 == R_NilValue)
 		return;
-	/* Outer loop: walk on the columns of 'mat1'.
+	/* Outer loop: walk on the columns of 'mat1' (or on its rows
+	   if 'tr_mat1' is true).
 	   Inner loop: walk on SVT2. */
-	for (i = 0; i < out_nrow; i++, mat1 += in_nrow, out++)
-		compute_dotprods2_with_int_Lcol(mat1, SVT2, in_nrow,
+	if (tr_mat1) {
+		colbuf = (int *) R_alloc(in_nrow, sizeof(int));
+		for (i = 0; i < out_nrow; i++, out++) {
+			/* Copy 'mat1[i, ]' to colbuf. */
+			for (j = 0; j < in_nrow; j++)
+				colbuf[j] = mat1[j * out_nrow];
+			compute_dotprods2_with_int_Lcol(colbuf, SVT2,
+						in_nrow,
 						out, out_nrow, out_ncol);
+			mat1++;
+		}
+	} else {
+		for (i = 0; i < out_nrow; i++, out++) {
+			compute_dotprods2_with_int_Lcol(mat1, SVT2,
+						in_nrow,
+						out, out_nrow, out_ncol);
+			mat1 += in_nrow;
+		}
+	}
 	return;
 }
 
@@ -632,25 +704,25 @@ static void crossprod2_Rpp_double(SEXP SVT1, SEXP SVT2, int in_nrow,
 {
 	int j;
 	SEXP subSVT2;
-	double *col;
+	double *colbuf;
 
 	if (SVT1 == R_NilValue) {
 		crossprod2_mat0_SVT_double(SVT2, out, out_nrow, out_ncol);
 		return;
 	}
-	col = (double *) R_alloc(in_nrow, sizeof(double));
+	colbuf = (double *) R_alloc(in_nrow, sizeof(double));
 	subSVT2 = R_NilValue;
 	for (j = 0; j < out_ncol; j++, out += out_nrow) {
 		if (SVT2 != R_NilValue)
 			subSVT2 = VECTOR_ELT(SVT2, j);
 		if (subSVT2 == R_NilValue) {
-			memset(col, 0, sizeof(double) * in_nrow);
-			compute_dotprods2_with_finite_Rcol(SVT1, col,
+			memset(colbuf, 0, sizeof(double) * in_nrow);
+			compute_dotprods2_with_finite_Rcol(SVT1, colbuf,
 						out, out_nrow);
 		} else if (is_finite_lv(subSVT2)) {
 			/* Preprocess 'subSVT2'. */
-			expand_double_lv(subSVT2, col, in_nrow);
-			compute_dotprods2_with_finite_Rcol(SVT1, col,
+			expand_double_lv(subSVT2, colbuf, in_nrow);
+			compute_dotprods2_with_finite_Rcol(SVT1, colbuf,
 						out, out_nrow);
 		} else {
 			compute_dotprods2_with_Rlv(SVT1, subSVT2,
@@ -669,25 +741,25 @@ static void crossprod2_Lpp_double(SEXP SVT1, SEXP SVT2, int in_nrow,
 {
 	int i;
 	SEXP subSVT1;
-	double *col;
+	double *colbuf;
 
 	if (SVT2 == R_NilValue) {
 		crossprod2_SVT_mat0_double(SVT1, out, out_nrow, out_ncol);
 		return;
 	}
-	col = (double *) R_alloc(in_nrow, sizeof(double));
+	colbuf = (double *) R_alloc(in_nrow, sizeof(double));
 	subSVT1 = R_NilValue;
 	for (i = 0; i < out_nrow; i++, out++) {
 		if (SVT1 != R_NilValue)
 			subSVT1 = VECTOR_ELT(SVT1, i);
 		if (subSVT1 == R_NilValue) {
-			memset(col, 0, sizeof(double) * in_nrow);
-			compute_dotprods2_with_finite_Lcol(col, SVT2,
+			memset(colbuf, 0, sizeof(double) * in_nrow);
+			compute_dotprods2_with_finite_Lcol(colbuf, SVT2,
 						out, out_nrow, out_ncol);
 		} else if (is_finite_lv(subSVT1)) {
 			/* Preprocess 'subSVT1'. */
-			expand_double_lv(subSVT1, col, in_nrow);
-			compute_dotprods2_with_finite_Lcol(col, SVT2,
+			expand_double_lv(subSVT1, colbuf, in_nrow);
+			compute_dotprods2_with_finite_Lcol(colbuf, SVT2,
 						out, out_nrow, out_ncol);
 		} else {
 			compute_dotprods2_with_Llv(subSVT1, SVT2,
@@ -714,25 +786,25 @@ static void crossprod2_Rpp_int(SEXP SVT1, SEXP SVT2, int in_nrow,
 {
 	int j;
 	SEXP subSVT2;
-	int *col;
+	int *colbuf;
 
 	if (SVT1 == R_NilValue) {
 		crossprod2_mat0_SVT_int(SVT2, out, out_nrow, out_ncol);
 		return;
 	}
-	col = (int *) R_alloc(in_nrow, sizeof(int));
+	colbuf = (int *) R_alloc(in_nrow, sizeof(int));
 	subSVT2 = R_NilValue;
 	for (j = 0; j < out_ncol; j++, out += out_nrow) {
 		if (SVT2 != R_NilValue)
 			subSVT2 = VECTOR_ELT(SVT2, j);
 		if (subSVT2 == R_NilValue) {
-			memset(col, 0, sizeof(int) * in_nrow);
-			compute_dotprods2_with_noNA_int_Rcol(SVT1, col,
+			memset(colbuf, 0, sizeof(int) * in_nrow);
+			compute_dotprods2_with_noNA_int_Rcol(SVT1, colbuf,
 						out, out_nrow);
 		} else if (noNA_lv(subSVT2)) {
 			/* Preprocess 'subSVT2'. */
-			expand_int_lv(subSVT2, col, in_nrow);
-			compute_dotprods2_with_noNA_int_Rcol(SVT1, col,
+			expand_int_lv(subSVT2, colbuf, in_nrow);
+			compute_dotprods2_with_noNA_int_Rcol(SVT1, colbuf,
 						out, out_nrow);
 		} else {
 			fill_col_with_NAs(out, out_nrow);
@@ -746,25 +818,25 @@ static void crossprod2_Lpp_int(SEXP SVT1, SEXP SVT2, int in_nrow,
 {
 	int i;
 	SEXP subSVT1;
-	int *col;
+	int *colbuf;
 
 	if (SVT2 == R_NilValue) {
 		crossprod2_SVT_mat0_int(SVT1, out, out_nrow, out_ncol);
 		return;
 	}
-	col = (int *) R_alloc(in_nrow, sizeof(int));
+	colbuf = (int *) R_alloc(in_nrow, sizeof(int));
 	subSVT1 = R_NilValue;
 	for (i = 0; i < out_nrow; i++, out++) {
 		if (SVT1 != R_NilValue)
 			subSVT1 = VECTOR_ELT(SVT1, i);
 		if (subSVT1 == R_NilValue) {
-			memset(col, 0, sizeof(int) * in_nrow);
-			compute_dotprods2_with_noNA_int_Lcol(col, SVT2,
+			memset(colbuf, 0, sizeof(int) * in_nrow);
+			compute_dotprods2_with_noNA_int_Lcol(colbuf, SVT2,
 						out, out_nrow, out_ncol);
 		} else if (noNA_lv(subSVT1)) {
 			/* Preprocess 'subSVT1'. */
-			expand_int_lv(subSVT1, col, in_nrow);
-			compute_dotprods2_with_noNA_int_Lcol(col, SVT2,
+			expand_int_lv(subSVT1, colbuf, in_nrow);
+			compute_dotprods2_with_noNA_int_Lcol(colbuf, SVT2,
 						out, out_nrow, out_ncol);
 		} else {
 			fill_row_with_NAs(out, out_nrow, out_ncol);
@@ -782,22 +854,22 @@ static void crossprod1_double(SEXP SVT, int in_nrow, double *out, int out_ncol)
 {
 	int j;
 	SEXP subSVT;
-	double *col;
+	double *colbuf;
 
 	if (SVT == R_NilValue)
 		return;
-	col = (double *) R_alloc(in_nrow, sizeof(double));
+	colbuf = (double *) R_alloc(in_nrow, sizeof(double));
 	for (j = 0; j < out_ncol; j++, out += out_ncol + 1) {
 		subSVT = VECTOR_ELT(SVT, j);
 		if (subSVT == R_NilValue) {
-			memset(col, 0, sizeof(double) * in_nrow);
-			compute_sym_dotprods_with_finite_col(SVT, col,
+			memset(colbuf, 0, sizeof(double) * in_nrow);
+			compute_sym_dotprods_with_finite_col(SVT, colbuf,
 						out, out_ncol, j);
 		} else if (is_finite_lv(subSVT)) {
-			expand_double_lv(subSVT, col, in_nrow);
+			expand_double_lv(subSVT, colbuf, in_nrow);
 			*out =
-			    _dotprod_leaf_vector_and_finite_col(subSVT, col);
-			compute_sym_dotprods_with_finite_col(SVT, col,
+			  _dotprod_leaf_vector_and_finite_col(subSVT, colbuf);
+			compute_sym_dotprods_with_finite_col(SVT, colbuf,
 						out, out_ncol, j);
 		} else {
 			*out = _dotprod_leaf_vectors(subSVT, subSVT);
@@ -822,22 +894,22 @@ static void crossprod1_int(SEXP SVT, int in_nrow, double *out, int out_ncol)
 {
 	int j;
 	SEXP subSVT;
-	int *col;
+	int *colbuf;
 
 	if (SVT == R_NilValue)
 		return;
-	col = (int *) R_alloc(in_nrow, sizeof(int));
+	colbuf = (int *) R_alloc(in_nrow, sizeof(int));
 	for (j = 0; j < out_ncol; j++, out += out_ncol + 1) {
 		subSVT = VECTOR_ELT(SVT, j);
 		if (subSVT == R_NilValue) {
-			memset(col, 0, sizeof(int) * in_nrow);
-			compute_sym_dotprods_with_noNA_int_col(SVT, col,
+			memset(colbuf, 0, sizeof(int) * in_nrow);
+			compute_sym_dotprods_with_noNA_int_col(SVT, colbuf,
 						out, out_ncol, j);
 		} else if (noNA_lv(subSVT)) {
-			expand_int_lv(subSVT, col, in_nrow);
+			expand_int_lv(subSVT, colbuf, in_nrow);
 			*out =
-			    _dotprod_leaf_vector_and_noNA_int_col(subSVT, col);
-			compute_sym_dotprods_with_noNA_int_col(SVT, col,
+			  _dotprod_leaf_vector_and_noNA_int_col(subSVT, colbuf);
+			compute_sym_dotprods_with_noNA_int_col(SVT, colbuf,
 						out, out_ncol, j);
 		} else {
 			sym_fill_with_NAs(out, out_ncol, j);
@@ -897,26 +969,32 @@ static SEXP new_Rmatrix(SEXPTYPE Rtype, int nrow, int ncol, SEXP dimnames)
 
 /* --- .Call ENTRY POINT --- */
 SEXP C_crossprod2_SVT_mat(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP y,
+			  SEXP transpose_y,
 			  SEXP ans_type, SEXP ans_dimnames)
 {
+	int tr_y, x_nrow, x_ncol, y_nrow, y_ncol, ans_ncol;
 	SEXP y_dim, ans;
-	int in_nrow, x_ncol, y_ncol;
 	SEXPTYPE x_Rtype, ans_Rtype;
+
+	tr_y = LOGICAL(transpose_y)[0];
 
 	/* Check 'x_dim' and 'y_dim'. */
 	y_dim = GET_DIM(y);
 	if (LENGTH(x_dim) != 2 || LENGTH(y_dim) != 2)
 		error("input objects must have 2 dimensions");
-	in_nrow = INTEGER(x_dim)[0];
-	if (in_nrow != INTEGER(y_dim)[0])
-		error("input objects are non-conformable");
+	x_nrow = INTEGER(x_dim)[0];
 	x_ncol = INTEGER(x_dim)[1];
+	y_nrow = INTEGER(y_dim)[0];
 	y_ncol = INTEGER(y_dim)[1];
+	if (x_nrow != (tr_y ? y_ncol : y_nrow))
+		error("input objects are non-conformable");
 
 	/* Check 'x_type' and 'TYPEOF(y)'. */
 	x_Rtype = get_and_check_input_Rtype(x_type, "x_type");
 	if (x_Rtype != TYPEOF(y))
-		error("input objects must have the same type() for now");
+		error("SparseArray internal error in "
+		      "C_crossprod2_SVT_mat():\n"
+		      "    'x_Rtype != TYPEOF(y)' not supported yet");
 
 	/* Check 'ans_type'. */
 	ans_Rtype = _get_Rtype_from_Rstring(ans_type);
@@ -931,14 +1009,15 @@ SEXP C_crossprod2_SVT_mat(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP y,
 		      type2char(ans_Rtype));
 
 	/* Allocate 'ans' and fill with zeros. */
-	ans = PROTECT(new_Rmatrix(ans_Rtype, x_ncol, y_ncol, ans_dimnames));
+	ans_ncol = tr_y ? y_nrow : y_ncol;
+	ans = PROTECT(new_Rmatrix(ans_Rtype, x_ncol, ans_ncol, ans_dimnames));
 
 	if (x_Rtype == REALSXP) {
-		crossprod2_SVT_mat_double(x_SVT, REAL(y), in_nrow,
-				REAL(ans), x_ncol, y_ncol);
+		crossprod2_SVT_mat_double(x_SVT, REAL(y), tr_y, x_nrow,
+				REAL(ans), x_ncol, ans_ncol);
 	} else {
-		crossprod2_SVT_mat_int(x_SVT, INTEGER(y), in_nrow,
-				REAL(ans), x_ncol, y_ncol);
+		crossprod2_SVT_mat_int(x_SVT, INTEGER(y), tr_y, x_nrow,
+				REAL(ans), x_ncol, ans_ncol);
 	}
 
 	UNPROTECT(1);
@@ -947,21 +1026,25 @@ SEXP C_crossprod2_SVT_mat(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP y,
 
 /* --- .Call ENTRY POINT --- */
 SEXP C_crossprod2_mat_SVT(SEXP x, SEXP y_dim, SEXP y_type, SEXP y_SVT,
+			  SEXP transpose_x,
 			  SEXP ans_type, SEXP ans_dimnames)
 {
+	int tr_x, x_nrow, x_ncol, y_nrow, y_ncol, ans_nrow;
 	SEXP x_dim, ans;
-	int in_nrow, x_ncol, y_ncol;
 	SEXPTYPE y_Rtype, ans_Rtype;
+
+	tr_x = LOGICAL(transpose_x)[0];
 
 	/* Check 'x_dim' and 'y_dim'. */
 	x_dim = GET_DIM(x);
 	if (LENGTH(x_dim) != 2 || LENGTH(y_dim) != 2)
 		error("input objects must have 2 dimensions");
-	in_nrow = INTEGER(x_dim)[0];
-	if (in_nrow != INTEGER(y_dim)[0])
-		error("input objects are non-conformable");
+	x_nrow = INTEGER(x_dim)[0];
 	x_ncol = INTEGER(x_dim)[1];
+	y_nrow = INTEGER(y_dim)[0];
 	y_ncol = INTEGER(y_dim)[1];
+	if ((tr_x ? x_ncol : x_nrow) != y_nrow)
+		error("input objects are non-conformable");
 
 	/* Check 'TYPEOF(x)' and 'y_type'. */
 	y_Rtype = get_and_check_input_Rtype(y_type, "y_type");
@@ -981,14 +1064,15 @@ SEXP C_crossprod2_mat_SVT(SEXP x, SEXP y_dim, SEXP y_type, SEXP y_SVT,
 		      type2char(ans_Rtype));
 
 	/* Allocate 'ans' and fill with zeros. */
-	ans = PROTECT(new_Rmatrix(ans_Rtype, x_ncol, y_ncol, ans_dimnames));
+	ans_nrow = tr_x ? x_nrow : x_ncol;
+	ans = PROTECT(new_Rmatrix(ans_Rtype, ans_nrow, y_ncol, ans_dimnames));
 
 	if (y_Rtype == REALSXP) {
-		crossprod2_mat_SVT_double(REAL(x), y_SVT, in_nrow,
-				REAL(ans), x_ncol, y_ncol);
+		crossprod2_mat_SVT_double(REAL(x), y_SVT, tr_x, y_nrow,
+				REAL(ans), ans_nrow, y_ncol);
 	} else {
-		crossprod2_mat_SVT_int(INTEGER(x), y_SVT, in_nrow,
-				REAL(ans), x_ncol, y_ncol);
+		crossprod2_mat_SVT_int(INTEGER(x), y_SVT, tr_x, y_nrow,
+				REAL(ans), ans_nrow, y_ncol);
 	}
 
 	UNPROTECT(1);

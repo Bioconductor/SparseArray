@@ -279,7 +279,7 @@ setAs("ANY", "COO_SparseMatrix",
     ## or from "integer" to "logical") can introduce zeros. In this case,
     ## we must switch the type early. Otherwise we will end up with zeros
     ## in the "x" slot of the resulting dgCMatrix or lgCMatrix object.
-    switch_type_early <- coercion_can_introduce_zeros(from@type, to_type)
+    switch_type_early <- coercion_can_introduce_zeros(type(from), to_type)
     if (switch_type_early)
         type(from) <- to_type  # early type switching
 

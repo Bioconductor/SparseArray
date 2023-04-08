@@ -19,12 +19,22 @@
                   #"\"integer\", \"complex\", or \"logical\""))
 }
 
-.crossprod2_SVT_mat <- function(x, y=NULL)
+.crossprod2_SVT_mat <- function(x, y, transpose.y=FALSE)
 {
-    stopifnot(is(x, "SVT_SparseMatrix"), is.matrix(y))
-    if (nrow(x) != nrow(y))
-        stop(wmsg("non-conformable arguments"))
-    ans_dim <- c(ncol(x), ncol(y))
+    stopifnot(is(x, "SVT_SparseMatrix"),
+              is.matrix(y),
+              isTRUEorFALSE(transpose.y))
+    if (transpose.y) {
+        if (nrow(x) != ncol(y))
+            stop(wmsg("non-conformable arguments"))
+        ans_dim <- c(ncol(x), nrow(y))
+        ans_dimnames <- list(colnames(x), rownames(y))
+    } else {
+        if (nrow(x) != nrow(y))
+            stop(wmsg("non-conformable arguments"))
+        ans_dim <- c(ncol(x), ncol(y))
+        ans_dimnames <- list(colnames(x), colnames(y))
+    }
     if (type(x) == type(y)) {
         .check_crossprod_input_type(type(x))
     } else {
@@ -33,19 +43,28 @@
         type(x) <- type(y) <- xy_type
     }
     ans_type <- "double"
-    ans_dimnames <- list(colnames(x), colnames(y))
     ans_dimnames <- S4Arrays:::simplify_NULL_dimnames(ans_dimnames)
-    .Call2("C_crossprod2_SVT_mat", x@dim, x@type, x@SVT, y,
+    .Call2("C_crossprod2_SVT_mat", x@dim, x@type, x@SVT, y, transpose.y,
            ans_type, ans_dimnames,
            PACKAGE="SparseArray")
 }
 
-.crossprod2_mat_SVT <- function(x, y=NULL)
+.crossprod2_mat_SVT <- function(x, y, transpose.x=FALSE)
 {
-    stopifnot(is.matrix(x), is(y, "SVT_SparseMatrix"))
-    if (nrow(x) != nrow(y))
-        stop(wmsg("non-conformable arguments"))
-    ans_dim <- c(ncol(x), ncol(y))
+    stopifnot(is.matrix(x),
+              is(y, "SVT_SparseMatrix"),
+              isTRUEorFALSE(transpose.x))
+    if (transpose.x) {
+        if (ncol(x) != nrow(y))
+            stop(wmsg("non-conformable arguments"))
+        ans_dim <- c(nrow(x), ncol(y))
+        ans_dimnames <- list(rownames(x), colnames(y))
+    } else {
+        if (nrow(x) != nrow(y))
+            stop(wmsg("non-conformable arguments"))
+        ans_dim <- c(ncol(x), ncol(y))
+        ans_dimnames <- list(colnames(x), colnames(y))
+    }
     if (type(x) == type(y)) {
         .check_crossprod_input_type(type(x))
     } else {
@@ -54,9 +73,8 @@
         type(x) <- type(y) <- xy_type
     }
     ans_type <- "double"
-    ans_dimnames <- list(colnames(x), colnames(y))
     ans_dimnames <- S4Arrays:::simplify_NULL_dimnames(ans_dimnames)
-    .Call2("C_crossprod2_mat_SVT", x, y@dim, y@type, y@SVT,
+    .Call2("C_crossprod2_mat_SVT", x, y@dim, y@type, y@SVT, transpose.x,
            ans_type, ans_dimnames,
            PACKAGE="SparseArray")
 }
@@ -124,11 +142,11 @@ setMethod("crossprod", c("SVT_SparseMatrix", "missing"),
 ###
 
 setMethod("tcrossprod", c("SVT_SparseMatrix", "matrix"),
-    function(x, y=NULL) .crossprod2_SVT_mat(t(x), t(y))
+    function(x, y=NULL) .crossprod2_SVT_mat(t(x), y, transpose.y=TRUE)
 )
 
 setMethod("tcrossprod", c("matrix", "SVT_SparseMatrix"),
-    function(x, y=NULL) .crossprod2_mat_SVT(t(x), t(y))
+    function(x, y=NULL) .crossprod2_mat_SVT(x, t(y), transpose.x=TRUE)
 )
 
 setMethod("tcrossprod", c("SVT_SparseMatrix", "SVT_SparseMatrix"),
@@ -157,7 +175,7 @@ setMethod("%*%", c("SVT_SparseMatrix", "matrix"),
 )
 
 setMethod("%*%", c("matrix", "SVT_SparseMatrix"),
-    function(x, y) .crossprod2_mat_SVT(t(x), y)
+    function(x, y) .crossprod2_mat_SVT(x, y, transpose.x=TRUE)
 )
 
 setMethod("%*%", c("SVT_SparseMatrix", "SVT_SparseMatrix"),

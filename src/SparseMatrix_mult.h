@@ -8,6 +8,7 @@ SEXP C_crossprod2_SVT_mat(
 	SEXP x_type,
 	SEXP x_SVT,
 	SEXP y,
+	SEXP transpose_y,
 	SEXP ans_type,
 	SEXP ans_dimnames
 );
@@ -17,6 +18,7 @@ SEXP C_crossprod2_mat_SVT(
 	SEXP y_dim,
 	SEXP y_type,
 	SEXP y_SVT,
+	SEXP transpose_x,
 	SEXP ans_type,
 	SEXP ans_dimnames
 );
