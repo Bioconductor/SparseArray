@@ -54,17 +54,17 @@
 }
 
 \examples{
-svt0 <- randomSparseMatrix(1e5, 800, density=0.15)
+svt0 <- randomSparseMatrix(7e5, 100, density=0.15)
 dgcm0 <- as(svt0, "dgCMatrix")
 m0 <- as.matrix(svt0)
 
-rowgroup <- sample(20, nrow(m0), replace=TRUE)
+group <- sample(10, nrow(m0), replace=TRUE)
 
-## Calling rowsum() on the sparse representations is about 4x faster
+## Calling rowsum() on the sparse representations is usually faster
 ## than on the dense representation:
-rs1 <- rowsum(m0, rowgroup)
-rs2 <- rowsum(svt0, rowgroup)   # about 4x faster
-rs3 <- rowsum(dgcm0, rowgroup)  # also about 4x faster
+rs1 <- rowsum(m0, group)
+rs2 <- rowsum(svt0, group)   # about 3x faster
+rs3 <- rowsum(dgcm0, group)  # also about 3x faster
 
 ## Sanity checks:
 stopifnot(identical(rs1, rs2))

@@ -54,7 +54,7 @@ static void compute_rowsum_doubles(const double *vals, const int *offs, int n,
 }
 
 static void compute_rowsum_ints(const int *vals, const int *offs, int n,
-		const int *groups, double *out, int out_len, int narm)
+		const int *groups, int *out, int out_len, int narm)
 {
 	int k, g, v;
 
@@ -66,36 +66,52 @@ static void compute_rowsum_ints(const int *vals, const int *offs, int n,
 		v = vals[k];
 		if (narm && v == NA_INTEGER)
 			continue;
-		out[g] += v;
+		out[g] = safe_int_add(out[g], v);
 	}
 	return;
 }
 
-static int rowsum_SVT(int x_nrow, int x_ncol, SEXP x_SVT,
+static void rowsum_SVT_double(int x_nrow, int x_ncol, SEXP x_SVT,
 		const int *groups, int ngroup, int narm, double *out)
 {
 	int j, lv_len;
 	SEXP subSVT, lv_offs, lv_vals;
 
-	for (j = 0; j < x_ncol; j++) {
+	if (x_SVT == R_NilValue)
+		return;
+	for (j = 0; j < x_ncol; j++, out += ngroup) {
 		subSVT = VECTOR_ELT(x_SVT, j);
 		if (subSVT == R_NilValue)
 			continue;
 		lv_len = _split_leaf_vector(subSVT, &lv_offs, &lv_vals);
-		if (TYPEOF(lv_vals) == REALSXP) {
-			compute_rowsum_doubles(
-				REAL(lv_vals), INTEGER(lv_offs), lv_len,
-				groups, out, ngroup, narm);
-		} else if (TYPEOF(lv_vals) == INTSXP) {
-			compute_rowsum_ints(
-				INTEGER(lv_vals), INTEGER(lv_offs), lv_len,
-				groups, out, ngroup, narm);
-		} else {
-			return -1;
-		}
-		out += ngroup;
+		compute_rowsum_doubles(
+			REAL(lv_vals), INTEGER(lv_offs), lv_len,
+			groups, out, ngroup, narm);
 	}
-	return 0;
+	return;
+}
+
+static void rowsum_SVT_int(int x_nrow, int x_ncol, SEXP x_SVT,
+		const int *groups, int ngroup, int narm, int *out)
+{
+	int j, lv_len;
+	SEXP subSVT, lv_offs, lv_vals;
+
+	if (x_SVT == R_NilValue)
+		return;
+	reset_ovflow_flag();
+	for (j = 0; j < x_ncol; j++, out += ngroup) {
+		subSVT = VECTOR_ELT(x_SVT, j);
+		if (subSVT == R_NilValue)
+			continue;
+		lv_len = _split_leaf_vector(subSVT, &lv_offs, &lv_vals);
+		compute_rowsum_ints(
+			INTEGER(lv_vals), INTEGER(lv_offs), lv_len,
+			groups, out, ngroup, narm);
+	}
+	if (get_ovflow_flag())
+		warning("NAs produced by integer overflow");
+	return;
 }
 
 static void rowsum_dgCMatrix(int x_nrow, int x_ncol,
@@ -104,13 +120,12 @@ static void rowsum_dgCMatrix(int x_nrow, int x_ncol,
 {
 	int j, offset, nzcount;
 
-	for (j = 0; j < x_ncol; j++) {
+	for (j = 0; j < x_ncol; j++, out += ngroup) {
 		offset = x_p[j];
 		nzcount = x_p[j + 1] - offset;
 		compute_rowsum_doubles(
 			x_x + offset, x_i + offset, nzcount,
 			groups, out, ngroup, narm);
-		out += ngroup;
 	}
 	return;
 }
@@ -119,7 +134,8 @@ static void rowsum_dgCMatrix(int x_nrow, int x_ncol,
 SEXP C_rowsum_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		  SEXP group, SEXP ngroup, SEXP na_rm)
 {
-	int x_nrow, x_ncol, narm, ans_nrow, ret;
+	int x_nrow, x_ncol, narm, ans_nrow;
+	SEXPTYPE x_Rtype;
 	SEXP ans;
 
 	if (LENGTH(x_dim) != 2)
@@ -127,6 +143,12 @@ SEXP C_rowsum_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	x_nrow = INTEGER(x_dim)[0];
 	x_ncol = INTEGER(x_dim)[1];
 	narm = LOGICAL(na_rm)[0];
+
+	x_Rtype = _get_Rtype_from_Rstring(x_type);
+	if (x_Rtype == 0)
+		error("SparseArray internal error in "
+		      "C_rowsum_SVT():\n"
+		      "    invalid 'x_type' value");
 
 	ans_nrow = INTEGER(ngroup)[0];
 	check_group(group, x_nrow, ans_nrow);
@@ -137,15 +159,24 @@ SEXP C_rowsum_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	safe_int_mult(ans_nrow, x_ncol);
 	if (get_ovflow_flag())
 		error("too many groups (matrix of sums will be too big)");
-	ans = PROTECT(_new_Rmatrix0(REALSXP, ans_nrow, x_ncol, R_NilValue));
 
-	ret = rowsum_SVT(x_nrow, x_ncol, x_SVT,
-			 INTEGER(group), ans_nrow, narm, REAL(ans));
-	if (ret < 0) {
-		UNPROTECT(1);
-		error("SparseArray internal error in "
-		      "C_rowsum_SVT():\n"
-		      "    rowsum_SVT() returned an error");
+	/* Note that base::rowsum() only supports numeric matrices i.e.
+	   matrices of type() "double" or "integer", so we do the same. */
+	if (x_Rtype == REALSXP) {
+		ans = PROTECT(_new_Rmatrix0(REALSXP, ans_nrow, x_ncol,
+					    R_NilValue));
+		rowsum_SVT_double(x_nrow, x_ncol, x_SVT,
+			INTEGER(group), ans_nrow, narm, REAL(ans));
+	} else if (x_Rtype == INTSXP) {
+		ans = PROTECT(_new_Rmatrix0(INTSXP, ans_nrow, x_ncol,
+					    R_NilValue));
+		rowsum_SVT_int(x_nrow, x_ncol, x_SVT,
+			INTEGER(group), ans_nrow, narm, INTEGER(ans));
+	} else {
+		error("rowsum() or colsum() do not support "
+		      "SVT_SparseMatrix objects of\n"
+		      "  type \"%s\" at the moment",
+		      type2char(x_Rtype));
 	}
 
 	UNPROTECT(1);
