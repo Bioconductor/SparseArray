@@ -25,12 +25,18 @@
 }
 
 ### S3/S4 combo for rowsum.SVT_SparseMatrix
-rowsum.SVT_SparseMatrix <- function(x, group, reorder=TRUE, ...)
-    .rowsum_method(x, group, reorder=reorder, ...)
-setMethod("rowsum", "SVT_SparseMatrix", rowsum.SVT_SparseMatrix)
+rowsum.SVT_SparseMatrix <-
+    function(x, group, reorder=TRUE, na.rm=FALSE, ...)
+        .rowsum_method(x, group, reorder=reorder, na.rm=na.rm, ...)
+setMethod("rowsum", "SVT_SparseMatrix",
+    function(x, group, reorder=TRUE, ...)
+        .rowsum_method(x, group, reorder=reorder, ...)
+)
 
 ### S3/S4 combo for rowsum.dgCMatrix
-rowsum.dgCMatrix <- function(x, group, reorder=TRUE, ...)
-    .rowsum_method(x, group, reorder=reorder, ...)
-setMethod("rowsum", "dgCMatrix", rowsum.dgCMatrix)
+rowsum.dgCMatrix <- rowsum.SVT_SparseMatrix
+setMethod("rowsum", "dgCMatrix",
+    function(x, group, reorder=TRUE, ...)
+        .rowsum_method(x, group, reorder=reorder, ...)
+)
 

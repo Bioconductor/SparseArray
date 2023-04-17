@@ -29,15 +29,23 @@
   \item{x}{
     An \link{SVT_SparseMatrix} or \linkS4class{dgCMatrix} object.
   }
-  \item{group, reorder, ...}{
+  \item{group, reorder}{
     See \code{?base::\link[base]{rowsum}} for a description of
     these arguments.
+  }
+  \item{...}{
+    Like the default S3 \code{rowsum()} method defined in the \pkg{base}
+    package, the methods documented in this man page support additional
+    argument \code{na.rm}, set to \code{FALSE} by default.
+    If \code{TRUE}, missing values (\code{NA} or \code{NaN}) are omitted
+    from the calculations.
   }
 }
 
 \value{
-  See \code{?base::\link[base]{rowsum}} for the value returned
-  by the default \code{rowsum()} method.
+  An \emph{ordinary} matrix, like the default \code{rowsum()} method.
+  See \code{?base::\link[base]{rowsum}} for how the matrix returned
+  by the default \code{rowsum()} method is obtained.
 }
 
 \seealso{
