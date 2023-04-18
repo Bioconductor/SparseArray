@@ -50,9 +50,10 @@ writeSparseCSV <- function(x, filepath, sep=",", transpose=FALSE,
     x_dim <- dim(x)
     if (length(x_dim) != 2L)
         stop("'x' must be a matrix-like object")
-    x_dimnames <- dimnames(x)
-    if (is.null(x_dimnames))
-        stop("'x' must have dimnames")
+    x_rownames <- rownames(x)
+    x_colnames <- colnames(x)
+    if (is.null(x_rownames) || is.null(x_colnames))
+        stop("'x' must have rownames and colnames")
     x_type <- type(x)
     if (!(x_type %in% c("logical", "integer", "double", "raw")))
         stop(wmsg("'x' must be of type \"integer\" (types \"logical\", ",
@@ -71,8 +72,6 @@ writeSparseCSV <- function(x, filepath, sep=",", transpose=FALSE,
 
     x_nrow <- x_dim[[1L]]
     x_ncol <- x_dim[[2L]]
-    x_rownames <- x_dimnames[[1L]]
-    x_colnames <- x_dimnames[[2L]]
 
     if (transpose) {
         chunks <- breakInChunks(x_ncol, chunksize=chunknrow)

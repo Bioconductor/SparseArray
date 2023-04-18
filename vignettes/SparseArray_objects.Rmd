@@ -127,20 +127,24 @@ sparsity(svt1)
 
 ## Subsetting and subassignment
 
+```{r}
+svt2[5:3, , "C"]
+```
 
-Note that assigning values of type `"double"` to an SVT\_SparseArray
-object of type `"integer"` will automatically change the type of the
-object to `"double"`:
+Like with ordinary arrays in base R, assigning values of type `"double"` to
+an SVT\_SparseArray object of type `"integer"` will automatically change the
+type of the object to `"double"`:
 ```{r}
 type(svt2)
 svt2[5, 1, 3] <- NaN
 type(svt2)
 ```
 
-## Combining objects by rows or columns
+See `?SparseArray_subsetting` for more information and additional examples.
 
 ## Summarization methods (whole array)
 
+The following summarization methods are provided at the moment:
 ```{r}
 anyNA(svt2)
 
@@ -148,6 +152,8 @@ range(svt2, na.rm=TRUE)
 
 mean(svt2, na.rm=TRUE)
 ```
+
+See `?SparseArray_summarization` for more information and additional examples.
 
 ## Other operations on SVT\_SparseArray objects
 
@@ -158,6 +164,15 @@ more information).
 
 ## Generate a random SVT\_SparseArray object
 
+Two convenience functions are provided for this:
+```{r}
+randomSparseArray(c(5, 6, 2), density=0.5)
+
+poissonSparseArray(c(5, 6, 2), density=0.5)
+```
+
+See `?randomSparseArray` for more information and additional examples.
+
 
 # SVT\_SparseMatrix objects
 
@@ -167,13 +182,96 @@ more information).
 t(svt1)
 ```
 
+## Combining objects by rows or columns
+
+Like ordinary matrices in base R, SVT\_SparseMatrix objects can be
+combined by rows or columns, with `rbind()` or `cbind()`:
+```{r}
+svt3 <- poissonSparseMatrix(6, 2, density=0.5)
+
+cbind(svt1, svt3)
+```
+
+See `?SparseArray_combine` for more information and additional examples.
+
 ## Matrix multiplication and cross-product
+
+Like ordinary matrices in base R, SVT\_SparseMatrix objects can be
+multiplied with the `%*%` operator:
+```{r}
+m4 <- matrix(0L, nrow=5, ncol=6, dimnames=list(letters[1:5], LETTERS[1:6]))
+m4[c(2, 6, 12:17, 22:30)] <- 101:117
+svt4 <- SparseArray(m4)
+
+svt4 %*% svt3
+```
+
+They also support `crossprod()` and `tcrossprod()`:
+```{r}
+crossprod(svt3)
+```
+
+See `?SparseMatrix_mult` for more information and additional examples.
 
 ## matrixStats row/col summarization methods
 
+The `r Biocpkg("SparseArray")` package provides memory-efficient row/col
+summarization methods for SVT\_SparseMatrix objects:
+```{r}
+rowVars(svt4, useNames=TRUE)
+```
+
+See `?matrixStats_methods` for more information and additional examples.
+
+## `rowsum()` method
+
+A `rowsum()` method is provided:
+```{r}
+rowsum(svt4, group=c(1:3, 2:1))
+```
+
+See `?rowsum_methods` for more information and additional examples.
+
 ## Read/write a sparse matrix from/to a CSV file
 
-## Comparison with dgCMatrix objects
+Use `writeSparseCSV()` to write a sparse matrix to a CSV file:
+```{r}
+csv_path <- tempfile()
+writeSparseCSV(m4, csv_path)
+```
+
+Use `readSparseCSV()` to read the file. This will import the data as
+an SVT\_SparseMatrix object:
+```{r}
+readSparseCSV(csv_path)
+```
+
+See `?readSparseCSV` for more information and additional examples.
+
+
+# Comparison with dgCMatrix objects
+
+The nonzero data of a SVT\_SparseArray object is stored in a _Sparse
+Vector Tree_. This internal data representation is referred to as
+the "SVT layout". It is similar to the "CSC layout" (compressed, sparse,
+column-oriented format) used by CsparseMatrix derivatives from
+the `r CRANpkg("Matrix")` package, like dgCMatrix or lgCMatrix objects,
+but with the following improvements:
+
+- The "SVT layout" supports sparse arrays of arbitrary dimensions.
+
+- With the "SVT layout", the sparse data can be of any type.
+  Whereas CsparseMatrix derivatives only support sparse data of
+  type `"double"` or `"logical"` at the moment.
+
+- The "SVT layout" imposes no limit on the number of nonzero elements
+  that can be stored. With dgCMatrix/lgCMatrix objects, this number
+  must be < 2^31.
+
+- Overall, the "SVT layout" allows more efficient operations on
+  SVT\_SparseArray objects.
+
+See `?SVT_SparseArray` for more information.
 
 
 # Learn more

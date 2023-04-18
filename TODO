@@ -16,12 +16,6 @@
 
 - Speed up row selection: x[row_idx, ]
 
-- Implement readMatrixMarket() to read a Matrix Market file as a SparseMatrix
-  object, and writeMatrixMarket() to write a SparseMatrix object to a Matrix
-  Market file. These will be the analogs of readMM() and writeMM() from the
-  Matrix package.
-  See https://math.nist.gov/MatrixMarket/formats.html
-
 - Implement more matrixStats methods for SVT_SparseMatrix objects. Those
   that are still missing and are actually used in Bioconductor are:
   rowMeans2, rowSums2, rowRanks, rowQuantiles, rowMads, rowIQRs, rowAlls,
@@ -36,10 +30,16 @@
 - Implement more summarization methods for SVT_SparseArray objects.
   See R/SparseArray-summarization.R
 
+- Implement aperm() method for SVT_SparseArray objects.
+
+- Implement readMatrixMarket() to read a Matrix Market file as a SparseMatrix
+  object, and writeMatrixMarket() to write a SparseMatrix object to a Matrix
+  Market file. These will be the analogs of readMM() and writeMM() from the
+  Matrix package.
+  See https://math.nist.gov/MatrixMarket/formats.html
+
 - Implement table() method for SVT_SparseArray objects of type logical,
   integer, or raw (should it go in R/SparseArray-summarization.R?)
-
-- Implement crossprod(), tcrossprod(), and %*%, for SVT_SparseMatrix objects.
 
 - Add unit tests for the SVT_SparseArray stuff.
 
@@ -70,16 +70,22 @@
   that of an SVT_SparseArray of type logical!
   Notes:
     - The type of an OVT_SparseArray object would always be "logical".
-    - A typical operation that would return an OVT_SparseArray object is
-      calling is.na() on an SVT_SparseArray object.
+    - 2 typical use cases for OVT_SparseArray: (1) represent the result of
+      calling is.na() on an SVT_SparseArray object, (2) represent the
+      adjacency matrix of a graph.
     - OVT_SparseArray is to SVT_SparseArray what ngCMatrix is to dgCMatrix.
     - Coercion from SVT_SparseArray to OVT_SparseArray should be supported.
       Would replace all sparse vectors in the tree with offset vectors, by
-      stripping off the "vals" component the non-NULL leaves.
+      stripping off the "vals" component from the non-NULL leaves.
     - Coercion back from OVT_SparseArray to SVT_SparseArray should also be
       supported. Would produce a SVT_SparseArray of type logical.
     - Like with a logical SVT_SparseArray (and, conceptually, with any
       array-like object of type "logical"), we should be able to use an
       OVT_SparseArray object to subset another array-like object of identical
       dimensions (conformable arrays).
-
+  ALTERNATE APPROACHES:
+  - Make OVT_SparseArray an extension of SVT_SparseArray.
+  - Or simply don't introduce a new class for this and make it an internal
+    business of the SVT_SparseArray representation to use either a Sparse
+    Vector Tree for the general case or an Offset Vector Tree for the
+    special "type=logical with no NAs" case.

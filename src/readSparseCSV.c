@@ -10,7 +10,7 @@
 #include "leaf_vector_utils.h"
 #include "ExtendableJaggedArray.h"
 
-#include <R_ext/Connections.h>  /* for R_ReadConnection() */
+#include <R_ext/Connections.h>
 
 #include <string.h>  /* for memcpy() */
 
@@ -21,8 +21,6 @@
  * filexp_gets2(): A version of filexp_gets() that also works on connections
  * Copied from rtracklayer/src/readGFF.c
  */
-
-Rconnection getConnection(int n);  /* not in <R_ext/Connections.h>, why? */
 
 static char con_buf[250000];
 static int con_buf_len, con_buf_offset;
@@ -39,12 +37,24 @@ static int filexp_gets2(SEXP filexp, char *buf, int buf_size, int *EOL_in_buf)
 	int buf_offset;
 	char c;
 
+	/* For some mysterious reasons, this causes a "segfault from C stack
+	   overflow" error when creating the vignette in the context
+	   of 'R CMD build SparseArray', but not when creating it with
+	   rmarkdown::render("SparseArray_objects.Rmd").
+	   So we disable support for "file external pointer" for now.
+	   We're never calling C_readSparseCSV_as_SVT_SparseMatrix() on
+	   a "file external pointer" so why bother? */
 	if (TYPEOF(filexp) == EXTPTRSXP)
-		return filexp_gets(filexp, buf, buf_size, EOL_in_buf);
+		//return filexp_gets(filexp, buf, buf_size, EOL_in_buf);
+		error("SparseArray internal error in "
+		      "filexp_gets2():\n",
+		      "    reading from a \"file external pointer\" "
+		      "is temporarily disabled");
+	/* Handle the case where 'filexp' is a connection identifier. */
 	buf_offset = *EOL_in_buf = 0;
 	while (buf_offset < buf_size - 1) {
 		if (con_buf_offset == con_buf_len) {
-			con = getConnection(asInteger(filexp));
+			con = R_GetConnection(filexp);
 			con_buf_len = (int) R_ReadConnection(con,
 					con_buf,
 					sizeof(con_buf) / sizeof(char));
@@ -299,7 +309,7 @@ static const char *read_sparse_csv(
 		offs_buf = new_IntAE(0, 0, 0);
 		vals_buf = new_IntAE(0, 0, 0);
 	}
-	if (TYPEOF(filexp) != EXTPTRSXP)
+	if (TYPEOF(filexp) == INTSXP)
 		init_con_buf();
 	row_idx0 = 0;
 	for (lineno = 1;
@@ -341,9 +351,13 @@ static const char *read_sparse_csv(
 
 /* --- .Call ENTRY POINT ---
  * Args:
- *   filexp:    A "file external pointer" (see src/io_utils.c in the XVector
- *              package). TODO: Support connections (see src/readGFF.c in the
- *              rtracklayer package for how to do that).
+ *   filexp:    A connection identifier (INTSXP of length 1) or a "file
+ *              external pointer" (EXTPTRSXP). See src/io_utils.c in the
+ *              XVector package for more info about "file external pointers".
+ *              TODO: Improve "file external pointer" capabilities in XVector
+ *              to support a connection identifier out-of-the-box.
+ *              See src/readGFF.c in the rtracklayer package for how to do
+ *              that.
  *   sep:       A single string (i.e. character vector of length 1) made of a
  *              single character.
  *   transpose: A single logical (TRUE or FALSE).
@@ -364,6 +378,13 @@ SEXP C_readSparseCSV_as_SVT_SparseMatrix(SEXP filexp, SEXP sep,
 	const char *errmsg;
 	SEXP ans, ans_elt;
 
+	if (TYPEOF(filexp) != EXTPTRSXP) {
+		if (TYPEOF(filexp) != INTSXP || LENGTH(filexp) != 1 ||
+		    !inherits(filexp, "connection"))
+			error("SparseArray internal error in "
+			      "C_readSparseCSV_as_SVT_SparseMatrix():\n",
+			      "    invalid 'filexp'");
+	}
 	transpose0 = LOGICAL(transpose)[0];
 	ncol0 = INTEGER(csv_ncol)[0];
 	csv_rownames_buf = new_CharAEAE(0, 0);

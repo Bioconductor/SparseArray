@@ -52,7 +52,7 @@
 
 \examples{
 m1 <- matrix(0L, nrow=15, ncol=6)
-m1[c(2, 6,12:17, 22:33, 55, 59:62, 90)] <- 101:126
+m1[c(2, 6, 12:17, 22:33, 55, 59:62, 90)] <- 101:126
 svt1 <- as(m1, "SVT_SparseMatrix")
 
 set.seed(333)

@@ -93,13 +93,14 @@ SVT_SparseArray(x, type=NA)
   information.
 
   The SVT layout is similar to the CSC layout (compressed, sparse,
-  column-oriented format) used by dgCMatrix/lgCMatrix objects from
-  the \pkg{Matrix} package, but with the following improvements:
+  column-oriented format) used by CsparseMatrix derivatives from
+  the \pkg{Matrix} package, like dgCMatrix or lgCMatrix objects,
+  but with the following improvements:
   \itemize{
       \item The SVT layout supports sparse arrays of arbitrary dimensions.
       \item With the SVT layout, the sparse data can be of any type.
-            With dgCMatrix/lgCMatrix objects, it must be either
-            \code{"double"} or \code{"logical"}.
+            Whereas CsparseMatrix derivatives only support sparse data
+            of type \code{"double"} or \code{"logical"} at the moment.
       \item The SVT layout imposes no limit on the number of nonzero elements
             that can be stored. With dgCMatrix/lgCMatrix objects, this number
             must be < 2^31.
@@ -174,6 +175,10 @@ vector  vector          vector  vector  vector  vector}
     \item S4 classes \linkS4class{dgCMatrix} and \linkS4class{lgCMatrix}
           defined in the \pkg{Matrix} package, for the de facto standard
           of sparse matrix representations in the R ecosystem.
+
+    \item Virtual class \linkS4class{CsparseMatrix} defined in the
+          \pkg{Matrix} package for the parent class of all classes
+          that use the "CSC layout".
 
     \item Ordinary \link[base]{array} objects in base R.
   }
