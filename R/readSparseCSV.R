@@ -238,10 +238,10 @@ readSparseTable <- function(...)
     readSparseCSV(...)
 }
 
-### Work-in-progress: test() tries to reproduce the mysterious "segfault
-### from C stack overflow" error that we get when readSparseCSV() is called
-### in the context of creating the vignette with 'R CMD build', but with
-### C code that is as simplified as possible.
+### Reproduces the mysterious "segfault from C stack overflow" error that
+### we use to get when readSparseCSV() was called in the context of creating
+### the vignette with 'R CMD build', but with C code that is much simpler.
+### See src/test.c for more information.
 ### NOT exported.
 test <- function() .Call2("C_test", PACKAGE="SparseArray")
 

@@ -31,14 +31,12 @@ static void init_con_buf()
 	return;
 }
 
-/* IMPORTANT WARNING: For some mysterious reasons, filexp_gets2() seems to
-   be triggering a "segfault from C stack overflow" error when readSparseCSV()
-   is called in the context of creating the vignette with 'R CMD build
-   SparseArray', but not when used in an interective session. The
-   error seems to sometimes occur when creating the vignette with
-   rmarkdown::render("SparseArray_objects.Rmd") but not always.
-   See test.c for a simplified version of the code that produces this
-   error. */
+/* IMPORTANT WARNING: For some mysterious reasons, the caller (which is
+   read_sparse_csv() in this case) must declare 'buf' as static, otherwise
+   filexp_gets2() will trigger a "segfault from C stack overflow" error
+   when readSparseCSV() is called in the context of creating the vignette
+   with 'R CMD build SparseArray'. See src/test.c for a simplified version
+   of the code that reproduces this segfault. */
 static int filexp_gets2(SEXP filexp, char *buf, int buf_size, int *EOL_in_buf)
 {
 	Rconnection con;
@@ -308,7 +306,10 @@ static const char *read_sparse_csv(
 {
 	IntAE *offs_buf, *vals_buf;
 	int row_idx0, lineno, ret_code, EOL_in_buf;
-	char buf[IOBUF_SIZE];
+	/* IMPORTANT WARNING: Not using the 'static' keyword produces
+	   a mysterious memory corruption problem in filexp_gets2()!
+	   See filexp_gets2() above in this file for more information. */
+	static char buf[IOBUF_SIZE];
 
 	if (transpose) {
 		offs_buf = new_IntAE(0, 0, 0);

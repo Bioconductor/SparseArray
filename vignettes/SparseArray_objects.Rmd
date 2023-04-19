@@ -243,8 +243,7 @@ writeSparseCSV(m4, csv_file)
 Use `readSparseCSV()` to read the file. This will import the data as
 an SVT\_SparseMatrix object:
 ```{r}
-#readSparseCSV(csv_file)
-SparseArray:::test()
+readSparseCSV(csv_file)
 ```
 
 See `?readSparseCSV` for more information and additional examples.
