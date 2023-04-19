@@ -77,7 +77,7 @@ SVT_SparseArray(x, type=NA)
     is equivalent to doing:
     \preformatted{    svt <- SVT_SparseArray(x)
     type(svt) <- type}
-    but the former is more convenient and will be generally more efficient.
+    but the former is more convenient and will generally be more efficient.
 
     Supported types are all R atomic types plus \code{"list"}.
   }

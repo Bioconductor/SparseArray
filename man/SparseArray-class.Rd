@@ -39,6 +39,32 @@
   a subclass of the SparseArray class, for the specific 2D case.
 }
 
+\usage{
+## Constructor function:
+SparseArray(x, type=NA)
+}
+
+\arguments{
+  \item{x}{
+    An ordinary array, or a dgCMatrix/lgCMatrix object, or any array-like
+    object that supports coercion to \link{SVT_SparseArray}.
+  }
+  \item{type}{
+    A single string specifying the requested type of the object.
+
+    Normally, the SparseArray object returned by the constructor
+    function has the same \code{type()} as \code{x} but the user can use
+    the \code{type} argument to request a different type. Note that doing:
+    \preformatted{    sa <- SparseArray(x, type=type)}
+    is equivalent to doing:
+    \preformatted{    sa <- SparseArray(x)
+    type(sa) <- type}
+    but the former is more convenient and will generally be more efficient.
+
+    Supported types are all R atomic types plus \code{"list"}.
+  }
+}
+
 \details{
   The SparseArray class extends the \link[S4Arrays]{Array} virtual class
   defined in the \pkg{S4Arrays} package. Here is the full SparseArray
@@ -78,6 +104,12 @@
   elements in array-like object \code{x} and its total number of elements
   (\code{length(x)} or \code{prod(dim(x))}).
   More precisely, \code{sparsity(x)} is \code{1 - nzcount(x)/length(x)}.
+}
+
+\value{
+  A \emph{SparseArray derivative}, that is a \link{SVT_SparseArray},
+  \link{COO_SparseArray}, \link{SVT_SparseMatrix}, or
+  \link{COO_SparseMatrix} object.
 }
 
 \seealso{
@@ -127,6 +159,16 @@
 
 \examples{
 showClass("SparseArray")
+
+a <- array(rpois(9e6, lambda=0.3), dim=c(500, 3000, 6))
+SparseArray(a)     # a SVT_SparseArray object
+
+m <- matrix(rpois(9e6, lambda=0.3), ncol=500)
+SparseArray(m)     # a SVT_SparseMatrix object
+
+dgrm <- sparseMatrix(i=c(4:1, 2:4, 9:12, 11:9), j=c(1:7, 1:7),
+                     x=runif(14), dims=c(12, 7), repr="R")
+SparseArray(dgrm)  # a COO_SparseMatrix object
 }
 
 \keyword{methods}
