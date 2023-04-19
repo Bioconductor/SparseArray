@@ -236,14 +236,15 @@ See `?rowsum_methods` for more information and additional examples.
 
 Use `writeSparseCSV()` to write a sparse matrix to a CSV file:
 ```{r}
-csv_path <- tempfile()
-writeSparseCSV(m4, csv_path)
+csv_file <- tempfile()
+writeSparseCSV(m4, csv_file)
 ```
 
 Use `readSparseCSV()` to read the file. This will import the data as
 an SVT\_SparseMatrix object:
 ```{r}
-readSparseCSV(csv_path)
+#readSparseCSV(csv_file)
+SparseArray:::test()
 ```
 
 See `?readSparseCSV` for more information and additional examples.

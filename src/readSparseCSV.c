@@ -31,17 +31,21 @@ static void init_con_buf()
 	return;
 }
 
+/* IMPORTANT WARNING: For some mysterious reasons, filexp_gets2() seems to
+   be triggering a "segfault from C stack overflow" error when readSparseCSV()
+   is called in the context of creating the vignette with 'R CMD build
+   SparseArray', but not when used in an interective session. The
+   error seems to sometimes occur when creating the vignette with
+   rmarkdown::render("SparseArray_objects.Rmd") but not always.
+   See test.c for a simplified version of the code that produces this
+   error. */
 static int filexp_gets2(SEXP filexp, char *buf, int buf_size, int *EOL_in_buf)
 {
 	Rconnection con;
 	int buf_offset;
 	char c;
 
-	/* For some mysterious reasons, this causes a "segfault from C stack
-	   overflow" error when creating the vignette in the context
-	   of 'R CMD build SparseArray', but not when creating it with
-	   rmarkdown::render("SparseArray_objects.Rmd").
-	   So we disable support for "file external pointer" for now.
+	/* We disable support for "file external pointer" for now.
 	   We're never calling C_readSparseCSV_as_SVT_SparseMatrix() on
 	   a "file external pointer" so why bother? */
 	if (TYPEOF(filexp) == EXTPTRSXP)
@@ -51,10 +55,10 @@ static int filexp_gets2(SEXP filexp, char *buf, int buf_size, int *EOL_in_buf)
 		      "    reading from a \"file external pointer\" "
 		      "is temporarily disabled");
 	/* Handle the case where 'filexp' is a connection identifier. */
+	con = R_GetConnection(filexp);
 	buf_offset = *EOL_in_buf = 0;
 	while (buf_offset < buf_size - 1) {
 		if (con_buf_offset == con_buf_len) {
-			con = R_GetConnection(filexp);
 			con_buf_len = (int) R_ReadConnection(con,
 					con_buf,
 					sizeof(con_buf) / sizeof(char));
@@ -76,6 +80,7 @@ static int filexp_gets2(SEXP filexp, char *buf, int buf_size, int *EOL_in_buf)
 		return 2;
 	return 1;
 }
+
 
 /****************************************************************************
  * Using an environment as a growable list.

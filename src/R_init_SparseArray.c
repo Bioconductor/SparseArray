@@ -11,6 +11,7 @@
 #include "rowsum_methods.h"
 #include "randomSparseArray.h"
 #include "readSparseCSV.h"
+#include "test.h"
 
 #define CALLMETHOD_DEF(fun, numArgs) {#fun, (DL_FUNC) &fun, numArgs}
 
@@ -70,6 +71,9 @@ static const R_CallMethodDef callMethods[] = {
 
 /* readSparseCSV.c */
 	CALLMETHOD_DEF(C_readSparseCSV_as_SVT_SparseMatrix, 5),
+
+/* test.c */
+	CALLMETHOD_DEF(C_test, 0),
 
 	{NULL, NULL, 0}
 };

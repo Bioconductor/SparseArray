@@ -123,13 +123,13 @@ writeSparseCSV(m2, filepath="", sep="\t")
 ## readSparseCSV()
 ## ---------------------------------------------------------------------
 
-outfile <- tempfile()
-writeSparseCSV(m0, outfile)
+csv_file <- tempfile()
+writeSparseCSV(m0, csv_file)
 
-svt1 <- readSparseCSV(outfile)
+svt1 <- readSparseCSV(csv_file)
 svt1
 
-svt2 <- readSparseCSV(outfile, transpose=TRUE)
+svt2 <- readSparseCSV(csv_file, transpose=TRUE)
 svt2
 
 ## If you need the sparse data as a dgCMatrix object, just coerce the
