@@ -38,6 +38,9 @@ Collate: sparseMatrix-utils.R
 	SparseArray-subassignment.R
 	SparseArray-combine.R
 	SparseArray-summarization.R
+	SparseArray-Ops-methods.R
+	SparseArray-Math-methods.R
+	SparseArray-Complex-methods.R
 	SparseArray-misc-ops.R
 	SparseMatrix-mult.R
 	matrixStats-methods.R

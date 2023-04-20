@@ -7,6 +7,9 @@
 #include "SparseArray_subsetting.h"
 #include "SparseArray_combine.h"
 #include "SparseArray_summarization.h"
+#include "SparseArray_Ops_methods.h"
+#include "SparseArray_Math_methods.h"
+#include "SparseArray_Complex_methods.h"
 #include "SparseMatrix_mult.h"
 #include "rowsum_methods.h"
 #include "randomSparseArray.h"
@@ -54,6 +57,18 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_summarize_SVT_SparseArray, 6),
 	CALLMETHOD_DEF(C_count_SVT_SparseArray_NAs, 3),
 	CALLMETHOD_DEF(C_anyNA_SVT_SparseArray, 3),
+
+/* SparseArray_Ops_methods.c */
+	CALLMETHOD_DEF(C_SVT_Arith, 7),
+	CALLMETHOD_DEF(C_SVT_Compare, 7),
+	CALLMETHOD_DEF(C_SVT_Logic, 7),
+
+/* SparseArray_Math_methods.c */
+	CALLMETHOD_DEF(C_SVT_Math, 4),
+	CALLMETHOD_DEF(C_SVT_Math2, 5),
+
+/* SparseArray_Complex_methods.c */
+	CALLMETHOD_DEF(C_SVT_Complex, 4),
 
 /* SparseMatrix_mult.c */
 	CALLMETHOD_DEF(C_crossprod2_SVT_mat, 7),
