@@ -42,5 +42,14 @@ int _get_Logic_opcode(
 	SEXPTYPE y_Rtype
 );
 
+SEXP _Arith_leaf_vectors(
+	SEXP lv1,
+	SEXP lv2,
+	int opcode,
+	int *offs_buf,
+	void *vals_buf,
+	int *ovflow
+);
+
 #endif  /* _LEAF_VECTOR_OPS_H_ */
 
