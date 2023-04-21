@@ -37,14 +37,9 @@
     if (op %in% c("^", "/") && ans_type == "integer")
         ans_type <- "double"
 
-    ## Pretty inefficient to do this coercion upfront.
-    ## TODO: Operate directly on the original types at the C level.
-    ## This should be significantly more efficient (but at the cost of some
-    ## complication of the C code).
-    type(e1) <- type(e2) <- ans_type
-
     ans_SVT <- .Call2("C_SVT_Arith",
-                      e1_dim, e1@type, e1@SVT, e2_dim, e2@type, e2@SVT, op,
+                      e1_dim, e1@type, e1@SVT, e2_dim, e2@type, e2@SVT,
+                      op, ans_type,
                       PACKAGE="SparseArray")
 
     new_SVT_SparseArray(e1_dim, ans_dimnames, ans_type, ans_SVT, check=FALSE)

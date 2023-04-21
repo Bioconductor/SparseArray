@@ -10,7 +10,8 @@ SEXP C_SVT_Arith(
 	SEXP y_dim,
 	SEXP y_type,
 	SEXP y_SVT,
-	SEXP op
+	SEXP op,
+	SEXP ans_type
 );
 
 SEXP C_SVT_Compare(

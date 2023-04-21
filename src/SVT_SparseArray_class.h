@@ -20,6 +20,15 @@ SEXP C_set_SVT_SparseArray_type(
 	SEXP new_type
 );
 
+SEXP _coerce_SVT(
+	SEXP SVT,
+	const int *dim,
+	int ndim,
+	SEXPTYPE from_Rtype,
+	SEXPTYPE to_Rtype,
+	int *offs_buf
+);
+
 SEXP C_from_SVT_SparseArray_to_Rarray(
 	SEXP x_dim,
 	SEXP x_dimnames,

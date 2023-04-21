@@ -46,6 +46,7 @@ SEXP _Arith_leaf_vectors(
 	SEXP lv1,
 	SEXP lv2,
 	int opcode,
+	SEXPTYPE ans_Rtype,
 	int *offs_buf,
 	void *vals_buf,
 	int *ovflow

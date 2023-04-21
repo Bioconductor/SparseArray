@@ -164,6 +164,29 @@ SEXP C_set_SVT_SparseArray_type(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	return ret == 1 ? R_NilValue : ans;
 }
 
+/* Used in src/SparseArray_Ops_methods.c by REC_SVT_Arith().
+   Assumes that 'to_Rtype' is equal or a bigger type than 'from_Rtype'
+   so coercion won't truncate values or discard imaginary parts etc... */
+SEXP _coerce_SVT(SEXP SVT, const int *dim, int ndim,
+		 SEXPTYPE from_Rtype, SEXPTYPE to_Rtype, int *offs_buf)
+{
+	SEXP ans;
+	int ret, warn;
+
+        if (from_Rtype == to_Rtype)
+		return SVT;
+	ans = PROTECT(duplicate(SVT));
+	ret = REC_set_SVT_type(ans, dim, ndim,
+			       to_Rtype, &warn, offs_buf);
+	if (ret < 0) {
+		UNPROTECT(1);
+		error("SparseArray internal error in _coerce_SVT():\n"
+		      "    REC_set_SVT_type() returned an error");
+	}
+	UNPROTECT(1);
+	return ret == 1 ? R_NilValue : ans;
+}
+
 
 /****************************************************************************
  * Going from SVT_SparseArray to ordinary R array

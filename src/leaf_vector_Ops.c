@@ -133,10 +133,16 @@ int _get_Logic_opcode(SEXP op, SEXPTYPE x_Rtype, SEXPTYPE y_Rtype)
 static inline int next_nzvals_int
 	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(int, int)
 
+static inline int next_nzvals_int_double
+	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(int, double)
+
+static inline int next_nzvals_double_int
+	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(double, int)
+
 static inline int next_nzvals_double
 	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(double, double)
 
-static int Arith_sparse_ints(
+static int sparse_Arith_ints(
 		const int *offs1, const int *vals1, int n1,
 		const int *offs2, const int *vals2, int n2,
 		int opcode, int *offs_buf, int *vals_buf, int *ovflow)
@@ -161,7 +167,7 @@ static int Arith_sparse_ints(
 		    case MULT_OPCODE: v = (double) v1 * v2; break;
 		    default:
 			error("SparseArray internal error in "
-			      "Arith_sparse_ints():\n"
+			      "sparse_Arith_ints():\n"
 			      "    unsupported 'opcode'");
 		}
 		if (v != 0.0) {
@@ -178,7 +184,81 @@ static int Arith_sparse_ints(
 	return ans_len;
 }
 
-static int Arith_sparse_doubles(
+static int sparse_Arith_int_double(
+		const int *offs1, const int *vals1, int n1,
+		const int *offs2, const double *vals2, int n2,
+		int opcode, int *offs_buf, double *vals_buf)
+{
+	int ans_len, k1, k2, off, v1;
+	double v2, v;
+
+	ans_len = k1 = k2 = 0;
+	while (next_nzvals_int_double(offs1, vals1, n1,
+				      offs2, vals2, n2,
+				      &k1, &k2, &off, &v1, &v2))
+	{
+		if (v1 == NA_INTEGER) {
+			offs_buf[ans_len] = off;
+			vals_buf[ans_len] = NA_INTEGER;
+			ans_len++;
+			continue;
+		}
+		switch (opcode) {
+		    case ADD_OPCODE:  v = (double) v1 + v2; break;
+		    case SUB_OPCODE:  v = (double) v1 - v2; break;
+		    case MULT_OPCODE: v = (double) v1 * v2; break;
+		    default:
+			error("SparseArray internal error in "
+			      "sparse_Arith_int_double():\n"
+			      "    unsupported 'opcode'");
+		}
+		if (v != 0.0) {
+			offs_buf[ans_len] = off;
+			vals_buf[ans_len] = v;
+			ans_len++;
+		}
+	}
+	return ans_len;
+}
+
+static int sparse_Arith_double_int(
+		const int *offs1, const double *vals1, int n1,
+		const int *offs2, const int *vals2, int n2,
+		int opcode, int *offs_buf, double *vals_buf)
+{
+	int ans_len, k1, k2, off, v2;
+	double v1, v;
+
+	ans_len = k1 = k2 = 0;
+	while (next_nzvals_double_int(offs1, vals1, n1,
+				      offs2, vals2, n2,
+				      &k1, &k2, &off, &v1, &v2))
+	{
+		if (v2 == NA_INTEGER) {
+			offs_buf[ans_len] = off;
+			vals_buf[ans_len] = NA_INTEGER;
+			ans_len++;
+			continue;
+		}
+		switch (opcode) {
+		    case ADD_OPCODE:  v = v1 + v2; break;
+		    case SUB_OPCODE:  v = v1 - v2; break;
+		    case MULT_OPCODE: v = v1 * v2; break;
+		    default:
+			error("SparseArray internal error in "
+			      "sparse_Arith_double_int():\n"
+			      "    unsupported 'opcode'");
+		}
+		if (v != 0.0) {
+			offs_buf[ans_len] = off;
+			vals_buf[ans_len] = v;
+			ans_len++;
+		}
+	}
+	return ans_len;
+}
+
+static int sparse_Arith_doubles(
 		const int *offs1, const double *vals1, int n1,
 		const int *offs2, const double *vals2, int n2,
 		int opcode, int *offs_buf, double *vals_buf)
@@ -197,7 +277,7 @@ static int Arith_sparse_doubles(
 		    case MULT_OPCODE: v = v1 * v2; break;
 		    default:
 			error("SparseArray internal error in "
-			      "Arith_sparse_doubles():\n"
+			      "sparse_Arith_doubles():\n"
 			      "    unsupported 'opcode'");
 		}
 		if (v != 0.0) {
@@ -209,7 +289,13 @@ static int Arith_sparse_doubles(
 	return ans_len;
 }
 
-static SEXP mult0_leaf_vector(SEXP lv)
+static SEXP unary_minus_leaf_vector(SEXP lv, SEXPTYPE ans_Rtype)
+{
+	error("unary_minus_leaf_vector() not ready yet!");
+	return lv;
+}
+
+static SEXP mult0_leaf_vector(SEXP lv, SEXPTYPE ans_Rtype)
 {
 	error("mult0_leaf_vector() not ready yet!");
 	return lv;
@@ -243,45 +329,85 @@ static SEXP make_leaf_vector_from_offs_and_vals(SEXPTYPE Rtype,
 	return ans;
 }
 
-/* 'lv1' and 'lv2' must be "leaf vectors", with the exception that one of
-   them can be NULL if 'opcode' is MULT_OPCODE. */
-SEXP _Arith_leaf_vectors(SEXP lv1, SEXP lv2, int opcode,
+/* 'lv1' and 'lv2' must be "leaf vectors", with the following exceptions:
+   - 'lv1' can be NULL if 'opcode' is SUB_OPCODE;
+   - either 'lv1' or 'lv2' (but not both) can be NULL if 'opcode'
+     is MULT_OPCODE. */
+SEXP _Arith_leaf_vectors(SEXP lv1, SEXP lv2, int opcode, SEXPTYPE ans_Rtype,
 			 int *offs_buf, void *vals_buf, int *ovflow)
 {
 	int lv1_len, lv2_len, ans_len;
 	SEXP lv1_offs, lv1_vals, lv2_offs, lv2_vals;
 	const int *offs1_p, *offs2_p;
+	SEXPTYPE buf_Rtype;
 
-	if (opcode == MULT_OPCODE) {
-		if (lv1 == R_NilValue)
-			return mult0_leaf_vector(lv2);
+	if (lv1 == R_NilValue) {
 		if (lv2 == R_NilValue)
-			return mult0_leaf_vector(lv1);
+			error("SparseArray internal error in "
+			      "_Arith_leaf_vectors():\n"
+			      "    'lv1' and 'lv2' cannot both be NULL");
+		if (opcode == SUB_OPCODE)
+			return unary_minus_leaf_vector(lv2, ans_Rtype);
+		if (opcode == MULT_OPCODE)
+			return mult0_leaf_vector(lv2, ans_Rtype);
+		error("SparseArray internal error in "
+		      "_Arith_leaf_vectors():\n"
+		      "    'op' must be \"-\" or \"*\" when 'lv1' is NULL");
+	}
+	if (lv2 == R_NilValue) {
+		if (opcode == MULT_OPCODE)
+			return mult0_leaf_vector(lv1, ans_Rtype);
+		error("SparseArray internal error in "
+		      "_Arith_leaf_vectors():\n"
+		      "    'op' must be \"*\" when 'lv2' is NULL");
 	}
 	lv1_len = _split_leaf_vector(lv1, &lv1_offs, &lv1_vals);
 	lv2_len = _split_leaf_vector(lv2, &lv2_offs, &lv2_vals);
-	if (TYPEOF(lv1_vals) != TYPEOF(lv2_vals))
-		error("_Arith_leaf_vectors() only supports "
-		      "inputs of same type for now");
 	offs1_p = INTEGER(lv1_offs);
 	offs2_p = INTEGER(lv2_offs);
+	buf_Rtype = REALSXP;
 	if (TYPEOF(lv1_vals) == INTSXP) {
-		ans_len = Arith_sparse_ints(
+		if (TYPEOF(lv2_vals) == INTSXP) {
+			buf_Rtype = INTSXP;
+			ans_len = sparse_Arith_ints(
 				offs1_p, INTEGER(lv1_vals), lv1_len,
 				offs2_p, INTEGER(lv2_vals), lv2_len,
 				opcode, offs_buf, (int *) vals_buf, ovflow);
+		} else if (TYPEOF(lv2_vals) == REALSXP) {
+			ans_len = sparse_Arith_int_double(
+				offs1_p, INTEGER(lv1_vals), lv1_len,
+				offs2_p, REAL(lv2_vals), lv2_len,
+				opcode, offs_buf, (double *) vals_buf);
+		} else {
+			error("_Arith_leaf_vectors() only supports "
+			      "input of type \"int\" or \"double\" for now");
+		}
 	} else if (TYPEOF(lv1_vals) == REALSXP) {
-		ans_len = Arith_sparse_doubles(
+		if (TYPEOF(lv2_vals) == INTSXP) {
+			ans_len = sparse_Arith_double_int(
+				offs1_p, REAL(lv1_vals), lv1_len,
+				offs2_p, INTEGER(lv2_vals), lv2_len,
+				opcode, offs_buf, (double *) vals_buf);
+		} else if (TYPEOF(lv2_vals) == REALSXP) {
+			ans_len = sparse_Arith_doubles(
 				offs1_p, REAL(lv1_vals), lv1_len,
 				offs2_p, REAL(lv2_vals), lv2_len,
 				opcode, offs_buf, (double *) vals_buf);
+		} else {
+			error("_Arith_leaf_vectors() only supports "
+			      "input of type \"int\" or \"double\" for now");
+		}
 	} else {
 		error("_Arith_leaf_vectors() only supports "
 		      "input of type \"int\" or \"double\" for now");
 	}
 	if (ans_len == 0)
 		return R_NilValue;
-	return make_leaf_vector_from_offs_and_vals(TYPEOF(lv1_vals),
+	if (ans_Rtype != buf_Rtype)
+		error("SparseArray internal error in "
+		      "_Arith_leaf_vectors():\n"
+		      "    ans_Rtype != buf_Rtype");
+	return make_leaf_vector_from_offs_and_vals(ans_Rtype,
 				offs_buf, vals_buf, ans_len);
 }
 
