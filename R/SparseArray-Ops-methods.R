@@ -49,6 +49,28 @@ setMethod("Arith", c("SVT_SparseArray", "SVT_SparseArray"),
     function(e1, e2) .SVT_SparseArray_Arith(.Generic, e1, e2)
 )
 
+### We could either:
+###  (a) Turn 'e2' into an SVT_SparseArray object and return an
+###      SVT_SparseArray object. This is the dgCMatrix approach.
+###  (b) Turn 'e1' into an ordinary array and return an ordinary array.
+### We choose to do (a). Note that there's no best choice in general as it
+### really depends on the 'Arith' operation (i.e. "+", "-", or "*") and
+### whether 'e2' has a lot of zeros or not. If it has no or very little
+### zeros, then (a) will tend to be less memory efficient than (b) when
+### doing "+" or "-". When doing "*", (a) should be always more memory
+### efficient than (b), no matter what.
+### The cautious user would typically make that choice upfront anyway, by
+### coercing one or the other object before calling the 'Arith' op on them.
+setMethod("Arith", c("SVT_SparseArray", "array"),
+    function(e1, e2)
+        .SVT_SparseArray_Arith(.Generic, e1, as(e2, "SVT_SparseArray"))
+)
+
+setMethod("Arith", c("array", "SVT_SparseArray"),
+    function(e1, e2)
+        .SVT_SparseArray_Arith(.Generic, as(e1, "SVT_SparseArray"), e2)
+)
+
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### 'Compare' group
@@ -85,6 +107,16 @@ setMethod("Compare", c("SVT_SparseArray", "SVT_SparseArray"),
     function(e1, e2) .SVT_SparseArray_Compare(.Generic, e1, e2)
 )
 
+setMethod("Compare", c("SVT_SparseArray", "array"),
+    function(e1, e2)
+        .SVT_SparseArray_Compare(.Generic, e1, as(e2, "SVT_SparseArray"))
+)
+
+setMethod("Compare", c("array", "SVT_SparseArray"),
+    function(e1, e2)
+        .SVT_SparseArray_Compare(.Generic, as(e1, "SVT_SparseArray"), e2)
+)
+
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### 'Logic' group
@@ -117,5 +149,15 @@ setMethod("Compare", c("SVT_SparseArray", "SVT_SparseArray"),
 
 setMethod("Logic", c("SVT_SparseArray", "SVT_SparseArray"),
     function(e1, e2) .SVT_SparseArray_Logic(.Generic, e1, e2)
+)
+
+setMethod("Logic", c("SVT_SparseArray", "array"),
+    function(e1, e2)
+        .SVT_SparseArray_Logic(.Generic, e1, as(e2, "SVT_SparseArray"))
+)
+
+setMethod("Logic", c("array", "SVT_SparseArray"),
+    function(e1, e2)
+        .SVT_SparseArray_Logic(.Generic, as(e1, "SVT_SparseArray"), e2)
 )
 

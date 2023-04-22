@@ -36,7 +36,7 @@ static inline int _split_leaf_vector(SEXP lv, SEXP *lv_offs, SEXP *lv_vals)
 	if (!IS_INTEGER(*lv_offs))
 		return -1;
 	lv_offs_len = XLENGTH(*lv_offs);
-	if (lv_offs_len > INT_MAX)
+	if (lv_offs_len == 0 || lv_offs_len > INT_MAX)
 		return -1;
 	if (XLENGTH(*lv_vals) != lv_offs_len)
 		return -1;

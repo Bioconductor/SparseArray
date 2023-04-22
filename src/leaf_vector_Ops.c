@@ -87,6 +87,154 @@ int _get_Logic_opcode(SEXP op, SEXPTYPE x_Rtype, SEXPTYPE y_Rtype)
 	return 0;
 }
 
+/* Empty leaf vectors are ILLEGAL so 'n' is NOT allowed to be 0. This is NOT
+   checked! TODO: Should this go to leaf_vector_utils.c? */
+static SEXP make_leaf_vector_from_offs_and_vals(SEXPTYPE Rtype,
+		const int *offs, const void * vals, int n)
+{
+	SEXP ans, ans_offs, ans_vals;
+
+	ans = PROTECT(_alloc_and_split_leaf_vector(n, Rtype,
+						   &ans_offs, &ans_vals));
+	memcpy(INTEGER(ans_offs), offs, sizeof(int) * n);
+	switch (Rtype) {
+	    case INTSXP:
+		memcpy(INTEGER(ans_vals), (int *) vals, sizeof(int) * n);
+		break;
+	    case REALSXP:
+		memcpy(REAL(ans_vals), (double *) vals, sizeof(double) * n);
+		break;
+	    default:
+		UNPROTECT(1);
+		error("SparseArray internal error in "
+		      "make_leaf_vector_from_offs_and_vals():\n"
+		      "    type \"%s\" is not supported",
+		      type2char(Rtype));
+	}
+	UNPROTECT(1);
+	return ans;
+}
+
+/* Assumes that 'ans_Rtype' is equal or bigger than the type of the
+   vals in 'lv'. */
+static SEXP unary_minus_leaf_vector(SEXP lv, SEXPTYPE ans_Rtype)
+{
+	int lv_len, supported, k;
+	SEXP lv_offs, lv_vals, ans_vals, ans;
+
+	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
+	ans_vals = PROTECT(allocVector(ans_Rtype, lv_len));
+	supported = 0;
+	if (TYPEOF(lv_vals) == INTSXP) {
+		if (ans_Rtype == INTSXP) {
+			const int *lv_vals_p = INTEGER(lv_vals);
+			int *ans_vals_p = INTEGER(ans_vals);
+			int v;
+			for (k = 0; k < lv_len; k++) {
+				v = lv_vals_p[k];
+				if (v != NA_INTEGER)
+					v = -v;
+				ans_vals_p[k] = v;
+			}
+			supported = 1;
+		} else if (ans_Rtype == REALSXP) {
+			const int *lv_vals_p = INTEGER(lv_vals);
+			double *ans_vals_p = REAL(ans_vals);
+			int v;
+			for (k = 0; k < lv_len; k++) {
+				v = lv_vals_p[k];
+				if (v != NA_INTEGER)
+					v = -v;
+				ans_vals_p[k] = (double) v;
+			}
+			supported = 1;
+		}
+	} else if (TYPEOF(lv_vals) == REALSXP) {
+		if (ans_Rtype == REALSXP) {
+			const double *lv_vals_p = REAL(lv_vals);
+			double *ans_vals_p = REAL(ans_vals);
+			for (k = 0; k < lv_len; k++) {
+				ans_vals_p[k] = - lv_vals_p[k];
+			}
+			supported = 1;
+		}
+	}
+	if (!supported) {
+		UNPROTECT(1);
+		error("unary_minus_leaf_vector() only supports "
+		      "input of type \"int\" or \"double\" for now");
+	}
+	ans = _new_leaf_vector(lv_offs, ans_vals);
+	UNPROTECT(1);
+	return ans;
+}
+
+/* Multiply the vals in 'lv' with zero. Will return R_NilValue if all
+   the vals in 'lv' are finite (i.e. no NA, NaN, Inf, or -Inf).
+   Assumes that 'ans_Rtype' is equal or bigger than the type of the
+   vals in 'lv'. */
+static SEXP mult0_leaf_vector(SEXP lv, SEXPTYPE ans_Rtype,
+			      int *offs_buf, void *vals_buf)
+{
+	int lv_len, ans_len, k;
+	SEXP lv_offs, lv_vals;
+	const int *lv_offs_p;
+
+	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
+	lv_offs_p = INTEGER(lv_offs);
+	ans_len = -1;
+	if (TYPEOF(lv_vals) == INTSXP) {
+		if (ans_Rtype == INTSXP) {
+			/* We only keep NAs. */
+			const int *lv_vals_p = INTEGER(lv_vals);
+			int *ans_vals_p = (int *) vals_buf;
+			int v;
+			for (k = ans_len = 0; k < lv_len; k++) {
+				v = lv_vals_p[k];
+				if (v == NA_INTEGER) {
+					offs_buf[ans_len] = lv_offs_p[k];
+					ans_vals_p[ans_len] = NA_INTEGER;
+					ans_len++;
+				}
+			}
+		} else if (ans_Rtype == REALSXP) {
+			/* We only keep NAs. */
+			const int *lv_vals_p = INTEGER(lv_vals);
+			double *ans_vals_p = (double *) vals_buf;
+			int v;
+			for (k = ans_len = 0; k < lv_len; k++) {
+				v = lv_vals_p[k];
+				if (v == NA_INTEGER) {
+					offs_buf[ans_len] = lv_offs_p[k];
+					ans_vals_p[ans_len] = NA_REAL;
+					ans_len++;
+				}
+			}
+		}
+	} else if (TYPEOF(lv_vals) == REALSXP) {
+		if (ans_Rtype == REALSXP) {
+			const double *lv_vals_p = REAL(lv_vals);
+			double *ans_vals_p = (double *) vals_buf;
+			double v;
+			for (k = ans_len = 0; k < lv_len; k++) {
+				v = lv_vals_p[k] * 0.0;
+				if (v != 0.0) {
+					offs_buf[ans_len] = lv_offs_p[k];
+					ans_vals_p[ans_len] = v;
+					ans_len++;
+				}
+			}
+		}
+	}
+	if (ans_len == -1)
+		error("mult0_leaf_vector() only supports "
+		      "input of type \"int\" or \"double\" for now");
+	if (ans_len == 0)
+		return R_NilValue;
+	return make_leaf_vector_from_offs_and_vals(ans_Rtype,
+				offs_buf, vals_buf, ans_len);
+}
+
 #define	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(vals1_type, vals2_type)(	\
 		const int *offs1, const vals1_type *vals1, int n1,	\
 		const int *offs2, const vals2_type *vals2, int n2,	\
@@ -289,46 +437,6 @@ static int sparse_Arith_doubles(
 	return ans_len;
 }
 
-static SEXP unary_minus_leaf_vector(SEXP lv, SEXPTYPE ans_Rtype)
-{
-	error("unary_minus_leaf_vector() not ready yet!");
-	return lv;
-}
-
-static SEXP mult0_leaf_vector(SEXP lv, SEXPTYPE ans_Rtype)
-{
-	error("mult0_leaf_vector() not ready yet!");
-	return lv;
-}
-
-/* Empty leaf vectors are ILLEGAL so 'n' is NOT allowed to be 0. This is NOT
-   checked! TODO: Should this go to leaf_vector_utils.c? */
-static SEXP make_leaf_vector_from_offs_and_vals(SEXPTYPE Rtype,
-		const int *offs, const void * vals, int n)
-{
-	SEXP ans, ans_offs, ans_vals;
-
-	ans = PROTECT(_alloc_and_split_leaf_vector(n, Rtype,
-						   &ans_offs, &ans_vals));
-	memcpy(INTEGER(ans_offs), offs, sizeof(int) * n);
-	switch (Rtype) {
-	    case INTSXP:
-		memcpy(INTEGER(ans_vals), (int *) vals, sizeof(int) * n);
-		break;
-	    case REALSXP:
-		memcpy(REAL(ans_vals), (double *) vals, sizeof(double) * n);
-		break;
-	    default:
-		UNPROTECT(1);
-		error("SparseArray internal error in "
-		      "make_leaf_vector_from_offs_and_vals():\n"
-		      "    type \"%s\" is not supported",
-		      type2char(Rtype));
-	}
-	UNPROTECT(1);
-	return ans;
-}
-
 /* 'lv1' and 'lv2' must be "leaf vectors", with the following exceptions:
    - 'lv1' can be NULL if 'opcode' is SUB_OPCODE;
    - either 'lv1' or 'lv2' (but not both) can be NULL if 'opcode'
@@ -349,14 +457,16 @@ SEXP _Arith_leaf_vectors(SEXP lv1, SEXP lv2, int opcode, SEXPTYPE ans_Rtype,
 		if (opcode == SUB_OPCODE)
 			return unary_minus_leaf_vector(lv2, ans_Rtype);
 		if (opcode == MULT_OPCODE)
-			return mult0_leaf_vector(lv2, ans_Rtype);
+			return mult0_leaf_vector(lv2, ans_Rtype,
+						 offs_buf, vals_buf);
 		error("SparseArray internal error in "
 		      "_Arith_leaf_vectors():\n"
 		      "    'op' must be \"-\" or \"*\" when 'lv1' is NULL");
 	}
 	if (lv2 == R_NilValue) {
 		if (opcode == MULT_OPCODE)
-			return mult0_leaf_vector(lv1, ans_Rtype);
+			return mult0_leaf_vector(lv1, ans_Rtype,
+						 offs_buf, vals_buf);
 		error("SparseArray internal error in "
 		      "_Arith_leaf_vectors():\n"
 		      "    'op' must be \"*\" when 'lv2' is NULL");
@@ -366,6 +476,7 @@ SEXP _Arith_leaf_vectors(SEXP lv1, SEXP lv2, int opcode, SEXPTYPE ans_Rtype,
 	offs1_p = INTEGER(lv1_offs);
 	offs2_p = INTEGER(lv2_offs);
 	buf_Rtype = REALSXP;
+	ans_len = -1;
 	if (TYPEOF(lv1_vals) == INTSXP) {
 		if (TYPEOF(lv2_vals) == INTSXP) {
 			buf_Rtype = INTSXP;
@@ -378,9 +489,6 @@ SEXP _Arith_leaf_vectors(SEXP lv1, SEXP lv2, int opcode, SEXPTYPE ans_Rtype,
 				offs1_p, INTEGER(lv1_vals), lv1_len,
 				offs2_p, REAL(lv2_vals), lv2_len,
 				opcode, offs_buf, (double *) vals_buf);
-		} else {
-			error("_Arith_leaf_vectors() only supports "
-			      "input of type \"int\" or \"double\" for now");
 		}
 	} else if (TYPEOF(lv1_vals) == REALSXP) {
 		if (TYPEOF(lv2_vals) == INTSXP) {
@@ -393,14 +501,11 @@ SEXP _Arith_leaf_vectors(SEXP lv1, SEXP lv2, int opcode, SEXPTYPE ans_Rtype,
 				offs1_p, REAL(lv1_vals), lv1_len,
 				offs2_p, REAL(lv2_vals), lv2_len,
 				opcode, offs_buf, (double *) vals_buf);
-		} else {
-			error("_Arith_leaf_vectors() only supports "
-			      "input of type \"int\" or \"double\" for now");
 		}
-	} else {
+	}
+	if (ans_len == -1)
 		error("_Arith_leaf_vectors() only supports "
 		      "input of type \"int\" or \"double\" for now");
-	}
 	if (ans_len == 0)
 		return R_NilValue;
 	if (ans_Rtype != buf_Rtype)
