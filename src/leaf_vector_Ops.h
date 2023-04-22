@@ -24,11 +24,7 @@
 #define	AND_OPCODE	1  /* "&" */
 #define	OR_OPCODE	2  /* "|" */
 
-int _get_Arith_opcode(
-	SEXP op,
-	SEXPTYPE x_Rtype,
-	SEXPTYPE y_Rtype
-);
+int _get_Arith_opcode(SEXP op);
 
 int _get_Compare_opcode(
 	SEXP op,
@@ -42,7 +38,17 @@ int _get_Logic_opcode(
 	SEXPTYPE y_Rtype
 );
 
-SEXP _Arith_leaf_vectors(
+SEXP _Arith_lv_num(
+	SEXP lv1,
+	SEXP y2,
+	int opcode,
+	SEXPTYPE ans_Rtype,
+	int *offs_buf,
+	void *vals_buf,
+	int *ovflow
+);
+
+SEXP _Arith_lv_lv(
 	SEXP lv1,
 	SEXP lv2,
 	int opcode,

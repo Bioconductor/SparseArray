@@ -10,6 +10,44 @@
 #include <string.h>  /* for memcmp() */
 
 
+static SEXP REC_Arith_SVT_num(SEXP SVT1, SEXP y2,
+			      const int *dims, int ndim,
+			      int opcode, SEXPTYPE ans_Rtype,
+			      int *offs_buf, void *vals_buf, int *ovflow)
+{
+	SEXP ans, ans_elt, subSVT1;
+	int ans_len, is_empty, i;
+
+	if (SVT1 == R_NilValue)
+		return R_NilValue;
+
+	if (ndim == 1) {
+		/* 'SVT1' is a "leaf vector". */
+		return _Arith_lv_num(SVT1, y2, opcode, ans_Rtype,
+				     offs_buf, vals_buf, ovflow);
+	}
+
+	/* 'SVT1' is a list. */
+	ans_len = dims[ndim - 1];
+	ans = PROTECT(NEW_LIST(ans_len));
+	is_empty = 1;
+	for (i = 0; i < ans_len; i++) {
+		subSVT1 = VECTOR_ELT(SVT1, i);
+		ans_elt = REC_Arith_SVT_num(subSVT1, y2,
+					    dims, ndim - 1,
+					    opcode, ans_Rtype,
+					    offs_buf, vals_buf, ovflow);
+		if (ans_elt != R_NilValue) {
+			PROTECT(ans_elt);
+			SET_VECTOR_ELT(ans, i, ans_elt);
+			UNPROTECT(1);
+			is_empty = 0;
+		}
+	}
+	UNPROTECT(1);
+	return is_empty ? R_NilValue : ans;
+}
+
 static SEXP REC_Arith_SVT_SVT(SEXP SVT1, SEXPTYPE Rtype1,
 			      SEXP SVT2, SEXPTYPE Rtype2,
 			      const int *dims, int ndim,
@@ -36,8 +74,8 @@ static SEXP REC_Arith_SVT_SVT(SEXP SVT1, SEXPTYPE Rtype1,
 		   - 'SVT1' can be NULL if 'opcode' is SUB_OPCODE;
 		   - either 'SVT1' or 'SVT2' (but not both) can be NULL
 		     if 'opcode' is MULT_OPCODE. */
-		return _Arith_leaf_vectors(SVT1, SVT2, opcode, ans_Rtype,
-					   offs_buf, vals_buf, ovflow);
+		return _Arith_lv_lv(SVT1, SVT2, opcode, ans_Rtype,
+				    offs_buf, vals_buf, ovflow);
 	}
 
 	/* Each of 'SVT1' and 'SVT2' is either a list or a NULL, but they
@@ -66,6 +104,48 @@ static SEXP REC_Arith_SVT_SVT(SEXP SVT1, SEXPTYPE Rtype1,
 	return is_empty ? R_NilValue : ans;
 }
 
+/* --- .Call ENTRY POINT --- */
+SEXP C_Arith_SVT_num(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP y,
+		     SEXP op, SEXP ans_type)
+{
+	SEXPTYPE x_Rtype, ans_Rtype;
+	int opcode, *offs_buf, ovflow;
+	double *vals_buf;
+	SEXP ans_SVT;
+
+	x_Rtype = _get_Rtype_from_Rstring(x_type);
+	ans_Rtype = _get_Rtype_from_Rstring(ans_type);
+	if (x_Rtype == 0 || ans_Rtype == 0)
+		error("SparseArray internal error in "
+		      "C_Arith_SVT_num():\n"
+                      "    invalid 'x_type' or 'ans_type' value");
+	opcode = _get_Arith_opcode(op);
+	if (opcode != MULT_OPCODE &&
+	    opcode != DIV_OPCODE &&
+	    opcode != POW_OPCODE &&
+	    opcode != MOD_OPCODE &&
+	    opcode != IDIV_OPCODE)
+	{
+		error("\"%s\" is not supported between an SVT_SparseArray "
+		      "object and a numeric vector", CHAR(STRING_ELT(op, 0)));
+	}
+	offs_buf = (int *) R_alloc(INTEGER(x_dim)[0], sizeof(int));
+	/* Must be big enough to contain ints or doubles. */
+	vals_buf = (double *) R_alloc(INTEGER(x_dim)[0], sizeof(double));
+	ovflow = 0;
+	ans_SVT = REC_Arith_SVT_num(x_SVT, y,
+				    INTEGER(x_dim), LENGTH(x_dim),
+				    opcode, ans_Rtype,
+				    offs_buf, vals_buf, &ovflow);
+	if (ans_SVT != R_NilValue)
+		PROTECT(ans_SVT);
+	if (ovflow)
+		warning("NAs produced by integer overflow");
+	if (ans_SVT != R_NilValue)
+		UNPROTECT(1);
+	return ans_SVT;
+}
+
 static void check_array_conformability(SEXP x_dim, SEXP y_dim)
 {
 	int ndim;
@@ -75,16 +155,6 @@ static void check_array_conformability(SEXP x_dim, SEXP y_dim)
 	    memcmp(INTEGER(x_dim), INTEGER(y_dim), sizeof(int) * ndim) != 0)
 		error("non-conformable arrays");
 	return;
-}
-
-/* --- .Call ENTRY POINT --- */
-SEXP C_Arith_SVT_num(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP y,
-		     SEXP op, SEXP ans_type)
-{
-	SEXP ans_SVT;
-
-	error("C_Arith_SVT_num() not ready yet, sorry!");
-	return ans_SVT;
 }
 
 /* --- .Call ENTRY POINT --- */
@@ -105,12 +175,12 @@ SEXP C_Arith_SVT_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		error("SparseArray internal error in "
 		      "C_Arith_SVT_SVT():\n"
                       "    invalid 'x_type', 'y_type', or 'ans_type' value");
-	opcode = _get_Arith_opcode(op, x_Rtype, y_Rtype);
+	opcode = _get_Arith_opcode(op);
 	if (opcode != ADD_OPCODE &&
 	    opcode != SUB_OPCODE &&
 	    opcode != MULT_OPCODE)
 	{
-		error("\"%s\" not implemented between SVT_SparseArray "
+		error("\"%s\" is not supported between SVT_SparseArray "
 		      "objects", CHAR(STRING_ELT(op, 0)));
 	}
 	offs_buf = (int *) R_alloc(INTEGER(x_dim)[0], sizeof(int));

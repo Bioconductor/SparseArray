@@ -15,29 +15,35 @@
 ###
 
 ### Supports: "*", "/", "^", "%%", "%/%"
-.Arith_SVT_num <- function(op, e1, e2)
+.Arith_SVT_vector <- function(op, e1, e2)
 {
-    stopifnot(isSingleString(op),
-              is(e1, "SVT_SparseArray"),
-              is.numeric(e2) || is.complex(e2))
+    stopifnot(isSingleString(op), is(e1, "SVT_SparseArray"))
+
+    ## Check types.
+    if (!(type(e1) %in% c("integer", "double", "complex")))
+        stop(wmsg("arithmetic operations are not suported on ",
+                  "SVT_SparseArray objects of type \"", type(e1), "\""))
+    if (!(is.numeric(e2) || is.complex(e2)))
+        stop(wmsg("arithmetic operations between SVT_SparseArray objects ",
+                  "and ", class(e2), " vectors are not supported"))
 
     ## Check 'op'.
     if (!(op %in% c("*", "/", "^", "%%", "%/%")))
         stop(wmsg("\"", op, "\" is not supported between an SVT_SparseArray ",
-                  "object and a numeric vector"))
+                  "object and a ", class(e2), " vector"))
 
     ## Check 'e2'.
     if (length(e2) != 1L)
-        stop(wmsg("\"", op, "\" is not supported between an SVT_SparseArray ",
-                  "object and a numeric or complex vector of length != 1"))
+        stop(wmsg("arithmetic operations are not supported between an ",
+                  "SVT_SparseArray object and a ", class(e2), " vector ",
+                  "of length != 1"))
     if (!is.finite(e2))
         stop(wmsg("\"", op, "\" is not supported between an SVT_SparseArray ",
                   "object and a non-finite value (NA, NaN, Inf, or -Inf)"))
-
-    ## Check 'type(e1)'.
-    if (!(type(e1) %in% c("integer", "double", "complex")))
-        stop(wmsg("non-numeric argument to arithmetic operation"))
-
+    if (e2 == 0 && op != "*")
+         stop(wmsg("x ", op, " 0: operation not supported on ",
+                   "SVT_SparseArray object 'x'"))
+                
     ## Compute 'ans_type'.
     ans_type <- type(c(vector(type(e1)), e2))
     if (ans_type == "complex")
@@ -56,29 +62,17 @@
     new_SVT_SparseArray(e1@dim, e1@dimnames, ans_type, ans_SVT, check=FALSE)
 }
 
-setMethod("Arith", c("SVT_SparseArray", "numeric"),
-    function(e1, e2) .Arith_SVT_num(.Generic, e1, e2)
-)
-setMethod("Arith", c("SVT_SparseArray", "complex"),
-    function(e1, e2) .Arith_SVT_num(.Generic, e1, e2)
+setMethod("Arith", c("SVT_SparseArray", "vector"),
+    function(e1, e2) .Arith_SVT_vector(.Generic, e1, e2)
 )
 
-setMethod("Arith", c("numeric", "SVT_SparseArray"),
+setMethod("Arith", c("vector", "SVT_SparseArray"),
     function(e1, e2) {
         if (.Generic != "*")
-            stop(wmsg("\"", .Generic, "\" is not supported between a ",
-                      "numeric vector (on the left) and an SVT_SparseArray ",
-                      "object (on the right)"))
-        .Arith_SVT_num(.Generic, e2, e1)
-    }
-)
-setMethod("Arith", c("complex", "SVT_SparseArray"),
-    function(e1, e2) {
-        if (.Generic != "*")
-            stop(wmsg("\"", .Generic, "\" is not supported between a ",
-                      "complex vector (on the left) and an SVT_SparseArray ",
-                      "object (on the right)"))
-        .Arith_SVT_num(.Generic, e2, e1)
+            stop(wmsg("\"", .Generic, "\" is not supported between ",
+                      "a ", class(e1), " vector (on the left) and ",
+                      "an SVT_SparseArray object (on the right)"))
+        .Arith_SVT_vector(.Generic, e2, e1)
     }
 )
 
@@ -88,6 +82,14 @@ setMethod("Arith", c("complex", "SVT_SparseArray"),
     stopifnot(isSingleString(op),
               is(e1, "SVT_SparseArray"),
               is(e2, "SVT_SparseArray"))
+
+    ## Check types.
+    if (!(type(e1) %in% c("integer", "double", "complex")))
+        stop(wmsg("arithmetic operations are not suported on ",
+                  "SVT_SparseArray objects of type \"", type(e1), "\""))
+    if (!(type(e2) %in% c("integer", "double", "complex")))
+        stop(wmsg("arithmetic operations are not suported on ",
+                  "SVT_SparseArray objects of type \"", type(e1), "\""))
 
     ## Check 'op'.
     if (!(op %in% c("+", "-", "*")))
@@ -102,10 +104,6 @@ setMethod("Arith", c("complex", "SVT_SparseArray"),
 
     ## Compute 'ans_dimnames'.
     ans_dimnames <- S4Arrays:::get_first_non_NULL_dimnames(list(e1, e2))
-
-    ## Check 'type(e1)' and 'type(e2)'.
-    if (!all(c(type(e1), type(e2)) %in% c("integer", "double", "complex")))
-        stop(wmsg("non-numeric argument to arithmetic operation"))
 
     ## Compute 'ans_type'.
     ans_type <- type(c(vector(type(e1)), vector(type(e2))))
