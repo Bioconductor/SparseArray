@@ -3,7 +3,16 @@
 
 #include <Rdefines.h>
 
-SEXP C_SVT_Arith(
+SEXP C_Arith_SVT_num(
+	SEXP x_dim,
+	SEXP x_type,
+	SEXP x_SVT,
+	SEXP y,
+	SEXP op,
+	SEXP ans_type
+);
+
+SEXP C_Arith_SVT_SVT(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT,
@@ -14,7 +23,7 @@ SEXP C_SVT_Arith(
 	SEXP ans_type
 );
 
-SEXP C_SVT_Compare(
+SEXP C_Compare_SVT_SVT(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT,
@@ -24,7 +33,7 @@ SEXP C_SVT_Compare(
 	SEXP op
 );
 
-SEXP C_SVT_Logic(
+SEXP C_Logic_SVT_SVT(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT,

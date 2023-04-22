@@ -78,9 +78,19 @@ static void check_array_conformability(SEXP x_dim, SEXP y_dim)
 }
 
 /* --- .Call ENTRY POINT --- */
-SEXP C_SVT_Arith(SEXP x_dim, SEXP x_type, SEXP x_SVT,
-		 SEXP y_dim, SEXP y_type, SEXP y_SVT,
-		 SEXP op, SEXP ans_type)
+SEXP C_Arith_SVT_num(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP y,
+		     SEXP op, SEXP ans_type)
+{
+	SEXP ans_SVT;
+
+	error("C_Arith_SVT_num() not ready yet, sorry!");
+	return ans_SVT;
+}
+
+/* --- .Call ENTRY POINT --- */
+SEXP C_Arith_SVT_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
+		     SEXP y_dim, SEXP y_type, SEXP y_SVT,
+		     SEXP op, SEXP ans_type)
 {
 	SEXPTYPE x_Rtype, y_Rtype, ans_Rtype;
 	int opcode, *offs_buf, ovflow;
@@ -93,7 +103,7 @@ SEXP C_SVT_Arith(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	ans_Rtype = _get_Rtype_from_Rstring(ans_type);
 	if (x_Rtype == 0 || y_Rtype == 0 || ans_Rtype == 0)
 		error("SparseArray internal error in "
-		      "C_SVT_Arith():\n"
+		      "C_Arith_SVT_SVT():\n"
                       "    invalid 'x_type', 'y_type', or 'ans_type' value");
 	opcode = _get_Arith_opcode(op, x_Rtype, y_Rtype);
 	if (opcode != ADD_OPCODE &&
@@ -121,9 +131,9 @@ SEXP C_SVT_Arith(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 }
 
 /* --- .Call ENTRY POINT --- */
-SEXP C_SVT_Compare(SEXP x_dim, SEXP x_type, SEXP x_SVT,
-		   SEXP y_dim, SEXP y_type, SEXP y_SVT,
-		   SEXP op)
+SEXP C_Compare_SVT_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
+		       SEXP y_dim, SEXP y_type, SEXP y_SVT,
+		       SEXP op)
 {
 	SEXPTYPE x_Rtype, y_Rtype;
 	int opcode;
@@ -133,7 +143,7 @@ SEXP C_SVT_Compare(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	y_Rtype = _get_Rtype_from_Rstring(y_type);
 	if (x_Rtype == 0 || y_Rtype == 0)
 		error("SparseArray internal error in "
-		      "C_SVT_Compare():\n"
+		      "C_Compare_SVT_SVT():\n"
                       "    invalid 'x_type' or 'y_type' value");
 	opcode = _get_Compare_opcode(op, x_Rtype, y_Rtype);
 	error("not implemented yet, sorry!");
@@ -141,9 +151,9 @@ SEXP C_SVT_Compare(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 }
 
 /* --- .Call ENTRY POINT --- */
-SEXP C_SVT_Logic(SEXP x_dim, SEXP x_type, SEXP x_SVT,
-		 SEXP y_dim, SEXP y_type, SEXP y_SVT,
-		 SEXP op)
+SEXP C_Logic_SVT_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
+		     SEXP y_dim, SEXP y_type, SEXP y_SVT,
+		     SEXP op)
 {
 	SEXPTYPE x_Rtype, y_Rtype;
 	int opcode;
@@ -153,7 +163,7 @@ SEXP C_SVT_Logic(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	y_Rtype = _get_Rtype_from_Rstring(y_type);
 	if (x_Rtype == 0 || y_Rtype == 0)
 		error("SparseArray internal error in "
-		      "C_SVT_Logic():\n"
+		      "C_Logic_SVT_SVT():\n"
                       "    invalid 'x_type' or 'y_type' value");
 	opcode = _get_Logic_opcode(op, x_Rtype, y_Rtype);
 	error("not implemented yet, sorry!");

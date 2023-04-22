@@ -84,9 +84,9 @@ test_that("\"+\", \"-\", \"*\" between SVT_SparseArray objects", {
     expect_error(svt1 + svt2[ , , -1], "non-conformable")
     expect_error(svt1 - svt2[ , , -1], "non-conformable")
     expect_error(svt1 * svt2[ , , -1], "non-conformable")
-    expect_error(svt1 / svt2, regexp="not implemented")
-    expect_error(svt1 ^ svt2, regexp="not implemented")
-    expect_error(svt1 %% svt2, regexp="not implemented")
-    expect_error(svt1 %/% svt2, regexp="not implemented")
+    expect_error(svt1 / svt2, regexp="not supported")
+    expect_error(svt1 ^ svt2, regexp="not supported")
+    expect_error(svt1 %% svt2, regexp="not supported")
+    expect_error(svt1 %/% svt2, regexp="not supported")
 })
 

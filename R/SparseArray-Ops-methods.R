@@ -14,30 +14,106 @@
 ### 'Arith' group
 ###
 
-.SVT_SparseArray_Arith <- function(op, e1, e2)
+### Supports: "*", "/", "^", "%%", "%/%"
+.Arith_SVT_num <- function(op, e1, e2)
+{
+    stopifnot(isSingleString(op),
+              is(e1, "SVT_SparseArray"),
+              is.numeric(e2) || is.complex(e2))
+
+    ## Check 'op'.
+    if (!(op %in% c("*", "/", "^", "%%", "%/%")))
+        stop(wmsg("\"", op, "\" is not supported between an SVT_SparseArray ",
+                  "object and a numeric vector"))
+
+    ## Check 'e2'.
+    if (length(e2) != 1L)
+        stop(wmsg("\"", op, "\" is not supported between an SVT_SparseArray ",
+                  "object and a numeric or complex vector of length != 1"))
+    if (!is.finite(e2))
+        stop(wmsg("\"", op, "\" is not supported between an SVT_SparseArray ",
+                  "object and a non-finite value (NA, NaN, Inf, or -Inf)"))
+
+    ## Check 'type(e1)'.
+    if (!(type(e1) %in% c("integer", "double", "complex")))
+        stop(wmsg("non-numeric argument to arithmetic operation"))
+
+    ## Compute 'ans_type'.
+    ans_type <- type(c(vector(type(e1)), e2))
+    if (ans_type == "complex")
+        stop(wmsg("\"", op, "\" is not implemented yet between an ",
+                  "SVT_SparseArray object and a single value when ",
+                  "one or the other is of type \"", ans_type, "\""))
+    if (op %in% c("%%", "%/%") && ans_type == "complex")
+        stop(wmsg("unimplemented complex operation"))
+    if (op %in% c("/", "^") && ans_type == "integer")
+        ans_type <- "double"
+
+    ans_SVT <- .Call2("C_Arith_SVT_num",
+                      e1@dim, e1@type, e1@SVT, e2, op, ans_type,
+                      PACKAGE="SparseArray")
+
+    new_SVT_SparseArray(e1@dim, e1@dimnames, ans_type, ans_SVT, check=FALSE)
+}
+
+setMethod("Arith", c("SVT_SparseArray", "numeric"),
+    function(e1, e2) .Arith_SVT_num(.Generic, e1, e2)
+)
+setMethod("Arith", c("SVT_SparseArray", "complex"),
+    function(e1, e2) .Arith_SVT_num(.Generic, e1, e2)
+)
+
+setMethod("Arith", c("numeric", "SVT_SparseArray"),
+    function(e1, e2) {
+        if (.Generic != "*")
+            stop(wmsg("\"", .Generic, "\" is not supported between a ",
+                      "numeric vector (on the left) and an SVT_SparseArray ",
+                      "object (on the right)"))
+        .Arith_SVT_num(.Generic, e2, e1)
+    }
+)
+setMethod("Arith", c("complex", "SVT_SparseArray"),
+    function(e1, e2) {
+        if (.Generic != "*")
+            stop(wmsg("\"", .Generic, "\" is not supported between a ",
+                      "complex vector (on the left) and an SVT_SparseArray ",
+                      "object (on the right)"))
+        .Arith_SVT_num(.Generic, e2, e1)
+    }
+)
+
+### Supports: "+", "-", "*"
+.Arith_SVT_SVT <- function(op, e1, e2)
 {
     stopifnot(isSingleString(op),
               is(e1, "SVT_SparseArray"),
               is(e2, "SVT_SparseArray"))
+
+    ## Check 'op'.
+    if (!(op %in% c("+", "-", "*")))
+        stop(wmsg("\"", op, "\" is not supported between SVT_SparseArray ",
+                  "objects"))
+
+    ## Check array conformability.
     e1_dim <- dim(e1)
     e2_dim <- dim(e2)
     if (!identical(e1_dim, e2_dim))
         stop(wmsg("non-conformable arrays"))
 
-    if (!all(c(type(e1), type(e2)) %in% c("integer", "double", "complex")))
-        stop(wmsg("non-numeric argument to arithmetic operation"))
-
     ## Compute 'ans_dimnames'.
     ans_dimnames <- S4Arrays:::get_first_non_NULL_dimnames(list(e1, e2))
 
+    ## Check 'type(e1)' and 'type(e2)'.
+    if (!all(c(type(e1), type(e2)) %in% c("integer", "double", "complex")))
+        stop(wmsg("non-numeric argument to arithmetic operation"))
+
     ## Compute 'ans_type'.
     ans_type <- type(c(vector(type(e1)), vector(type(e2))))
-    if (op %in% c("%%", "%/%") && ans_type == "complex")
-        stop(wmsg("unimplemented complex operation"))
-    if (op %in% c("^", "/") && ans_type == "integer")
-        ans_type <- "double"
+    if (ans_type == "complex")
+        stop(wmsg("\"", op, "\" is not implemented yet between ",
+                  "SVT_SparseArray objects of type \"", ans_type, "\""))
 
-    ans_SVT <- .Call2("C_SVT_Arith",
+    ans_SVT <- .Call2("C_Arith_SVT_SVT",
                       e1_dim, e1@type, e1@SVT, e2_dim, e2@type, e2@SVT,
                       op, ans_type,
                       PACKAGE="SparseArray")
@@ -46,7 +122,7 @@
 }
 
 setMethod("Arith", c("SVT_SparseArray", "SVT_SparseArray"),
-    function(e1, e2) .SVT_SparseArray_Arith(.Generic, e1, e2)
+    function(e1, e2) .Arith_SVT_SVT(.Generic, e1, e2)
 )
 
 ### We could either:
@@ -62,13 +138,11 @@ setMethod("Arith", c("SVT_SparseArray", "SVT_SparseArray"),
 ### The cautious user would typically make that choice upfront anyway, by
 ### coercing one or the other object before calling the 'Arith' op on them.
 setMethod("Arith", c("SVT_SparseArray", "array"),
-    function(e1, e2)
-        .SVT_SparseArray_Arith(.Generic, e1, as(e2, "SVT_SparseArray"))
+    function(e1, e2) .Arith_SVT_SVT(.Generic, e1, as(e2, "SVT_SparseArray"))
 )
 
 setMethod("Arith", c("array", "SVT_SparseArray"),
-    function(e1, e2)
-        .SVT_SparseArray_Arith(.Generic, as(e1, "SVT_SparseArray"), e2)
+    function(e1, e2) .Arith_SVT_SVT(.Generic, as(e1, "SVT_SparseArray"), e2)
 )
 
 
@@ -76,7 +150,7 @@ setMethod("Arith", c("array", "SVT_SparseArray"),
 ### 'Compare' group
 ###
 
-.SVT_SparseArray_Compare <- function(op, e1, e2)
+.Compare_SVT_SVT <- function(op, e1, e2)
 {
     stopifnot(isSingleString(op),
               is(e1, "SVT_SparseArray"),
@@ -96,7 +170,7 @@ setMethod("Arith", c("array", "SVT_SparseArray"),
     biggest_type <- type(c(vector(type(e1)), vector(type(e2))))
     type(e1) <- type(e2) <- biggest_type
 
-    ans_SVT <- .Call2("C_SVT_Compare",
+    ans_SVT <- .Call2("C_Compare_SVT_SVT",
                       e1_dim, e1@type, e1@SVT, e2_dim, e2@type, e2@SVT, op,
                       PACKAGE="SparseArray")
 
@@ -104,17 +178,15 @@ setMethod("Arith", c("array", "SVT_SparseArray"),
 }
 
 setMethod("Compare", c("SVT_SparseArray", "SVT_SparseArray"),
-    function(e1, e2) .SVT_SparseArray_Compare(.Generic, e1, e2)
+    function(e1, e2) .Compare_SVT_SVT(.Generic, e1, e2)
 )
 
 setMethod("Compare", c("SVT_SparseArray", "array"),
-    function(e1, e2)
-        .SVT_SparseArray_Compare(.Generic, e1, as(e2, "SVT_SparseArray"))
+    function(e1, e2) .Compare_SVT_SVT(.Generic, e1, as(e2, "SVT_SparseArray"))
 )
 
 setMethod("Compare", c("array", "SVT_SparseArray"),
-    function(e1, e2)
-        .SVT_SparseArray_Compare(.Generic, as(e1, "SVT_SparseArray"), e2)
+    function(e1, e2) .Compare_SVT_SVT(.Generic, as(e1, "SVT_SparseArray"), e2)
 )
 
 
@@ -122,7 +194,7 @@ setMethod("Compare", c("array", "SVT_SparseArray"),
 ### 'Logic' group
 ###
 
-.SVT_SparseArray_Logic <- function(op, e1, e2)
+.Logic_SVT_SVT <- function(op, e1, e2)
 {
     stopifnot(isSingleString(op),
               is(e1, "SVT_SparseArray"),
@@ -140,7 +212,7 @@ setMethod("Compare", c("array", "SVT_SparseArray"),
     ## Compute 'ans_dimnames'.
     ans_dimnames <- S4Arrays:::get_first_non_NULL_dimnames(list(e1, e2))
 
-    ans_SVT <- .Call2("C_SVT_Logic",
+    ans_SVT <- .Call2("C_Logic_SVT_SVT",
                       e1_dim, e1@type, e1@SVT, e2_dim, e2@type, e2@SVT, op,
                       PACKAGE="SparseArray")
 
@@ -148,16 +220,14 @@ setMethod("Compare", c("array", "SVT_SparseArray"),
 }
 
 setMethod("Logic", c("SVT_SparseArray", "SVT_SparseArray"),
-    function(e1, e2) .SVT_SparseArray_Logic(.Generic, e1, e2)
+    function(e1, e2) .Logic_SVT_SVT(.Generic, e1, e2)
 )
 
 setMethod("Logic", c("SVT_SparseArray", "array"),
-    function(e1, e2)
-        .SVT_SparseArray_Logic(.Generic, e1, as(e2, "SVT_SparseArray"))
+    function(e1, e2) .Logic_SVT_SVT(.Generic, e1, as(e2, "SVT_SparseArray"))
 )
 
 setMethod("Logic", c("array", "SVT_SparseArray"),
-    function(e1, e2)
-        .SVT_SparseArray_Logic(.Generic, as(e1, "SVT_SparseArray"), e2)
+    function(e1, e2) .Logic_SVT_SVT(.Generic, as(e1, "SVT_SparseArray"), e2)
 )
 

@@ -164,7 +164,7 @@ SEXP C_set_SVT_SparseArray_type(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	return ret == 1 ? R_NilValue : ans;
 }
 
-/* Used in src/SparseArray_Ops_methods.c by REC_SVT_Arith().
+/* Used in src/SparseArray_Ops_methods.c by REC_Arith_SVT_SVT().
    Assumes that 'to_Rtype' is equal or a bigger type than 'from_Rtype'
    so coercion won't truncate values or discard imaginary parts etc... */
 SEXP _coerce_SVT(SEXP SVT, const int *dim, int ndim,
