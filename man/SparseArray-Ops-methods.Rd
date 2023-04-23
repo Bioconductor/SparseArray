@@ -71,14 +71,16 @@
 }
 
 \examples{
-m1 <- matrix(0L, nrow=15, ncol=6)
-m1[c(2, 6, 12:17, 22:33, 55, 59:62, 90)] <- 101:126
-svt1 <- SparseArray(m1)
+m <- matrix(0L, nrow=15, ncol=6)
+m[c(2, 6, 12:17, 22:33, 55, 59:62, 90)] <- 101:126
+svt <- SparseArray(m)
 
-svt1 ^ 0.5 - 10 * svt1
+## Can be 5x or 10x faster than with a dgCMatrix object on a big
+## SVT_SparseMatrix object!
+svt2 <- (svt ^ 1.5 + svt) \%\% 50 - 10 * svt
 
 ## Sanity check:
-stopifnot(identical(as.matrix(svt1 ^ 0.5 - 10 * svt1), m1 ^ 0.5 - 10 * m1))
+stopifnot(identical(as.matrix(svt2), (m ^ 1.5 + m) \%\% 50 - 10 * m))
 }
 \keyword{array}
 \keyword{methods}
