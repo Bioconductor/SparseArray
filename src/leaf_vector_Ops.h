@@ -38,9 +38,9 @@ int _get_Logic_opcode(
 	SEXPTYPE y_Rtype
 );
 
-SEXP _Arith_lv_num(
+SEXP _Arith_lv1_v2(
 	SEXP lv1,
-	SEXP y2,
+	SEXP v2,
 	int opcode,
 	SEXPTYPE ans_Rtype,
 	int *offs_buf,
@@ -48,7 +48,7 @@ SEXP _Arith_lv_num(
 	int *ovflow
 );
 
-SEXP _Arith_lv_lv(
+SEXP _Arith_lv1_lv2(
 	SEXP lv1,
 	SEXP lv2,
 	int opcode,

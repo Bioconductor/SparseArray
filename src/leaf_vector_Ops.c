@@ -7,7 +7,7 @@
 
 #include <string.h>  /* for memcpy() */
 #include <limits.h>  /* for INT_MAX */
-#include <math.h>    /* for pow(), fmod(), floor() */
+#include <math.h>    /* for trunc(), pow(), fmod(), floor() */
 
 
 int _get_Arith_opcode(SEXP op)
@@ -133,7 +133,8 @@ static inline int Arith_int(int x, int y, int opcode, int *ovflow)
 			return NA_INTEGER;
 		zz = x % y;
 		/* R's "%%" wants the result to be the same sign as 'y' (this
-		   deviates from C's %), so we adjust for that. */
+		   deviates from C's modulo operator %), so we adjust to
+		   provide R's "%%" behavior. */
 		if ((y > 0 && zz < 0) || (y < 0 && zz > 0))
 			zz += y;
 		return zz;
@@ -157,13 +158,29 @@ static inline int Arith_int(int x, int y, int opcode, int *ovflow)
 
 static inline double Arith_double(double x, double y, int opcode)
 {
+	double zz;
+
 	switch (opcode) {
 	    case ADD_OPCODE:  return x + y;
 	    case SUB_OPCODE:  return x - y;
 	    case MULT_OPCODE: return x * y;
 	    case DIV_OPCODE:  return x / y;
-	    case POW_OPCODE:  return pow(x, y);
-	    case MOD_OPCODE:  return fmod(x, y);
+	    case POW_OPCODE:
+		/* When 'x' is negative 'x ^ y' is expected to return NaN
+		   for any noninteger 'y'. However, in the specific case
+		   where 'x' is 'R_NegInf', pow(x, y) returns 'R_PosInf'
+		   for any noninteger 'y' on my Intel Ubuntu 22.04 laptop.
+		   So we fix that. */
+		if (x == R_NegInf && y != trunc(y))
+			return R_NaN;
+		return pow(x, y);
+	    case MOD_OPCODE:
+		//zz = fmod(x, y);
+		//if (R_FINITE(zz) &&
+                //    ((y > 0.0 && zz < 0.0) || (y < 0.0 && zz > 0.0)))
+		//	zz += y;
+		//return zz;
+		return x - y * floor(x / y);
 	    case IDIV_OPCODE: return floor(x / y);
 	}
 	error("SparseArray internal error in Arith_double():\n"
@@ -383,8 +400,7 @@ static int sparse_Arith_doubles_doubles(
 	return ans_len;
 }
 
-/* Assumes 'y2' is not NA or NaN. */
-SEXP _Arith_lv_num(SEXP lv1, SEXP y2, int opcode, SEXPTYPE ans_Rtype,
+SEXP _Arith_lv1_v2(SEXP lv1, SEXP v2, int opcode, SEXPTYPE ans_Rtype,
 		   int *offs_buf, void *vals_buf, int *ovflow)
 {
 	int lv1_len, ans_len;
@@ -397,40 +413,34 @@ SEXP _Arith_lv_num(SEXP lv1, SEXP y2, int opcode, SEXPTYPE ans_Rtype,
 	buf_Rtype = REALSXP;
 	ans_len = -1;
 	if (TYPEOF(lv1_vals) == INTSXP) {
-		if (TYPEOF(y2) == INTSXP) {
+		if (TYPEOF(v2) == INTSXP) {
 			buf_Rtype = INTSXP;
 			ans_len = sparse_Arith_ints_1int(
 				offs1_p, INTEGER(lv1_vals), lv1_len,
-				INTEGER(y2)[0],
+				INTEGER(v2)[0],
 				opcode, offs_buf, (int *) vals_buf, ovflow);
-		} else if (TYPEOF(y2) == REALSXP) {
+		} else if (TYPEOF(v2) == REALSXP) {
 			ans_len = sparse_Arith_ints_1double(
 				offs1_p, INTEGER(lv1_vals), lv1_len,
-				REAL(y2)[0],
+				REAL(v2)[0],
 				opcode, offs_buf, (double *) vals_buf);
 		}
 	} else if (TYPEOF(lv1_vals) == REALSXP) {
-		if (TYPEOF(y2) == INTSXP) {
+		if (TYPEOF(v2) == REALSXP) {
 			ans_len = sparse_Arith_doubles_1double(
 				offs1_p, REAL(lv1_vals), lv1_len,
-				/* cast to double safe because 'y2' not NA */
-				(double) INTEGER(y2)[0],
-				opcode, offs_buf, (double *) vals_buf);
-		} else if (TYPEOF(y2) == REALSXP) {
-			ans_len = sparse_Arith_doubles_1double(
-				offs1_p, REAL(lv1_vals), lv1_len,
-				REAL(y2)[0],
+				REAL(v2)[0],
 				opcode, offs_buf, (double *) vals_buf);
 		}
 	}
 	if (ans_len == -1)
-		error("_Arith_lv_lv() only supports input "
-		      "of type \"int\" or \"double\" for now");
+		error("_Arith_lv1_v2() only supports input of "
+		      "type \"int\" or \"double\" at the moment");
 	if (ans_len == 0)
 		return R_NilValue;
 	if (ans_Rtype != buf_Rtype)
 		error("SparseArray internal error in "
-		      "_Arith_lv_lv():\n"
+		      "_Arith_lv1_v2():\n"
 		      "    ans_Rtype != buf_Rtype");
 	return make_leaf_vector_from_offs_and_vals(ans_Rtype,
 				offs_buf, vals_buf, ans_len);
@@ -485,8 +495,8 @@ static SEXP unary_minus_leaf_vector(SEXP lv, SEXPTYPE ans_Rtype)
 	}
 	if (!supported) {
 		UNPROTECT(1);
-		error("unary_minus_leaf_vector() only supports "
-		      "input of type \"int\" or \"double\" for now");
+		error("unary_minus_leaf_vector() only supports input "
+		      "of type \"int\" or \"double\" at the moment");
 	}
 	ans = _new_leaf_vector(lv_offs, ans_vals);
 	UNPROTECT(1);
@@ -497,7 +507,7 @@ static SEXP unary_minus_leaf_vector(SEXP lv, SEXPTYPE ans_Rtype)
    the vals in 'lv' are finite (i.e. no NA, NaN, Inf, or -Inf).
    Note that this could simply be achieved by calling:
 
-     _Arith_lv_num(lv, 0, MULT_OPCODE, ans_Rtype, offs_buf, vals_buf)
+     _Arith_lv1_v2(lv, 0, MULT_OPCODE, ans_Rtype, offs_buf, vals_buf)
 
    but mult0_leaf_vector() takes a lot of shortcuts so is a lot more
    efficient.
@@ -550,8 +560,8 @@ static SEXP mult0_leaf_vector(SEXP lv, SEXPTYPE ans_Rtype,
 		}
 	}
 	if (ans_len == -1)
-		error("mult0_leaf_vector() only supports "
-		      "input of type \"int\" or \"double\" for now");
+		error("mult0_leaf_vector() only supports input "
+		      "of type \"int\" or \"double\" at the moment");
 	if (ans_len == 0)
 		return R_NilValue;
 	return make_leaf_vector_from_offs_and_vals(ans_Rtype,
@@ -562,8 +572,8 @@ static SEXP mult0_leaf_vector(SEXP lv, SEXPTYPE ans_Rtype,
    - 'lv1' can be NULL if 'opcode' is SUB_OPCODE;
    - either 'lv1' or 'lv2' (but not both) can be NULL if 'opcode'
      is MULT_OPCODE. */
-SEXP _Arith_lv_lv(SEXP lv1, SEXP lv2, int opcode, SEXPTYPE ans_Rtype,
-		  int *offs_buf, void *vals_buf, int *ovflow)
+SEXP _Arith_lv1_lv2(SEXP lv1, SEXP lv2, int opcode, SEXPTYPE ans_Rtype,
+		    int *offs_buf, void *vals_buf, int *ovflow)
 {
 	int lv1_len, lv2_len, ans_len;
 	SEXP lv1_offs, lv1_vals, lv2_offs, lv2_vals;
@@ -573,7 +583,7 @@ SEXP _Arith_lv_lv(SEXP lv1, SEXP lv2, int opcode, SEXPTYPE ans_Rtype,
 	if (lv1 == R_NilValue) {
 		if (lv2 == R_NilValue)
 			error("SparseArray internal error in "
-			      "_Arith_lv_lv():\n"
+			      "_Arith_lv1_lv2():\n"
 			      "    'lv1' and 'lv2' cannot both be NULL");
 		if (opcode == SUB_OPCODE)
 			return unary_minus_leaf_vector(lv2, ans_Rtype);
@@ -581,7 +591,7 @@ SEXP _Arith_lv_lv(SEXP lv1, SEXP lv2, int opcode, SEXPTYPE ans_Rtype,
 			return mult0_leaf_vector(lv2, ans_Rtype,
 						 offs_buf, vals_buf);
 		error("SparseArray internal error in "
-		      "_Arith_lv_lv():\n"
+		      "_Arith_lv1_lv2():\n"
 		      "    'op' must be \"-\" or \"*\" when 'lv1' is NULL");
 	}
 	if (lv2 == R_NilValue) {
@@ -589,7 +599,7 @@ SEXP _Arith_lv_lv(SEXP lv1, SEXP lv2, int opcode, SEXPTYPE ans_Rtype,
 			return mult0_leaf_vector(lv1, ans_Rtype,
 						 offs_buf, vals_buf);
 		error("SparseArray internal error in "
-		      "_Arith_lv_lv():\n"
+		      "_Arith_lv1_lv2():\n"
 		      "    'op' must be \"*\" when 'lv2' is NULL");
 	}
 	lv1_len = _split_leaf_vector(lv1, &lv1_offs, &lv1_vals);
@@ -625,13 +635,13 @@ SEXP _Arith_lv_lv(SEXP lv1, SEXP lv2, int opcode, SEXPTYPE ans_Rtype,
 		}
 	}
 	if (ans_len == -1)
-		error("_Arith_lv_lv() only supports input "
-		      "of type \"int\" or \"double\" for now");
+		error("_Arith_lv1_lv2() only supports input of "
+		      "type \"int\" or \"double\" at the moment");
 	if (ans_len == 0)
 		return R_NilValue;
 	if (ans_Rtype != buf_Rtype)
 		error("SparseArray internal error in "
-		      "_Arith_lv_lv():\n"
+		      "_Arith_lv1_lv2():\n"
 		      "    ans_Rtype != buf_Rtype");
 	return make_leaf_vector_from_offs_and_vals(ans_Rtype,
 				offs_buf, vals_buf, ans_len);
