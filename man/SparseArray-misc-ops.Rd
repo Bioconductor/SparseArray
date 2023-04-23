@@ -58,11 +58,6 @@
   More operations will be added in the future. For example
   \link{SVT_SparseArray} objects also need to support \code{which()},
   \code{is.na()}, \code{is.infinite()}, \code{is.nan()}.
-
-  Other usefull additions are all the operations from the \code{Arith},
-  \code{Compare}, and \code{Math} groups.
-  See \code{?\link[methods]{S4groupGeneric}} in the \pkg{methods} package
-  for more information.
 }
 
 \value{

@@ -126,6 +126,15 @@ SparseArray(x, type=NA)
     \item \link{SparseArray_summarization} for SparseArray summarization
           methods.
 
+    \item \link{SparseArray_Ops} for operations from the \code{Ops}
+          group on SparseArray objects.
+
+    \item \link{SparseArray_Math} for operations from the \code{Math} and
+          \code{Math2} groups on SparseArray objects.
+
+    \item \link{SparseArray_Complex} for operations from the \code{Complex}
+          group on SparseArray objects.
+
     \item \link{SparseArray_misc_ops} for miscellaneous operations on a
           SparseArray object.
 

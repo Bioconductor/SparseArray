@@ -159,8 +159,8 @@ See `?SparseArray_summarization` for more information and additional examples.
 
 More operations will be added in the future e.g. `which()`, `is.na()`,
 `is.infinite()`, `is.nan()`, etc..., as well as operations from
-the `Arith`, `Compare`, and `Math` groups (see `?S4groupGeneric` for
-more information).
+the `Compare`, `Logic`, `Math`, `Math2`, and `Complex` groups
+(see `?S4groupGeneric` for more information).
 
 ## Generate a random SVT\_SparseArray object
 

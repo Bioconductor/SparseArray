@@ -108,6 +108,9 @@ test_that("Arith ops between an SVT_SparseArray object and a single value", {
     .test_Arith_SVT1_v2(a1, svt1, -5.1, relax.MOD.and.IDIV=TRUE)
     .test_Arith_SVT1_v2(a1, svt1, 0.001, relax.MOD.and.IDIV=TRUE)
     .test_Arith_SVT1_v2(a1, svt1, -0.001, relax.MOD.and.IDIV=TRUE)
+    .test_Arith_SVT1_v2(a1, svt1, 134)
+    expect_warning(svt1 * 10650000L, "integer overflow")
+    expect_warning(10650000L * svt1, "integer overflow")
 
     a0 <- a1[ , 0, ]
     svt0 <- as(a0, "SVT_SparseArray")

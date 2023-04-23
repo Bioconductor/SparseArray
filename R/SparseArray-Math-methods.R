@@ -59,11 +59,11 @@ setMethod("Math", "SVT_SparseArray",
     new_SVT_SparseArray(x@dim, x@dimnames, "double", ans_SVT, check=FALSE)
 }
 
-setMethod("round", c("SVT_SparseArray", "ANY"),
+setMethod("round", "SVT_SparseArray",
     function(x, digits=0) .SVT_SparseArray_Math2("round", x, digits)
 )
 
-setMethod("signif", c("SVT_SparseArray", "ANY"),
+setMethod("signif", "SVT_SparseArray",
     function(x, digits=6) .SVT_SparseArray_Math2("signif", x, digits)
 )
 
