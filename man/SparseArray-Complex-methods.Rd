@@ -1,6 +1,8 @@
 \name{SparseArray-Complex-methods}
 
+\alias{SparseArray-Complex-methods}
 \alias{SparseArray_Complex_methods}
+\alias{SparseArray-Complex}
 \alias{SparseArray_Complex}
 
 \alias{Complex,SVT_SparseArray-method}

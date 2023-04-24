@@ -1,7 +1,15 @@
 \name{SparseArray-Ops-methods}
 
+\alias{SparseArray-Ops-methods}
 \alias{SparseArray_Ops_methods}
+\alias{SparseArray-Ops}
 \alias{SparseArray_Ops}
+\alias{SparseArray-Arith}
+\alias{SparseArray_Arith}
+\alias{SparseArray-Compare}
+\alias{SparseArray_Compare}
+\alias{SparseArray-Logic}
+\alias{SparseArray_Logic}
 
 \alias{+,SparseArray,missing-method}
 \alias{-,SparseArray,missing-method}

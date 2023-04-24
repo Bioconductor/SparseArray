@@ -135,7 +135,7 @@ SparseArray(x, type=NA)
     \item \link{SparseArray_Complex} for operations from the \code{Complex}
           group on SparseArray objects.
 
-    \item \link{SparseArray_misc_ops} for miscellaneous operations on a
+    \item \link{SparseArray_misc} for miscellaneous operations on a
           SparseArray object.
 
     \item \link{SparseMatrix_mult} for SparseMatrix multiplication and

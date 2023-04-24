@@ -1,7 +1,11 @@
 \name{SparseArray-Math-methods}
 
+\alias{SparseArray-Math-methods}
 \alias{SparseArray_Math_methods}
+\alias{SparseArray-Math}
 \alias{SparseArray_Math}
+\alias{SparseArray-Math2}
+\alias{SparseArray_Math2}
 
 \alias{Math,SVT_SparseArray-method}
 \alias{round,SVT_SparseArray-method}

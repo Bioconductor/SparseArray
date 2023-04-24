@@ -1,7 +1,9 @@
-\name{SparseArray-misc-ops}
+\name{SparseArray-misc-methods}
 
-\alias{SparseArray-misc-ops}
-\alias{SparseArray_misc_ops}
+\alias{SparseArray-misc-methods}
+\alias{SparseArray_misc_methods}
+\alias{SparseArray-misc}
+\alias{SparseArray_misc}
 
 \alias{is.na,COO_SparseArray-method}
 \alias{is.infinite,COO_SparseArray-method}
