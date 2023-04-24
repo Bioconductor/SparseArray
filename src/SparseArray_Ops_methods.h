@@ -3,6 +3,12 @@
 
 #include <Rdefines.h>
 
+SEXP C_unary_minus_SVT(
+	SEXP x_dim,
+	SEXP x_type,
+	SEXP x_SVT
+);
+
 SEXP C_Arith_SVT1_v2(
 	SEXP x_dim,
 	SEXP x_type,

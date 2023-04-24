@@ -88,6 +88,77 @@ int _get_Logic_opcode(SEXP op, SEXPTYPE x_Rtype, SEXPTYPE y_Rtype)
 	return 0;
 }
 
+/* Assumes that 'ans_Rtype' is equal or bigger than the type of the
+   vals in 'lv'. Performs **in-place** replacement if 'ans_Rtype' is 0!
+   Note that this could also have been achieved by calling:
+
+     _Arith_lv1_v2(lv, -1, MULT_OPCODE, ...)
+
+   but _unary_minus_leaf_vector() takes a lot of shortcuts so is way
+   more efficient. */
+SEXP _unary_minus_leaf_vector(SEXP lv, SEXPTYPE ans_Rtype)
+{
+	int lv_len, supported, k;
+	SEXP lv_offs, lv_vals, ans_vals, ans;
+
+	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
+	if (ans_Rtype == 0) {
+		/* In-place replacement! */
+		ans_vals = lv_vals;
+	} else {
+		ans_vals = PROTECT(allocVector(ans_Rtype, lv_len));
+	}
+	supported = 0;
+	if (TYPEOF(lv_vals) == INTSXP) {
+		if (ans_Rtype == INTSXP || ans_Rtype == 0) {
+			const int *lv_vals_p = INTEGER(lv_vals);
+			int *ans_vals_p = INTEGER(ans_vals);
+			int v;
+			for (k = 0; k < lv_len; k++) {
+				v = lv_vals_p[k];
+				if (v != NA_INTEGER)
+					v = -v;
+				ans_vals_p[k] = v;
+			}
+			supported = 1;
+		} else if (ans_Rtype == REALSXP) {
+			const int *lv_vals_p = INTEGER(lv_vals);
+			double *ans_vals_p = REAL(ans_vals);
+			int v;
+			for (k = 0; k < lv_len; k++) {
+				v = lv_vals_p[k];
+				if (v == NA_INTEGER) {
+					ans_vals_p[k] = NA_REAL;
+				} else {
+					v = -v;
+					ans_vals_p[k] = (double) v;
+				}
+			}
+			supported = 1;
+		}
+	} else if (TYPEOF(lv_vals) == REALSXP) {
+		if (ans_Rtype == REALSXP || ans_Rtype == 0) {
+			const double *lv_vals_p = REAL(lv_vals);
+			double *ans_vals_p = REAL(ans_vals);
+			for (k = 0; k < lv_len; k++) {
+				ans_vals_p[k] = - lv_vals_p[k];
+			}
+			supported = 1;
+		}
+	}
+	if (!supported) {
+		if (ans_Rtype != 0)
+			UNPROTECT(1);
+		error("_unary_minus_leaf_vector() only supports input "
+		      "of type \"int\" or \"double\" at the moment");
+	}
+	if (ans_Rtype == 0)
+		return lv;
+	ans = _new_leaf_vector(lv_offs, ans_vals);
+	UNPROTECT(1);
+	return ans;
+}
+
 /* Empty leaf vectors are ILLEGAL so 'n' is NOT allowed to be 0. This is NOT
    checked! TODO: Should this go to leaf_vector_utils.c? */
 static SEXP make_leaf_vector_from_offs_and_vals(SEXPTYPE Rtype,
@@ -158,8 +229,6 @@ static inline int Arith_int(int x, int y, int opcode, int *ovflow)
 
 static inline double Arith_double(double x, double y, int opcode)
 {
-	double zz;
-
 	switch (opcode) {
 	    case ADD_OPCODE:  return x + y;
 	    case SUB_OPCODE:  return x - y;
@@ -175,7 +244,7 @@ static inline double Arith_double(double x, double y, int opcode)
 			return R_NaN;
 		return pow(x, y);
 	    case MOD_OPCODE:
-		//zz = fmod(x, y);
+		//double zz = fmod(x, y);
 		//if (R_FINITE(zz) &&
                 //    ((y > 0.0 && zz < 0.0) || (y < 0.0 && zz > 0.0)))
 		//	zz += y;
@@ -446,70 +515,13 @@ SEXP _Arith_lv1_v2(SEXP lv1, SEXP v2, int opcode, SEXPTYPE ans_Rtype,
 				offs_buf, vals_buf, ans_len);
 }
 
-/* Assumes that 'ans_Rtype' is equal or bigger than the type of the
-   vals in 'lv'. */
-static SEXP unary_minus_leaf_vector(SEXP lv, SEXPTYPE ans_Rtype)
-{
-	int lv_len, supported, k;
-	SEXP lv_offs, lv_vals, ans_vals, ans;
-
-	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
-	ans_vals = PROTECT(allocVector(ans_Rtype, lv_len));
-	supported = 0;
-	if (TYPEOF(lv_vals) == INTSXP) {
-		if (ans_Rtype == INTSXP) {
-			const int *lv_vals_p = INTEGER(lv_vals);
-			int *ans_vals_p = INTEGER(ans_vals);
-			int v;
-			for (k = 0; k < lv_len; k++) {
-				v = lv_vals_p[k];
-				if (v != NA_INTEGER)
-					v = -v;
-				ans_vals_p[k] = v;
-			}
-			supported = 1;
-		} else if (ans_Rtype == REALSXP) {
-			const int *lv_vals_p = INTEGER(lv_vals);
-			double *ans_vals_p = REAL(ans_vals);
-			int v;
-			for (k = 0; k < lv_len; k++) {
-				v = lv_vals_p[k];
-				if (v == NA_INTEGER) {
-					ans_vals_p[k] = NA_REAL;
-				} else {
-					v = -v;
-					ans_vals_p[k] = (double) v;
-				}
-			}
-			supported = 1;
-		}
-	} else if (TYPEOF(lv_vals) == REALSXP) {
-		if (ans_Rtype == REALSXP) {
-			const double *lv_vals_p = REAL(lv_vals);
-			double *ans_vals_p = REAL(ans_vals);
-			for (k = 0; k < lv_len; k++) {
-				ans_vals_p[k] = - lv_vals_p[k];
-			}
-			supported = 1;
-		}
-	}
-	if (!supported) {
-		UNPROTECT(1);
-		error("unary_minus_leaf_vector() only supports input "
-		      "of type \"int\" or \"double\" at the moment");
-	}
-	ans = _new_leaf_vector(lv_offs, ans_vals);
-	UNPROTECT(1);
-	return ans;
-}
-
 /* Multiply the vals in 'lv' with zero. Will return R_NilValue if all
    the vals in 'lv' are finite (i.e. no NA, NaN, Inf, or -Inf).
    Note that this could simply be achieved by calling:
 
-     _Arith_lv1_v2(lv, 0, MULT_OPCODE, ans_Rtype, offs_buf, vals_buf)
+     _Arith_lv1_v2(lv, 0, MULT_OPCODE, ...)
 
-   but mult0_leaf_vector() takes a lot of shortcuts so is a lot more
+   but mult0_leaf_vector() takes a lot of shortcuts so is way more
    efficient.
    Assumes that 'ans_Rtype' is equal or bigger than the type of the
    vals in 'lv'. */
@@ -586,7 +598,7 @@ SEXP _Arith_lv1_lv2(SEXP lv1, SEXP lv2, int opcode, SEXPTYPE ans_Rtype,
 			      "_Arith_lv1_lv2():\n"
 			      "    'lv1' and 'lv2' cannot both be NULL");
 		if (opcode == SUB_OPCODE)
-			return unary_minus_leaf_vector(lv2, ans_Rtype);
+			return _unary_minus_leaf_vector(lv2, ans_Rtype);
 		if (opcode == MULT_OPCODE)
 			return mult0_leaf_vector(lv2, ans_Rtype,
 						 offs_buf, vals_buf);

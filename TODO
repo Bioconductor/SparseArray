@@ -21,8 +21,6 @@
   rowMeans2, rowSums2, rowRanks, rowQuantiles, rowMads, rowIQRs, rowAlls,
   rowCumsums, rowWeightedMeans, rowAnyNAs) + corresponding col* methods.
 
-- Implement unary plus and minus for SVT_SparseArray objects.
-
 - Implement Compare and Logic methods for SVT_SparseArray objects.
 
 - Implement Math2 methods and **some** Math methods (only those that

@@ -10,6 +10,23 @@
 #include <string.h>  /* for memcmp() */
 
 
+static void REC_unary_minus_SVT(SEXP SVT, const int *dims, int ndim)
+{
+	int SVT_len, i;
+
+	if (SVT == R_NilValue)
+		return;
+	if (ndim == 1) {
+		/* 'SVT' is a "leaf vector". */
+		_unary_minus_leaf_vector(SVT, 0);
+		return;
+	}
+	SVT_len = dims[ndim - 1];
+	for (i = 0; i < SVT_len; i++)
+		REC_unary_minus_SVT(VECTOR_ELT(SVT, i), dims, ndim - 1);
+	return;
+}
+
 static SEXP REC_Arith_SVT1_v2(SEXP SVT1, SEXP v2,
 			      const int *dims, int ndim,
 			      int opcode, SEXPTYPE ans_Rtype,
@@ -102,6 +119,18 @@ static SEXP REC_Arith_SVT1_SVT2(SEXP SVT1, SEXPTYPE Rtype1,
 	}
 	UNPROTECT(1);
 	return is_empty ? R_NilValue : ans;
+}
+
+/* --- .Call ENTRY POINT ---
+  'x_type' is ignored at the moment. */
+SEXP C_unary_minus_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT)
+{
+	SEXP ans;
+
+	ans = PROTECT(duplicate(x_SVT));
+	REC_unary_minus_SVT(ans, INTEGER(x_dim), LENGTH(x_dim));
+	UNPROTECT(1);
+	return ans;
 }
 
 /* --- .Call ENTRY POINT --- */

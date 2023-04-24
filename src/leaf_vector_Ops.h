@@ -38,6 +38,11 @@ int _get_Logic_opcode(
 	SEXPTYPE y_Rtype
 );
 
+SEXP _unary_minus_leaf_vector(
+	SEXP lv,
+	SEXPTYPE ans_Rtype
+);
+
 SEXP _Arith_lv1_v2(
 	SEXP lv1,
 	SEXP v2,

@@ -3,6 +3,9 @@
 \alias{SparseArray_Ops_methods}
 \alias{SparseArray_Ops}
 
+\alias{+,SparseArray,missing-method}
+\alias{-,SparseArray,missing-method}
+
 \alias{Arith,SVT_SparseArray,vector-method}
 \alias{Arith,vector,SVT_SparseArray-method}
 \alias{Arith,SVT_SparseArray,SVT_SparseArray-method}

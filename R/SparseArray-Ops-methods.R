@@ -8,6 +8,53 @@
 ### - 'Logic' group:   "&", "|"
 ###
 ### See '?S4groupGeneric' for more information.
+###
+### We also implement unary "+" and "-" for SparseArray objects.
+
+
+.check_Arith_input_type <- function(type)
+{
+    if (!(type %in% c("integer", "double", "complex")))
+        stop(wmsg("arithmetic operations are not suported on SparseArray ",
+                  "objects with elements of type() \"", type , "\""))
+}
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Unary "+" and "-"
+###
+
+.unary_plus_SparseArray <- function(x)
+{
+    .check_Arith_input_type(type(x))
+    x
+}
+
+.unary_minus_SparseArray <- function(x)
+{
+    .check_Arith_input_type(type(x))
+    if (is(x, "COO_SparseArray")) {
+        ans <- BiocGenerics:::replaceSlots(x, nzvals=-x@nzvals, check=FALSE)
+    } else if (is(x, "SVT_SparseArray")) {
+        if (type(x) == "complex")
+            stop(wmsg("unary \"-\" is not implemented yet on an ",
+                      "SVT_SparseArray object of type \"", type(x), "\""))
+        new_SVT <- .Call2("C_unary_minus_SVT", x@dim, x@type, x@SVT,
+                          PACKAGE="SparseArray")
+        ans <- BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
+    } else {
+        stop(wmsg("unary \"-\" is not supported on ", class(x), " objects"))
+    }
+    ans
+}
+
+setMethod("+", c("SparseArray", "missing"),
+    function(e1, e2) .unary_plus_SparseArray(e1)
+)
+
+setMethod("-", c("SparseArray", "missing"),
+    function(e1, e2) .unary_minus_SparseArray(e1)
+)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -20,9 +67,7 @@
     stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
 
     ## Check types.
-    if (!(type(x) %in% c("integer", "double", "complex")))
-        stop(wmsg("arithmetic operations are not suported on ",
-                  "SVT_SparseArray objects of type \"", type(x), "\""))
+    .check_Arith_input_type(type(x))
     if (!(is.numeric(y) || is.complex(y)))
         stop(wmsg("arithmetic operations between SVT_SparseArray objects ",
                   "and ", class(y), " vectors are not supported"))
@@ -60,11 +105,10 @@
             stop(wmsg("unimplemented complex operation"))
     }
 
-    ans_SVT <- .Call2("C_Arith_SVT1_v2",
+    new_SVT <- .Call2("C_Arith_SVT1_v2",
                       x@dim, x@type, x@SVT, y, op, ans_type,
                       PACKAGE="SparseArray")
-
-    new_SVT_SparseArray(x@dim, x@dimnames, ans_type, ans_SVT, check=FALSE)
+    BiocGenerics:::replaceSlots(x, type=ans_type, SVT=new_SVT, check=FALSE)
 }
 
 setMethod("Arith", c("SVT_SparseArray", "vector"),
@@ -89,12 +133,8 @@ setMethod("Arith", c("vector", "SVT_SparseArray"),
               is(y, "SVT_SparseArray"))
 
     ## Check types.
-    if (!(type(x) %in% c("integer", "double", "complex")))
-        stop(wmsg("arithmetic operations are not suported on ",
-                  "SVT_SparseArray objects of type \"", type(x), "\""))
-    if (!(type(y) %in% c("integer", "double", "complex")))
-        stop(wmsg("arithmetic operations are not suported on ",
-                  "SVT_SparseArray objects of type \"", type(y), "\""))
+    .check_Arith_input_type(type(x))
+    .check_Arith_input_type(type(y))
 
     ## Check 'op'.
     if (!(op %in% c("+", "-", "*")))
