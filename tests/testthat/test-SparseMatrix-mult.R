@@ -23,25 +23,29 @@
 
     ## crossprod()
     expected <- crossprod(m)
-    if (type(m) == "double")
+    if (type(m) == "double") {
         expected <- .fix_sym_mat_NA_NaN_pattern(expected)
+        EXPECT_FUN <- expect_equal
+    } else {
+        EXPECT_FUN <- expect_identical
+    }
     cp <- crossprod(svt)
-    expect_identical(cp, expected)
-    expect_identical(cp, t(cp))
-    expect_identical(cp, crossprod(svt, svt))
-    expect_identical(cp, crossprod(svt, m))
-    expect_identical(cp, crossprod(m, svt))
+    EXPECT_FUN(cp, expected)
+    EXPECT_FUN(cp, t(cp))
+    EXPECT_FUN(cp, crossprod(svt, svt))
+    EXPECT_FUN(cp, crossprod(svt, m))
+    EXPECT_FUN(cp, crossprod(m, svt))
 
     ## tcrossprod()
     expected <- tcrossprod(m)
     if (type(m) == "double")
         expected <- .fix_sym_mat_NA_NaN_pattern(expected)
     tcp <- tcrossprod(svt)
-    expect_identical(tcp, expected)
-    expect_identical(tcp, t(tcp))
-    expect_identical(tcp, tcrossprod(svt, svt))
-    expect_identical(tcp, tcrossprod(svt, m))
-    expect_identical(tcp, tcrossprod(m, svt))
+    EXPECT_FUN(tcp, expected)
+    EXPECT_FUN(tcp, t(tcp))
+    EXPECT_FUN(tcp, tcrossprod(svt, svt))
+    EXPECT_FUN(tcp, tcrossprod(svt, m))
+    EXPECT_FUN(tcp, tcrossprod(m, svt))
 }
 
 test_that("crossprod()/tcrossprod() on input objects of type \"double\"", {

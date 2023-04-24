@@ -14,8 +14,18 @@
 
 .check_Arith_input_type <- function(type)
 {
-    if (!(type %in% c("integer", "double", "complex")))
+    input_types <- c("integer", "double", "complex")
+    if (!(type %in% input_types))
         stop(wmsg("arithmetic operations are not suported on SparseArray ",
+                  "objects with elements of type() \"", type , "\""))
+}
+
+.check_Compare_input_type <- function(type)
+{
+    input_types <- c("logical", "integer", "double", "complex",
+                     "character", "raw")
+    if (!(type %in% input_types))
+        stop(wmsg("comparison operations are not suported on SparseArray ",
                   "objects with elements of type() \"", type , "\""))
 }
 
@@ -69,28 +79,28 @@ setMethod("-", c("SparseArray", "missing"),
     ## Check types.
     .check_Arith_input_type(type(x))
     if (!(is.numeric(y) || is.complex(y)))
-        stop(wmsg("arithmetic operations between SVT_SparseArray objects ",
+        stop(wmsg("arithmetic operations between SparseArray objects ",
                   "and ", class(y), " vectors are not supported"))
 
     ## Check 'op'.
     if (!(op %in% c("*", "/", "^", "%%", "%/%")))
-        stop(wmsg("\"", op, "\" is not supported between an SVT_SparseArray ",
+        stop(wmsg("\"", op, "\" is not supported between a SparseArray ",
                   "object and a ", class(y), " vector"))
 
     ## Check 'y'.
     if (length(y) != 1L)
-        stop(wmsg("arithmetic operations are not supported between an ",
-                  "SVT_SparseArray object and a ", class(y), " vector ",
+        stop(wmsg("arithmetic operations are not supported between a ",
+                  "SparseArray object and a ", class(y), " vector ",
                   "of length != 1"))
     if (!is.finite(y))
-        stop(wmsg("\"", op, "\" is not supported between an SVT_SparseArray ",
+        stop(wmsg("\"", op, "\" is not supported between a SparseArray ",
                   "object and a non-finite value (NA, NaN, Inf, or -Inf)"))
     if (op == "^" && y <= 0)
         stop(wmsg("x ", op, " y: operation not supported on ",
-                  "SVT_SparseArray object 'x' when 'y' is non-positive"))
+                  "SparseArray object 'x' when 'y' is non-positive"))
     if (op != "*" && y == 0)
-        stop(wmsg("x ", op, " 0: operation not supported on ",
-                  "SVT_SparseArray object 'x'"))
+        stop(wmsg("x ", op, " 0: operation not supported on SparseArray ",
+                  "object 'x'"))
                 
     ## Compute 'ans_type'.
     if (type(y) == "integer" && (type(x) == "double") || op %in% c("/", "^")) {
@@ -138,7 +148,7 @@ setMethod("Arith", c("vector", "SVT_SparseArray"),
 
     ## Check 'op'.
     if (!(op %in% c("+", "-", "*")))
-        stop(wmsg("\"", op, "\" is not supported between SVT_SparseArray ",
+        stop(wmsg("\"", op, "\" is not supported between SparseArray ",
                   "objects"))
 
     ## Check array conformability.
@@ -193,11 +203,27 @@ setMethod("Arith", c("array", "SVT_SparseArray"),
 ### 'Compare' group
 ###
 
+### Supports: "!=", "<", ">"
 .Compare_SVT1_SVT2 <- function(op, x, y)
 {
     stopifnot(isSingleString(op),
               is(x, "SVT_SparseArray"),
               is(y, "SVT_SparseArray"))
+
+    ## Check types.
+    .check_Compare_input_type(type(x))
+    .check_Compare_input_type(type(y))
+
+    ## Check 'op'.
+    if (!(op %in% c("!=", "<", ">"))) {
+        suggest <- switch(op, `==`="!=", `<=`="<", `>=`=">")
+        suggest <- if (is.null(suggest)) "" else
+                       paste0(" (but \"", suggest, "\" is)")
+        stop(wmsg("\"", op, "\" is not supported between SparseArray ",
+                  "objects", suggest))
+    }
+
+    ## Check array conformability.
     x_dim <- dim(x)
     y_dim <- dim(y)
     if (!identical(x_dim, y_dim))
@@ -205,13 +231,6 @@ setMethod("Arith", c("array", "SVT_SparseArray"),
 
     ## Compute 'ans_dimnames'.
     ans_dimnames <- S4Arrays:::get_first_non_NULL_dimnames(list(x, y))
-
-    ## Pretty inefficient to do this coercion upfront.
-    ## TODO: Operate directly on the original types at the C level.
-    ## This should be significantly more efficient (but at the cost of some
-    ## complication of the C code).
-    biggest_type <- type(c(vector(type(x)), vector(type(y))))
-    type(x) <- type(y) <- biggest_type
 
     ans_SVT <- .Call2("C_Compare_SVT1_SVT2",
                       x_dim, x@type, x@SVT, y_dim, y@type, y@SVT, op,

@@ -121,6 +121,18 @@ static SEXP REC_Arith_SVT1_SVT2(SEXP SVT1, SEXPTYPE Rtype1,
 	return is_empty ? R_NilValue : ans;
 }
 
+static SEXP REC_Compare_SVT1_SVT2(SEXP SVT1, SEXPTYPE Rtype1,
+				  SEXP SVT2, SEXPTYPE Rtype2,
+				  const int *dims, int ndim,
+				  int opcode, int *offs_buf, int *vals_buf)
+{
+	SEXP ans, ans_elt, subSVT1, subSVT2;
+	int ans_len, is_empty, i;
+
+	error("REC_Compare_SVT1_SVT2() not ready yet");
+	return is_empty ? R_NilValue : ans;
+}
+
 /* --- .Call ENTRY POINT ---
   'x_type' is ignored at the moment. */
 SEXP C_unary_minus_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT)
@@ -140,7 +152,7 @@ SEXP C_Arith_SVT1_v2(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP v2,
 	SEXPTYPE x_Rtype, ans_Rtype;
 	int opcode, *offs_buf, ovflow;
 	double *vals_buf;
-	SEXP ans_SVT;
+	SEXP ans;
 
 	x_Rtype = _get_Rtype_from_Rstring(x_type);
 	ans_Rtype = _get_Rtype_from_Rstring(ans_type);
@@ -162,17 +174,17 @@ SEXP C_Arith_SVT1_v2(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP v2,
 	/* Must be big enough to contain ints or doubles. */
 	vals_buf = (double *) R_alloc(INTEGER(x_dim)[0], sizeof(double));
 	ovflow = 0;
-	ans_SVT = REC_Arith_SVT1_v2(x_SVT, v2,
-				    INTEGER(x_dim), LENGTH(x_dim),
-				    opcode, ans_Rtype,
-				    offs_buf, vals_buf, &ovflow);
-	if (ans_SVT != R_NilValue)
-		PROTECT(ans_SVT);
+	ans = REC_Arith_SVT1_v2(x_SVT, v2,
+				INTEGER(x_dim), LENGTH(x_dim),
+				opcode, ans_Rtype,
+				offs_buf, vals_buf, &ovflow);
+	if (ans != R_NilValue)
+		PROTECT(ans);
 	if (ovflow)
 		warning("NAs produced by integer overflow");
-	if (ans_SVT != R_NilValue)
+	if (ans != R_NilValue)
 		UNPROTECT(1);
-	return ans_SVT;
+	return ans;
 }
 
 static void check_array_conformability(SEXP x_dim, SEXP y_dim)
@@ -194,7 +206,7 @@ SEXP C_Arith_SVT1_SVT2(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	SEXPTYPE x_Rtype, y_Rtype, ans_Rtype;
 	int opcode, *offs_buf, ovflow;
 	double *vals_buf;
-	SEXP ans_SVT;
+	SEXP ans;
 
 	check_array_conformability(x_dim, y_dim);
 	x_Rtype = _get_Rtype_from_Rstring(x_type);
@@ -216,17 +228,17 @@ SEXP C_Arith_SVT1_SVT2(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	/* Must be big enough to contain ints or doubles. */
 	vals_buf = (double *) R_alloc(INTEGER(x_dim)[0], sizeof(double));
 	ovflow = 0;
-	ans_SVT = REC_Arith_SVT1_SVT2(x_SVT, x_Rtype, y_SVT, y_Rtype,
-				      INTEGER(x_dim), LENGTH(x_dim),
-				      opcode, ans_Rtype,
-				      offs_buf, vals_buf, &ovflow);
-	if (ans_SVT != R_NilValue)
-		PROTECT(ans_SVT);
+	ans = REC_Arith_SVT1_SVT2(x_SVT, x_Rtype, y_SVT, y_Rtype,
+				  INTEGER(x_dim), LENGTH(x_dim),
+				  opcode, ans_Rtype,
+				  offs_buf, vals_buf, &ovflow);
+	if (ans != R_NilValue)
+		PROTECT(ans);
 	if (ovflow)
 		warning("NAs produced by integer overflow");
-	if (ans_SVT != R_NilValue)
+	if (ans != R_NilValue)
 		UNPROTECT(1);
-	return ans_SVT;
+	return ans;
 }
 
 /* --- .Call ENTRY POINT --- */
@@ -235,7 +247,7 @@ SEXP C_Compare_SVT1_SVT2(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 			 SEXP op)
 {
 	SEXPTYPE x_Rtype, y_Rtype;
-	int opcode;
+	int opcode, *offs_buf, *vals_buf;
 
 	check_array_conformability(x_dim, y_dim);
 	x_Rtype = _get_Rtype_from_Rstring(x_type);
@@ -245,8 +257,18 @@ SEXP C_Compare_SVT1_SVT2(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		      "C_Compare_SVT1_SVT2():\n"
                       "    invalid 'x_type' or 'y_type' value");
 	opcode = _get_Compare_opcode(op, x_Rtype, y_Rtype);
-	error("not implemented yet, sorry!");
-	return R_NilValue;
+	if (opcode != NE_OPCODE &&
+	    opcode != LT_OPCODE &&
+	    opcode != GT_OPCODE)
+	{
+		error("\"%s\" is not supported between SVT_SparseArray "
+		      "objects", CHAR(STRING_ELT(op, 0)));
+	}
+	offs_buf = (int *) R_alloc(INTEGER(x_dim)[0], sizeof(int));
+	vals_buf = (int *) R_alloc(INTEGER(x_dim)[0], sizeof(int));
+	return REC_Compare_SVT1_SVT2(x_SVT, x_Rtype, y_SVT, y_Rtype,
+				     INTEGER(x_dim), LENGTH(x_dim),
+				     opcode, offs_buf, vals_buf);
 }
 
 /* --- .Call ENTRY POINT --- */
