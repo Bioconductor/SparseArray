@@ -1,11 +1,3 @@
-- Once SparseArray is in Bioconductor, "register" the package in
-  MatrixGenerics, that is:
-    - Add SparseArray to the Suggests field in MatrixGenerics/DESCRIPTION.
-    - List it in MatrixGenerics/README.md together with sparseMatrixStats
-      and DelayedMatrixStats.
-    - Add it to the .SUGGESTED_PACKAGES_TO_SEARCH vector in
-      MatrixGenerics/R/MatrixGenerics-package.R
-
 - Try to speed up SVT_SparseArray transposition by implementing a one-pass
   approach that uses ExtendableJaggedArray intermediate buffers (offss, valss).
   See src/readSparseCSV.c where this approach is already used.
@@ -21,7 +13,9 @@
   rowMeans2, rowSums2, rowRanks, rowQuantiles, rowMads, rowIQRs, rowAlls,
   rowCumsums, rowWeightedMeans, rowAnyNAs) + corresponding col* methods.
 
-- Implement Compare and Logic methods for SVT_SparseArray objects.
+- Add unit tests for Compare methods for SVT_SparseArray objects.
+
+- Implement Logic methods for SVT_SparseArray objects.
 
 - Implement Math2 methods and **some** Math methods (only those that
   preserve sparsity that is: abs, sign, sqrt, ceiling, floor, trunc, log1p,

@@ -92,8 +92,7 @@ setMethod("-", c("SparseArray", "missing"),
     ## Check 'y'.
     if (length(y) != 1L)
         stop(wmsg("arithmetic operations are not supported between a ",
-                  "SparseArray object and a ", class(y), " vector ",
-                  "of length != 1"))
+                  "SparseArray object and a vector of length != 1"))
     if (!is.finite(y))
         stop(wmsg("\"", op, "\" is not supported between a SparseArray ",
                   "object and a non-finite value (NA, NaN, Inf, or -Inf)"))
@@ -205,6 +204,21 @@ setMethod("Arith", c("array", "SVT_SparseArray"),
 ### 'Compare' group
 ###
 
+.flip_Compare_op <- function(op)
+    switch(op, `<=`=">=", `>=`="<=", `<`=">", `>`="<", op)
+
+.Compare_op_would_destroy_sparsity <- function(op, when)
+{
+    op2 <- .flip_Compare_op(op)
+    if (op == op2) {
+        msg <- c("x ", op, " y: operation")
+    } else {
+        msg <- c("x ", op, " y and y ", op2, " x: operations")
+    }
+    msg <- c(msg, " not supported on SparseArray object x when ", when)
+    stop(wmsg(msg))
+}
+
 ### Supports all 'Compare' ops: "==", "!=", "<=", ">=", "<", ">"
 .Compare_SVT1_v2 <- function(op, x, y)
 {
@@ -223,41 +237,47 @@ setMethod("Arith", c("array", "SVT_SparseArray"),
     ## Check 'y0'.
     if (length(y0) != 1L)
         stop(wmsg("comparison operations are not supported between a ",
-                  "SparseArray object and a ", class(y0), " vector ",
-                  "of length != 1"))
+                  "SparseArray object and a vector of length != 1"))
     if (is.na(y0))
         stop(wmsg("comparison operations are not supported between a ",
-                  "SparseArray object and an NA"))
+                  "SparseArray object and an NA or NaN"))
 
     common_type <- type(c(vector(x0_type), y0))
     if (common_type == "complex" && op %in% c("<=", ">=", "<", ">"))
-        srtop(wmsg("invalid comparison with complex values"))
+        stop(wmsg("invalid comparison with complex values"))
+    if (common_type == "character" && op %in% c("<=", "<"))
+        .Compare_op_would_destroy_sparsity(op, "y is a string")
 
-    type(x) <- type(y) <- common_type
+    type(y) <- common_type
     zero <- vector(type(y), length=1L)
     if (op == "==" && y == zero)
-        stop(wmsg("\"==\" is not supported between a SparseArray object ",
-                  "and ", if (zero == "") "\"\"" else "0"))
+        .Compare_op_would_destroy_sparsity(op,
+                    "y is 0 (or is the empty string)")
     if (op == "!=" && y != zero)
-        stop(wmsg("\"!=\" is not supported between a SparseArray object ",
-                  "and a value that is not ", if (zero == "") "\"\"" else "0"))
+        .Compare_op_would_destroy_sparsity(op,
+                    "y is not 0 (or is not the empty string)")
     if (op == "<=" && y >= zero)
-        stop(wmsg("\"<=\" is not supported between a SparseArray object ",
-                  "and a value that is >= ", if (zero == "") "\"\"" else "0"))
+        .Compare_op_would_destroy_sparsity(op,
+                    "y is >= 0")
     if (op == ">=" && y <= zero)
-        stop(wmsg("\">=\" is not supported between a SparseArray object ",
-                  "and a value that is <= ", if (zero == "") "\"\"" else "0"))
+        .Compare_op_would_destroy_sparsity(op,
+                    "y is <= 0 (or is the empty string)")
     if (op == "<" && y > zero)
-        stop(wmsg("\"<\" is not supported between a SparseArray object ",
-                  "and a value that is > ", if (zero == "") "\"\"" else "0"))
+        .Compare_op_would_destroy_sparsity(op,
+                    "y is > 0")
     if (op == ">" && y < zero)
-        stop(wmsg("\">\" is not supported between a SparseArray object ",
-                  "and a value that is < ", if (zero == "") "\"\"" else "0"))
+        .Compare_op_would_destroy_sparsity(op,
+                    "y is < 0")
 
     if (common_type %in% c("complex", "raw", "character"))
         stop(wmsg("\"", op, "\" is not implemented yet between an ",
                   "SVT_SparseArray object and a single value when ",
-                  "one or the other is of type \"", common_type, "\""))
+                  if (common_type == "raw") "both are"
+                                       else "one or the other is",
+                  " of type \"", common_type, "\""))
+
+    ## Possibly expensive so do it only after all the above checks have passed.
+    type(x) <- common_type
 
     new_SVT <- .Call2("C_Compare_SVT1_v2",
                       x@dim, x@type, x@SVT, y, op,
@@ -270,11 +290,7 @@ setMethod("Compare", c("SVT_SparseArray", "vector"),
 )
 
 setMethod("Compare", c("vector", "SVT_SparseArray"),
-    function(e1, e2) {
-        ## Flip the op:
-        op <- switch(.Generic, `<=`=">=", `>=`="<=", `<`=">", `>`="<", .Generic)
-        .Compare_SVT1_v2(op, e2, e1)
-    }
+    function(e1, e2) .Compare_SVT1_v2(.flip_Compare_op(.Generic), e2, e1)
 )
 
 ### Supports: "!=", "<", ">"

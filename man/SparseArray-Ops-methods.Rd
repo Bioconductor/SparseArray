@@ -20,6 +20,8 @@
 \alias{Arith,SVT_SparseArray,array-method}
 \alias{Arith,array,SVT_SparseArray-method}
 
+\alias{Compare,SVT_SparseArray,vector-method}
+\alias{Compare,vector,SVT_SparseArray-method}
 \alias{Compare,SVT_SparseArray,SVT_SparseArray-method}
 \alias{Compare,SVT_SparseArray,array-method}
 \alias{Compare,array,SVT_SparseArray-method}
@@ -41,8 +43,8 @@
   \itemize{
     \item Only \link{SVT_SparseArray} objects are supported at the moment.
           \link{COO_SparseArray} might be added in the future.
-    \item Operations from the \code{Compare} and \code{Logic} groups are not
-          ready yet but will be soon.
+    \item Operations from the \code{Logic} groups are not ready yet but
+          will be soon.
     \item Operations involving complex numbers are not supported yet.
   }
 }
@@ -51,23 +53,34 @@
   Two forms of operations are supported:
   \enumerate{
     \item Between an \link{SVT_SparseArray} object \code{svt} and a single
-          number \code{x}: \preformatted{    svt op x}
+          value \code{y}: \preformatted{    svt op y
+    y op svt}
+
           The operations from the \code{Arith} group that support this form
           are: \code{*}, \code{/}, \code{^}, \code{\%\%},\code{\%/\%}.
-          Note that, except for \code{*} (for which both \code{svt * x}
-          and \code{x * svt} are supported), the single number must be on
-          the right e.g. \code{svt ^ 3}.
+          Note that, except for \code{*} (for which both \code{svt * y}
+          and \code{y * svt} are supported), single value \code{y} must
+          be on the right e.g. \code{svt ^ 3}.
+
+          All operations from the \code{Compare} group support this form,
+          with single value \code{y} either on the left or the right.
+          However, there are some operation-dependent restrictions on the
+          value of \code{y}.
 
     \item Between two \link{SVT_SparseArray} objects \code{svt1} and
           \code{svt2} of same dimensions (a.k.a. \emph{conformable arrays}):
           \preformatted{    svt1 op svt2}
+
           The operations from the \code{Arith} group that support this form
           are: \code{+}, \code{-}, \code{*}.
+
+          The operations from the \code{Compare} group that support this form
+          are: \code{!=}, \code{<}, \code{>}.
   }
 }
 
 \value{
-  An \link{SparseArray} derivative of the same dimensions as the input
+  A \link{SparseArray} derivative of the same dimensions as the input
   object(s).
 }
 
@@ -88,10 +101,11 @@ svt <- SparseArray(m)
 
 ## Can be 5x or 10x faster than with a dgCMatrix object on a big
 ## SVT_SparseMatrix object!
-svt2 <- (svt ^ 1.5 + svt) \%\% 50 - 10 * svt
+svt2 <- (svt^1.5 + svt) %% 100 - 0.2 * svt > 0
 
 ## Sanity check:
-stopifnot(identical(as.matrix(svt2), (m ^ 1.5 + m) \%\% 50 - 10 * m))
+m2 <- (m^1.5 + m) %% 100 - 0.2 * m > 0
+stopifnot(identical(as.matrix(svt2), m2))
 }
 \keyword{array}
 \keyword{methods}
