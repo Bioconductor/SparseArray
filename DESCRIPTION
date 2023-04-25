@@ -18,9 +18,9 @@ Encoding: UTF-8
 Authors@R: c(
 	person("Hervé", "Pagès", role=c("aut", "cre"),
 		email="hpages.on.github@gmail.com"),
-	person("Vince", "Carey", role="aut",
+	person("Vince", "Carey", role="fnd",
 		email="stvjc@channing.harvard.edu"),
-	person("Rafael A.", "Irizarry", role="aut",
+	person("Rafael A.", "Irizarry", role="fnd",
 		email="rafa@ds.harvard.edu"))
 Depends: R (>= 4.3.0), methods, Matrix, BiocGenerics (>= 0.43.1),
 	MatrixGenerics (>= 1.11.1), S4Vectors, S4Arrays (>= 0.99.0)

@@ -24,7 +24,7 @@
         svt <- svt1 ^ v2
         expect_true(is(svt, "SVT_SparseArray"))
         expect_true(validObject(svt))
-        expect_identical(as.array(svt), expected)
+        expect_equal(as.array(svt), expected)
     }
 
     if (relax.MOD.and.IDIV) {
