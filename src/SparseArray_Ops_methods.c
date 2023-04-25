@@ -67,6 +67,41 @@ static SEXP REC_Arith_SVT1_v2(SEXP SVT1, SEXP v2,
 	return is_empty ? R_NilValue : ans;
 }
 
+static SEXP REC_Compare_SVT1_v2(SEXP SVT1, SEXP v2,
+				const int *dims, int ndim,
+				int opcode, int *offs_buf, void *vals_buf)
+{
+	int ans_len, is_empty, i;
+	SEXP ans, ans_elt, subSVT1;
+
+	if (SVT1 == R_NilValue)
+		return R_NilValue;
+
+	if (ndim == 1) {
+		/* 'SVT1' is a "leaf vector". */
+		return _Compare_lv1_v2(SVT1, v2, opcode, offs_buf, vals_buf);
+	}
+
+	/* 'SVT1' is a list. */
+	ans_len = dims[ndim - 1];
+	ans = PROTECT(NEW_LIST(ans_len));
+	is_empty = 1;
+	for (i = 0; i < ans_len; i++) {
+		subSVT1 = VECTOR_ELT(SVT1, i);
+		ans_elt = REC_Compare_SVT1_v2(subSVT1, v2,
+					      dims, ndim - 1,
+					      opcode, offs_buf, vals_buf);
+		if (ans_elt != R_NilValue) {
+			PROTECT(ans_elt);
+			SET_VECTOR_ELT(ans, i, ans_elt);
+			UNPROTECT(1);
+			is_empty = 0;
+		}
+	}
+	UNPROTECT(1);
+	return is_empty ? R_NilValue : ans;
+}
+
 static SEXP REC_Arith_SVT1_SVT2(SEXP SVT1, SEXPTYPE Rtype1,
 				SEXP SVT2, SEXPTYPE Rtype2,
 				const int *dims, int ndim,
@@ -220,6 +255,26 @@ SEXP C_Arith_SVT1_v2(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP v2,
 	return ans;
 }
 
+/* --- .Call ENTRY POINT --- */
+SEXP C_Compare_SVT1_v2(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP v2, SEXP op)
+{
+	SEXPTYPE x_Rtype;
+	int opcode, *offs_buf, *vals_buf;
+
+	x_Rtype = _get_Rtype_from_Rstring(x_type);
+	if (x_Rtype == 0)
+		error("SparseArray internal error in "
+		      "C_Compare_SVT1_v2():\n"
+                      "    invalid 'x_type'");
+	opcode = _get_Compare_opcode(op);
+	offs_buf = (int *) R_alloc(INTEGER(x_dim)[0], sizeof(int));
+	/* Must be big enough to contain ints or doubles. */
+	vals_buf = (int *) R_alloc(INTEGER(x_dim)[0], sizeof(int));
+	return REC_Compare_SVT1_v2(x_SVT, v2,
+				   INTEGER(x_dim), LENGTH(x_dim),
+				   opcode, offs_buf, vals_buf);
+}
+
 static void check_array_conformability(SEXP x_dim, SEXP y_dim)
 {
 	int ndim;
@@ -289,7 +344,7 @@ SEXP C_Compare_SVT1_SVT2(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		error("SparseArray internal error in "
 		      "C_Compare_SVT1_SVT2():\n"
                       "    invalid 'x_type' or 'y_type' value");
-	opcode = _get_Compare_opcode(op, x_Rtype, y_Rtype);
+	opcode = _get_Compare_opcode(op);
 	if (opcode != NE_OPCODE &&
 	    opcode != LT_OPCODE &&
 	    opcode != GT_OPCODE)
@@ -319,7 +374,7 @@ SEXP C_Logic_SVT1_SVT2(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		error("SparseArray internal error in "
 		      "C_Logic_SVT1_SVT2():\n"
                       "    invalid 'x_type' or 'y_type' value");
-	opcode = _get_Logic_opcode(op, x_Rtype, y_Rtype);
+	opcode = _get_Logic_opcode(op);
 	error("not implemented yet, sorry!");
 	return R_NilValue;
 }

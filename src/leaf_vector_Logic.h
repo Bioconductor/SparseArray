@@ -7,11 +7,7 @@
 #define	AND_OPCODE	1  /* "&" */
 #define	OR_OPCODE	2  /* "|" */
 
-int _get_Logic_opcode(
-	SEXP op,
-	SEXPTYPE x_Rtype,
-	SEXPTYPE y_Rtype
-);
+int _get_Logic_opcode(SEXP op);
 
 #endif  /* _LEAF_VECTOR_LOGIC_H_ */
 

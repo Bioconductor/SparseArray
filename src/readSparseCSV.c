@@ -175,7 +175,7 @@ static void load_csv_rowname(const char *data, int data_len,
  */
 
 /* 'offs_buf' and 'vals_buf' are **asumed** to have the same length and this
-   length is **assumed** to be != 0. We don't check this! */
+   length is **assumed** to be != 0. This is NOT checked! */
 static SEXP make_leaf_vector_from_AEbufs(const IntAE *offs_buf,
 					 const IntAE *vals_buf)
 {

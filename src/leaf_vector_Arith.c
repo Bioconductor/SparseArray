@@ -337,6 +337,7 @@ static int sparse_Arith_doubles_doubles(
 	return ans_len;
 }
 
+/* 'v2' is assumed to be an atomic vector of length 1. This is NOT checked! */
 SEXP _Arith_lv1_v2(SEXP lv1, SEXP v2, int opcode, SEXPTYPE ans_Rtype,
 		   int *offs_buf, void *vals_buf, int *ovflow)
 {

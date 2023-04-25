@@ -5,7 +5,7 @@
 
 #include "leaf_vector_utils.h"
 
-int _get_Compare_opcode(SEXP op, SEXPTYPE x_Rtype, SEXPTYPE y_Rtype)
+int _get_Compare_opcode(SEXP op)
 {
 	const char *s;
 
@@ -87,6 +87,28 @@ static int sparse_Compare_ints_1int(
 
 	for (ans_len = k = 0; k < n1; k++) {
 		v = Compare_int(vals1[k], v2, opcode);
+		if (v != 0) {
+			offs_buf[ans_len] = offs1[k];
+			vals_buf[ans_len] = v;
+			ans_len++;
+		}
+	}
+	return ans_len;
+}
+
+static int sparse_Compare_ints_1double(
+		const int *offs1, const int *vals1, int n1, double v2,
+		int opcode, int *offs_buf, int *vals_buf)
+{
+	int ans_len, k, v1, v;
+
+	for (ans_len = k = 0; k < n1; k++) {
+		v1 = vals1[k];
+		if (v1 == NA_INTEGER) {
+			v = NA_INTEGER;
+		} else {
+			v = Compare_double((double) v1, v2, opcode);
+		}
 		if (v != 0) {
 			offs_buf[ans_len] = offs1[k];
 			vals_buf[ans_len] = v;
@@ -185,7 +207,9 @@ static int sparse_Compare_doubles_doubles(
 	return ans_len;
 }
 
-static SEXP Compare_lv1_zero(SEXP lv1, int opcode, int *offs_buf, int *vals_buf)
+/* 'v2' is assumed to be != NA_INTEGER. This is NOT checked! */
+static SEXP Compare_lv1_1int(SEXP lv1, int v2, int opcode,
+			     int *offs_buf, int *vals_buf)
 {
 	int lv1_len, ans_len;
 	SEXP lv1_offs, lv1_vals;
@@ -197,21 +221,67 @@ static SEXP Compare_lv1_zero(SEXP lv1, int opcode, int *offs_buf, int *vals_buf)
 	switch (TYPEOF(lv1_vals)) {
 	    case LGLSXP: case INTSXP:
 		ans_len = sparse_Compare_ints_1int(
-			offs1_p, INTEGER(lv1_vals), lv1_len, 0,
-			opcode, offs_buf, vals_buf);
+				offs1_p, INTEGER(lv1_vals), lv1_len, v2,
+				opcode, offs_buf, vals_buf);
 	    break;
 	    case REALSXP:
 		ans_len = sparse_Compare_doubles_1double(
-			offs1_p, REAL(lv1_vals), lv1_len, 0.0,
-			opcode, offs_buf, vals_buf);
+				offs1_p, REAL(lv1_vals), lv1_len, (double) v2,
+				opcode, offs_buf, vals_buf);
 	    break;
 	}
 	if (ans_len == -1)
-		error("Compare_lv1_zero() only supports input of "
-		      "type \"logical\", \"integer\" or \"double\" "
+		error("Compare_lv1_1int() only supports input of "
+		      "type \"logical\", \"integer\", or \"double\" "
 		      "at the moment");
 	return _new_leaf_vector_from_bufs(LGLSXP,
 				offs_buf, vals_buf, ans_len);
+}
+
+static SEXP Compare_lv1_1double(SEXP lv1, double v2, int opcode,
+				int *offs_buf, int *vals_buf)
+{
+	int lv1_len, ans_len;
+	SEXP lv1_offs, lv1_vals;
+	const int *offs1_p;
+
+	lv1_len = _split_leaf_vector(lv1, &lv1_offs, &lv1_vals);
+	offs1_p = INTEGER(lv1_offs);
+	ans_len = -1;
+	switch (TYPEOF(lv1_vals)) {
+	    case LGLSXP: case INTSXP:
+		ans_len = sparse_Compare_ints_1double(
+				offs1_p, INTEGER(lv1_vals), lv1_len, v2,
+				opcode, offs_buf, vals_buf);
+	    break;
+	    case REALSXP:
+		ans_len = sparse_Compare_doubles_1double(
+				offs1_p, REAL(lv1_vals), lv1_len, v2,
+				opcode, offs_buf, vals_buf);
+	    break;
+	}
+	if (ans_len == -1)
+		error("Compare_lv1_1double() only supports input of "
+		      "type \"logical\", \"integer\", or \"double\" "
+		      "at the moment");
+	return _new_leaf_vector_from_bufs(LGLSXP,
+				offs_buf, vals_buf, ans_len);
+}
+
+/* 'v2' is assumed to be an atomic vector of length 1. This is NOT checked! */
+SEXP _Compare_lv1_v2(SEXP lv1, SEXP v2, int opcode,
+		     int *offs_buf, int *vals_buf)
+{
+	if (TYPEOF(v2) == LGLSXP || TYPEOF(v2) == INTSXP)
+		return Compare_lv1_1int(lv1, INTEGER(v2)[0], opcode,
+					offs_buf, vals_buf);
+	if (TYPEOF(v2) == REALSXP)
+		return Compare_lv1_1double(lv1, REAL(v2)[0], opcode,
+					offs_buf, vals_buf);
+	error("_Compare_lv1_v2() only supports input of "
+	      "type \"logical\", \"integer\", or \"double\" "
+	      "at the moment");
+	return R_NilValue;  /* will never reach this */
 }
 
 /* Each of 'SVT1' and 'SVT2' must be a "leaf vector" or NULL. */
@@ -225,11 +295,12 @@ SEXP _Compare_lv1_lv2(SEXP lv1, SEXP lv2, int opcode,
 	if (lv1 == R_NilValue) {
 		if (lv2 == R_NilValue)
 			return R_NilValue;
-		return Compare_lv1_zero(lv2, flip_opcode(opcode),
+		return Compare_lv1_1int(lv1, 0, flip_opcode(opcode),
 					offs_buf, vals_buf);
 	}
 	if (lv2 == R_NilValue)
-		return Compare_lv1_zero(lv1, opcode, offs_buf, vals_buf);
+		return Compare_lv1_1int(lv1, 0, opcode,
+					offs_buf, vals_buf);
 	lv1_len = _split_leaf_vector(lv1, &lv1_offs, &lv1_vals);
 	lv2_len = _split_leaf_vector(lv2, &lv2_offs, &lv2_vals);
 	offs1_p = INTEGER(lv1_offs);

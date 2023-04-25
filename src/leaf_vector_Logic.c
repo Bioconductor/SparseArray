@@ -5,7 +5,7 @@
 
 #include "leaf_vector_utils.h"
 
-int _get_Logic_opcode(SEXP op, SEXPTYPE x_Rtype, SEXPTYPE y_Rtype)
+int _get_Logic_opcode(SEXP op)
 {
 	const char *s;
 

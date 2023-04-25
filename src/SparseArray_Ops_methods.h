@@ -18,6 +18,14 @@ SEXP C_Arith_SVT1_v2(
 	SEXP ans_type
 );
 
+SEXP C_Compare_SVT1_v2(
+	SEXP x_dim,
+	SEXP x_type,
+	SEXP x_SVT,
+	SEXP v2,
+	SEXP op
+);
+
 SEXP C_Arith_SVT1_SVT2(
 	SEXP x_dim,
 	SEXP x_type,

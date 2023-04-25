@@ -11,20 +11,22 @@
 ###
 ### We also implement unary "+" and "-" for SparseArray objects.
 
+.ARITH_INPUT_TYPES <- c("integer", "double", "complex")
+
+### All the atomic vector types (i.e. all vector types except "list").
+.COMPARE_INPUT_TYPES <- c("logical", "integer", "double", "complex",
+                          "character", "raw")
 
 .check_Arith_input_type <- function(type)
 {
-    input_types <- c("integer", "double", "complex")
-    if (!(type %in% input_types))
+    if (!(type %in% .ARITH_INPUT_TYPES))
         stop(wmsg("arithmetic operations are not suported on SparseArray ",
                   "objects with elements of type() \"", type , "\""))
 }
 
 .check_Compare_input_type <- function(type)
 {
-    input_types <- c("logical", "integer", "double", "complex",
-                     "character", "raw")
-    if (!(type %in% input_types))
+    if (!(type %in% .COMPARE_INPUT_TYPES))
         stop(wmsg("comparison operations are not suported on SparseArray ",
                   "objects with elements of type() \"", type , "\""))
 }
@@ -78,7 +80,7 @@ setMethod("-", c("SparseArray", "missing"),
 
     ## Check types.
     .check_Arith_input_type(type(x))
-    if (!(is.numeric(y) || is.complex(y)))
+    if (!(type(y) %in% .ARITH_INPUT_TYPES))
         stop(wmsg("arithmetic operations between SparseArray objects ",
                   "and ", class(y), " vectors are not supported"))
 
@@ -202,6 +204,78 @@ setMethod("Arith", c("array", "SVT_SparseArray"),
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### 'Compare' group
 ###
+
+### Supports all 'Compare' ops: "==", "!=", "<=", ">=", "<", ">"
+.Compare_SVT1_v2 <- function(op, x, y)
+{
+    stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
+    x0 <- x
+    y0 <- y
+
+    ## Check types.
+    x0_type <- type(x0)
+    y0_type <- type(y0)
+    .check_Compare_input_type(x0_type)
+    if (!(y0_type %in% .COMPARE_INPUT_TYPES))
+        stop(wmsg("comparison operations between SparseArray objects ",
+                  "and ", class(y), " vectors are not supported"))
+
+    ## Check 'y0'.
+    if (length(y0) != 1L)
+        stop(wmsg("comparison operations are not supported between a ",
+                  "SparseArray object and a ", class(y0), " vector ",
+                  "of length != 1"))
+    if (is.na(y0))
+        stop(wmsg("comparison operations are not supported between a ",
+                  "SparseArray object and an NA"))
+
+    common_type <- type(c(vector(x0_type), y0))
+    if (common_type == "complex" && op %in% c("<=", ">=", "<", ">"))
+        srtop(wmsg("invalid comparison with complex values"))
+
+    type(x) <- type(y) <- common_type
+    zero <- vector(type(y), length=1L)
+    if (op == "==" && y == zero)
+        stop(wmsg("\"==\" is not supported between a SparseArray object ",
+                  "and ", if (zero == "") "\"\"" else "0"))
+    if (op == "!=" && y != zero)
+        stop(wmsg("\"!=\" is not supported between a SparseArray object ",
+                  "and a value that is not ", if (zero == "") "\"\"" else "0"))
+    if (op == "<=" && y >= zero)
+        stop(wmsg("\"<=\" is not supported between a SparseArray object ",
+                  "and a value that is >= ", if (zero == "") "\"\"" else "0"))
+    if (op == ">=" && y <= zero)
+        stop(wmsg("\">=\" is not supported between a SparseArray object ",
+                  "and a value that is <= ", if (zero == "") "\"\"" else "0"))
+    if (op == "<" && y > zero)
+        stop(wmsg("\"<\" is not supported between a SparseArray object ",
+                  "and a value that is > ", if (zero == "") "\"\"" else "0"))
+    if (op == ">" && y < zero)
+        stop(wmsg("\">\" is not supported between a SparseArray object ",
+                  "and a value that is < ", if (zero == "") "\"\"" else "0"))
+
+    if (common_type %in% c("complex", "raw", "character"))
+        stop(wmsg("\"", op, "\" is not implemented yet between an ",
+                  "SVT_SparseArray object and a single value when ",
+                  "one or the other is of type \"", common_type, "\""))
+
+    new_SVT <- .Call2("C_Compare_SVT1_v2",
+                      x@dim, x@type, x@SVT, y, op,
+                      PACKAGE="SparseArray")
+    BiocGenerics:::replaceSlots(x, type="logical", SVT=new_SVT, check=FALSE)
+}
+
+setMethod("Compare", c("SVT_SparseArray", "vector"),
+    function(e1, e2) .Compare_SVT1_v2(.Generic, e1, e2)
+)
+
+setMethod("Compare", c("vector", "SVT_SparseArray"),
+    function(e1, e2) {
+        ## Flip the op:
+        op <- switch(.Generic, `<=`=">=", `>=`="<=", `<`=">", `>`="<", .Generic)
+        .Compare_SVT1_v2(op, e2, e1)
+    }
+)
 
 ### Supports: "!=", "<", ">"
 .Compare_SVT1_SVT2 <- function(op, x, y)
