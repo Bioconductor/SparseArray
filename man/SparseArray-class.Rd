@@ -46,8 +46,9 @@ SparseArray(x, type=NA)
 
 \arguments{
   \item{x}{
-    An ordinary array, or a dgCMatrix/lgCMatrix object, or any array-like
-    object that supports coercion to \link{SVT_SparseArray}.
+    An ordinary matrix or array, or a dg[C|R]Matrix object, or an
+    lg[C|R]Matrix object, or any matrix-like or array-like object that
+    supports coercion to \link{SVT_SparseArray}.
   }
   \item{type}{
     A single string specifying the requested type of the object.
@@ -110,6 +111,20 @@ SparseArray(x, type=NA)
   A \emph{SparseArray derivative}, that is a \link{SVT_SparseArray},
   \link{COO_SparseArray}, \link{SVT_SparseMatrix}, or
   \link{COO_SparseMatrix} object.
+
+  The \code{type()} of the input object is preserved, except if a
+  different one was requested via the \code{type} argument.
+
+  What is considered a zero depends on the \code{type()}:
+  \itemize{
+    \item \code{"logical"} zero is \code{FALSE};
+    \item \code{"integer"} zero is \code{0L};
+    \item \code{"double"} zero is \code{0};
+    \item \code{"complex"} zero is \code{0+0i};
+    \item \code{"raw"} zero is \code{raw(1)};
+    \item \code{"character"} zero is \code{""} (empty string);
+    \item \code{"list"} zero is \code{NULL}.
+  }
 }
 
 \seealso{
@@ -153,9 +168,10 @@ SparseArray(x, type=NA)
     \item \code{\link{readSparseCSV}} to read/write a sparse matrix
           from/to a CSV (comma-separated values) file.
 
-    \item S4 classes \linkS4class{dgCMatrix} and \linkS4class{lgCMatrix}
-          defined in the \pkg{Matrix} package, for the de facto standard
-          for sparse matrix representations in the R ecosystem.
+    \item S4 classes \linkS4class{dgCMatrix}, \linkS4class{dgRMatrix},
+          and \linkS4class{lgCMatrix} defined in the \pkg{Matrix} package,
+          for the de facto standard for sparse matrix representations
+          in the R ecosystem.
 
     \item \code{\link[S4Arrays]{is_sparse}} in the \pkg{S4Arrays} package.
 

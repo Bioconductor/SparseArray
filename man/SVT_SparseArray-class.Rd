@@ -64,8 +64,9 @@ SVT_SparseArray(x, type=NA)
 
 \arguments{
   \item{x}{
-    An ordinary array, or a dgCMatrix/lgCMatrix object, or any array-like
-    object that supports coercion to SVT_SparseArray.
+    An ordinary matrix or array, or a dgCMatrix/lgCMatrix object,
+    or any matrix-like or array-like object that supports coercion
+    to SVT_SparseArray.
   }
   \item{type}{
     A single string specifying the requested type of the object.

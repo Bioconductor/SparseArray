@@ -17,6 +17,7 @@
  * _new_leaf_vector()
  * _alloc_leaf_vector()
  * _alloc_and_split_leaf_vector()
+ * _new_leaf_vector_from_bufs()
  */
 
 SEXP _new_leaf_vector(SEXP lv_offs, SEXP lv_vals)
@@ -62,6 +63,29 @@ SEXP _alloc_and_split_leaf_vector(int lv_len, SEXPTYPE Rtype,
 
 	ans = PROTECT(_alloc_leaf_vector(lv_len, Rtype));
 	_split_leaf_vector(ans, lv_offs, lv_vals);
+	UNPROTECT(1);
+	return ans;
+}
+
+/* Returns R_NilValue (if 'buf_len' is 0) or a "leaf vector".
+   Does NOT work for 'Rtype' == STRSXP or VECSXP. */
+SEXP _new_leaf_vector_from_bufs(SEXPTYPE Rtype,
+		const int *offs_buf, const void *vals_buf, int buf_len)
+{
+	size_t Rtype_size;
+	SEXP ans, ans_offs, ans_vals;
+
+	if (buf_len == 0)
+		return R_NilValue;
+	Rtype_size = _get_Rtype_size(Rtype);
+	if (Rtype_size == 0)
+		error("SparseArray internal error in "
+		      "_new_leaf_vector_from_bufs():\n"
+		      "    type \"%s\" is not supported", type2char(Rtype));
+	ans = PROTECT(_alloc_and_split_leaf_vector(buf_len, Rtype,
+						   &ans_offs, &ans_vals));
+	memcpy(INTEGER(ans_offs), offs_buf, sizeof(int) * buf_len);
+	memcpy(DATAPTR(ans_vals), vals_buf, Rtype_size * buf_len);
 	UNPROTECT(1);
 	return ans;
 }
@@ -467,81 +491,40 @@ double _dotprod_leaf_vector_and_int_col(SEXP lv1,
 	return ans;
 }
 
-#define	ADD_DOUBLE_PROD0(vals_p, v)	\
-{					\
-	v = *vals_p;			\
-	if (R_IsNA(v))			\
-		return NA_REAL;		\
-	ans += v * 0.0;			\
-	vals_p++;			\
-}
-
 double _dotprod_leaf_vectors(SEXP lv1, SEXP lv2)
 {
-	int lv1_len, lv2_len, k1, k2;
+	int lv1_len, lv2_len, k1, k2, off;
 	SEXP lv1_offs, lv1_vals, lv2_offs, lv2_vals;
-	const int *offs1_p, *offs2_p;
-	int off1, off2;
-	const double *vals1_p, *vals2_p;
 	double ans, v1, v2;
 
 	lv1_len = _split_leaf_vector(lv1, &lv1_offs, &lv1_vals);
 	lv2_len = _split_leaf_vector(lv2, &lv2_offs, &lv2_vals);
-	offs1_p = INTEGER(lv1_offs);
-	vals1_p = REAL(lv1_vals);
-	offs2_p = INTEGER(lv2_offs);
-	vals2_p = REAL(lv2_vals);
 	k1 = k2 = 0;
 	ans = 0.0;
-	while (k1 < lv1_len && k2 < lv2_len) {
-		off1 = *offs1_p;
-		off2 = *offs2_p;
-		if (off1 < off2) {
-			ADD_DOUBLE_PROD0(vals1_p, v1);
-			offs1_p++;
-			k1++;
-		} else if (off1 > off2) {
-			ADD_DOUBLE_PROD0(vals2_p, v2);
-			offs2_p++;
-			k2++;
-		} else {
-			// off1 == off2
-			v1 = *vals1_p;
-			v2 = *vals2_p;
-			if (R_IsNA(v1) || R_IsNA(v2))
-				return NA_REAL;
-			ans += v1 * v2;
-			offs1_p++;
-			vals1_p++;
-			k1++;
-			offs2_p++;
-			vals2_p++;
-			k2++;
-		}
-	}
-	while (k1 < lv1_len) {
-		ADD_DOUBLE_PROD0(vals1_p, v1);
-		k1++;
-	}
-	while (k2 < lv2_len) {
-		ADD_DOUBLE_PROD0(vals2_p, v2);
-		k2++;
+	while (next_nzvals_double_double(
+			INTEGER(lv1_offs), REAL(lv1_vals), lv1_len,
+			INTEGER(lv2_offs), REAL(lv2_vals), lv2_len,
+			&k1, &k2, &off, &v1, &v2))
+	{
+		if (R_IsNA(v1) || R_IsNA(v2))
+			return NA_REAL;
+		ans += v1 * v2;
 	}
 	return ans;
 }
 
-double _dotprod0_leaf_vector(SEXP lv)
+double _dotprod0_int_col(const int *x, int x_len)
 {
-	int lv_len, k;
-	SEXP lv_offs, lv_vals;
-	const double *vals_p;
-	double ans, v;
+	double ans;
+	int i, v;
 
-	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
-	vals_p = REAL(lv_vals);
 	ans = 0.0;
-	for (k = 0; k < lv_len; k++)
-		ADD_DOUBLE_PROD0(vals_p, v);
+	for (i = 0; i < x_len; i++) {
+		v = x[i];
+		if (v == NA_INTEGER)
+			return NA_REAL;
+		ans += (double) v * 0.0;
+	}
 	return ans;
 }
 
@@ -560,18 +543,12 @@ double _dotprod0_double_col(const double *x, int x_len)
 	return ans;
 }
 
-double _dotprod0_int_col(const int *x, int x_len)
+double _dotprod0_leaf_vector(SEXP lv)
 {
-	double ans;
-	int i, v;
+	int lv_len;
+	SEXP lv_offs, lv_vals;
 
-	ans = 0.0;
-	for (i = 0; i < x_len; i++) {
-		v = x[i];
-		if (v == NA_INTEGER)
-			return NA_REAL;
-		ans += (double) v * 0.0;
-	}
-	return ans;
+	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
+	return _dotprod0_double_col(REAL(lv_vals), lv_len);
 }
 

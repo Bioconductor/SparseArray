@@ -4,7 +4,9 @@
 #include "SparseArray_Ops_methods.h"
 
 #include "Rvector_utils.h"
-#include "leaf_vector_Ops.h"
+#include "leaf_vector_Arith.h"
+#include "leaf_vector_Compare.h"
+#include "leaf_vector_Logic.h"
 #include "SVT_SparseArray_class.h"
 
 #include <string.h>  /* for memcmp() */
@@ -32,8 +34,8 @@ static SEXP REC_Arith_SVT1_v2(SEXP SVT1, SEXP v2,
 			      int opcode, SEXPTYPE ans_Rtype,
 			      int *offs_buf, void *vals_buf, int *ovflow)
 {
-	SEXP ans, ans_elt, subSVT1;
 	int ans_len, is_empty, i;
+	SEXP ans, ans_elt, subSVT1;
 
 	if (SVT1 == R_NilValue)
 		return R_NilValue;
@@ -71,8 +73,8 @@ static SEXP REC_Arith_SVT1_SVT2(SEXP SVT1, SEXPTYPE Rtype1,
 				int opcode, SEXPTYPE ans_Rtype,
 				int *offs_buf, void *vals_buf, int *ovflow)
 {
-	SEXP ans, ans_elt, subSVT1, subSVT2;
 	int ans_len, is_empty, i;
+	SEXP ans, ans_elt, subSVT1, subSVT2;
 
 	if (SVT1 == R_NilValue) {
 		if (SVT2 == R_NilValue)
@@ -95,7 +97,7 @@ static SEXP REC_Arith_SVT1_SVT2(SEXP SVT1, SEXPTYPE Rtype1,
 				      offs_buf, vals_buf, ovflow);
 	}
 
-	/* Each of 'SVT1' and 'SVT2' is either a list or a NULL, but they
+	/* Each of 'SVT1' and 'SVT2' is either a list or NULL, but they
 	   cannot both be NULL. */
 	ans_len = dims[ndim - 1];
 	ans = PROTECT(NEW_LIST(ans_len));
@@ -126,10 +128,41 @@ static SEXP REC_Compare_SVT1_SVT2(SEXP SVT1, SEXPTYPE Rtype1,
 				  const int *dims, int ndim,
 				  int opcode, int *offs_buf, int *vals_buf)
 {
-	SEXP ans, ans_elt, subSVT1, subSVT2;
 	int ans_len, is_empty, i;
+	SEXP ans, ans_elt, subSVT1, subSVT2;
 
-	error("REC_Compare_SVT1_SVT2() not ready yet");
+	if (SVT1 == R_NilValue && SVT2 == R_NilValue)
+		return R_NilValue;
+
+	if (ndim == 1) {
+		/* Each of 'SVT1' and 'SVT2' is either a "leaf vector" or NULL,
+		   but they cannot both be NULL. */
+		return _Compare_lv1_lv2(SVT1, SVT2, opcode, offs_buf, vals_buf);
+	}
+
+	/* Each of 'SVT1' and 'SVT2' is either a list or NULL, but they
+	   cannot both be NULL. */
+	ans_len = dims[ndim - 1];
+	ans = PROTECT(NEW_LIST(ans_len));
+	subSVT1 = subSVT2 = R_NilValue;
+	is_empty = 1;
+	for (i = 0; i < ans_len; i++) {
+		if (SVT1 != R_NilValue)
+			subSVT1 = VECTOR_ELT(SVT1, i);
+		if (SVT2 != R_NilValue)
+			subSVT2 = VECTOR_ELT(SVT2, i);
+		ans_elt = REC_Compare_SVT1_SVT2(subSVT1, Rtype1,
+						subSVT2, Rtype2,
+						dims, ndim - 1,
+						opcode, offs_buf, vals_buf);
+		if (ans_elt != R_NilValue) {
+			PROTECT(ans_elt);
+			SET_VECTOR_ELT(ans, i, ans_elt);
+			UNPROTECT(1);
+			is_empty = 0;
+		}
+	}
+	UNPROTECT(1);
 	return is_empty ? R_NilValue : ans;
 }
 

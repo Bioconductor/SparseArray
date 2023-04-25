@@ -1,5 +1,5 @@
-#ifndef _LEAF_VECTOR_OPS_H_
-#define _LEAF_VECTOR_OPS_H_
+#ifndef _LEAF_VECTOR_ARITH_H_
+#define _LEAF_VECTOR_ARITH_H_
 
 #include <Rdefines.h>
 
@@ -12,31 +12,7 @@
 #define	MOD_OPCODE	6  /* "%%" */
 #define	IDIV_OPCODE	7  /* "%/%" */
 
-/* Operations from 'Compare' group */
-#define	EQ_OPCODE	1  /* "==" */
-#define	NE_OPCODE	2  /* "!=" */
-#define	LE_OPCODE	3  /* "<=" */
-#define	GE_OPCODE	4  /* ">=" */
-#define	LT_OPCODE	5  /* "<" */
-#define	GT_OPCODE	6  /* ">" */
-
-/* Operations from 'Logic' group */
-#define	AND_OPCODE	1  /* "&" */
-#define	OR_OPCODE	2  /* "|" */
-
 int _get_Arith_opcode(SEXP op);
-
-int _get_Compare_opcode(
-	SEXP op,
-	SEXPTYPE x_Rtype,
-	SEXPTYPE y_Rtype
-);
-
-int _get_Logic_opcode(
-	SEXP op,
-	SEXPTYPE x_Rtype,
-	SEXPTYPE y_Rtype
-);
 
 SEXP _unary_minus_leaf_vector(
 	SEXP lv,
@@ -63,5 +39,5 @@ SEXP _Arith_lv1_lv2(
 	int *ovflow
 );
 
-#endif  /* _LEAF_VECTOR_OPS_H_ */
+#endif  /* _LEAF_VECTOR_ARITH_H_ */
 
