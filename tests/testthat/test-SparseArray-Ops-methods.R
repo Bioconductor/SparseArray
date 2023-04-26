@@ -1,3 +1,6 @@
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### 'Arith' ops
+
 .test_Arith_SVT1_v2 <- function(a1, svt1, v2, relax.MOD.and.IDIV=FALSE)
 {
     expected <- a1 * v2
@@ -90,7 +93,7 @@
     expect_identical(as.array(svt), expected)
 }
 
-test_that("Arith ops between an SVT_SparseArray object and a single value", {
+test_that("'Arith' ops between SVT_SparseArray object and single value", {
     a1 <- array(0L, 6:4)
     dimnames(a1) <- list(letters[1:6], NULL, LETTERS[1:4])
     a1[c(2:3, 6), 2, 1] <- 101:103
@@ -157,7 +160,7 @@ test_that("Arith ops between an SVT_SparseArray object and a single value", {
     expect_error(svt1 %/% 0, "not supported")
 })
 
-test_that("Arith ops between 2 SVT_SparseArray objects", {
+test_that("'Arith' ops between 2 SVT_SparseArray objects", {
     a1 <- a2 <- array(0L, 6:4)
     dimnames(a1) <- list(letters[1:6], NULL, LETTERS[1:4])
     dimnames(a2) <- list(NULL, letters[22:26], LETTERS[23:26])
@@ -201,5 +204,201 @@ test_that("Arith ops between 2 SVT_SparseArray objects", {
     expect_error(svt1 ^ svt2, "not supported")
     expect_error(svt1 %% svt2, "not supported")
     expect_error(svt1 %/% svt2, "not supported")
+})
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### 'Compare' ops
+
+.test_Compare_SVT_val <- function(a, svt, y)
+{
+    ## svt == y
+    if (y == 0) {
+	expect_error(svt == y, "not supported")
+	expect_error(y == svt, "not supported")
+    } else {
+        expected <- a == y
+        current <- svt == y
+        expect_true(is(current, "SVT_SparseArray"))
+        expect_true(validObject(current))
+        expect_identical(type(current), "logical")
+        expect_identical(as.array(current), expected)
+        current <- y == svt
+        expect_true(is(current, "SVT_SparseArray"))
+        expect_true(validObject(current))
+        expect_identical(type(current), "logical")
+        expect_identical(as.array(current), expected)
+    }
+
+    ## svt != y
+    if (y != 0) {
+	expect_error(svt != y, "not supported")
+	expect_error(y != svt, "not supported")
+    } else {
+        expected <- a != y
+        current <- svt != y
+        expect_true(is(current, "SVT_SparseArray"))
+        expect_true(validObject(current))
+        expect_identical(type(current), "logical")
+        expect_identical(as.array(current), expected)
+        current <- y != svt
+        expect_true(is(current, "SVT_SparseArray"))
+        expect_true(validObject(current))
+        expect_identical(type(current), "logical")
+        expect_identical(as.array(current), expected)
+    }
+
+    ## svt <= y
+    if (type(svt) == "complex" || type(y) == "complex") {
+	expect_error(svt <= y, "invalid comparison with complex values")
+	expect_error(y >= svt, "invalid comparison with complex values")
+    } else if (y >= 0) {
+	expect_error(svt <= y, "not supported")
+	expect_error(y >= svt, "not supported")
+    } else {
+        expected <- a <= y
+        current <- svt <= y
+        expect_true(is(current, "SVT_SparseArray"))
+        expect_true(validObject(current))
+        expect_identical(type(current), "logical")
+        expect_identical(as.array(current), expected)
+        current <- y >= svt
+        expect_true(is(current, "SVT_SparseArray"))
+        expect_true(validObject(current))
+        expect_identical(type(current), "logical")
+        expect_identical(as.array(current), expected)
+    }
+
+    ## svt >= y
+    if (type(svt) == "complex" || type(y) == "complex") {
+	expect_error(svt >= y, "invalid comparison with complex values")
+	expect_error(y <= svt, "invalid comparison with complex values")
+    } else if (y <= 0) {
+	expect_error(svt >= y, "not supported")
+	expect_error(y <= svt, "not supported")
+    } else {
+        expected <- a >= y
+        current <- svt >= y
+        expect_true(is(current, "SVT_SparseArray"))
+        expect_true(validObject(current))
+        expect_identical(type(current), "logical")
+        expect_identical(as.array(current), expected)
+        current <- y <= svt
+        expect_true(is(current, "SVT_SparseArray"))
+        expect_true(validObject(current))
+        expect_identical(type(current), "logical")
+        expect_identical(as.array(current), expected)
+    }
+
+    ## svt < y
+    if (type(svt) == "complex" || type(y) == "complex") { 
+        expect_error(svt < y, "invalid comparison with complex values")
+        expect_error(y > svt, "invalid comparison with complex values")
+    } else if (type(y) %in% c("raw", "logical") || y > 0) {
+	expect_error(svt < y, "not supported")
+        expect_error(y > svt, "not supported")
+    } else {
+        expected <- a < y
+        current <- svt < y
+        expect_true(is(current, "SVT_SparseArray"))
+        expect_true(validObject(current))
+        expect_identical(type(current), "logical")
+        expect_identical(as.array(current), expected)
+        current <- y > svt
+        expect_true(is(current, "SVT_SparseArray"))
+        expect_true(validObject(current))
+        expect_identical(type(current), "logical")
+        expect_identical(as.array(current), expected)
+    }
+
+    ## svt > y
+    if (type(svt) == "complex" || type(y) == "complex") {
+        expect_error(svt > y, "invalid comparison with complex values")
+        expect_error(y < svt, "invalid comparison with complex values")
+    } else if (y < 0) {
+        expect_error(svt > y, "not supported")
+        expect_error(y < svt, "not supported")
+    } else {
+        expected <- a > y
+        current <- svt > y
+        expect_true(is(current, "SVT_SparseArray"))
+        expect_true(validObject(current))
+        expect_identical(type(current), "logical")
+        expect_identical(as.array(current), expected)
+        current <- y < svt
+        expect_true(is(current, "SVT_SparseArray"))
+        expect_true(validObject(current))
+        expect_identical(type(current), "logical")
+        expect_identical(as.array(current), expected)
+    }
+}
+
+test_that("'Compare' ops between SVT_SparseArray object and single value", {
+    ## "integer" array.
+    a1 <- array(0L, 6:4)
+    dimnames(a1) <- list(letters[1:6], NULL, LETTERS[1:4])
+    a1[c(2:3, 6), 2, 1] <- 101:103
+    a1[c(1, 6), 1 , 2] <- 201:202
+    a1[1:5, 5, 3] <- -(301:305)
+    a1[1, 3, 2] <- NA
+
+    ## "double" array.
+    a2 <- a1
+    a2[3:6, 3, 2] <- c(NA, NaN, Inf, -Inf)
+
+    ## "raw" array.
+    a3 <- a1
+    suppressWarnings(type(a3) <- "raw")
+
+    ## "logical" array.
+    a4 <- a3
+    type(a4) <- "logical"
+
+    ## "complex" array.
+    a5 <- a2
+    a5[4, , 1] <- (0.2 - 3i)^(1:5)
+    a5[4:6, 4, 2] <- c(NaN, Inf, -Inf) + 3i
+    a5[4:6, 4, 2] <- 0.2 + 1i * c(NaN, Inf, -Inf)
+
+    ## Empty array.
+    a0 <- a1[ , 0, ]
+
+    for (a in list(a1, a2, a3, a4, a5, a0)) {
+        svt <- as(a, "SVT_SparseArray")
+        .test_Compare_SVT_val(a, svt, integer(1))
+        .test_Compare_SVT_val(a, svt, 102L)
+        .test_Compare_SVT_val(a, svt, -302L)
+        .test_Compare_SVT_val(a, svt, raw(1))
+        .test_Compare_SVT_val(a, svt, as.raw(102L))
+        .test_Compare_SVT_val(a, svt, FALSE)
+        .test_Compare_SVT_val(a, svt, TRUE)
+        .test_Compare_SVT_val(a, svt, double(1))
+        .test_Compare_SVT_val(a, svt, 102.5)
+        .test_Compare_SVT_val(a, svt, -302.0)
+        .test_Compare_SVT_val(a, svt, Inf)
+        .test_Compare_SVT_val(a, svt, -Inf)
+        .test_Compare_SVT_val(a, svt, complex(1))
+        .test_Compare_SVT_val(a, svt, 0+9.5i)
+        .test_Compare_SVT_val(a, svt, -302+0i)
+        .test_Compare_SVT_val(a, svt, -302+9.5i)
+        .test_Compare_SVT_val(a, svt, Inf+9.5i)
+        .test_Compare_SVT_val(a, svt, -Inf+9.5i)
+    }
+
+    ## Not expected to work.
+    svt1 <- as(a1, "SVT_SparseArray")
+    for (y in list(NA, NaN, 11:15, numeric(0), list(-0.22))) {
+        expect_error(svt1 == y, "not supported")
+        expect_error(y == svt1, "not supported")
+        expect_error(svt1 != y, "not supported")
+        expect_error(y != svt1, "not supported")
+        expect_error(svt1 <= y, "not supported")
+        expect_error(y >= svt1, "not supported")
+        expect_error(svt1 >= y, "not supported")
+        expect_error(y <= svt1, "not supported")
+        expect_error(svt1 < y, "not supported")
+        expect_error(y > svt1, "not supported")
+        expect_error(svt1 > y, "not supported")
+        expect_error(y < svt1, "not supported")
+    }
 })
 

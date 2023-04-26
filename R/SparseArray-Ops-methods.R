@@ -204,6 +204,13 @@ setMethod("Arith", c("array", "SVT_SparseArray"),
 ### 'Compare' group
 ###
 
+.check_Compare_op_on_complex_vals <- function(op, x_type, y_type)
+{
+    if ((x_type == "complex" || y_type == "complex")
+     && op %in% c("<=", ">=", "<", ">"))
+        stop(wmsg("invalid comparison with complex values"))
+}
+
 .flip_Compare_op <- function(op)
     switch(op, `<=`=">=", `>=`="<=", `<`=">", `>`="<", op)
 
@@ -219,6 +226,32 @@ setMethod("Arith", c("array", "SVT_SparseArray"),
     stop(wmsg(msg))
 }
 
+.must_homogenize_for_Compare <- function(x_type, y_type)
+{
+    if (x_type == "raw" && y_type == "logical" ||
+        x_type == "logical" && y_type == "raw")
+    {
+        ## This is a case where C-level Compare_Rbyte_int() function
+        ## (defined in src/leaf_vector_Compare.c) won't compare the
+        ## Rbyte values in one object with the int values in the other
+        ## object in a meaningful way. That's because the nonzero Rbyte
+        ## values can be anything between 1 and 255 while the nonzero
+        ## int values are always 1.
+        ## An easy workaround is to set the type() of both objects
+        ## to "logical".
+        return(TRUE)
+    }
+    if (x_type == "character" || y_type == "character") {
+        ## Temporary.
+        stop(wmsg("comparison operations are not implemented yet between ",
+                  "SVT_SparseArray objects, or between an SVT_SparseArray ",
+                  "object and a single value, when one or the other is of ",
+                  "type() \"character\""))
+        return(TRUE)
+    }
+    FALSE
+}
+
 ### Supports all 'Compare' ops: "==", "!=", "<=", ">=", "<", ">"
 .Compare_SVT1_v2 <- function(op, x, y)
 {
@@ -230,6 +263,7 @@ setMethod("Arith", c("array", "SVT_SparseArray"),
     if (!(type(y) %in% .COMPARE_INPUT_TYPES))
         stop(wmsg("comparison operations between SparseArray objects ",
                   "and ", class(y), " vectors are not supported"))
+    .check_Compare_op_on_complex_vals(op, x_type, type(y))
 
     ## Check 'y'.
     if (length(y) != 1L)
@@ -243,8 +277,6 @@ setMethod("Arith", c("array", "SVT_SparseArray"),
                     "y is a logical or raw value")
 
     biggest_type <- type(c(vector(x_type), y))
-    if (biggest_type == "complex" && op %in% c("<=", ">=", "<", ">"))
-        stop(wmsg("invalid comparison with complex values"))
     if (biggest_type == "character" && op %in% c("<=", "<"))
         .Compare_op_would_destroy_sparsity(op,
                     "type(x) is \"character\" or y is a string")
@@ -270,14 +302,11 @@ setMethod("Arith", c("array", "SVT_SparseArray"),
         .Compare_op_would_destroy_sparsity(op,
                     "y is < 0")
 
-    ## If 'type(y)' is "character", we set the type() of 'x' to the same type.
-    ## Possibly expensive so do it only after all the above checks have passed.
-    if (type(y) == "character") {
-        stop(wmsg("\"", op, "\" is not implemented yet between an ",
-                  "SVT_SparseArray object and a single value when ",
-                  "one or the other is of type() \"character\""))
-        type(x) <- "character"
-    }
+    ## Handle situations where we need to change the type() of 'x' to
+    ## the type() of 'y'. This is possibly expensive so we do it only
+    ## after all the above checks have passed.
+    if (.must_homogenize_for_Compare(type(x), type(y)))
+        type(x) <- type(y)
 
     ## 'type(y)' is guaranteed to be the same as 'type(x)' or a "bigger" type,
     ## considering raw < logical < integer < double < complex < character.
@@ -305,6 +334,7 @@ setMethod("Compare", c("vector", "SVT_SparseArray"),
     ## Check types.
     .check_Compare_input_type(type(x))
     .check_Compare_input_type(type(y))
+    .check_Compare_op_on_complex_vals(op, type(x), type(y))
 
     ## Check 'op'.
     if (!(op %in% c("!=", "<", ">"))) {
@@ -324,12 +354,10 @@ setMethod("Compare", c("vector", "SVT_SparseArray"),
     ## Compute 'ans_dimnames'.
     ans_dimnames <- S4Arrays:::get_first_non_NULL_dimnames(list(x, y))
 
-    ## Possibly expensive so do it only after all the above checks have passed.
-    if (type(x) == "character" || type(y) == "character") {
-        stop(wmsg("\"", op, "\" is not implemented yet between ",
-                  "SVT_SparseArray objects of type() \"character\""))
-        type(x) <- type(y) <- "character"
-    }
+    ## Homogenization is possibly expensive so we do it only after all
+    ## the above checks have passed.
+    if (.must_homogenize_for_Compare(type(x), type(y)))
+        type(x) <- type(y) <- type(c(vector(type(x)), vector(type(y))))
 
     ans_SVT <- .Call2("C_Compare_SVT1_SVT2",
                       x_dim, x@type, x@SVT, y_dim, y@type, y@SVT, op,
