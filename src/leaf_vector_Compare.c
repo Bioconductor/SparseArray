@@ -186,7 +186,10 @@ static int sparse_Compare_Rbytes_v2(
 		const int *offs1, const Rbyte *vals1, int n1, SEXP v2,
 		int opcode, int *offs_buf, int *vals_buf)
 {
-	switch (TYPEOF(v2)) {
+	SEXPTYPE Rtype2;
+
+	Rtype2 = TYPEOF(v2);
+	switch (Rtype2) {
 	    case RAWSXP:
 		return sparse_Compare_Rbytes_Rbyte(
 				offs1, vals1, n1, RAW(v2)[0],
@@ -206,8 +209,7 @@ static int sparse_Compare_Rbytes_v2(
 	}
 	error("SparseArray internal error in "
 	      "sparse_Compare_Rbytes_v2():\n"
-	      "    'type(v2)' must be \"raw\", \"logical\", "
-	      "\"integer\", \"double\", or \"complex\"");
+	      "    unsupported 'Rtype2': \"%s\"", type2char(Rtype2));
 	return 0;  /* will never reach this */
 }
 
@@ -290,7 +292,10 @@ static int sparse_Compare_ints_v2(
 		const int *offs1, const int *vals1, int n1, SEXP v2,
 		int opcode, int *offs_buf, int *vals_buf)
 {
-	switch (TYPEOF(v2)) {
+	SEXPTYPE Rtype2;
+
+	Rtype2 = TYPEOF(v2);
+	switch (Rtype2) {
 	    case LGLSXP: case INTSXP:
 		return sparse_Compare_ints_int(
 				offs1, vals1, n1, INTEGER(v2)[0],
@@ -306,8 +311,7 @@ static int sparse_Compare_ints_v2(
 	}
 	error("SparseArray internal error in "
 	      "sparse_Compare_ints_v2():\n"
-	      "    'type(v2)' must be \"logical\", \"integer\", "
-	      "\"double\", or \"complex\"");
+	      "    unsupported 'Rtype2': \"%s\"", type2char(Rtype2));
 	return 0;  /* will never reach this */
 }
 
@@ -362,7 +366,10 @@ static int sparse_Compare_doubles_v2(
 		const int *offs1, const double *vals1, int n1, SEXP v2,
 		int opcode, int *offs_buf, int *vals_buf)
 {
-	switch (TYPEOF(v2)) {
+	SEXPTYPE Rtype2;
+
+	Rtype2 = TYPEOF(v2);
+	switch (Rtype2) {
 	    case REALSXP:
 		return sparse_Compare_doubles_double(
 				offs1, vals1, n1, REAL(v2)[0],
@@ -374,7 +381,7 @@ static int sparse_Compare_doubles_v2(
 	}
 	error("SparseArray internal error in "
 	      "sparse_Compare_doubles_v2():\n"
-	      "    'type(v2)' must be \"double\" or \"complex\"");
+	      "    unsupported 'Rtype2': \"%s\"", type2char(Rtype2));
 	return 0;  /* will never reach this */
 }
 
@@ -407,7 +414,10 @@ static int sparse_Compare_Rcomplexes_v2(
 		const int *offs1, const Rcomplex *vals1, int n1, SEXP v2,
 		int opcode, int *offs_buf, int *vals_buf)
 {
-	switch (TYPEOF(v2)) {
+	SEXPTYPE Rtype2;
+
+	Rtype2 = TYPEOF(v2);
+	switch (Rtype2) {
 	    case CPLXSXP:
 		return sparse_Compare_Rcomplexes_Rcomplex(
 				offs1, vals1, n1, COMPLEX(v2)[0],
@@ -415,7 +425,175 @@ static int sparse_Compare_Rcomplexes_v2(
 	}
 	error("SparseArray internal error in "
 	      "sparse_Compare_Rcomplexes_v2():\n"
-	      "    'type(v2)' must be \"complex\"");
+	      "    unsupported 'Rtype2': \"%s\"", type2char(Rtype2));
+	return 0;  /* will never reach this */
+}
+
+
+/****************************************************************************
+ * sparse_Compare_Rbytes_lv2()
+ * sparse_Compare_ints_lv2()
+ * sparse_Compare_doubles_lv2()
+ * sparse_Compare_Rcomplexes_lv2()
+ */
+
+static int sparse_Compare_Rbytes_lv2(
+		const int *offs1, const Rbyte *vals1, int n1, SEXP lv2,
+		int opcode, int *offs_buf, int *vals_buf)
+{
+	int lv2_len;
+	SEXP lv2_offs, lv2_vals;
+	const int *offs2;
+	SEXPTYPE Rtype2;
+
+	lv2_len = _split_leaf_vector(lv2, &lv2_offs, &lv2_vals);
+	offs2 = INTEGER(lv2_offs);
+	Rtype2 = TYPEOF(lv2_vals);
+	switch (Rtype2) {
+	    case RAWSXP:
+		return sparse_Compare_Rbytes_Rbytes(
+				offs1, vals1, n1,
+				offs2, RAW(lv2_vals), lv2_len,
+				opcode, offs_buf, vals_buf);
+	    case LGLSXP: case INTSXP:
+		return sparse_Compare_Rbytes_ints(
+				offs1, vals1, n1,
+				offs2, INTEGER(lv2_vals), lv2_len,
+				opcode, offs_buf, vals_buf);
+	    case REALSXP:
+		return sparse_Compare_Rbytes_doubles(
+				offs1, vals1, n1,
+				offs2, REAL(lv2_vals), lv2_len,
+				opcode, offs_buf, vals_buf);
+	    case CPLXSXP:
+		return sparse_Compare_Rbytes_Rcomplexes(
+				offs1, vals1, n1,
+				offs2, COMPLEX(lv2_vals), lv2_len,
+				opcode, offs_buf, vals_buf);
+	}
+	error("SparseArray internal error in "
+	      "sparse_Compare_Rbytes_lv2():\n"
+	      "    unsupported 'Rtype2': \"%s\"", type2char(Rtype2));
+	return 0;  /* will never reach this */
+}
+
+static int sparse_Compare_ints_lv2(
+		const int *offs1, const int *vals1, int n1, SEXP lv2,
+		int opcode, int *offs_buf, int *vals_buf)
+{
+	int lv2_len;
+	SEXP lv2_offs, lv2_vals;
+	const int *offs2;
+	SEXPTYPE Rtype2;
+
+	lv2_len = _split_leaf_vector(lv2, &lv2_offs, &lv2_vals);
+	offs2 = INTEGER(lv2_offs);
+	Rtype2 = TYPEOF(lv2_vals);
+	switch (Rtype2) {
+	    case RAWSXP:
+		return sparse_Compare_Rbytes_ints(
+				offs2, RAW(lv2_vals), lv2_len,
+				offs1, vals1, n1,
+				flip_opcode(opcode), offs_buf, vals_buf);
+	    case LGLSXP: case INTSXP:
+		return sparse_Compare_ints_ints(
+				offs1, vals1, n1,
+				offs2, INTEGER(lv2_vals), lv2_len,
+				opcode, offs_buf, vals_buf);
+	    case REALSXP:
+		return sparse_Compare_ints_doubles(
+				offs1, vals1, n1,
+				offs2, REAL(lv2_vals), lv2_len,
+				opcode, offs_buf, vals_buf);
+	    case CPLXSXP:
+		return sparse_Compare_ints_Rcomplexes(
+				offs1, vals1, n1,
+				offs2, COMPLEX(lv2_vals), lv2_len,
+				opcode, offs_buf, vals_buf);
+	}
+	error("SparseArray internal error in "
+	      "sparse_Compare_ints_lv2():\n"
+	      "    unsupported 'Rtype2': \"%s\"", type2char(Rtype2));
+	return 0;  /* will never reach this */
+}
+
+static int sparse_Compare_doubles_lv2(
+		const int *offs1, const double *vals1, int n1, SEXP lv2,
+		int opcode, int *offs_buf, int *vals_buf)
+{
+	int lv2_len;
+	SEXP lv2_offs, lv2_vals;
+	const int *offs2;
+	SEXPTYPE Rtype2;
+
+	lv2_len = _split_leaf_vector(lv2, &lv2_offs, &lv2_vals);
+	offs2 = INTEGER(lv2_offs);
+	Rtype2 = TYPEOF(lv2_vals);
+	switch (Rtype2) {
+	    case RAWSXP:
+		return sparse_Compare_Rbytes_doubles(
+				offs2, RAW(lv2_vals), lv2_len,
+				offs1, vals1, n1,
+				flip_opcode(opcode), offs_buf, vals_buf);
+	    case LGLSXP: case INTSXP:
+		return sparse_Compare_ints_doubles(
+				offs2, INTEGER(lv2_vals), lv2_len,
+				offs1, vals1, n1,
+				flip_opcode(opcode), offs_buf, vals_buf);
+	    case REALSXP:
+		return sparse_Compare_doubles_doubles(
+				offs1, vals1, n1,
+				offs2, REAL(lv2_vals), lv2_len,
+				opcode, offs_buf, vals_buf);
+	    case CPLXSXP:
+		return sparse_Compare_doubles_Rcomplexes(
+				offs1, vals1, n1,
+				offs2, COMPLEX(lv2_vals), lv2_len,
+				opcode, offs_buf, vals_buf);
+	}
+	error("SparseArray internal error in "
+	      "sparse_Compare_doubles_lv2():\n"
+	      "    unsupported 'Rtype2': \"%s\"", type2char(Rtype2));
+	return 0;  /* will never reach this */
+}
+
+static int sparse_Compare_Rcomplexes_lv2(
+		const int *offs1, const Rcomplex *vals1, int n1, SEXP lv2,
+		int opcode, int *offs_buf, int *vals_buf)
+{
+	int lv2_len;
+	SEXP lv2_offs, lv2_vals;
+	const int *offs2;
+	SEXPTYPE Rtype2;
+
+	lv2_len = _split_leaf_vector(lv2, &lv2_offs, &lv2_vals);
+	offs2 = INTEGER(lv2_offs);
+	Rtype2 = TYPEOF(lv2_vals);
+	switch (Rtype2) {
+	    case RAWSXP:
+		return sparse_Compare_Rbytes_Rcomplexes(
+				offs2, RAW(lv2_vals), lv2_len,
+				offs1, vals1, n1,
+				flip_opcode(opcode), offs_buf, vals_buf);
+	    case LGLSXP: case INTSXP:
+		return sparse_Compare_ints_Rcomplexes(
+				offs2, INTEGER(lv2_vals), lv2_len,
+				offs1, vals1, n1,
+				flip_opcode(opcode), offs_buf, vals_buf);
+	    case REALSXP:
+		return sparse_Compare_doubles_Rcomplexes(
+				offs2, REAL(lv2_vals), lv2_len,
+				offs1, vals1, n1,
+				flip_opcode(opcode), offs_buf, vals_buf);
+	    case CPLXSXP:
+		return sparse_Compare_Rcomplexes_Rcomplexes(
+				offs1, vals1, n1,
+				offs2, COMPLEX(lv2_vals), lv2_len,
+				opcode, offs_buf, vals_buf);
+	}
+	error("SparseArray internal error in "
+	      "sparse_Compare_Rcomplexes_lv2():\n"
+	      "    unsupported 'Rtype2': \"%s\"", type2char(Rtype2));
 	return 0;  /* will never reach this */
 }
 
@@ -431,29 +609,29 @@ static SEXP Compare_lv1_zero(SEXP lv1, int opcode,
 {
 	int lv1_len, ans_len;
 	SEXP lv1_offs, lv1_vals;
-	const int *offs1_p;
+	const int *offs1;
 
 	lv1_len = _split_leaf_vector(lv1, &lv1_offs, &lv1_vals);
-	offs1_p = INTEGER(lv1_offs);
+	offs1 = INTEGER(lv1_offs);
 	switch (TYPEOF(lv1_vals)) {
 	    case RAWSXP:
 		ans_len = sparse_Compare_Rbytes_Rbyte(
-				offs1_p, RAW(lv1_vals), lv1_len, Rbyte0,
+				offs1, RAW(lv1_vals), lv1_len, Rbyte0,
 				opcode, offs_buf, vals_buf);
 	    break;
 	    case LGLSXP: case INTSXP:
 		ans_len = sparse_Compare_ints_int(
-				offs1_p, INTEGER(lv1_vals), lv1_len, int0,
+				offs1, INTEGER(lv1_vals), lv1_len, int0,
 				opcode, offs_buf, vals_buf);
 	    break;
 	    case REALSXP:
 		ans_len = sparse_Compare_doubles_double(
-				offs1_p, REAL(lv1_vals), lv1_len, double0,
+				offs1, REAL(lv1_vals), lv1_len, double0,
 				opcode, offs_buf, vals_buf);
 	    break;
 	    case CPLXSXP:
 		ans_len = sparse_Compare_Rcomplexes_Rcomplex(
-				offs1_p, COMPLEX(lv1_vals), lv1_len, Rcomplex0,
+				offs1, COMPLEX(lv1_vals), lv1_len, Rcomplex0,
 				opcode, offs_buf, vals_buf);
 	    break;
 	    default:
@@ -473,29 +651,29 @@ SEXP _Compare_lv1_v2(SEXP lv1, SEXP v2, int opcode,
 {
 	int lv1_len, ans_len;
 	SEXP lv1_offs, lv1_vals;
-	const int *offs1_p;
+	const int *offs1;
 
 	lv1_len = _split_leaf_vector(lv1, &lv1_offs, &lv1_vals);
-	offs1_p = INTEGER(lv1_offs);
+	offs1 = INTEGER(lv1_offs);
 	switch (TYPEOF(lv1_vals)) {
 	    case RAWSXP:
 		ans_len = sparse_Compare_Rbytes_v2(
-				offs1_p, RAW(lv1_vals), lv1_len, v2,
+				offs1, RAW(lv1_vals), lv1_len, v2,
 				opcode, offs_buf, vals_buf);
 	    break;
 	    case LGLSXP: case INTSXP:
 		ans_len = sparse_Compare_ints_v2(
-				offs1_p, INTEGER(lv1_vals), lv1_len, v2,
+				offs1, INTEGER(lv1_vals), lv1_len, v2,
 				opcode, offs_buf, vals_buf);
 	    break;
 	    case REALSXP:
 		ans_len = sparse_Compare_doubles_v2(
-				offs1_p, REAL(lv1_vals), lv1_len, v2,
+				offs1, REAL(lv1_vals), lv1_len, v2,
 				opcode, offs_buf, vals_buf);
 	    break;
 	    case CPLXSXP:
 		ans_len = sparse_Compare_Rcomplexes_v2(
-				offs1_p, COMPLEX(lv1_vals), lv1_len, v2,
+				offs1, COMPLEX(lv1_vals), lv1_len, v2,
 				opcode, offs_buf, vals_buf);
 	    break;
 	    default:
@@ -512,9 +690,10 @@ SEXP _Compare_lv1_v2(SEXP lv1, SEXP v2, int opcode,
 SEXP _Compare_lv1_lv2(SEXP lv1, SEXP lv2, int opcode,
 		      int *offs_buf, int *vals_buf)
 {
-	int lv1_len, lv2_len, ans_len;
-	SEXP lv1_offs, lv1_vals, lv2_offs, lv2_vals;
-	const int *offs1_p, *offs2_p;
+	int lv1_len, ans_len;
+	SEXP lv1_offs, lv1_vals;
+	const int *offs1;
+	SEXPTYPE Rtype1;
 
 	if (lv1 == R_NilValue) {
 		if (lv2 == R_NilValue)
@@ -526,131 +705,34 @@ SEXP _Compare_lv1_lv2(SEXP lv1, SEXP lv2, int opcode,
 		return Compare_lv1_zero(lv1, opcode,
 					offs_buf, vals_buf);
 	lv1_len = _split_leaf_vector(lv1, &lv1_offs, &lv1_vals);
-	lv2_len = _split_leaf_vector(lv2, &lv2_offs, &lv2_vals);
-	offs1_p = INTEGER(lv1_offs);
-	offs2_p = INTEGER(lv2_offs);
-	ans_len = -1;
-	switch (TYPEOF(lv1_vals)) {
+	offs1 = INTEGER(lv1_offs);
+	Rtype1 = TYPEOF(lv1_vals);
+	switch (Rtype1) {
 	    case RAWSXP:
-		switch (TYPEOF(lv2_vals)) {
-		    case RAWSXP:
-			ans_len = sparse_Compare_Rbytes_Rbytes(
-				offs1_p, RAW(lv1_vals), lv1_len,
-				offs2_p, RAW(lv2_vals), lv2_len,
+		ans_len = sparse_Compare_Rbytes_lv2(
+				offs1, RAW(lv1_vals), lv1_len, lv2,
 				opcode, offs_buf, vals_buf);
-			break;
-		    case LGLSXP: case INTSXP:
-			ans_len = sparse_Compare_Rbytes_ints(
-				offs1_p, RAW(lv1_vals), lv1_len,
-				offs2_p, INTEGER(lv2_vals), lv2_len,
-				opcode, offs_buf, vals_buf);
-			break;
-		    case REALSXP:
-			ans_len = sparse_Compare_Rbytes_doubles(
-				offs1_p, RAW(lv1_vals), lv1_len,
-				offs2_p, REAL(lv2_vals), lv2_len,
-				opcode, offs_buf, vals_buf);
-			break;
-		    case CPLXSXP:
-			ans_len = sparse_Compare_Rbytes_Rcomplexes(
-				offs1_p, RAW(lv1_vals), lv1_len,
-				offs2_p, COMPLEX(lv2_vals), lv2_len,
-				opcode, offs_buf, vals_buf);
-			break;
-		}
 		break;
 	    case LGLSXP: case INTSXP:
-		switch (TYPEOF(lv2_vals)) {
-		    case RAWSXP:
-			ans_len = sparse_Compare_Rbytes_ints(
-				offs2_p, RAW(lv2_vals), lv2_len,
-				offs1_p, INTEGER(lv1_vals), lv1_len,
-				flip_opcode(opcode), offs_buf, vals_buf);
-			break;
-		    case LGLSXP: case INTSXP:
-			ans_len = sparse_Compare_ints_ints(
-				offs1_p, INTEGER(lv1_vals), lv1_len,
-				offs2_p, INTEGER(lv2_vals), lv2_len,
+		ans_len = sparse_Compare_ints_lv2(
+				offs1, INTEGER(lv1_vals), lv1_len, lv2,
 				opcode, offs_buf, vals_buf);
-			break;
-		    case REALSXP:
-			ans_len = sparse_Compare_ints_doubles(
-				offs1_p, INTEGER(lv1_vals), lv1_len,
-				offs2_p, REAL(lv2_vals), lv2_len,
-				opcode, offs_buf, vals_buf);
-			break;
-		    case CPLXSXP:
-			ans_len = sparse_Compare_ints_Rcomplexes(
-				offs1_p, INTEGER(lv1_vals), lv1_len,
-				offs2_p, COMPLEX(lv2_vals), lv2_len,
-				opcode, offs_buf, vals_buf);
-			break;
-		}
 		break;
 	    case REALSXP:
-		switch (TYPEOF(lv2_vals)) {
-		    case RAWSXP:
-			ans_len = sparse_Compare_Rbytes_doubles(
-				offs2_p, RAW(lv2_vals), lv2_len,
-				offs1_p, REAL(lv1_vals), lv1_len,
-				flip_opcode(opcode), offs_buf, vals_buf);
-			break;
-		    case LGLSXP: case INTSXP:
-			ans_len = sparse_Compare_ints_doubles(
-				offs2_p, INTEGER(lv2_vals), lv2_len,
-				offs1_p, REAL(lv1_vals), lv1_len,
-				flip_opcode(opcode), offs_buf, vals_buf);
-			break;
-		    case REALSXP:
-			ans_len = sparse_Compare_doubles_doubles(
-				offs1_p, REAL(lv1_vals), lv1_len,
-				offs2_p, REAL(lv2_vals), lv2_len,
+		ans_len = sparse_Compare_doubles_lv2(
+				offs1, REAL(lv1_vals), lv1_len, lv2,
 				opcode, offs_buf, vals_buf);
-			break;
-		    case CPLXSXP:
-			ans_len = sparse_Compare_doubles_Rcomplexes(
-				offs1_p, REAL(lv1_vals), lv1_len,
-				offs2_p, COMPLEX(lv2_vals), lv2_len,
-				opcode, offs_buf, vals_buf);
-			break;
-		}
 		break;
 	    case CPLXSXP:
-		switch (TYPEOF(lv2_vals)) {
-		    case RAWSXP:
-			ans_len = sparse_Compare_Rbytes_Rcomplexes(
-				offs2_p, RAW(lv2_vals), lv2_len,
-				offs1_p, COMPLEX(lv1_vals), lv1_len,
-				flip_opcode(opcode), offs_buf, vals_buf);
-			break;
-		    case LGLSXP: case INTSXP:
-			ans_len = sparse_Compare_ints_Rcomplexes(
-				offs2_p, INTEGER(lv2_vals), lv2_len,
-				offs1_p, COMPLEX(lv1_vals), lv1_len,
-				flip_opcode(opcode), offs_buf, vals_buf);
-			break;
-		    case REALSXP:
-			ans_len = sparse_Compare_doubles_Rcomplexes(
-				offs2_p, REAL(lv2_vals), lv2_len,
-				offs1_p, COMPLEX(lv1_vals), lv1_len,
-				flip_opcode(opcode), offs_buf, vals_buf);
-			break;
-		    case CPLXSXP:
-			ans_len = sparse_Compare_Rcomplexes_Rcomplexes(
-				offs1_p, COMPLEX(lv1_vals), lv1_len,
-				offs2_p, COMPLEX(lv2_vals), lv2_len,
+		ans_len = sparse_Compare_Rcomplexes_lv2(
+				offs1, COMPLEX(lv1_vals), lv1_len, lv2,
 				opcode, offs_buf, vals_buf);
-			break;
-		}
 		break;
-	}
-	if (ans_len == -1)
+	    default:
 		error("SparseArray internal error in "
 		      "_Compare_lv1_lv2():\n"
-		      "    unsupported (TYPEOF(lv1_vals),TYPEOF(lv2_vals)) "
-		      "pair:\n        (\"%s\",\"%s\")",
-		      type2char(TYPEOF(lv1_vals)),
-		      type2char(TYPEOF(lv2_vals)));
+		      "    unsupported 'Rtype1': \"%s\"", type2char(Rtype1));
+	}
 	return _new_leaf_vector_from_bufs(LGLSXP,
 				offs_buf, vals_buf, ans_len);
 }
