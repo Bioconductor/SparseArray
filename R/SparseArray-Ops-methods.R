@@ -270,17 +270,14 @@ setMethod("Arith", c("array", "SVT_SparseArray"),
         .Compare_op_would_destroy_sparsity(op,
                     "y is < 0")
 
-    if (biggest_type %in% c("complex", "raw", "character"))
-        stop(wmsg("\"", op, "\" is not implemented yet between an ",
-                  "SVT_SparseArray object and a single value when ",
-                  if (biggest_type == "raw") "both are"
-                                        else "one or the other is",
-                  " of type() \"", biggest_type, "\""))
-
     ## If 'type(y)' is "character", we set the type() of 'x' to the same type.
     ## Possibly expensive so do it only after all the above checks have passed.
-    if (type(y) == "character")
+    if (type(y) == "character") {
+        stop(wmsg("\"", op, "\" is not implemented yet between an ",
+                  "SVT_SparseArray object and a single value when ",
+                  "one or the other is of type() \"character\""))
         type(x) <- "character"
+    }
 
     ## 'type(y)' is guaranteed to be the same as 'type(x)' or a "bigger" type,
     ## considering raw < logical < integer < double < complex < character.
@@ -326,6 +323,13 @@ setMethod("Compare", c("vector", "SVT_SparseArray"),
 
     ## Compute 'ans_dimnames'.
     ans_dimnames <- S4Arrays:::get_first_non_NULL_dimnames(list(x, y))
+
+    ## Possibly expensive so do it only after all the above checks have passed.
+    if (type(x) == "character" || type(y) == "character") {
+        stop(wmsg("\"", op, "\" is not implemented yet between ",
+                  "SVT_SparseArray objects of type() \"character\""))
+        type(x) <- type(y) <- "character"
+    }
 
     ans_SVT <- .Call2("C_Compare_SVT1_SVT2",
                       x_dim, x@type, x@SVT, y_dim, y@type, y@SVT, op,

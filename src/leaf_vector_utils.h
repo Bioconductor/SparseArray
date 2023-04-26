@@ -17,6 +17,11 @@
    an empty "leaf vector". Furthermore, the length of a "leaf vector" is
    **always** >= 1 and <= INT_MAX. */
 
+static const Rbyte Rbyte0 = 0;
+static const int int0 = 0;
+static const double double0 = 0.0;
+static const Rcomplex Rcomplex0 = {0.0, 0.0};
+
 #define ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(Ltype, Rtype)(	\
 		const int *offs1, const Ltype *vals1, int n1,	\
 		const int *offs2, const Rtype *vals2, int n2,	\
@@ -31,12 +36,12 @@
 		if (off1 < off2) {				\
 			*off = off1;				\
 			*v1 = vals1[(*k1)++];			\
-			*v2 = 0;				\
+			*v2 = Rtype ## 0;			\
 			return 1;				\
 		}						\
 		if (off1 > off2) {				\
 			*off = off2;				\
-			*v1 = 0;				\
+			*v1 = Ltype ## 0;			\
 			*v2 = vals2[(*k2)++];			\
 			return 2;				\
 		}						\
@@ -48,12 +53,12 @@
 	if (*k1 < n1) {						\
 		*off = offs1[*k1];				\
 		*v1 = vals1[(*k1)++];				\
-		*v2 = 0;					\
+		*v2 = Rtype ## 0;				\
 		return 1;					\
 	}							\
 	if (*k2 < n2) {						\
 		*off = offs2[*k2];				\
-		*v1 = 0;					\
+		*v1 = Ltype ## 0;				\
 		*v2 = vals2[(*k2)++];				\
 		return 2;					\
 	}							\
@@ -69,8 +74,8 @@ static inline int next_nzvals_Rbyte_int
 static inline int next_nzvals_Rbyte_double
 	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(Rbyte, double)
 
-//static inline int next_nzvals_Rbyte_Rcomplex
-//	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(Rbyte, Rcomplex)
+static inline int next_nzvals_Rbyte_Rcomplex
+	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(Rbyte, Rcomplex)
 
 static inline int next_nzvals_int_int
 	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(int, int)
@@ -78,8 +83,8 @@ static inline int next_nzvals_int_int
 static inline int next_nzvals_int_double
 	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(int, double)
 
-//static inline int next_nzvals_int_Rcomplex
-//	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(int, Rcomplex)
+static inline int next_nzvals_int_Rcomplex
+	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(int, Rcomplex)
 
 static inline int next_nzvals_double_int
 	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(double, int)
@@ -87,11 +92,11 @@ static inline int next_nzvals_double_int
 static inline int next_nzvals_double_double
 	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(double, double)
 
-//static inline int next_nzvals_double_Rcomplex
-//	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(double, double)
+static inline int next_nzvals_double_Rcomplex
+	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(double, Rcomplex)
 
-//static inline int next_nzvals_Rcomplex_Rcomplex
-//	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(double, double)
+static inline int next_nzvals_Rcomplex_Rcomplex
+	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(Rcomplex, Rcomplex)
 
 SEXP _new_leaf_vector(
 	SEXP lv_offs,
