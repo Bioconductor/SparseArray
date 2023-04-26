@@ -17,48 +17,60 @@
    an empty "leaf vector". Furthermore, the length of a "leaf vector" is
    **always** >= 1 and <= INT_MAX. */
 
-#define ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(vals1_type, vals2_type)(	\
-		const int *offs1, const vals1_type *vals1, int n1,	\
-		const int *offs2, const vals2_type *vals2, int n2,	\
-		int *k1, int *k2,					\
-		int *off, vals1_type *v1, vals2_type *v2)		\
-{									\
-	int off1, off2;							\
-									\
-	if (*k1 < n1 && *k2 < n2) {					\
-		off1 = offs1[*k1];					\
-		off2 = offs2[*k2];					\
-		if (off1 < off2) {					\
-			*off = off1;					\
-			*v1 = vals1[(*k1)++];				\
-			*v2 = 0;					\
-			return 1;					\
-		}							\
-		if (off1 > off2) {					\
-			*off = off2;					\
-			*v1 = 0;					\
-			*v2 = vals2[(*k2)++];				\
-			return 2;					\
-		}							\
-		*off = off1;						\
-		*v1 = vals1[(*k1)++];					\
-		*v2 = vals2[(*k2)++];					\
-		return 3;						\
-	}								\
-	if (*k1 < n1) {							\
-		*off = offs1[*k1];					\
-		*v1 = vals1[(*k1)++];					\
-		*v2 = 0;						\
-		return 1;						\
-	}								\
-	if (*k2 < n2) {							\
-		*off = offs2[*k2];					\
-		*v1 = 0;						\
-		*v2 = vals2[(*k2)++];					\
-		return 2;						\
-	}								\
-	return 0;							\
+#define ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(Ltype, Rtype)(	\
+		const int *offs1, const Ltype *vals1, int n1,	\
+		const int *offs2, const Rtype *vals2, int n2,	\
+		int *k1, int *k2,				\
+		int *off, Ltype *v1, Rtype *v2)			\
+{								\
+	int off1, off2;						\
+								\
+	if (*k1 < n1 && *k2 < n2) {				\
+		off1 = offs1[*k1];				\
+		off2 = offs2[*k2];				\
+		if (off1 < off2) {				\
+			*off = off1;				\
+			*v1 = vals1[(*k1)++];			\
+			*v2 = 0;				\
+			return 1;				\
+		}						\
+		if (off1 > off2) {				\
+			*off = off2;				\
+			*v1 = 0;				\
+			*v2 = vals2[(*k2)++];			\
+			return 2;				\
+		}						\
+		*off = off1;					\
+		*v1 = vals1[(*k1)++];				\
+		*v2 = vals2[(*k2)++];				\
+		return 3;					\
+	}							\
+	if (*k1 < n1) {						\
+		*off = offs1[*k1];				\
+		*v1 = vals1[(*k1)++];				\
+		*v2 = 0;					\
+		return 1;					\
+	}							\
+	if (*k2 < n2) {						\
+		*off = offs2[*k2];				\
+		*v1 = 0;					\
+		*v2 = vals2[(*k2)++];				\
+		return 2;					\
+	}							\
+	return 0;						\
 }
+
+static inline int next_nzvals_Rbyte_Rbyte
+	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(Rbyte, Rbyte)
+
+static inline int next_nzvals_Rbyte_int
+	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(Rbyte, int)
+
+static inline int next_nzvals_Rbyte_double
+	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(Rbyte, double)
+
+//static inline int next_nzvals_Rbyte_Rcomplex
+//	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(Rbyte, Rcomplex)
 
 static inline int next_nzvals_int_int
 	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(int, int)
@@ -66,11 +78,20 @@ static inline int next_nzvals_int_int
 static inline int next_nzvals_int_double
 	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(int, double)
 
+//static inline int next_nzvals_int_Rcomplex
+//	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(int, Rcomplex)
+
 static inline int next_nzvals_double_int
 	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(double, int)
 
 static inline int next_nzvals_double_double
 	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(double, double)
+
+//static inline int next_nzvals_double_Rcomplex
+//	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(double, double)
+
+//static inline int next_nzvals_Rcomplex_Rcomplex
+//	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(double, double)
 
 SEXP _new_leaf_vector(
 	SEXP lv_offs,

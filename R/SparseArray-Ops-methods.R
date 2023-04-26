@@ -111,7 +111,7 @@ setMethod("-", c("SparseArray", "missing"),
         if (ans_type == "complex")
             stop(wmsg("\"", op, "\" is not implemented yet between an ",
                       "SVT_SparseArray object and a single value when ",
-                      "one or the other is of type \"", ans_type, "\""))
+                      "one or the other is of type() \"", ans_type, "\""))
         if (op %in% c("%%", "%/%") && ans_type == "complex")
             stop(wmsg("unimplemented complex operation"))
     }
@@ -165,7 +165,7 @@ setMethod("Arith", c("vector", "SVT_SparseArray"),
     ans_type <- type(c(vector(type(x)), vector(type(y))))
     if (ans_type == "complex")
         stop(wmsg("\"", op, "\" is not implemented yet between ",
-                  "SVT_SparseArray objects of type \"", ans_type, "\""))
+                  "SVT_SparseArray objects of type() \"", ans_type, "\""))
 
     ans_SVT <- .Call2("C_Arith_SVT1_SVT2",
                       x_dim, x@type, x@SVT, y_dim, y@type, y@SVT,
@@ -223,45 +223,46 @@ setMethod("Arith", c("array", "SVT_SparseArray"),
 .Compare_SVT1_v2 <- function(op, x, y)
 {
     stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
-    x0 <- x
-    y0 <- y
 
     ## Check types.
-    x0_type <- type(x0)
-    y0_type <- type(y0)
-    .check_Compare_input_type(x0_type)
-    if (!(y0_type %in% .COMPARE_INPUT_TYPES))
+    x_type <- type(x)
+    .check_Compare_input_type(x_type)
+    if (!(type(y) %in% .COMPARE_INPUT_TYPES))
         stop(wmsg("comparison operations between SparseArray objects ",
                   "and ", class(y), " vectors are not supported"))
 
-    ## Check 'y0'.
-    if (length(y0) != 1L)
+    ## Check 'y'.
+    if (length(y) != 1L)
         stop(wmsg("comparison operations are not supported between a ",
                   "SparseArray object and a vector of length != 1"))
-    if (is.na(y0))
+    if (is.na(y))
         stop(wmsg("comparison operations are not supported between a ",
                   "SparseArray object and an NA or NaN"))
+    if (type(y) %in% c("logical", "raw") && op %in% c("<=", "<"))
+        .Compare_op_would_destroy_sparsity(op,
+                    "y is a logical or raw value")
 
-    common_type <- type(c(vector(x0_type), y0))
-    if (common_type == "complex" && op %in% c("<=", ">=", "<", ">"))
+    biggest_type <- type(c(vector(x_type), y))
+    if (biggest_type == "complex" && op %in% c("<=", ">=", "<", ">"))
         stop(wmsg("invalid comparison with complex values"))
-    if (common_type == "character" && op %in% c("<=", "<"))
-        .Compare_op_would_destroy_sparsity(op, "y is a string")
+    if (biggest_type == "character" && op %in% c("<=", "<"))
+        .Compare_op_would_destroy_sparsity(op,
+                    "type(x) is \"character\" or y is a string")
 
-    type(y) <- common_type
+    type(y) <- biggest_type
     zero <- vector(type(y), length=1L)
     if (op == "==" && y == zero)
         .Compare_op_would_destroy_sparsity(op,
-                    "y is 0 (or is the empty string)")
+                    "y is 0 or FALSE or the empty string")
     if (op == "!=" && y != zero)
         .Compare_op_would_destroy_sparsity(op,
-                    "y is not 0 (or is not the empty string)")
+                    "y is not 0, FALSE, or the empty string")
     if (op == "<=" && y >= zero)
         .Compare_op_would_destroy_sparsity(op,
                     "y is >= 0")
     if (op == ">=" && y <= zero)
         .Compare_op_would_destroy_sparsity(op,
-                    "y is <= 0 (or is the empty string)")
+                    "y is <= 0, or FALSE, or the empty string")
     if (op == "<" && y > zero)
         .Compare_op_would_destroy_sparsity(op,
                     "y is > 0")
@@ -269,16 +270,20 @@ setMethod("Arith", c("array", "SVT_SparseArray"),
         .Compare_op_would_destroy_sparsity(op,
                     "y is < 0")
 
-    if (common_type %in% c("complex", "raw", "character"))
+    if (biggest_type %in% c("complex", "raw", "character"))
         stop(wmsg("\"", op, "\" is not implemented yet between an ",
                   "SVT_SparseArray object and a single value when ",
-                  if (common_type == "raw") "both are"
-                                       else "one or the other is",
-                  " of type \"", common_type, "\""))
+                  if (biggest_type == "raw") "both are"
+                                        else "one or the other is",
+                  " of type() \"", biggest_type, "\""))
 
+    ## If 'type(y)' is "character", we set the type() of 'x' to the same type.
     ## Possibly expensive so do it only after all the above checks have passed.
-    type(x) <- common_type
+    if (type(y) == "character")
+        type(x) <- "character"
 
+    ## 'type(y)' is guaranteed to be the same as 'type(x)' or a "bigger" type,
+    ## considering raw < logical < integer < double < complex < character.
     new_SVT <- .Call2("C_Compare_SVT1_v2",
                       x@dim, x@type, x@SVT, y, op,
                       PACKAGE="SparseArray")
@@ -358,7 +363,7 @@ setMethod("Compare", c("array", "SVT_SparseArray"),
 
     if (type(x) != "logical" || type(y) != "logical")
         stop(wmsg("the \"", op, "\" method for SVT_SparseArray objects ",
-                  "only supports input objects of type \"logical\" at ",
+                  "only supports input objects of type() \"logical\" at ",
                   "the moment"))
 
     ## Compute 'ans_dimnames'.
