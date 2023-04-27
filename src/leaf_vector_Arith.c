@@ -150,6 +150,50 @@ static inline int Arith_int(int x, int y, int opcode, int *ovflow)
 	return (int) vv;
 }
 
+/* When x is negative, the power operator in R ("^") and the pow() function
+   from the C standard library behave differently. Two differences:
+   a. If y is R_PosInf, then x ^ y always returns NaN (even when -1 < x < 0),
+      whereas pow(x, y) returns R_PosInf if x < -1, o1r 1 if x == -1, or 0
+      if x > -1.
+   b. x ^ y is expected to return NaN for any noninteger y. However, in
+      the specific case where x is R_NegInf, pow(x, y) returns R_PosInf
+      for any noninteger y on my Intel Ubuntu 22.04 laptop. */
+static inline double Rpow_double(double x, double y)
+{
+	if (x < 0 && y == R_PosInf || x == R_NegInf && y != trunc(y))
+		return R_NaN;
+	return pow(x, y);
+}
+
+static inline double Rmod_double(double x, double y)
+{
+	if (y == 0.0 || x == R_PosInf || x == R_NegInf)
+		return R_NaN;
+	if (x == 0.0)
+		return 0.0;
+	if (y == R_PosInf)
+		return ISNAN(x) || x > 0 ? x : R_PosInf;
+	if (y == R_NegInf)
+		return ISNAN(x) || x < 0 ? x : R_NegInf;
+	return x - y * floor(x / y);
+}
+
+static inline double Ridiv_double(double x, double y)
+{
+	if (y == R_PosInf) {
+		if (x == R_NegInf)
+			return R_NaN;
+		if (x < 0)
+			return -1.0;
+	} else if (y == R_NegInf) {
+		if (x == R_PosInf)
+			return R_NaN;
+		if (x > 0)
+			return -1.0;
+	}
+	return floor(x / y);
+}
+
 static inline double Arith_double(double x, double y, int opcode)
 {
 	switch (opcode) {
@@ -157,23 +201,9 @@ static inline double Arith_double(double x, double y, int opcode)
 	    case SUB_OPCODE:  return x - y;
 	    case MULT_OPCODE: return x * y;
 	    case DIV_OPCODE:  return x / y;
-	    case POW_OPCODE:
-		/* When 'x' is negative 'x ^ y' is expected to return NaN
-		   for any noninteger 'y'. However, in the specific case
-		   where 'x' is 'R_NegInf', pow(x, y) returns 'R_PosInf'
-		   for any noninteger 'y' on my Intel Ubuntu 22.04 laptop.
-		   So we fix that. */
-		if (x == R_NegInf && y != trunc(y))
-			return R_NaN;
-		return pow(x, y);
-	    case MOD_OPCODE:
-		//double zz = fmod(x, y);
-		//if (R_FINITE(zz) &&
-                //    ((y > 0.0 && zz < 0.0) || (y < 0.0 && zz > 0.0)))
-		//	zz += y;
-		//return zz;
-		return x - y * floor(x / y);
-	    case IDIV_OPCODE: return floor(x / y);
+	    case POW_OPCODE:  return Rpow_double(x, y);
+	    case MOD_OPCODE:  return Rmod_double(x, y);
+	    case IDIV_OPCODE: return Ridiv_double(x, y);
 	}
 	error("SparseArray internal error in Arith_double():\n"
 	      "    unsupported 'opcode'");

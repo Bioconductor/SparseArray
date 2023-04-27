@@ -17,18 +17,48 @@
 .COMPARE_INPUT_TYPES <- c("logical", "integer", "double", "complex",
                           "character", "raw")
 
+### In base R, "&" and "|" support input of type() "logical", "integer",
+### "double", and "complex". We only support "logical" for now.
+.LOGIC_INPUT_TYPES <- "logical"
+
 .check_Arith_input_type <- function(type)
 {
     if (!(type %in% .ARITH_INPUT_TYPES))
-        stop(wmsg("arithmetic operations are not suported on SparseArray ",
-                  "objects with elements of type() \"", type , "\""))
+        stop(wmsg("arithmetic operation not supported on SparseArray ",
+                  "object of type() \"", type , "\""))
 }
 
 .check_Compare_input_type <- function(type)
 {
     if (!(type %in% .COMPARE_INPUT_TYPES))
-        stop(wmsg("comparison operations are not suported on SparseArray ",
-                  "objects with elements of type() \"", type , "\""))
+        stop(wmsg("comparison operation not supported on SparseArray ",
+                  "object of type() \"", type , "\""))
+}
+
+.check_Logic_input_type <- function(type)
+{
+    if (!(type %in% .LOGIC_INPUT_TYPES))
+        stop(wmsg("'Logic' operation \"&\" and \"|\" not supported ",
+                  "on SparseArray object of type() \"", type , "\""))
+}
+
+.flip_Compare_op <- function(op)
+    switch(op, `<=`=">=", `>=`="<=", `<`=">", `>`="<", op)
+
+.op_is_commutative <- function(op)
+    (op %in% c("+", "*", "==", "!=", "&", "|"))
+
+.error_on_sparsity_not_preserved <- function(op, when)
+{
+    flipped_op <- .flip_Compare_op(op)
+    show_flipped_op <- flipped_op != op || .op_is_commutative(op)
+    if (show_flipped_op) {
+        msg <- c("'x ", op, " y' and 'y ", flipped_op, " x': operations")
+    } else {
+        msg <- c("x ", op, " y: operation")
+    }
+    stop(wmsg(msg, " not supported on SparseArray object x ",
+              "when ", when, " (result wouldn't be sparse)"))
 }
 
 
@@ -93,16 +123,15 @@ setMethod("-", c("SparseArray", "missing"),
     if (length(y) != 1L)
         stop(wmsg("arithmetic operations are not supported between a ",
                   "SparseArray object and a vector of length != 1"))
-    if (!is.finite(y))
-        stop(wmsg("\"", op, "\" is not supported between a SparseArray ",
-                  "object and a non-finite value (NA, NaN, Inf, or -Inf)"))
+    if (is.na(y))
+        .error_on_sparsity_not_preserved(op, "y is NA or NaN")
+    if (op == "*" && is.infinite(y))
+        .error_on_sparsity_not_preserved(op, "y is Inf or -Inf")
     if (op == "^" && y <= 0)
-        stop(wmsg("x ", op, " y: operation not supported on ",
-                  "SparseArray object 'x' when 'y' is non-positive"))
+        .error_on_sparsity_not_preserved(op, "y is non-positive")
     if (op != "*" && y == 0)
-        stop(wmsg("x ", op, " 0: operation not supported on SparseArray ",
-                  "object 'x'"))
-                
+        .error_on_sparsity_not_preserved(op, "y == 0")
+
     ## Compute 'ans_type'.
     if (type(y) == "integer" && (type(x) == "double") || op %in% c("/", "^")) {
         ans_type <- type(y) <- "double"
@@ -211,21 +240,6 @@ setMethod("Arith", c("array", "SVT_SparseArray"),
         stop(wmsg("invalid comparison with complex values"))
 }
 
-.flip_Compare_op <- function(op)
-    switch(op, `<=`=">=", `>=`="<=", `<`=">", `>`="<", op)
-
-.Compare_op_would_destroy_sparsity <- function(op, when)
-{
-    op2 <- .flip_Compare_op(op)
-    if (op == op2) {
-        msg <- c("x ", op, " y: operation")
-    } else {
-        msg <- c("x ", op, " y and y ", op2, " x: operations")
-    }
-    msg <- c(msg, " not supported on SparseArray object x when ", when)
-    stop(wmsg(msg))
-}
-
 .must_homogenize_for_Compare <- function(x_type, y_type)
 {
     if (x_type == "raw" && y_type == "logical" ||
@@ -270,36 +284,36 @@ setMethod("Arith", c("array", "SVT_SparseArray"),
         stop(wmsg("comparison operations are not supported between a ",
                   "SparseArray object and a vector of length != 1"))
     if (is.na(y))
-        stop(wmsg("comparison operations are not supported between a ",
-                  "SparseArray object and an NA or NaN"))
+        .error_on_sparsity_not_preserved(op,
+                    "y is NA or NaN")
     if (type(y) %in% c("logical", "raw") && op %in% c("<=", "<"))
-        .Compare_op_would_destroy_sparsity(op,
+        .error_on_sparsity_not_preserved(op,
                     "y is a logical or raw value")
 
     biggest_type <- type(c(vector(x_type), y))
     if (biggest_type == "character" && op %in% c("<=", "<"))
-        .Compare_op_would_destroy_sparsity(op,
+        .error_on_sparsity_not_preserved(op,
                     "type(x) is \"character\" or y is a string")
 
     type(y) <- biggest_type
     zero <- vector(type(y), length=1L)
     if (op == "==" && y == zero)
-        .Compare_op_would_destroy_sparsity(op,
+        .error_on_sparsity_not_preserved(op,
                     "y is 0 or FALSE or the empty string")
     if (op == "!=" && y != zero)
-        .Compare_op_would_destroy_sparsity(op,
+        .error_on_sparsity_not_preserved(op,
                     "y is not 0, FALSE, or the empty string")
     if (op == "<=" && y >= zero)
-        .Compare_op_would_destroy_sparsity(op,
+        .error_on_sparsity_not_preserved(op,
                     "y is >= 0")
     if (op == ">=" && y <= zero)
-        .Compare_op_would_destroy_sparsity(op,
+        .error_on_sparsity_not_preserved(op,
                     "y is <= 0, or FALSE, or the empty string")
     if (op == "<" && y > zero)
-        .Compare_op_would_destroy_sparsity(op,
+        .error_on_sparsity_not_preserved(op,
                     "y is > 0")
     if (op == ">" && y < zero)
-        .Compare_op_would_destroy_sparsity(op,
+        .error_on_sparsity_not_preserved(op,
                     "y is < 0")
 
     ## Handle situations where we need to change the type() of 'x' to
@@ -382,6 +396,39 @@ setMethod("Compare", c("array", "SVT_SparseArray"),
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### 'Logic' group
 ###
+
+.Logic_SVT1_v2 <- function(op, x, y)
+{
+    stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
+
+    ## Check types.
+    x_type <- type(x)
+    .check_Logic_input_type(x_type)
+    if (!(type(y) %in% .LOGIC_INPUT_TYPES))
+        stop(wmsg("\"", op, "\" between a SparseArray object ",
+                  "and a ", class(y), " vector is not supported"))
+
+    ## Check 'y'.
+    if (length(y) != 1L)
+        stop(wmsg("\"", op, "\" between a SparseArray object ",
+                  "and a vector of length != 1 is not supported"))
+    if (is.na(y))
+        .error_on_sparsity_not_preserved(op, "y is NA")
+
+    if (op == "&" && isFALSE(y))
+        return(BiocGenerics:::replaceSlots(x, SVT=NULL, check=FALSE))
+    if (op == "|" && isTRUE(y))
+        .error_on_sparsity_not_preserved(op, "y is TRUE")
+    x
+}
+
+setMethod("Logic", c("SVT_SparseArray", "vector"),
+    function(e1, e2) .Logic_SVT1_v2(.Generic, e1, e2)
+)
+
+setMethod("Logic", c("vector", "SVT_SparseArray"),
+    function(e1, e2) .Logic_SVT1_v2(.Generic, e2, e1)
+)
 
 .Logic_SVT1_SVT2 <- function(op, x, y)
 {
