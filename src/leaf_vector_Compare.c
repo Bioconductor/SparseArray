@@ -115,10 +115,17 @@ static int sparse_Compare_Rbytes_Rbyte
 static int sparse_Compare_Rbytes_Rbytes
 	ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN2(Rbyte, Rbyte)
 
+/* WARNING: Only valid to use on the int values of an integer vector (INTSXP).
+   Should NOT be used on the int values of a logical vector (LGLSEXP), on
+   which Compare_Rbyte_int() will generally produce wrong results!
+   For example if Rbyte value 'x' is >= 2 and int value 'y' is 1 (TRUE),
+   then == and <= will both return 0 when they are expected to return 1. */
 static inline int Compare_Rbyte_int(Rbyte x, int y, int opcode)
 {
 	int x1;
 
+	if (y == NA_INTEGER)
+		return NA_INTEGER;
 	x1 = (int) x;
 	switch (opcode) {
 	    case EQ_OPCODE: return x1 == y;
@@ -142,6 +149,8 @@ static inline int Compare_Rbyte_double(Rbyte x, double y, int opcode)
 {
 	double x1;
 
+	if (ISNAN(y))
+		return NA_INTEGER;
 	x1 = (double) x;
 	switch (opcode) {
 	    case EQ_OPCODE: return x1 == y;
@@ -165,6 +174,8 @@ static inline int Compare_Rbyte_Rcomplex(Rbyte x, Rcomplex y, int opcode)
 {
 	double x1;
 
+	if (ISNAN(y.r) || ISNAN(y.i))
+		return NA_INTEGER;
 	x1 = (double) x;
 	switch (opcode) {
 	    case EQ_OPCODE: return x1 == y.r && 0.0 == y.i;
