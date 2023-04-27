@@ -26,6 +26,8 @@
 \alias{Compare,SVT_SparseArray,array-method}
 \alias{Compare,array,SVT_SparseArray-method}
 
+\alias{Logic,SVT_SparseArray,vector-method}
+\alias{Logic,vector,SVT_SparseArray-method}
 \alias{Logic,SVT_SparseArray,SVT_SparseArray-method}
 \alias{Logic,SVT_SparseArray,array-method}
 \alias{Logic,array,SVT_SparseArray-method}
