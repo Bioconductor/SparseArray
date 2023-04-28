@@ -14,10 +14,12 @@ int _get_Arith_opcode(SEXP op)
 	const char *s;
 
 	if (!IS_CHARACTER(op) || LENGTH(op) != 1)
-		error("'op' must be a single string");
+		error("SparseArray internal error in _get_Arith_opcode():\n"
+		      "    'op' must be a single string");
 	op = STRING_ELT(op, 0);
 	if (op == NA_STRING)
-		error("'op' cannot be NA");
+		error("SparseArray internal error in _get_Arith_opcode():\n"
+		      "    'op' cannot be NA");
 	s = CHAR(op);
 	if (strcmp(s, "+") == 0)
 		return ADD_OPCODE;
@@ -33,8 +35,7 @@ int _get_Arith_opcode(SEXP op)
 		return MOD_OPCODE;
 	if (strcmp(s, "%/%") == 0)
 		return IDIV_OPCODE;
-	error("SparseArray internal error in "
-	      "_get_Arith_opcode():\n"
+	error("SparseArray internal error in _get_Arith_opcode():\n"
 	      "    invalid op: \"%s\"", s);
 	return 0;  /* will never reach this */
 }

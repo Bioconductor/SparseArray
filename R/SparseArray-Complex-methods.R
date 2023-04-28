@@ -1,5 +1,5 @@
 ### =========================================================================
-### Complex methods for SparseArray objects
+### 'Complex' methods for SparseArray objects
 ### -------------------------------------------------------------------------
 ###
 ### The 'Complex' group consists of the following methods:
@@ -25,7 +25,7 @@
                   "only supports input of type \"complex\" at the moment"))
 
     ## Returns 'ans_type' and 'ans_SVT' in a list of length 2.
-    C_ans <- .Call2("C_SVT_Complex", z@dim, z@type, z@SVT, op,
+    C_ans <- .Call2("C_Complex_SVT", z@dim, z@type, z@SVT, op,
                     PACKAGE="SparseArray")
     ans_type <- C_ans[[1L]]
     ans_SVT <- C_ans[[2L]]

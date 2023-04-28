@@ -1,5 +1,5 @@
 ### =========================================================================
-### Ops methods for SparseArray objects
+### 'Ops' methods for SparseArray objects
 ### -------------------------------------------------------------------------
 ###
 ### The 'Ops' group of methods consists of three sub groups:
