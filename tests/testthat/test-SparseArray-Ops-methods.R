@@ -3,15 +3,20 @@
 
 .test_Arith_SVT1_v2 <- function(a1, svt1, v2, relax.MOD.and.IDIV=FALSE)
 {
-    expected <- a1 * v2
-    svt <- svt1 * v2
-    expect_true(is(svt, "SVT_SparseArray"))
-    expect_true(validObject(svt))
-    expect_identical(as.array(svt), expected)
-    svt <- v2 * svt1
-    expect_true(is(svt, "SVT_SparseArray"))
-    expect_true(validObject(svt))
-    expect_identical(as.array(svt), expected)
+    if (is.infinite(v2)) {
+        expect_error(svt1 * v2, "not supported")
+        expect_error(v2 * svt1, "not supported")
+    } else {
+        expected <- a1 * v2
+        svt <- svt1 * v2
+        expect_true(is(svt, "SVT_SparseArray"))
+        expect_true(validObject(svt))
+        expect_identical(as.array(svt), expected)
+        svt <- v2 * svt1
+        expect_true(is(svt, "SVT_SparseArray"))
+        expect_true(validObject(svt))
+        expect_identical(as.array(svt), expected)
+    }
 
     if (v2 == 0)
         return()
@@ -133,6 +138,7 @@ test_that("'Arith' ops between SVT_SparseArray object and single value", {
 
     m1[1, ] <- m1[1, ] + 0.5
     m1[2, ] <- c(NA, NaN, Inf, -Inf)
+    m1[3, ] <- c(-1, -0.1, 0.1, 1)
     svt1 <- as(m1, "SVT_SparseArray")
 
     .test_Arith_SVT1_v2(m1, svt1, 0L)
@@ -140,6 +146,8 @@ test_that("'Arith' ops between SVT_SparseArray object and single value", {
     .test_Arith_SVT1_v2(m1, svt1, -5L)
     .test_Arith_SVT1_v2(m1, svt1, 1L)
     .test_Arith_SVT1_v2(m1, svt1, -1L)
+    .test_Arith_SVT1_v2(m1, svt1, Inf)
+    .test_Arith_SVT1_v2(m1, svt1, -Inf)
 
     ## Not expected to work.
     expect_error(5 / svt1, "not supported")

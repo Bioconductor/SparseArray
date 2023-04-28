@@ -1,5 +1,5 @@
 /****************************************************************************
- *                   Ops methods for SparseArray objects                    *
+ *                  'Ops' methods for SparseArray objects                   *
  ****************************************************************************/
 #include "SparseArray_Ops_methods.h"
 
@@ -7,7 +7,7 @@
 #include "leaf_vector_Arith.h"
 #include "leaf_vector_Compare.h"
 #include "leaf_vector_Logic.h"
-#include "SVT_SparseArray_class.h"
+#include "SVT_SparseArray_class.h"  /* for _coerce_SVT() */
 
 #include <string.h>  /* for memcmp() */
 
