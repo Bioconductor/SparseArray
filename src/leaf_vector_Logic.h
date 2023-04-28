@@ -9,5 +9,13 @@
 
 int _get_Logic_opcode(SEXP op);
 
+SEXP _Logic_lv1_lv2(
+	SEXP lv1,
+	SEXP lv2,
+	int opcode,
+	int *offs_buf,
+	int *vals_buf
+);
+
 #endif  /* _LEAF_VECTOR_LOGIC_H_ */
 

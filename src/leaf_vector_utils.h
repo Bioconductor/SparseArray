@@ -20,7 +20,7 @@
 static const Rbyte Rbyte0 = 0;
 static const int int0 = 0;
 static const double double0 = 0.0;
-static const Rcomplex Rcomplex0 = {0.0, 0.0};
+static const Rcomplex Rcomplex0 = {{0.0, 0.0}};
 
 #define ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(Ltype, Rtype)(	\
 		const int *offs1, const Ltype *vals1, int n1,	\
