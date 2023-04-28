@@ -214,7 +214,7 @@ SEXP _coerce_leaf_vector(SEXP lv, SEXPTYPE new_Rtype, int *warn, int *offs_buf)
 /****************************************************************************
  * _subassign_leaf_vector_with_Rvector()
  *
- * 'lv' must be a "leaf vector".
+ * 'lv' must be a "leaf vector" (cannot be R_NilValue).
  * 'index' must be an integer vector containing valid zero-based indices
  * (a.k.a. offsets) into 'lv'. They are expected to be already sorted in
  * strictly ascending order.
@@ -329,6 +329,93 @@ SEXP _subassign_leaf_vector_with_Rvector(SEXP lv, SEXP index, SEXP Rvector)
 	}
 	UNPROTECT(1);
 	return ans;
+}
+
+
+/****************************************************************************
+ * lv_apply()
+ */
+
+#define ARGS_AND_BODY_OF_SPARSE_APPLY_FUN(in_type, out_type)(	\
+		const int *offs, const in_type *vals, int n,	\
+		out_type (*FUN)(in_type),			\
+		int *offs_buf, out_type *vals_buf)		\
+{								\
+	int ans_len, k;						\
+	out_type v;						\
+								\
+	for (ans_len = k = 0; k < n; k++) {			\
+		v = FUN(vals[k]);				\
+		if (v != out_type ## 0) {			\
+			offs_buf[ans_len] = offs[k];		\
+			vals_buf[ans_len] = v;			\
+			ans_len++;				\
+		}						\
+	}							\
+	return ans_len;						\
+}
+
+static int sparse_Rbyte2double_apply
+	ARGS_AND_BODY_OF_SPARSE_APPLY_FUN(Rbyte, double)
+static int sparse_int2double_apply
+	ARGS_AND_BODY_OF_SPARSE_APPLY_FUN(int, double)
+static int sparse_double2double_apply
+	ARGS_AND_BODY_OF_SPARSE_APPLY_FUN(double, double)
+static int sparse_Rcomplex2double_apply
+	ARGS_AND_BODY_OF_SPARSE_APPLY_FUN(Rcomplex, double)
+
+/* 'lv' must be a "leaf vector" (cannot be R_NilValue). */
+SEXP _lv_apply_to_REALSXP(SEXP lv, apply_2double_FUNS *funs,
+			  int *offs_buf, double *vals_buf)
+{
+	int lv_len, ans_len;
+	SEXP lv_offs, lv_vals;
+	const int *offs;
+	SEXPTYPE in_Rtype;
+
+	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
+	offs = INTEGER(lv_offs);
+	in_Rtype = TYPEOF(lv_vals);
+	switch (in_Rtype) {
+	    case RAWSXP:
+		if (funs->Rbyte2double_FUN == NULL)
+			error("operation not supported on SVT_SparseArray "
+			      "objects of type \"%s\"", type2char(in_Rtype));
+		ans_len = sparse_Rbyte2double_apply(
+				offs, RAW(lv_vals), lv_len,
+				funs->Rbyte2double_FUN, offs_buf, vals_buf);
+		break;
+	    case LGLSXP: case INTSXP:
+		if (funs->int2double_FUN == NULL)
+			error("operation not supported on SVT_SparseArray "
+			      "objects of type \"%s\"", type2char(in_Rtype));
+		ans_len = sparse_int2double_apply(
+				offs, INTEGER(lv_vals), lv_len,
+				funs->int2double_FUN, offs_buf, vals_buf);
+		break;
+	    case REALSXP:
+		if (funs->double2double_FUN == NULL)
+			error("operation not supported on SVT_SparseArray "
+			      "objects of type \"%s\"", type2char(in_Rtype));
+		ans_len = sparse_double2double_apply(
+				offs, REAL(lv_vals), lv_len,
+				funs->double2double_FUN, offs_buf, vals_buf);
+		break;
+	    case CPLXSXP:
+		if (funs->Rcomplex2double_FUN == NULL)
+			error("operation not supported on SVT_SparseArray "
+			      "objects of type \"%s\"", type2char(in_Rtype));
+		ans_len = sparse_Rcomplex2double_apply(
+				offs, COMPLEX(lv_vals), lv_len,
+				funs->Rcomplex2double_FUN, offs_buf, vals_buf);
+		break;
+	    default:
+		error("SparseArray internal error in _lv_apply_to_REALSXP():\n"
+		      "    unsupported 'in_Rtype': \"%s\"",
+		      type2char(in_Rtype));
+	}
+	return _new_leaf_vector_from_bufs(REALSXP,
+				offs_buf, vals_buf, ans_len);
 }
 
 

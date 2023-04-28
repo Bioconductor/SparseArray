@@ -124,6 +124,13 @@ static inline int _split_leaf_vector(SEXP lv, SEXP *lv_offs, SEXP *lv_vals)
 	return (int) lv_offs_len;
 }
 
+typedef struct apply_2double_funs_t {
+	double (*Rbyte2double_FUN)(Rbyte);
+	double (*int2double_FUN)(int);
+	double (*double2double_FUN)(double);
+	double (*Rcomplex2double_FUN)(Rcomplex);
+} apply_2double_FUNS;
+
 SEXP _alloc_leaf_vector(
 	int lv_len,
 	SEXPTYPE Rtype
@@ -173,6 +180,13 @@ SEXP _subassign_leaf_vector_with_Rvector(
 	SEXP lv,
 	SEXP index,
 	SEXP Rvector
+);
+
+SEXP _lv_apply_to_REALSXP(
+	SEXP lv,
+	apply_2double_FUNS *funs,
+	int *offs_buf,
+	double *vals_buf
 );
 
 int _summarize_leaf_vector(

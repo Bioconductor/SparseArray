@@ -308,7 +308,6 @@ SEXP C_Compare_SVT1_v2(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP v2, SEXP op)
                       "    invalid 'x_type'");
 	opcode = _get_Compare_opcode(op);
 	offs_buf = (int *) R_alloc(INTEGER(x_dim)[0], sizeof(int));
-	/* Must be big enough to contain ints or doubles. */
 	vals_buf = (int *) R_alloc(INTEGER(x_dim)[0], sizeof(int));
 	return REC_Compare_SVT1_v2(x_SVT, v2,
 				   INTEGER(x_dim), LENGTH(x_dim),

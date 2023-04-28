@@ -7,7 +7,7 @@
 
 
 /* --- .Call ENTRY POINT --- */
-SEXP C_SVT_Complex(SEXP z_dim, SEXP z_type, SEXP z_SVT, SEXP op)
+SEXP C_Complex_SVT(SEXP z_dim, SEXP z_type, SEXP z_SVT, SEXP op)
 {
 	SEXP ans, ans_elt;
 
