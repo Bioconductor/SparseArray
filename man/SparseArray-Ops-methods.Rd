@@ -47,8 +47,6 @@
           \link{COO_SparseArray} might be added in the future.
     \item \code{Arith} operations don't support \link{SVT_SparseArray}
           objects of \code{type()} \code{"complex"} at the moment.
-    \item Operations from the \code{Logic} groups are not ready yet but
-          will be soon.
   }
 }
 

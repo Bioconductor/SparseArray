@@ -697,7 +697,7 @@ SEXP _Compare_lv1_v2(SEXP lv1, SEXP v2, int opcode,
 				offs_buf, vals_buf, ans_len);
 }
 
-/* Each of 'SVT1' and 'SVT2' must be a "leaf vector" or NULL. */
+/* Each of 'lv1' and 'lv2' must be a "leaf vector" or NULL. */
 SEXP _Compare_lv1_lv2(SEXP lv1, SEXP lv2, int opcode,
 		      int *offs_buf, int *vals_buf)
 {

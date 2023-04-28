@@ -435,15 +435,16 @@ setMethod("Logic", c("vector", "SVT_SparseArray"),
     stopifnot(isSingleString(op),
               is(x, "SVT_SparseArray"),
               is(y, "SVT_SparseArray"))
+
+    ## Check types.
+    .check_Logic_input_type(type(x))
+    .check_Logic_input_type(type(y))
+
+    ## Check array conformability.
     x_dim <- dim(x)
     y_dim <- dim(y)
     if (!identical(x_dim, y_dim))
         stop(wmsg("non-conformable arrays"))
-
-    if (type(x) != "logical" || type(y) != "logical")
-        stop(wmsg("the \"", op, "\" method for SVT_SparseArray objects ",
-                  "only supports input objects of type() \"logical\" at ",
-                  "the moment"))
 
     ## Compute 'ans_dimnames'.
     ans_dimnames <- S4Arrays:::get_first_non_NULL_dimnames(list(x, y))

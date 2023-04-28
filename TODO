@@ -13,10 +13,6 @@
   rowMeans2, rowSums2, rowRanks, rowQuantiles, rowMads, rowIQRs, rowAlls,
   rowCumsums, rowWeightedMeans, rowAnyNAs) + corresponding col* methods.
 
-- Add unit tests for Compare methods for SVT_SparseArray objects.
-
-- Implement Logic methods for SVT_SparseArray objects.
-
 - Implement Math2 methods and **some** Math methods (only those that
   preserve sparsity that is: abs, sign, sqrt, ceiling, floor, trunc, log1p,
   asin, asinh, atan, atanh, expm1, sin, sinh, sinpi, tan, tanh, and tanpi).
