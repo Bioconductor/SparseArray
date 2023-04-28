@@ -5,7 +5,8 @@
 
 #include "Rvector_utils.h"
 #include "leaf_vector_utils.h"
-#include "SVT_SparseArray_class.h"
+#include "leaf_vector_dotprod.h"
+#include "SVT_SparseArray_class.h"  /* for _REC_get_SVT_nzcount() */
 
 #include <string.h>  /* for memset() */
 
