@@ -3,7 +3,7 @@
 ### -------------------------------------------------------------------------
 ###
 ### The 'Math' group consists of the following methods:
-### - abs, sign, sqrt, ceiling, floor, trunc
+### - abs, sign, sqrt, floor, ceiling, trunc
 ### - cummax, cummin, cumprod, cumsum
 ### - log, log10, log2, log1p, exp, expm1
 ### - cos, cospi, acos, sin, sinpi, asin, tan, tanpi, atan
@@ -19,9 +19,27 @@
 ### 'Math' group
 ###
 
+### We only support functions in the 'Math' group that preserve sparsity.
+.SUPPORTED_MATH_OPS <- c(
+    "abs", "sign", "sqrt", "floor", "ceiling", "trunc",
+    "log1p", "expm1",
+    "sin", "sinpi", "asin", "tan", "tanpi", "atan",
+    "sinh", "asinh", "tanh", "atanh"
+)
+
+.check_Math_op <- function(op)
+{
+    if (!(op %in% .SUPPORTED_MATH_OPS))
+        stop(wmsg(op, "() is not supported on SparseArray ",
+                  "objects (result wouldn't be sparse in general)"))
+}
+
 .Math_SVT <- function(op, x)
 {
     stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
+
+    .check_Math_op(op)
+
     if (type(x) != "double")
         stop(wmsg("the ", op, "() method for SVT_SparseArray objects ",
                   "only supports input of type \"double\" at the moment"))
