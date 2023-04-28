@@ -87,7 +87,7 @@ exportMethods(
     var,
     nchar,
     crossprod, tcrossprod, "%*%",
-    Arith, Logic, Math, round, signif, Complex,
+    "+", "-", Arith, "!", Logic, Math, round, signif, Complex,
 
     ## Methods for generics defined in the methods package:
     coerce, show,

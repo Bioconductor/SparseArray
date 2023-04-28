@@ -9,7 +9,9 @@
 ###
 ### See '?S4groupGeneric' for more information.
 ###
-### We also implement unary "+" and "-" for SparseArray objects.
+### We also implement:
+### - unary "+" and "-" methods for SparseArray objects
+### - a logical negation ("!") method for SparseArray objects
 
 .ARITH_INPUT_TYPES <- c("integer", "double", "complex")
 
@@ -117,7 +119,8 @@ setMethod("-", c("SparseArray", "missing"),
     ## Check 'op'.
     if (!(op %in% c("*", "/", "^", "%%", "%/%")))
         stop(wmsg("\"", op, "\" is not supported between a SparseArray ",
-                  "object and a ", class(y), " vector"))
+                  "object and a ", class(y), " vector (result wouldn't ",
+                  "be sparse in general)"))
 
     ## Check 'y'.
     if (length(y) != 1L)
@@ -137,7 +140,7 @@ setMethod("-", c("SparseArray", "missing"),
         ans_type <- type(y) <- "double"
     } else {
         ans_type <- type(c(vector(type(x)), y))
-        if (ans_type == "complex")
+        if (ans_type == "complex")  # temporary
             stop(wmsg("\"", op, "\" is not implemented yet between an ",
                       "SVT_SparseArray object and a single value when ",
                       "one or the other is of type() \"", ans_type, "\""))
@@ -159,8 +162,9 @@ setMethod("Arith", c("vector", "SVT_SparseArray"),
     function(e1, e2) {
         if (.Generic != "*")
             stop(wmsg("\"", .Generic, "\" is not supported between ",
-                      "a ", class(e1), " vector (on the left) and ",
-                      "an SVT_SparseArray object (on the right)"))
+                      "a ", class(e1), " vector on the left and an ",
+                      "SVT_SparseArray object on the right (result ",
+                      "wouldn't be sparse in general)"))
         .Arith_SVT1_v2(.Generic, e2, e1)
     }
 )
@@ -179,7 +183,7 @@ setMethod("Arith", c("vector", "SVT_SparseArray"),
     ## Check 'op'.
     if (!(op %in% c("+", "-", "*")))
         stop(wmsg("\"", op, "\" is not supported between SparseArray ",
-                  "objects"))
+                  "objects (result wouldn't be sparse in general)"))
 
     ## Check array conformability.
     x_dim <- dim(x)
@@ -192,7 +196,7 @@ setMethod("Arith", c("vector", "SVT_SparseArray"),
 
     ## Compute 'ans_type'.
     ans_type <- type(c(vector(type(x)), vector(type(y))))
-    if (ans_type == "complex")
+    if (ans_type == "complex")  # temporary
         stop(wmsg("\"", op, "\" is not implemented yet between ",
                   "SVT_SparseArray objects of type() \"", ans_type, "\""))
 
@@ -354,9 +358,9 @@ setMethod("Compare", c("vector", "SVT_SparseArray"),
     if (!(op %in% c("!=", "<", ">"))) {
         suggest <- switch(op, `==`="!=", `<=`="<", `>=`=">")
         suggest <- if (is.null(suggest)) "" else
-                       paste0(" (but \"", suggest, "\" is)")
+                       paste0(", but \"", suggest, "\" is")
         stop(wmsg("\"", op, "\" is not supported between SparseArray ",
-                  "objects", suggest))
+                  "objects (result wouldn't be sparse in general)", suggest))
     }
 
     ## Check array conformability.
@@ -390,6 +394,19 @@ setMethod("Compare", c("SVT_SparseArray", "array"),
 
 setMethod("Compare", c("array", "SVT_SparseArray"),
     function(e1, e2) .Compare_SVT1_SVT2(.Generic, as(e1, "SVT_SparseArray"), e2)
+)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Logical negation
+###
+
+setMethod("!", "SparseArray",
+    function(x)
+    {
+        stop(wmsg("logical negation (\"!\") is not supported on SparseArray ",
+                  "objects (result wouldn't be sparse in general)"))
+    }
 )
 
 
