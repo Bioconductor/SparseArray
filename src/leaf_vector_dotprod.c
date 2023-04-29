@@ -6,6 +6,36 @@
 #include "leaf_vector_utils.h"
 
 
+/* Not sure what's going on, but the following tests fail on palomino4 (but
+   not on any other build machine):
+     m0 <- matrix(0, nrow=5, ncol=3)
+     m0[3, 1] <- Inf
+     m0[2, 3] <- -11.99
+     svt0 <- as(m0, "SVT_SparseMatrix")
+     expected <- crossprod(m0, m0)
+     expect_equal(crossprod(svt0, m0), expected)
+     expect_equal(crossprod(m0, svt0), expected)
+   The failure is apparently because crossprod(svt0, m0)[3,1] and
+   crossprod(m0, svt0)[1,3] are Inf instead of NaN. Only explanation I was
+   able to come up with so far is that multiplying 0 with an infinite value
+   (Inf or -Inf) can (sometimes?) produce an infinite value on this machine,
+   instead of the expected NaN. What's really confusing is that the above
+   tests fail on palomino4 but not on palomino3. Both machines are Azure
+   VMs running Windows Server 2022 Datacenter.
+   fix_mult_on_palomino4() is my attempt at working around this issue.
+   We'll see how it goes. */
+static inline double fix_mult_on_palomino4(double x, double y)
+{
+	if (x == R_PosInf || x == R_NegInf) {
+		if (y == 0.0)
+			return R_NaN;
+	} else if (y == R_PosInf || y == R_NegInf) {
+		if (x == 0.0)
+			return R_NaN;
+	}
+	return x * y;
+}
+
 double _dotprod_leaf_vectors(SEXP lv1, SEXP lv2)
 {
 	int lv1_len, lv2_len, k1, k2, off;
@@ -23,7 +53,7 @@ double _dotprod_leaf_vectors(SEXP lv1, SEXP lv2)
 	{
 		if (R_IsNA(v1) || R_IsNA(v2))
 			return NA_REAL;
-		ans += v1 * v2;
+		ans += fix_mult_on_palomino4(v1, v2);
 	}
 	return ans;
 }
@@ -82,7 +112,7 @@ double _dotprod_leaf_vector_and_double_col(SEXP lv1,
 			offs1_p++;
 			vals1_p++;
 		}
-		ans += v1 * v2;
+		ans += fix_mult_on_palomino4(v1, v2);
 	}
 	return ans;
 }
@@ -174,7 +204,7 @@ double _dotprod0_double_col(const double *x, int x_len)
 		v = x[i];
 		if (R_IsNA(v))
 			return NA_REAL;
-		ans += v * 0.0;
+		ans += fix_mult_on_palomino4(v, 0.0);
 	}
 	return ans;
 }
