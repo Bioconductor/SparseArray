@@ -39,14 +39,15 @@
 \description{
   \link{SparseArray} derivatives support operations from the \code{Arith},
   \code{Compare}, and \code{Logic} groups, with some restrictions.
-  All together, these groups are referred to as the \code{Ops} group. See
-  \code{?\link[methods]{S4groupGeneric}} in the \pkg{methods} package for
-  more information.
+  All together, these groups are referred to as the \code{Ops} group.
+  See \code{?\link[methods]{S4groupGeneric}} in the \pkg{methods} package
+  for more information about the \code{Ops} group generic.
 
   IMPORTANT NOTES:
   \itemize{
     \item Only \link{SVT_SparseArray} objects are supported at the moment.
-          \link{COO_SparseArray} might be added in the future.
+          Support for \link{COO_SparseArray} objects might be added in the
+          future.
     \item \code{Arith} operations don't support \link{SVT_SparseArray}
           objects of \code{type()} \code{"complex"} at the moment.
   }
@@ -105,6 +106,7 @@ svt <- SparseArray(m)
 ## Can be 5x or 10x faster than with a dgCMatrix object on a big
 ## SVT_SparseMatrix object!
 svt2 <- (svt^1.5 + svt) %% 100 - 0.2 * svt > 0
+svt2
 
 ## Sanity check:
 m2 <- (m^1.5 + m) %% 100 - 0.2 * m > 0
