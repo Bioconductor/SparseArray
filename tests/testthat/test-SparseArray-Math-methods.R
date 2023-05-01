@@ -1,3 +1,5 @@
+.IS_INTEL_MAC <- Sys.info()[["sysname"]] == "Darwin" &&
+                 Sys.info()[["machine"]] == "x86_64"
 
 .test_Math_op <- function(a, svt, op)
 {
@@ -19,11 +21,12 @@
     expect_true(is(current, "SVT_SparseArray"))
     expect_true(validObject(current))
     ## Looks like using expect_identical() is too strict for some operations
-    ## on some systems e.g. for "tanpi" on lconway (Intel macOS 12.5.1
-    ## Monterey). Of course we could simply always use expect_equal() instead
-    ## of expect_identical() everywhere. However, it's interesting to catch
-    ## those operations for which expect_identical() fails.
-    if (op == "tanpi") {
+    ## on some systems e.g. for "tanpi" on merida1 or lconway (both running
+    ## Intel macOS Monterey). Of course we could simply always use
+    ## expect_equal() instead of expect_identical() everywhere no matter what.
+    ## But then we'd loose the fun of identifying those (operations,systems)
+    ## combinations for which expect_identical() fails.
+    if (.IS_INTEL_MAC && op == "tanpi") {
         expect_equal(as.array(current), expected)
     } else {
         expect_identical(as.array(current), expected)
