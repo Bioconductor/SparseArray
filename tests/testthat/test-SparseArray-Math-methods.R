@@ -18,7 +18,16 @@
     }
     expect_true(is(current, "SVT_SparseArray"))
     expect_true(validObject(current))
-    expect_identical(as.array(current), expected)
+    ## Looks like using expect_identical() is too strict for some operations
+    ## on some systems e.g. for "tanpi" on lconway (Intel macOS 12.5.1
+    ## Monterey). Of course we could simply always use expect_equal() instead
+    ## of expect_identical() everywhere. However, it's interesting to catch
+    ## those operations for which expect_identical() fails.
+    if (op == "tanpi") {
+        expect_equal(as.array(current), expected)
+    } else {
+        expect_identical(as.array(current), expected)
+    }
 }
 
 test_that("'Math' ops on SVT_SparseArray objects", {

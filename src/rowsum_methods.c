@@ -173,7 +173,7 @@ SEXP C_rowsum_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		rowsum_SVT_int(x_nrow, x_ncol, x_SVT,
 			INTEGER(group), ans_nrow, narm, INTEGER(ans));
 	} else {
-		error("rowsum() or colsum() do not support "
+		error("rowsum() or colsum() does not support "
 		      "SVT_SparseMatrix objects of\n"
 		      "  type \"%s\" at the moment",
 		      type2char(x_Rtype));
