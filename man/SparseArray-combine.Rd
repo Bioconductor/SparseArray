@@ -55,9 +55,9 @@ rbind(sm1, sm2)
 
 ## Combining SparseArray objects with 3 dimensions:
 
-a1 <- array(1:60, c(3, 5, 4),
+a1 <- array(1:60, dim=c(3, 5, 4),
             dimnames=list(NULL, paste0("A1y", 1:5), NULL))
-a2 <- array(101:240, c(7, 5, 4),
+a2 <- array(101:240, dim=c(7, 5, 4),
             dimnames=list(paste0("A2x", 1:7), paste0("A2y", 1:5), NULL))
 sa1 <- SparseArray(a1)
 sa2 <- SparseArray(a2)

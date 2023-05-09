@@ -122,7 +122,7 @@ extract_sparse_array(dgcm, list(3:6, integer(0)))
 
 ## --- On a SparseArray object ---
 
-a <- array(0L, 5:3, dimnames=list(letters[1:5], NULL, LETTERS[1:3]))
+a <- array(0L, dim=5:3, dimnames=list(letters[1:5], NULL, LETTERS[1:3]))
 a[c(1:2, 8, 10, 15:17, 20, 24, 40, 56:60)] <- (1:15)*10L
 svt <- as(a, "SparseArray")
 svt

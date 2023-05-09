@@ -87,7 +87,7 @@
 }
 
 \examples{
-a <- array(FALSE, 5:3)
+a <- array(FALSE, dim=5:3)
 nzidx <- c(1:2, 8, 10, 15:17, 20, 24, 40, 56:60)
 a[nzidx] <- TRUE
 coo <- as(a, "COO_SparseArray")

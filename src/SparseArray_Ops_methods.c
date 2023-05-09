@@ -369,7 +369,7 @@ SEXP C_Arith_SVT1_SVT2(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 }
 
 /* --- .Call ENTRY POINT ---
-   'x_type' and 'y_type' asre ignored. */
+   'x_type' and 'y_type' are ignored. */
 SEXP C_Compare_SVT1_SVT2(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 			 SEXP y_dim, SEXP y_type, SEXP y_SVT,
 			 SEXP op)
