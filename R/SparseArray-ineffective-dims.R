@@ -4,6 +4,24 @@
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### .select_SVT_SparseArray_dims()
+###
+### Workhorse behind dim() setter for SVT_SparseArray objects.
+
+.select_SVT_SparseArray_dims <- function(x, dim_selector)
+{
+    stopifnot(is(x, "SVT_SparseArray"), is.logical(dim_selector))
+    C_ans <- .Call2("C_select_SVT_dims",
+                    x@dim, x@dimnames, x@type, x@SVT, dim_selector,
+                    PACKAGE="SparseArray")
+    ans_dim <- C_ans[[1L]]
+    ans_dimnames <- C_ans[[2L]]
+    ans_SVT <- C_ans[[3L]]
+    new_SVT_SparseArray(ans_dim, ans_dimnames, x@type, ans_SVT, check=FALSE)
+}
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### drop()
 ###
 
@@ -12,7 +30,7 @@
 {
     stopifnot(is(x, "SVT_SparseArray"))
     ## Returns 'ans_dim', 'ans_dimnames', and 'ans_SVT', in a list of length 3.
-    C_ans <- .Call2("C_drop_SVT_SparseArray_ineffective_dims",
+    C_ans <- .Call2("C_drop_SVT_ineffective_dims",
                     x@dim, x@dimnames, x@type, x@SVT, PACKAGE="SparseArray")
     ans_dim <- C_ans[[1L]]
     ans_dimnames <- C_ans[[2L]]
