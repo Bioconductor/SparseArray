@@ -7,7 +7,6 @@
 \alias{extract_array,COO_SparseArray-method}
 \alias{extract_sparse_array,SVT_SparseArray-method}
 
-\alias{drop,SVT_SparseArray-method}
 \alias{[,SVT_SparseArray,ANY,ANY,ANY-method}
 \alias{extract_array,SVT_SparseArray-method}
 
@@ -22,6 +21,9 @@
   \itemize{
     \item \code{\link[base]{[}} in base R.
 
+    \item \code{SparseArray::\link[SparseArray]{drop}} to drop
+          \emph{ineffective} dimensions.
+
     \item \link{SparseArray} objects.
 
     \item \link[base]{array} objects in base R.
@@ -29,7 +31,7 @@
 }
 
 \examples{
-a <- array(0L, 5:3)
+a <- array(0L, dim=5:3)
 a[c(1:2, 8, 10, 15:17, 20, 24, 40, 56:60)] <- (1:15)*10L
 svt <- SparseArray(a)
 svt
