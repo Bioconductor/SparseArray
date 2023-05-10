@@ -1,6 +1,11 @@
 ### =========================================================================
-### Drop/add ineffective dims from/to a SparseArray object
+### Dim tuning of a SparseArray object
 ### -------------------------------------------------------------------------
+###
+### Dim tuning is the act of adding and/or dropping ineffective dimensions
+### to/from an array-like object. The exact actions to perform on the
+### dimensions of the object are described via the 'dim_tuner' argument.
+### See src/SparseArray_dim_tuning.c or more information.
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -8,19 +13,19 @@
 ###
 ### Unlike .tune_SVT_SparseArray_dims() below in this file, .tune_dims()
 ### and .tune_dimnames() both accept a 'dim_tuner' that is not normalized.
-### See src/SparseArray_ineffective_dims.c for more information.
+### See src/SparseArray_dim_tuning.c for more information.
 
 .tune_dims <- function(dim, dim_tuner)
 {
     stopifnot(is.integer(dim),
-              is.logical(dim_tuner))
+              is.integer(dim_tuner))
     .Call2("C_tune_dims", dim, dim_tuner, PACKAGE="SparseArray")
 }
 
 .tune_dimnames <- function(dimnames, dim_tuner)
 {
     stopifnot(is.null(dimnames) || is.list(dimnames),
-              is.logical(dim_tuner))
+              is.integer(dim_tuner))
     .Call2("C_tune_dimnames", dimnames, dim_tuner, PACKAGE="SparseArray")
 }
 
@@ -33,7 +38,7 @@
 .tune_SVT_SparseArray_dims <- function(x, dim_tuner)
 {
     stopifnot(is(x, "SVT_SparseArray"),
-              is.logical(dim_tuner))
+              is.integer(dim_tuner))
 
     ans_SVT <- .Call2("C_tune_SVT_dims",
                       x@dim, x@type, x@SVT, dim_tuner,
