@@ -1,7 +1,7 @@
 /****************************************************************************
- *          Drop/add ineffective dims from/to a SparseArray object          *
+ *                    Dim tuning of a SparseArray object                    *
  ****************************************************************************/
-#include "SparseArray_ineffective_dims.h"
+#include "SparseArray_dim_tuning.h"
 
 #include "Rvector_utils.h"
 #include "leaf_vector_utils.h"  /* for _split_leaf_vector() */
@@ -9,66 +9,66 @@
 #include <string.h>  /* for memset() */
 
 
+
 /****************************************************************************
- * Low-level handling of the "dimension tuner" ('dim_tuner' argument)
+ * Dim tuning and the 'dim_tuner' argument
  *
- * The 'dim_tuner' argument is a logical vector (possibly with NAs) that
- * indicates what to do with the dimensions in 'dims'. It can contain any
- * number of NAs anywhere, but it **must** have exactly 'ndim' non-NA
- * values, that is, 'ndim' TRUE/FALSE values.
- * Meaning of values in 'dim_tuner':
- *   o TRUE: Keep corresponding dimension in 'dims'.
- *   o FALSE: Drop corresponding dimension in 'dims'. This is allowed only
- *     if the dimension to drop is ineffective (i.e. has an extent of 1).
- *   o NA: Add ineffective dim.
+ * Dim tuning is the act of adding and/or dropping ineffective dimensions
+ * to/from an array-like object. The exact actions to perform on the
+ * dimensions of the object are described via the 'dim_tuner' argument.
  *
- * Additionally, 'dim_tuner' must contain at least one TRUE value (i.e.
- * at least one of the original dimension must be retained).
+ * The 'dim_tuner' argument must be an integer vector where each value
+ * represents one of three possible operations:
+ *   o  0: Keep the dimension.
+ *   o -1: Drop the dimension. This operation is allowed only if the
+ *         dimension to drop is ineffective (i.e. has an extent of 1).
+ *   o  1: Add ineffective dimension.
+ * Note that the 'dim_tuner' vector can contain any number of 1's, but the
+ * number of non-positive values (i.e. 0 and -1 values together) must match
+ * the number of dimensions of the array-like object to tune.
  *
- * The following patterns:
- *   - NA followed by a FALSE,
- *   - FALSE followed by an NA,
- * are both equivalent to a single TRUE in 'dim_tuner'. 'dim_tuner'
- * is considered to be "normalized" if it doesn't contain these patterns.
+ * Additionally, 'dim_tuner' must contain at least one 0. In other words,
+ * the tuning must retain at least one of the original dimensions of the
+ * object.
+ *
+ * Note that REC_tune_SVT() does not support a 'dim_tuner' vector where 1
+ * and -1 are neighbors. In other words, if a 'dim_tuner' vector contains
+ * 1's and -1's, then they must be separated by at least one 0.
+ * Such a 'dim_tuner' vector is considered to be "normalized".
  */
 
-static int dim_tuner_is_normalized(const int *dim_tuner, int dim_tuner_len)
+static int dim_tuner_is_normalized(const int *ops, int nops)
 {
-	int prev_akd, i, akd;
+	int prev_op, i, op;
 
-	prev_akd = dim_tuner[0];  // 'dim_tuner_len' is guaranteed to be >= 1
-	for (i = 1; i < dim_tuner_len; i++) {
-		akd = dim_tuner[i];
-		if (akd == NA_INTEGER) {
-			if (prev_akd != NA_INTEGER && !prev_akd)
-				return 0;
-		} else if (!akd) {
-			if (prev_akd == NA_INTEGER)
-				return 0;
-		}
-		prev_akd = akd;
+	prev_op = ops[0];  // 'nops' is guaranteed to be >= 1
+	for (i = 1; i < nops; i++) {
+		op = ops[i];
+		if (prev_op * op == -1)
+			return 0;
+		prev_op = op;
 	}
 	return 1;
 }
 
 /* Return the "new" number of dimensions i.e. the number of dims that we
    will get after tuning the current vector of dimensions. */
-static int validate_dim_tuner(const int *dim_tuner, int dim_tuner_len,
+static int validate_dim_tuner(const int *ops, int nops,
 		const int *dims, int ndim,
-		int *cumallTRUE, int *cumallFALSE)
+		int *cumallKEEP, int *cumallDROP)
 {
-	int along1, along2, nkept, i, akd;
+	int along1, along2, nkept, i, op;
 
-	if (cumallTRUE != NULL)
-		memset(cumallTRUE, 0, sizeof(int) * ndim);
-	if (cumallFALSE != NULL)
-		memset(cumallFALSE, 0, sizeof(int) * ndim);
+	if (cumallKEEP != NULL)
+		memset(cumallKEEP, 0, sizeof(int) * ndim);
+	if (cumallDROP != NULL)
+		memset(cumallDROP, 0, sizeof(int) * ndim);
 	along1 = along2 = nkept = 0;
-	for (i = 0; i < dim_tuner_len; i++) {
-		/* 'akd' can be NA (add ineffective dim), TRUE (keep dim),
-		   or FALSE (drop ineffective dim). */
-		akd = dim_tuner[i];
-		if (akd == NA_INTEGER) {
+	for (i = 0; i < nops; i++) {
+		/* 'op' can be 1 (add ineffective dim), 0 (keep dim),
+		   or -1 (drop ineffective dim). */
+		op = ops[i];
+		if (op == 1) {
 			/* Add ineffective dimension. */
 			along2++;
 			continue;
@@ -76,13 +76,13 @@ static int validate_dim_tuner(const int *dim_tuner, int dim_tuner_len,
 		if (along1 >= ndim)
 			error("SparseArray internal error in "
 			      "validate_dim_tuner():\n"
-			      "    number of non-NA values in 'dim_tuner' "
-			      "is > 'length(dim(x))'");
-		if (akd) {
+			      "    number of 0 (KEEP) or -1 (DROP) values "
+			      "in 'dim_tuner' is > 'length(dim(x))'");
+		if (op == 0) {
 			/* Keep dimension. */
-			if (cumallTRUE != NULL &&
-			    i == along1 && (i == 0 || cumallTRUE[i - 1]))
-				cumallTRUE[i] = 1;
+			if (cumallKEEP != NULL &&
+			    i == along1 && (i == 0 || cumallKEEP[i - 1]))
+				cumallKEEP[i] = 1;
 			along2++;
 			nkept++;
 			along1++;
@@ -92,24 +92,24 @@ static int validate_dim_tuner(const int *dim_tuner, int dim_tuner_len,
 		if (dims[along1] != 1)
 			error("SparseArray internal error in "
 			      "validate_dim_tuner():\n"
-			      "    'dim_tuner[%d]' (= FALSE) is "
+			      "    'dim_tuner[%d]' (= -1) is "
 			      "mapped to 'dim(x)[%d]' (= %d)\n"
 			      "    which cannot be dropped",
 			      i + 1, along1 + 1, dims[along1]);
-		if (cumallFALSE != NULL &&
-		    i == along1 && (i == 0 || cumallFALSE[i - 1]))
-			cumallFALSE[i] = 1;
+		if (cumallDROP != NULL &&
+		    i == along1 && (i == 0 || cumallDROP[i - 1]))
+			cumallDROP[i] = 1;
 		along1++;
 	}
 	if (along1 < ndim)
 		error("SparseArray internal error in "
 		      "validate_dim_tuner():\n"
-		      "    number of non-NA values in 'dim_tuner' "
-		      "is < 'length(dim(x))'");
+		      "    number of 0 (KEEP) or -1 (DROP) values "
+		      "in 'dim_tuner' is < 'length(dim(x))'");
 	if (nkept == 0)
 		error("SparseArray internal error in "
 		      "validate_dim_tuner():\n"
-		      "    'dim_tuner' must contain at least one TRUE");
+		      "    'dim_tuner' must contain at least one 0");
 	return along2;
 }
 
@@ -121,24 +121,24 @@ static int validate_dim_tuner(const int *dim_tuner, int dim_tuner_len,
 /* 'dim_names' must be a character vector (or R_NilValue) that contains the
    names on the vector of dimensions. This is NOT the same as the dimnames! */
 static SEXP tune_dims(const int *dims, SEXP dim_names,
-		const int *dim_tuner, int dim_tuner_len, int ans_len)
+		const int *ops, int nops, int ans_len)
 {
 	SEXP ans, ans_names;
-	int along1, along2, i, akd;
+	int along1, along2, i, op;
 
 	ans = PROTECT(NEW_INTEGER(ans_len));
 	if (dim_names != R_NilValue)
 		ans_names = PROTECT(NEW_CHARACTER(ans_len));
 	along1 = along2 = 0;
-	for (i = 0; i < dim_tuner_len; i++) {
-		akd = dim_tuner[i];
-		if (akd == NA_INTEGER) {
+	for (i = 0; i < nops; i++) {
+		op = ops[i];
+		if (op == 1) {
 			/* Add ineffective dimension. */
 			INTEGER(ans)[along2] = 1;
 			along2++;
 			continue;
 		}
-		if (akd) {
+		if (op == 0) {
 			/* Keep dimension. */
 			INTEGER(ans)[along2] = dims[along1];
 			if (dim_names != R_NilValue)
@@ -157,21 +157,21 @@ static SEXP tune_dims(const int *dims, SEXP dim_names,
 }
 
 static SEXP tune_dimnames(SEXP dimnames,
-		const int *dim_tuner, int dim_tuner_len, int ans_len)
+		const int *ops, int nops, int ans_len)
 {
-	int along1, along2, i, akd;
+	int along1, along2, i, op;
 	SEXP ans;
 
 	ans = PROTECT(NEW_LIST(ans_len));
 	along1 = along2 = 0;
-	for (i = 0; i < dim_tuner_len; i++) {
-		akd = dim_tuner[i];
-		if (akd == NA_INTEGER) {
+	for (i = 0; i < nops; i++) {
+		op = ops[i];
+		if (op == 1) {
 			/* Add ineffective dimension. */
 			along2++;
 			continue;
 		}
-		if (akd) {
+		if (op == 0) {
 			/* Keep dimension. */
 			SET_VECTOR_ELT(ans, along2,
 				       VECTOR_ELT(dimnames, along1));
@@ -186,26 +186,26 @@ static SEXP tune_dimnames(SEXP dimnames,
 /* Return the length of the tuned 'dimnames' or 0 if the tuning retains no
    dimnames. */
 static int compute_tuned_dimnames_length(SEXP dimnames,
-		const int *dim_tuner, int dim_tuner_len)
+		const int *ops, int nops)
 {
-	int ndim, along1, along2, any_retained, i, akd;
+	int ndim, along1, along2, any_retained, i, op;
 
 	if (dimnames == R_NilValue)
 		return 0;
 	ndim = LENGTH(dimnames);
 	along1 = along2 = any_retained = 0;
-	for (i = 0; i < dim_tuner_len; i++) {
-		akd = dim_tuner[i];
-		if (akd == NA_INTEGER) {
+	for (i = 0; i < nops; i++) {
+		op = ops[i];
+		if (op == 1) {
 			along2++;
 			continue;
 		}
 		if (along1 >= ndim)
 			error("SparseArray internal error in "
 			      "compute_tuned_dimnames_length():\n"
-			      "    number of non-NA values in 'dim_tuner' "
-			      "is > 'length(dim(x))'");
-		if (akd) {
+			      "    number of 0 (KEEP) or -1 (DROP) values "
+			      "in 'dim_tuner' is > 'length(dim(x))'");
+		if (op == 0) {
 			if (VECTOR_ELT(dimnames, along1) != R_NilValue)
 				any_retained = 1;
 			along2++;
@@ -217,38 +217,34 @@ static int compute_tuned_dimnames_length(SEXP dimnames,
 
 /* --- .Call ENTRY POINT ---
    Unlike C_tune_SVT_dims() below in this file, C_tune_dims() accepts
-   a 'dim_tuner' that is not normalized. */
+   a 'dim_tuner' vector that is not normalized. */
 SEXP C_tune_dims(SEXP dim, SEXP dim_tuner)
 {
-	int ndim, dim_tuner_len, ans_len;
-	const int *dims, *dim_tuner_p;
+	int ndim, nops, ans_len;
+	const int *dims, *ops;
 
 	ndim = LENGTH(dim);
 	dims = INTEGER(dim);
-	dim_tuner_len = LENGTH(dim_tuner);
-	dim_tuner_p = LOGICAL(dim_tuner);
-	ans_len = validate_dim_tuner(dim_tuner_p, dim_tuner_len,
-				      dims, ndim,
-				      NULL, NULL);
-	return tune_dims(dims, GET_NAMES(dim),
-			 dim_tuner_p, dim_tuner_len, ans_len);
+	nops = LENGTH(dim_tuner);
+	ops = INTEGER(dim_tuner);
+	ans_len = validate_dim_tuner(ops, nops, dims, ndim, NULL, NULL);
+	return tune_dims(dims, GET_NAMES(dim), ops, nops, ans_len);
 }
 
 /* --- .Call ENTRY POINT ---
    Unlike C_tune_SVT_dims() below in this file, C_tune_dimnames() accepts
-   a 'dim_tuner' that is not normalized. */
+   a 'dim_tuner' vector that is not normalized. */
 SEXP C_tune_dimnames(SEXP dimnames, SEXP dim_tuner)
 {
-	int dim_tuner_len, ans_len;
-	const int *dim_tuner_p;
+	int nops, ans_len;
+	const int *ops;
 
-	dim_tuner_len = LENGTH(dim_tuner);
-	dim_tuner_p = LOGICAL(dim_tuner);
-	ans_len = compute_tuned_dimnames_length(dimnames,
-						dim_tuner_p, dim_tuner_len);
+	nops = LENGTH(dim_tuner);
+	ops = INTEGER(dim_tuner);
+	ans_len = compute_tuned_dimnames_length(dimnames, ops, nops);
 	if (ans_len == 0)
 		return R_NilValue;
-	return tune_dimnames(dimnames, dim_tuner_p, dim_tuner_len, ans_len);
+	return tune_dimnames(dimnames, ops, nops, ans_len);
 }
 
 
@@ -340,40 +336,39 @@ static SEXP roll_SVT_into_lv(SEXP SVT, const int *dims, int ndim)
 
 /* Assumes that 'dim_tuner' is normalized.
    Recursive. */
-static SEXP REC_tune_SVT_dims(SEXP SVT, const int *dims, int ndim,
-		const int *dim_tuner, int dim_tuner_len,
-		const int *cumallTRUE, const int *cumallFALSE)
+static SEXP REC_tune_SVT(SEXP SVT, const int *dims, int ndim,
+		const int *ops, int nops,
+		const int *cumallKEEP, const int *cumallDROP)
 {
-	int akd, ans_len, i;
+	int op, ans_len, i;
 	SEXP ans_elt, ans, subSVT;
 
-	if (SVT == R_NilValue || dim_tuner_len == ndim && cumallTRUE[ndim - 1])
+	if (SVT == R_NilValue || nops == ndim && cumallKEEP[ndim - 1])
 		return SVT;
 
-	akd = dim_tuner[dim_tuner_len - 1];
-	if (akd == NA_INTEGER) {
+	op = ops[nops - 1];
+	if (op == 1) {
 		/* Add ineffective dimension (as outermost dimension). */
 		ans_elt = PROTECT(
-			REC_tune_SVT_dims(SVT, dims, ndim,
-					  dim_tuner, dim_tuner_len - 1,
-					  cumallTRUE, cumallFALSE)
+			REC_tune_SVT(SVT, dims, ndim,
+				     ops, nops - 1,
+				     cumallKEEP, cumallDROP)
 		);
 		ans = PROTECT(NEW_LIST(1));
 		SET_VECTOR_ELT(ans, 0, ans_elt);
 		UNPROTECT(1);
 		return ans;
 	}
-	if (akd) {
+	if (op == 0) {
 		/* Keep dimension. */
 		if (ndim == 1) {
-			/* 'dim_tuner[dim_tuner_len - 1]' is a TRUE, preceded
-			   by NAs only. 'SVT' is a "leaf vector". */
-			return unroll_lv_as_SVT(SVT, dims[0],
-						dim_tuner_len - 2);
+			/* 'ops[nops - 1]' is 0, with only 1's on its left.
+			   'SVT' is a "leaf vector". */
+			return unroll_lv_as_SVT(SVT, dims[0], nops - 2);
 		}
-		if (dim_tuner_len == ndim && cumallFALSE[ndim - 2]) {
-			/* 'dim_tuner[dim_tuner_len - 1]' is a TRUE, preceded
-			   by FALSEs only. Return a "leaf vector". */
+		if (nops == ndim && cumallDROP[ndim - 2]) {
+			/* 'ops[nops - 1]' is 0, with only -1's on its left.
+			   Return a "leaf vector". */
 			return roll_SVT_into_lv(SVT, dims, ndim);
 		}
 		ans_len = dims[ndim - 1];
@@ -381,10 +376,9 @@ static SEXP REC_tune_SVT_dims(SEXP SVT, const int *dims, int ndim,
 		for (i = 0; i < ans_len; i++) {
 			subSVT = VECTOR_ELT(SVT, i);
 			ans_elt = PROTECT(
-				REC_tune_SVT_dims(subSVT,
-						  dims, ndim - 1,
-						  dim_tuner, dim_tuner_len - 1,
-						  cumallTRUE, cumallFALSE)
+				REC_tune_SVT(subSVT, dims, ndim - 1,
+					     ops, nops - 1,
+					     cumallKEEP, cumallDROP)
 			);
 			SET_VECTOR_ELT(ans, i, ans_elt);
 			UNPROTECT(1);
@@ -393,58 +387,55 @@ static SEXP REC_tune_SVT_dims(SEXP SVT, const int *dims, int ndim,
 		return ans;
 	}
 	/* Drop ineffective dimension.
-	   Because 'dim_tuner' is normalized, it's guaranteed to contain
-	   at least one TRUE before the FALSE found at the 'dim_tuner_len - 1'
-	   position. Furthermore, the closest TRUE (i.e. highest TRUE position
-	   that is < 'dim_tuner_len - 1') is guaranteed to be separated from
-	   the FALSE at 'dim_tuner_len - 1' by nothing but other FALSEs.
+	   Because the 'ops' vector is normalized, it's guaranteed to contain
+	   at least one 0 on the left of the -1 found at position 'nops - 1'.
+	   Furthermore, the closest 0 (i.e. highest 0 position that is
+	   < 'nops - 1') is guaranteed to be separated from the -1 at
+	   position 'nops - 1' by nothing but other -1's.
 	   In particular, this means that 'ndim' is guaranteed to be >= 2
 	   so 'SVT' cannot be a "leaf vector". */
-	return REC_tune_SVT_dims(VECTOR_ELT(SVT, 0), dims, ndim - 1,
-				 dim_tuner, dim_tuner_len - 1,
-				 cumallTRUE, cumallFALSE);
+	return REC_tune_SVT(VECTOR_ELT(SVT, 0), dims, ndim - 1,
+			    ops, nops - 1,
+			    cumallKEEP, cumallDROP);
 }
 
 /* --- .Call ENTRY POINT ---
-   See 'Low-level handling of the "dimension tuner"' at the top of this
+   See "Dim tuning and the 'dim_tuner' argument" at the top of this
    file for a description of the 'dim_tuner' argument. */
 SEXP C_tune_SVT_dims(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP dim_tuner)
 {
-	int ndim, dim_tuner_len, *cumallTRUE, *cumallFALSE;
-	const int *dims, *dim_tuner_p;
+	int ndim, nops, *cumallKEEP, *cumallDROP;
+	const int *dims, *ops;
 
-	/* Make sure that: 1 <= ndim <= dim_tuner_len. */
+	/* Make sure that: 1 <= ndim <= nops. */
 	ndim = LENGTH(x_dim);
 	if (ndim == 0)
 		error("SparseArray internal error in "
 		      "C_tune_SVT_dims():\n"
 		      "    'dim(x)' cannot be empty");
-	dim_tuner_len = LENGTH(dim_tuner);
-	if (dim_tuner_len < ndim)
+	nops = LENGTH(dim_tuner);
+	if (nops < ndim)
 		error("SparseArray internal error in "
 		      "C_tune_SVT_dims():\n"
 		      "    length(dim_tuner) < length(dim(x))");
 
-	/* REC_tune_SVT_dims() assumes that 'dim_tuner' is normalized.
-	   Note that we have no use case for a 'dim_tuner' that is not
+	ops = INTEGER(dim_tuner);
+	/* REC_tune_SVT() assumes that the 'ops' vector is normalized.
+	   Note that we have no use case for an 'ops' vector that is not
 	   normalized at the moment. */
-	dim_tuner_p = LOGICAL(dim_tuner);
-	if (!dim_tuner_is_normalized(dim_tuner_p, dim_tuner_len))
+	if (!dim_tuner_is_normalized(ops, nops))
 		error("SparseArray internal error in "
 		      "C_tune_SVT_dims():\n"
 		      "    'dim_tuner' is not normalized");
 
 	dims = INTEGER(x_dim);
-	cumallTRUE = (int *) R_alloc(ndim, sizeof(int));
-	cumallFALSE = (int *) R_alloc(ndim, sizeof(int));
-	validate_dim_tuner(dim_tuner_p, dim_tuner_len,
-			   dims, ndim,
-			   cumallTRUE, cumallFALSE);
+	cumallKEEP = (int *) R_alloc(ndim, sizeof(int));
+	cumallDROP = (int *) R_alloc(ndim, sizeof(int));
+	validate_dim_tuner(ops, nops, dims, ndim, cumallKEEP, cumallDROP);
 
-	/* Compute 'ans_SVT'. */
-	return REC_tune_SVT_dims(x_SVT, dims, ndim,
-				 dim_tuner_p, dim_tuner_len,
-				 cumallTRUE, cumallFALSE);
+	/* Compute tuned 'SVT'. */
+	return REC_tune_SVT(x_SVT, dims, ndim, ops, nops,
+			    cumallKEEP, cumallDROP);
 }
 
 

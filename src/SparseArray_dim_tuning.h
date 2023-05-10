@@ -1,5 +1,5 @@
-#ifndef _SPARSEARRAY_INEFFECTIVE_DIMS_H_
-#define	_SPARSEARRAY_INEFFECTIVE_DIMS_H_ 
+#ifndef _SPARSEARRAY_DIM_TUNING_H_
+#define	_SPARSEARRAY_DIM_TUNING_H_
 
 #include <Rdefines.h>
 
@@ -27,5 +27,5 @@ SEXP C_drop_SVT_ineffective_dims(
 	SEXP x_SVT
 );
 
-#endif  /* _SPARSEARRAY_INEFFECTIVE_DIMS_H_ */
+#endif  /* _SPARSEARRAY_DIM_TUNING_H_ */
 

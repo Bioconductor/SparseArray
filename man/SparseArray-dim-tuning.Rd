@@ -1,15 +1,21 @@
-\name{SparseArray-ineffective-dims}
+\name{SparseArray-dim-tuning}
 
+\alias{SparseArray-dim-tuning}
+\alias{SparseArray_dim_tuning}
+\alias{dim-tuning}
+\alias{dim_tuning}
 \alias{SparseArray-ineffective-dims}
 \alias{SparseArray_ineffective_dims}
+\alias{ineffective-dims}
+\alias{ineffective_dims}
 
 \alias{drop}
 \alias{drop,SVT_SparseArray-method}
 
-\title{Drop/add ineffective dims from/to a SparseArray object}
+\title{Add/drop ineffective dims to/from a SparseArray object}
 
 \description{
-  Drop/add \emph{ineffective} dimensions from/to a \link{SparseArray}
+  Add and/or drop \emph{ineffective} dimensions to/from a \link{SparseArray}
   derivative.
 
   NOTE: Only dropping ineffective dims is supported at the moment.
