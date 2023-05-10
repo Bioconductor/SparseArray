@@ -10,37 +10,35 @@
 
 
 /****************************************************************************
- * Low-level handling of the "dimension selector" ('dim_selector' argument)
+ * Low-level handling of the "dimension tuner" ('dim_tuner' argument)
  *
- * About the "dimension selector" ('dim_selector'):
+ * The 'dim_tuner' argument is a logical vector (possibly with NAs) that
+ * indicates what to do with the dimensions in 'dims'. It can contain any
+ * number of NAs anywhere, but it **must** have exactly 'ndim' non-NA
+ * values, that is, 'ndim' TRUE/FALSE values.
+ * Meaning of values in 'dim_tuner':
+ *   o TRUE: Keep corresponding dimension in 'dims'.
+ *   o FALSE: Drop corresponding dimension in 'dims'. This is allowed only
+ *     if the dimension to drop is ineffective (i.e. has an extent of 1).
+ *   o NA: Add ineffective dim.
  *
- *   The 'dim_selector' argument is a logical vector (possibly with NAs) that
- *   indicates what to do with the dimensions in 'dims'. It can contain any
- *   number of NAs anywhere, but it **must** have exactly 'ndim' non-NA
- *   values, that is, 'ndim' TRUE/FALSE values.
- *   Meaning of values in 'dim_selector':
- *     o TRUE: Keep corresponding dimension in 'dims'.
- *     o FALSE: Drop corresponding dimension in 'dims'. This is allowed only
- *       if the dimension to drop is ineffective (i.e. has an extent of 1).
- *     o NA: Add ineffective dim.
+ * Additionally, 'dim_tuner' must contain at least one TRUE value (i.e.
+ * at least one of the original dimension must be retained).
  *
- *   Additionally, 'dim_selector' must contain at least one TRUE value (i.e.
- *   at least one of the original dimension must be retained).
- *
- *   The following patterns:
- *     - NA followed by a FALSE,
- *     - FALSE followed by an NA,
- *   are both equivalent to a single TRUE in 'dim_selector'. 'dim_selector'
- *   is considered to be "normalized" if it doesn't contain these patterns.
+ * The following patterns:
+ *   - NA followed by a FALSE,
+ *   - FALSE followed by an NA,
+ * are both equivalent to a single TRUE in 'dim_tuner'. 'dim_tuner'
+ * is considered to be "normalized" if it doesn't contain these patterns.
  */
 
-static int dim_selector_is_normalized(const int *dim_selector, int nselector)
+static int dim_tuner_is_normalized(const int *dim_tuner, int dim_tuner_len)
 {
 	int prev_akd, i, akd;
 
-	prev_akd = dim_selector[0];  // 'nselector' is guaranteed to be >= 1
-	for (i = 1; i < nselector; i++) {
-		akd = dim_selector[i];
+	prev_akd = dim_tuner[0];  // 'dim_tuner_len' is guaranteed to be >= 1
+	for (i = 1; i < dim_tuner_len; i++) {
+		akd = dim_tuner[i];
 		if (akd == NA_INTEGER) {
 			if (prev_akd != NA_INTEGER && !prev_akd)
 				return 0;
@@ -53,21 +51,23 @@ static int dim_selector_is_normalized(const int *dim_selector, int nselector)
 	return 1;
 }
 
-/* Return the "new" number of dimensions i.e. the number of dims obtained
-   by applying 'dim_selector' to "old" dim vector 'dims'. */
-static int validate_dim_selector(const int *dim_selector, int nselector,
+/* Return the "new" number of dimensions i.e. the number of dims that we
+   will get after tuning the current vector of dimensions. */
+static int validate_dim_tuner(const int *dim_tuner, int dim_tuner_len,
 		const int *dims, int ndim,
 		int *cumallTRUE, int *cumallFALSE)
 {
 	int along1, along2, nkept, i, akd;
 
-	memset(cumallTRUE, 0, sizeof(int) * ndim);
-	memset(cumallFALSE, 0, sizeof(int) * ndim);
+	if (cumallTRUE != NULL)
+		memset(cumallTRUE, 0, sizeof(int) * ndim);
+	if (cumallFALSE != NULL)
+		memset(cumallFALSE, 0, sizeof(int) * ndim);
 	along1 = along2 = nkept = 0;
-	for (i = 0; i < nselector; i++) {
+	for (i = 0; i < dim_tuner_len; i++) {
 		/* 'akd' can be NA (add ineffective dim), TRUE (keep dim),
 		   or FALSE (drop ineffective dim). */
-		akd = dim_selector[i];
+		akd = dim_tuner[i];
 		if (akd == NA_INTEGER) {
 			/* Add ineffective dimension. */
 			along2++;
@@ -75,12 +75,13 @@ static int validate_dim_selector(const int *dim_selector, int nselector,
 		}
 		if (along1 >= ndim)
 			error("SparseArray internal error in "
-			      "validate_dim_selector():\n"
-			      "    number of non-NA values in 'dim_selector' "
+			      "validate_dim_tuner():\n"
+			      "    number of non-NA values in 'dim_tuner' "
 			      "is > 'length(dim(x))'");
 		if (akd) {
 			/* Keep dimension. */
-			if (i == along1 && (i == 0 || cumallTRUE[i - 1]))
+			if (cumallTRUE != NULL &&
+			    i == along1 && (i == 0 || cumallTRUE[i - 1]))
 				cumallTRUE[i] = 1;
 			along2++;
 			nkept++;
@@ -90,88 +91,81 @@ static int validate_dim_selector(const int *dim_selector, int nselector,
 		/* Drop ineffective dimension. */
 		if (dims[along1] != 1)
 			error("SparseArray internal error in "
-			      "validate_dim_selector():\n"
-			      "    'dim_selector[%d]' (= FALSE) is "
+			      "validate_dim_tuner():\n"
+			      "    'dim_tuner[%d]' (= FALSE) is "
 			      "mapped to 'dim(x)[%d]' (= %d)\n"
 			      "    which cannot be dropped",
 			      i + 1, along1 + 1, dims[along1]);
-		if (i == along1 && (i == 0 || cumallFALSE[i - 1]))
+		if (cumallFALSE != NULL &&
+		    i == along1 && (i == 0 || cumallFALSE[i - 1]))
 			cumallFALSE[i] = 1;
 		along1++;
 	}
 	if (along1 < ndim)
 		error("SparseArray internal error in "
-		      "validate_dim_selector():\n"
-		      "    number of non-NA values in 'dim_selector' "
+		      "validate_dim_tuner():\n"
+		      "    number of non-NA values in 'dim_tuner' "
 		      "is < 'length(dim(x))'");
 	if (nkept == 0)
 		error("SparseArray internal error in "
-		      "validate_dim_selector():\n"
-		      "    'dim_selector' contains no TRUE values");
+		      "validate_dim_tuner():\n"
+		      "    'dim_tuner' must contain at least one TRUE");
 	return along2;
 }
 
 
 /****************************************************************************
- * select_dims() and select_dimnames()
+ * C_tune_dims() and C_tune_dimnames()
  */
 
-static SEXP select_dims(const int *dims,
-			const int *dim_selector, int nselector, int ans_ndim)
+/* 'dim_names' must be a character vector (or R_NilValue) that contains the
+   names on the vector of dimensions. This is NOT the same as the dimnames! */
+static SEXP tune_dims(const int *dims, SEXP dim_names,
+		const int *dim_tuner, int dim_tuner_len, int ans_len)
 {
+	SEXP ans, ans_names;
 	int along1, along2, i, akd;
-	SEXP ans_dim;
 
-	ans_dim = PROTECT(NEW_INTEGER(ans_ndim));
+	ans = PROTECT(NEW_INTEGER(ans_len));
+	if (dim_names != R_NilValue)
+		ans_names = PROTECT(NEW_CHARACTER(ans_len));
 	along1 = along2 = 0;
-	for (i = 0; i < nselector; i++) {
-		akd = dim_selector[i];
+	for (i = 0; i < dim_tuner_len; i++) {
+		akd = dim_tuner[i];
 		if (akd == NA_INTEGER) {
 			/* Add ineffective dimension. */
-			INTEGER(ans_dim)[along2++] = 1;
+			INTEGER(ans)[along2] = 1;
+			along2++;
 			continue;
 		}
 		if (akd) {
 			/* Keep dimension. */
-			INTEGER(ans_dim)[along2++] = dims[along1++];
-			continue;
+			INTEGER(ans)[along2] = dims[along1];
+			if (dim_names != R_NilValue)
+				SET_STRING_ELT(ans_names, along2,
+					       STRING_ELT(dim_names, along1));
+			along2++;
 		}
-		/* Drop ineffective dimension. */
 		along1++;
+	}
+	if (dim_names != R_NilValue) {
+		SET_NAMES(ans, ans_names);
+		UNPROTECT(1);
 	}
 	UNPROTECT(1);
-	return ans_dim;
+	return ans;
 }
 
-static SEXP select_dimnames(SEXP dimnames,
-		const int *dim_selector, int nselector, int ans_ndim)
+static SEXP tune_dimnames(SEXP dimnames,
+		const int *dim_tuner, int dim_tuner_len, int ans_len)
 {
-	int along1, along2, any_retained, i, akd;
-	SEXP ans_dimnames;
+	int along1, along2, i, akd;
+	SEXP ans;
 
-	if (dimnames == R_NilValue)
-		return R_NilValue;
-
-	/* 1st pass on 'dimnames': do we need to retain any dimnames at all? */
-	along1 = any_retained = 0;
-	for (i = 0; i < nselector; i++) {
-		akd = dim_selector[i];
-		if (akd == NA_INTEGER)
-			continue;
-		if (akd && VECTOR_ELT(dimnames, along1) != R_NilValue) {
-			any_retained = 1;
-			break;
-		}
-		along1++;
-	}
-	if (!any_retained)
-		return R_NilValue;
-
-	/* 2nd pass on 'dimnames': collect retained dimnames. */
-	ans_dimnames = PROTECT(NEW_LIST(ans_ndim));
+	ans = PROTECT(NEW_LIST(ans_len));
 	along1 = along2 = 0;
-	for (i = 0; i < nselector; i++) {
-		akd = dim_selector[i];
+	for (i = 0; i < dim_tuner_len; i++) {
+		akd = dim_tuner[i];
 		if (akd == NA_INTEGER) {
 			/* Add ineffective dimension. */
 			along2++;
@@ -179,15 +173,82 @@ static SEXP select_dimnames(SEXP dimnames,
 		}
 		if (akd) {
 			/* Keep dimension. */
-			SET_VECTOR_ELT(ans_dimnames, along2++,
-				       VECTOR_ELT(dimnames, along1++));
-			continue;
+			SET_VECTOR_ELT(ans, along2,
+				       VECTOR_ELT(dimnames, along1));
+			along2++;
 		}
-		/* Drop ineffective dimension. */
 		along1++;
 	}
 	UNPROTECT(1);
-	return ans_dimnames;
+	return ans;
+}
+
+/* Return the length of the tuned 'dimnames' or 0 if the tuning retains no
+   dimnames. */
+static int compute_tuned_dimnames_length(SEXP dimnames,
+		const int *dim_tuner, int dim_tuner_len)
+{
+	int ndim, along1, along2, any_retained, i, akd;
+
+	if (dimnames == R_NilValue)
+		return 0;
+	ndim = LENGTH(dimnames);
+	along1 = along2 = any_retained = 0;
+	for (i = 0; i < dim_tuner_len; i++) {
+		akd = dim_tuner[i];
+		if (akd == NA_INTEGER) {
+			along2++;
+			continue;
+		}
+		if (along1 >= ndim)
+			error("SparseArray internal error in "
+			      "compute_tuned_dimnames_length():\n"
+			      "    number of non-NA values in 'dim_tuner' "
+			      "is > 'length(dim(x))'");
+		if (akd) {
+			if (VECTOR_ELT(dimnames, along1) != R_NilValue)
+				any_retained = 1;
+			along2++;
+		}
+		along1++;
+	}
+	return any_retained ? along2 : 0;
+}
+
+/* --- .Call ENTRY POINT ---
+   Unlike C_tune_SVT_dims() below in this file, C_tune_dims() accepts
+   a 'dim_tuner' that is not normalized. */
+SEXP C_tune_dims(SEXP dim, SEXP dim_tuner)
+{
+	int ndim, dim_tuner_len, ans_len;
+	const int *dims, *dim_tuner_p;
+
+	ndim = LENGTH(dim);
+	dims = INTEGER(dim);
+	dim_tuner_len = LENGTH(dim_tuner);
+	dim_tuner_p = LOGICAL(dim_tuner);
+	ans_len = validate_dim_tuner(dim_tuner_p, dim_tuner_len,
+				      dims, ndim,
+				      NULL, NULL);
+	return tune_dims(dims, GET_NAMES(dim),
+			 dim_tuner_p, dim_tuner_len, ans_len);
+}
+
+/* --- .Call ENTRY POINT ---
+   Unlike C_tune_SVT_dims() below in this file, C_tune_dimnames() accepts
+   a 'dim_tuner' that is not normalized. */
+SEXP C_tune_dimnames(SEXP dimnames, SEXP dim_tuner)
+{
+	int dim_tuner_len, ans_len;
+	const int *dim_tuner_p;
+
+	dim_tuner_len = LENGTH(dim_tuner);
+	dim_tuner_p = LOGICAL(dim_tuner);
+	ans_len = compute_tuned_dimnames_length(dimnames,
+						dim_tuner_p, dim_tuner_len);
+	if (ans_len == 0)
+		return R_NilValue;
+	return tune_dimnames(dimnames, dim_tuner_p, dim_tuner_len, ans_len);
 }
 
 
@@ -249,7 +310,7 @@ static SEXP make_lv_from_1xN_SVT(SEXP SVT,
 
 
 /****************************************************************************
- * C_select_SVT_dims()
+ * C_tune_SVT_dims()
  */
 
 /* 'lv' is assumed to represent a sparse vector of length N.
@@ -277,24 +338,25 @@ static SEXP roll_SVT_into_lv(SEXP SVT, const int *dims, int ndim)
 	return R_NilValue;
 }
 
-/* Recursive. */
-static SEXP REC_select_SVT_dims(SEXP SVT, const int *dims, int ndim,
-		const int *dim_selector, int nselector,
+/* Assumes that 'dim_tuner' is normalized.
+   Recursive. */
+static SEXP REC_tune_SVT_dims(SEXP SVT, const int *dims, int ndim,
+		const int *dim_tuner, int dim_tuner_len,
 		const int *cumallTRUE, const int *cumallFALSE)
 {
 	int akd, ans_len, i;
 	SEXP ans_elt, ans, subSVT;
 
-	if (SVT == R_NilValue || nselector == ndim && cumallTRUE[ndim - 1])
+	if (SVT == R_NilValue || dim_tuner_len == ndim && cumallTRUE[ndim - 1])
 		return SVT;
 
-	akd = dim_selector[nselector - 1];
+	akd = dim_tuner[dim_tuner_len - 1];
 	if (akd == NA_INTEGER) {
 		/* Add ineffective dimension (as outermost dimension). */
 		ans_elt = PROTECT(
-			REC_select_SVT_dims(SVT, dims, ndim,
-					    dim_selector, nselector - 1,
-					    cumallTRUE, cumallFALSE)
+			REC_tune_SVT_dims(SVT, dims, ndim,
+					  dim_tuner, dim_tuner_len - 1,
+					  cumallTRUE, cumallFALSE)
 		);
 		ans = PROTECT(NEW_LIST(1));
 		SET_VECTOR_ELT(ans, 0, ans_elt);
@@ -304,12 +366,13 @@ static SEXP REC_select_SVT_dims(SEXP SVT, const int *dims, int ndim,
 	if (akd) {
 		/* Keep dimension. */
 		if (ndim == 1) {
-			/* 'dim_selector[nselector - 1]' is a TRUE, preceded
+			/* 'dim_tuner[dim_tuner_len - 1]' is a TRUE, preceded
 			   by NAs only. 'SVT' is a "leaf vector". */
-			return unroll_lv_as_SVT(SVT, dims[0], nselector - 2);
+			return unroll_lv_as_SVT(SVT, dims[0],
+						dim_tuner_len - 2);
 		}
-		if (nselector == ndim && cumallFALSE[ndim - 2]) {
-			/* 'dim_selector[nselector - 1]' is a TRUE, preceded
+		if (dim_tuner_len == ndim && cumallFALSE[ndim - 2]) {
+			/* 'dim_tuner[dim_tuner_len - 1]' is a TRUE, preceded
 			   by FALSEs only. Return a "leaf vector". */
 			return roll_SVT_into_lv(SVT, dims, ndim);
 		}
@@ -318,10 +381,10 @@ static SEXP REC_select_SVT_dims(SEXP SVT, const int *dims, int ndim,
 		for (i = 0; i < ans_len; i++) {
 			subSVT = VECTOR_ELT(SVT, i);
 			ans_elt = PROTECT(
-				REC_select_SVT_dims(subSVT,
-						dims, ndim - 1,
-						dim_selector, nselector - 1,
-						cumallTRUE, cumallFALSE)
+				REC_tune_SVT_dims(subSVT,
+						  dims, ndim - 1,
+						  dim_tuner, dim_tuner_len - 1,
+						  cumallTRUE, cumallFALSE)
 			);
 			SET_VECTOR_ELT(ans, i, ans_elt);
 			UNPROTECT(1);
@@ -329,73 +392,59 @@ static SEXP REC_select_SVT_dims(SEXP SVT, const int *dims, int ndim,
 		UNPROTECT(1);
 		return ans;
 	}
-	/* Drop ineffective dimension. */
-	return REC_select_SVT_dims(VECTOR_ELT(SVT, 0), dims, ndim - 1,
-				   dim_selector, nselector - 1,
-				   cumallTRUE, cumallFALSE);
+	/* Drop ineffective dimension.
+	   Because 'dim_tuner' is normalized, it's guaranteed to contain
+	   at least one TRUE before the FALSE found at the 'dim_tuner_len - 1'
+	   position. Furthermore, the closest TRUE (i.e. highest TRUE position
+	   that is < 'dim_tuner_len - 1') is guaranteed to be separated from
+	   the FALSE at 'dim_tuner_len - 1' by nothing but other FALSEs.
+	   In particular, this means that 'ndim' is guaranteed to be >= 2
+	   so 'SVT' cannot be a "leaf vector". */
+	return REC_tune_SVT_dims(VECTOR_ELT(SVT, 0), dims, ndim - 1,
+				 dim_tuner, dim_tuner_len - 1,
+				 cumallTRUE, cumallFALSE);
 }
 
 /* --- .Call ENTRY POINT ---
-   See 'Low-level handling of the "dimension selector"' at the top of this
-   file for a description of the 'dim_selector' argument. */
-SEXP C_select_SVT_dims(SEXP x_dim, SEXP x_dimnames,
-		SEXP x_type, SEXP x_SVT, SEXP dim_selector)
+   See 'Low-level handling of the "dimension tuner"' at the top of this
+   file for a description of the 'dim_tuner' argument. */
+SEXP C_tune_SVT_dims(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP dim_tuner)
 {
-	int ndim, nselector, *cumallTRUE, *cumallFALSE, ans_ndim;
-	const int *dims, *dim_selector_p;
-	SEXP ans_dim, ans_dimnames, ans_SVT, ans;
+	int ndim, dim_tuner_len, *cumallTRUE, *cumallFALSE;
+	const int *dims, *dim_tuner_p;
 
-	/* Make sure that: 1 <= ndim <= nselector. */
+	/* Make sure that: 1 <= ndim <= dim_tuner_len. */
 	ndim = LENGTH(x_dim);
 	if (ndim == 0)
 		error("SparseArray internal error in "
-		      "C_select_SVT_dims():\n"
+		      "C_tune_SVT_dims():\n"
 		      "    'dim(x)' cannot be empty");
-	nselector = LENGTH(dim_selector);
-	if (nselector < ndim)
+	dim_tuner_len = LENGTH(dim_tuner);
+	if (dim_tuner_len < ndim)
 		error("SparseArray internal error in "
-		      "C_select_SVT_dims():\n"
-		      "    length(dim_selector) < length(dim(x))");
+		      "C_tune_SVT_dims():\n"
+		      "    length(dim_tuner) < length(dim(x))");
 
-	/* We have no use case for a 'dim_selector' that is not normalized
-	   at the moment. */
-	dim_selector_p = LOGICAL(dim_selector);
-	if (!dim_selector_is_normalized(dim_selector_p, nselector))
+	/* REC_tune_SVT_dims() assumes that 'dim_tuner' is normalized.
+	   Note that we have no use case for a 'dim_tuner' that is not
+	   normalized at the moment. */
+	dim_tuner_p = LOGICAL(dim_tuner);
+	if (!dim_tuner_is_normalized(dim_tuner_p, dim_tuner_len))
 		error("SparseArray internal error in "
-		      "C_select_SVT_dims():\n"
-		      "    'dim_selector' is not normalized");
+		      "C_tune_SVT_dims():\n"
+		      "    'dim_tuner' is not normalized");
+
 	dims = INTEGER(x_dim);
 	cumallTRUE = (int *) R_alloc(ndim, sizeof(int));
 	cumallFALSE = (int *) R_alloc(ndim, sizeof(int));
-	ans_ndim = validate_dim_selector(dim_selector_p, nselector,
-					 dims, ndim, cumallTRUE, cumallFALSE);
-
-	/* Compute 'ans_dim'. */
-	ans_dim = PROTECT(
-		select_dims(dims, dim_selector_p, nselector, ans_ndim)
-	);
-
-	/* Compute 'ans_dimnames'. */
-	ans_dimnames = select_dimnames(x_dimnames,
-				       dim_selector_p, nselector,
-				       ans_ndim);
-	if (ans_dimnames != R_NilValue)
-		PROTECT(ans_dimnames);
+	validate_dim_tuner(dim_tuner_p, dim_tuner_len,
+			   dims, ndim,
+			   cumallTRUE, cumallFALSE);
 
 	/* Compute 'ans_SVT'. */
-	ans_SVT = REC_select_SVT_dims(x_SVT, dims, ndim,
-				      dim_selector_p, nselector,
-				      cumallTRUE, cumallFALSE);
-	if (ans_SVT != R_NilValue)
-		PROTECT(ans_SVT);
-
-	/* Assemble and return 'ans'. */
-	ans = PROTECT(NEW_LIST(3));
-	SET_VECTOR_ELT(ans, 0, ans_dim);
-	SET_VECTOR_ELT(ans, 1, ans_dimnames);
-	SET_VECTOR_ELT(ans, 2, ans_SVT);
-	UNPROTECT(2 + (ans_dimnames != R_NilValue) + (x_SVT != R_NilValue));
-	return ans;
+	return REC_tune_SVT_dims(x_SVT, dims, ndim,
+				 dim_tuner_p, dim_tuner_len,
+				 cumallTRUE, cumallFALSE);
 }
 
 
