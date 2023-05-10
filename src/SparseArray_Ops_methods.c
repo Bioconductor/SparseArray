@@ -12,6 +12,7 @@
 #include <string.h>  /* for memcmp() */
 
 
+/* Recursive. */
 static void REC_unary_minus_SVT(SEXP SVT, const int *dims, int ndim)
 {
 	int SVT_len, i;
@@ -29,6 +30,7 @@ static void REC_unary_minus_SVT(SEXP SVT, const int *dims, int ndim)
 	return;
 }
 
+/* Recursive. */
 static SEXP REC_Arith_SVT1_v2(SEXP SVT1, SEXP v2,
 			      const int *dims, int ndim,
 			      int opcode, SEXPTYPE ans_Rtype,
@@ -67,6 +69,7 @@ static SEXP REC_Arith_SVT1_v2(SEXP SVT1, SEXP v2,
 	return is_empty ? R_NilValue : ans;
 }
 
+/* Recursive. */
 static SEXP REC_Compare_SVT1_v2(SEXP SVT1, SEXP v2,
 				const int *dims, int ndim,
 				int opcode, int *offs_buf, void *vals_buf)
@@ -102,6 +105,7 @@ static SEXP REC_Compare_SVT1_v2(SEXP SVT1, SEXP v2,
 	return is_empty ? R_NilValue : ans;
 }
 
+/* Recursive. */
 static SEXP REC_Arith_SVT1_SVT2(SEXP SVT1, SEXPTYPE Rtype1,
 				SEXP SVT2, SEXPTYPE Rtype2,
 				const int *dims, int ndim,
@@ -158,6 +162,7 @@ static SEXP REC_Arith_SVT1_SVT2(SEXP SVT1, SEXPTYPE Rtype1,
 	return is_empty ? R_NilValue : ans;
 }
 
+/* Recursive. */
 static SEXP REC_Compare_SVT1_SVT2(SEXP SVT1, SEXP SVT2,
 				  const int *dims, int ndim,
 				  int opcode, int *offs_buf, int *vals_buf)
@@ -199,6 +204,7 @@ static SEXP REC_Compare_SVT1_SVT2(SEXP SVT1, SEXP SVT2,
 	return is_empty ? R_NilValue : ans;
 }
 
+/* Recursive. */
 static SEXP REC_Logic_SVT1_SVT2(SEXP SVT1, SEXP SVT2,
 				const int *dims, int ndim,
 				int opcode, int *offs_buf, int *vals_buf)

@@ -115,6 +115,7 @@ static double (*select_double2double_FUN(const char *op))(double)
  * C_Math_SVT() and C_Math_SVT2()
  */
 
+/* Recursive. */
 static SEXP REC_Math_SVT(SEXP SVT, const int *dims, int ndim,
 			 apply_2double_FUNS *funs,
 			 int *offs_buf, double *vals_buf)
