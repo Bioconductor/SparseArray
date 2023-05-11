@@ -74,7 +74,7 @@ export(
 
 exportMethods(
     ## Methods for generics defined in the base package:
-    dim, dimnames,
+    dim, "dim<-", dimnames, "dimnames<-", 
     drop,
     "[", "[<-",
     "[[",

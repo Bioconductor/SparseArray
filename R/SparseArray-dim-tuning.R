@@ -12,8 +12,8 @@
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### .tune_SVT_SparseArray_dims()
 ###
-### Workhorse behind drop() method and dim() setter for SVT_SparseArray
-### objects.
+### This is the workhorse behind the drop() method and dim() setter for
+### SVT_SparseArray objects.
 ###
 ### Unlike with S4Arrays:::tune_dims() and S4Arrays:::tune_dimnames(),
 ### the 'dim_tuner' vector passed to .tune_SVT_SparseArray_dims() must
@@ -29,6 +29,16 @@
 ### This should be TRUE for any SVT_SparseArray object 'svt' (with no
 ### dimnames on its ineffective dimensions) and any 'dim_tuner' vector
 ### compatible with 'dim(svt)'.
+
+### TODO: Maybe introduce tune_array_dims() generic (define it in
+### S4Arrays/R/dim-tuning-utils.R) and make .tune_SVT_SparseArray_dims()
+### the tune_array_dims() method for SVT_SparseArray objects.
+### Then also define the drop() method and dim() replace method for Array
+### objects (also in S4Arrays/R/dim-tuning-utils.R), like below, but have
+### them use tune_array_dims() instead of .tune_SVT_SparseArray_dims().
+### Advantage: other Array derivatives (e.g. DelayedArray objects) will
+### only need to implement a tune_array_dims() method and this will give
+### them drop() and the dim() setter for free.
 
 .tune_SVT_SparseArray_dims <- function(x, dim_tuner)
 {
@@ -53,7 +63,11 @@
 .drop_SVT_SparseArray <- function(x)
 {
     stopifnot(is(x, "SVT_SparseArray"))
-    dim_tuner <- -as.integer(dim(x) == 1L)
+    is_ineffective <- dim(x) == 1L
+    ## We cannot drop all dimensions so we (arbitrarily) keep the first one.
+    if (all(is_ineffective))
+        is_ineffective[[1L]] <- FALSE
+    dim_tuner <- -as.integer(is_ineffective)
     .tune_SVT_SparseArray_dims(x, dim_tuner)
 }
 
@@ -75,4 +89,23 @@ setMethod("drop", "SVT_SparseArray",
         ans
     }
 )
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### dim() setter
+###
+
+.set_SVT_SparseArray_dim <- function(x, value)
+{
+    stopifnot(is(x, "SVT_SparseArray"))
+    x_dim <- dim(x)
+    value <- S4Arrays:::normalize_dim_replacement_value(value, x_dim)
+    dim_tuner <-
+        S4Arrays:::make_dim_tuner_from_old2new_dims(x_dim, value, class(x))
+    ans <- .tune_SVT_SparseArray_dims(x, dim_tuner)
+    stopifnot(identical(dim(ans), value))  # sanity check
+    ans
+}
+
+setReplaceMethod("dim", "SVT_SparseArray", .set_SVT_SparseArray_dim)
 
