@@ -13,38 +13,60 @@
 /****************************************************************************
  * Dim tuning and the 'dim_tuner' argument
  *
- * Dim tuning is the act of adding and/or dropping ineffective dimensions
- * to/from an array-like object. The exact actions to perform on the
- * dimensions of the object are described via the 'dim_tuner' argument.
+ * Dim tuning
+ * ----------
+ * Dim tuning is the act of adding and/or dropping ineffective dimensions,
+ * (i.e. dimensions that have an extent of 1) to/from an array-like object.
+ * Note that dim tuning doesn't change the length (which is prod(dim(.)))
+ * or alter the content of the object, and is always reversible (except when
+ * it drops ineffective dimensions with names on them).
  *
- * The 'dim_tuner' argument must be an integer vector where each value
+ * The 'dim_tuner' argument
+ * ------------------------
+ * The exact action to perform on the dimensions of the object is encoded
+ * in the 'dim_tuner' argument. This is an integer vector where each value
  * represents one of three possible operations:
  *   o  0: Keep the dimension.
  *   o -1: Drop the dimension. This operation is allowed only if the
  *         dimension to drop is ineffective (i.e. has an extent of 1).
  *   o  1: Add ineffective dimension.
  * Note that the 'dim_tuner' vector can contain any number of 1's, but the
- * number of non-positive values (i.e. 0 and -1 values together) must match
- * the number of dimensions of the array-like object to tune.
+ * number of non-positive values (i.e. number of 0 and -1 values together)
+ * must match the number of dimensions of the array-like object to tune.
  *
  * Additionally, 'dim_tuner' must contain at least one 0. In other words,
  * the tuning must retain at least one of the original dimensions of the
  * object.
  *
+ * Normalized 'dim_tuner' vector
+ * -----------------------------
  * Note that REC_tune_SVT() does not support a 'dim_tuner' vector where 1
- * and -1 are neighbors. In other words, if a 'dim_tuner' vector contains
- * 1's and -1's, then they must be separated by at least one 0.
- * Such a 'dim_tuner' vector is considered to be "normalized".
+ * and -1 values are neighbors. In other words, if a 'dim_tuner' vector
+ * contains both 1 and -1 values, then there must be at least one 0 between
+ * them. Such a 'dim_tuner' vector is considered to be "normalized".
+ *
+ * Reverse tuning
+ * --------------
+ * To revert a dim tuning, simply tune again with '- dim_tuner' (i.e. minus
+ * 'dim_tuner'). More precisely, if 'dim' is a vector of dimensions and
+ * if 'dim_tuner' represents dim tuning compatible with 'dim':
+ *
+ *     tuned_dim <- SparseArray:::.tune_dims(dim, dim_tuner)
+ *     dim2 <- SparseArray:::.tune_dims(tuned_dim, - dim_tuner)
  */
+
+#define	KEEP_DIM        0
+#define	DROP_DIM       -1
+#define	ADD_DIM         1
 
 static int dim_tuner_is_normalized(const int *ops, int nops)
 {
-	int prev_op, i, op;
+	int prev_op, r, op;
 
-	prev_op = ops[0];  // 'nops' is guaranteed to be >= 1
-	for (i = 1; i < nops; i++) {
-		op = ops[i];
-		if (prev_op * op == -1)
+	prev_op = ops[0];  /* 'nops' is guaranteed to be >= 1 */
+	for (r = 1; r < nops; r++) {
+		op = ops[r];  /* -1 <= op <= 1 */
+		if (prev_op * op < 0)
 			return 0;
 		prev_op = op;
 	}
@@ -52,24 +74,23 @@ static int dim_tuner_is_normalized(const int *ops, int nops)
 }
 
 /* Return the "new" number of dimensions i.e. the number of dims that we
-   will get after tuning the current vector of dimensions. */
+   will get after tuning the current vector of dimensions. Note that this
+   is simply the number of non-negative values in 'ops' (i.e. number of
+   0 and 1 values together). */
 static int validate_dim_tuner(const int *ops, int nops,
 		const int *dims, int ndim,
 		int *cumallKEEP, int *cumallDROP)
 {
-	int along1, along2, nkept, i, op;
+	int along1, along2, nkept, r, op;
 
 	if (cumallKEEP != NULL)
 		memset(cumallKEEP, 0, sizeof(int) * ndim);
 	if (cumallDROP != NULL)
 		memset(cumallDROP, 0, sizeof(int) * ndim);
 	along1 = along2 = nkept = 0;
-	for (i = 0; i < nops; i++) {
-		/* 'op' can be 1 (add ineffective dim), 0 (keep dim),
-		   or -1 (drop ineffective dim). */
-		op = ops[i];
-		if (op == 1) {
-			/* Add ineffective dimension. */
+	for (r = 0; r < nops; r++) {
+		op = ops[r];  /* ADD_DIM, KEEP_DIM, or DROP_DIM */
+		if (op == ADD_DIM) {
 			along2++;
 			continue;
 		}
@@ -78,27 +99,30 @@ static int validate_dim_tuner(const int *ops, int nops,
 			      "validate_dim_tuner():\n"
 			      "    number of 0 (KEEP) or -1 (DROP) values "
 			      "in 'dim_tuner' is > 'length(dim(x))'");
-		if (op == 0) {
-			/* Keep dimension. */
+		if (op == KEEP_DIM) {
 			if (cumallKEEP != NULL &&
-			    i == along1 && (i == 0 || cumallKEEP[i - 1]))
-				cumallKEEP[i] = 1;
+			    r == along1 && (r == 0 || cumallKEEP[r - 1]))
+				cumallKEEP[r] = 1;
 			along2++;
 			nkept++;
 			along1++;
 			continue;
 		}
-		/* Drop ineffective dimension. */
+		if (op != DROP_DIM)
+			error("SparseArray internal error in "
+			      "validate_dim_tuner():\n"
+			      "    'dim_tuner' can only contain 0 (KEEP), "
+			      "-1 (DROP), or 1 (ADD) values");
 		if (dims[along1] != 1)
 			error("SparseArray internal error in "
 			      "validate_dim_tuner():\n"
 			      "    'dim_tuner[%d]' (= -1) is "
 			      "mapped to 'dim(x)[%d]' (= %d)\n"
 			      "    which cannot be dropped",
-			      i + 1, along1 + 1, dims[along1]);
+			      r + 1, along1 + 1, dims[along1]);
 		if (cumallDROP != NULL &&
-		    i == along1 && (i == 0 || cumallDROP[i - 1]))
-			cumallDROP[i] = 1;
+		    r == along1 && (r == 0 || cumallDROP[r - 1]))
+			cumallDROP[r] = 1;
 		along1++;
 	}
 	if (along1 < ndim)
@@ -124,22 +148,20 @@ static SEXP tune_dims(const int *dims, SEXP dim_names,
 		const int *ops, int nops, int ans_len)
 {
 	SEXP ans, ans_names;
-	int along1, along2, i, op;
+	int along1, along2, r, op;
 
 	ans = PROTECT(NEW_INTEGER(ans_len));
 	if (dim_names != R_NilValue)
 		ans_names = PROTECT(NEW_CHARACTER(ans_len));
 	along1 = along2 = 0;
-	for (i = 0; i < nops; i++) {
-		op = ops[i];
-		if (op == 1) {
-			/* Add ineffective dimension. */
+	for (r = 0; r < nops; r++) {
+		op = ops[r];  /* ADD_DIM, KEEP_DIM, or DROP_DIM */
+		if (op == ADD_DIM) {
 			INTEGER(ans)[along2] = 1;
 			along2++;
 			continue;
 		}
-		if (op == 0) {
-			/* Keep dimension. */
+		if (op == KEEP_DIM) {
 			INTEGER(ans)[along2] = dims[along1];
 			if (dim_names != R_NilValue)
 				SET_STRING_ELT(ans_names, along2,
@@ -159,20 +181,18 @@ static SEXP tune_dims(const int *dims, SEXP dim_names,
 static SEXP tune_dimnames(SEXP dimnames,
 		const int *ops, int nops, int ans_len)
 {
-	int along1, along2, i, op;
+	int along1, along2, r, op;
 	SEXP ans;
 
 	ans = PROTECT(NEW_LIST(ans_len));
 	along1 = along2 = 0;
-	for (i = 0; i < nops; i++) {
-		op = ops[i];
-		if (op == 1) {
-			/* Add ineffective dimension. */
+	for (r = 0; r < nops; r++) {
+		op = ops[r];  /* ADD_DIM, KEEP_DIM, or DROP_DIM */
+		if (op == ADD_DIM) {
 			along2++;
 			continue;
 		}
-		if (op == 0) {
-			/* Keep dimension. */
+		if (op == KEEP_DIM) {
 			SET_VECTOR_ELT(ans, along2,
 				       VECTOR_ELT(dimnames, along1));
 			along2++;
@@ -188,15 +208,15 @@ static SEXP tune_dimnames(SEXP dimnames,
 static int compute_tuned_dimnames_length(SEXP dimnames,
 		const int *ops, int nops)
 {
-	int ndim, along1, along2, any_retained, i, op;
+	int ndim, along1, along2, any_retained, r, op;
 
 	if (dimnames == R_NilValue)
 		return 0;
 	ndim = LENGTH(dimnames);
 	along1 = along2 = any_retained = 0;
-	for (i = 0; i < nops; i++) {
-		op = ops[i];
-		if (op == 1) {
+	for (r = 0; r < nops; r++) {
+		op = ops[r];  /* ADD_DIM, KEEP_DIM, or DROP_DIM */
+		if (op == ADD_DIM) {
 			along2++;
 			continue;
 		}
@@ -205,7 +225,7 @@ static int compute_tuned_dimnames_length(SEXP dimnames,
 			      "compute_tuned_dimnames_length():\n"
 			      "    number of 0 (KEEP) or -1 (DROP) values "
 			      "in 'dim_tuner' is > 'length(dim(x))'");
-		if (op == 0) {
+		if (op == KEEP_DIM) {
 			if (VECTOR_ELT(dimnames, along1) != R_NilValue)
 				any_retained = 1;
 			along2++;
@@ -249,7 +269,7 @@ SEXP C_tune_dimnames(SEXP dimnames, SEXP dim_tuner)
 
 
 /****************************************************************************
- * Go back and forth between a "leaf vector" and a 1xN SVT
+ * Go back and forth between a "leaf vector" and a 1x1x..xN SVT
  */
 
 /* 'lv' is assumed to be a "leaf vector" that represents a sparse vector
@@ -260,8 +280,27 @@ static SEXP make_1xN_SVT_from_lv(SEXP lv)
 	return R_NilValue;
 }
 
+/* Generalize make_1xN_SVT_from_lv() above.
+   'lv' is assumed to be a "leaf vector" that represents a sparse vector
+   of length N. unroll_lv_as_SVT() turns it into an SVT that represents
+   a 1x1x..xN array. */
+static SEXP unroll_lv_as_SVT(SEXP lv, int N, int ndim_to_insert)
+{
+	SEXP ans;
+
+	/* Turn 'lv' into an SVT that represents an 1xN matrix. */
+	ans = PROTECT(make_1xN_SVT_from_lv(lv));
+	/* Insert 'ndim_to_insert' additional inner ineffective dimensions. */
+	return R_NilValue;
+}
+
 /* 'SVT' is assumed to represent a 1xN matrix. Turn it into a "leaf vector"
-   that represents a sparse vector of length N. */
+   that represents a sparse vector of length N.
+   Equivalent to calling:
+
+     roll_SVT_into_lv(SVT, 2, Rtype, copy_Rvector_elt_FUN)
+
+   TODO: Get rid of this and use roll_SVT_into_lv() instead. */
 static SEXP make_lv_from_1xN_SVT(SEXP SVT,
 		SEXPTYPE Rtype, CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
 {
@@ -304,41 +343,87 @@ static SEXP make_lv_from_1xN_SVT(SEXP SVT,
 	return ans;
 }
 
-
-/****************************************************************************
- * C_tune_SVT_dims()
- */
-
-/* 'lv' is assumed to represent a sparse vector of length N.
-   unroll_lv_as_SVT() turns it into an SVT that represents a
-   1x1x..xN array. */
-static SEXP unroll_lv_as_SVT(SEXP lv, int N, int ndim_to_insert)
+/* 'SVT' is assumed to be a linear tree representing a 1x1x..x1 array
+   with a single nonzero value buried at the bottom of the tree. */
+static void fetch_and_copy_SVT_val(SEXP SVT, int ndim,
+		SEXP out_vals, int k,
+		CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
 {
-	SEXP ans;
+	int along, SVT_len;
+	SEXP SVT_offs, SVT_vals;
 
-	/* Turn 'lv' into an SVT that represents an 1xN matrix. */
-	ans = PROTECT(make_1xN_SVT_from_lv(lv));
-	/* Insert 'ndim_to_insert' additional inner ineffective dimensions. */
-	return R_NilValue;
+	for (along = 1; along < ndim; along++) {
+		/* Sanity check. */
+		if (LENGTH(SVT) != 1)
+			error("SparseArray internal error in "
+			      "fetch_and_copy_SVT_val():\n"
+			      "    'SVT' not as expected");
+		SVT = VECTOR_ELT(SVT, 0);
+	}
+	/* 'SVT' is expected to be a "leaf vector" of length 1. */
+	SVT_len = _split_leaf_vector(SVT, &SVT_offs, &SVT_vals);
+	/* Sanity checks. */
+	if (SVT_len != 1 || INTEGER(SVT_offs)[0] != 0)
+		error("SparseArray internal error in "
+		      "fetch_and_copy_SVT_val():\n"
+		      "    leaf vector not as expected");
+	copy_Rvector_elt_FUN(SVT_vals, 0, out_vals, k);
+	return;
 }
 
-/* 'SVT' is assumed to represent a 1x1x..xN array.
+/* Generalize make_lv_from_1xN_SVT() above.
+   'SVT' is assumed to represent a 1x1x..xN array.
    More precisely: 'ndim' is assumed to be >= 2. Except maybe for its
    outermost dimension, all the dimensions in 'SVT' are assumed to be
    ineffective.
    roll_SVT_into_lv() turns 'SVT' into a "leaf vector" that represents a
    sparse vector of length N. */
-static SEXP roll_SVT_into_lv(SEXP SVT, const int *dims, int ndim)
+static SEXP roll_SVT_into_lv(SEXP SVT, int ndim,
+		SEXPTYPE Rtype, CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
 {
-	error("roll_SVT_into_lv() not ready yet!");
-	return R_NilValue;
+	int N, ans_len, i;
+	SEXP subSVT, ans_offs, ans_vals, ans;
+
+	N = LENGTH(SVT);
+	ans_len = 0;
+	for (i = 0; i < N; i++) {
+		subSVT = VECTOR_ELT(SVT, i);
+		if (subSVT == R_NilValue)
+			continue;
+		ans_len++;
+	}
+	if (ans_len == 0)
+		error("SparseArray internal error in "
+		      "roll_SVT_into_lv():\n"
+		      "    ans_len == 0");
+	ans_offs = PROTECT(NEW_INTEGER(ans_len));
+	ans_vals = PROTECT(allocVector(Rtype, ans_len));
+	ans_len = 0;
+	for (i = 0; i < N; i++) {
+		subSVT = VECTOR_ELT(SVT, i);
+		if (subSVT == R_NilValue)
+			continue;
+		INTEGER(ans_offs)[ans_len] = i;
+		fetch_and_copy_SVT_val(subSVT, ndim - 1, ans_vals, ans_len,
+				       copy_Rvector_elt_FUN);
+		ans_len++;
+	}
+	ans = _new_leaf_vector(ans_offs, ans_vals);
+	UNPROTECT(2);
+	return ans;
 }
+
+
+/****************************************************************************
+ * C_tune_SVT_dims()
+ */
 
 /* Assumes that 'dim_tuner' is normalized.
    Recursive. */
 static SEXP REC_tune_SVT(SEXP SVT, const int *dims, int ndim,
 		const int *ops, int nops,
-		const int *cumallKEEP, const int *cumallDROP)
+		const int *cumallKEEP, const int *cumallDROP,
+		SEXPTYPE Rtype, CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
 {
 	int op, ans_len, i;
 	SEXP ans_elt, ans, subSVT;
@@ -347,29 +432,30 @@ static SEXP REC_tune_SVT(SEXP SVT, const int *dims, int ndim,
 		return SVT;
 
 	op = ops[nops - 1];
-	if (op == 1) {
+	if (op == ADD_DIM) {
 		/* Add ineffective dimension (as outermost dimension). */
 		ans_elt = PROTECT(
 			REC_tune_SVT(SVT, dims, ndim,
 				     ops, nops - 1,
-				     cumallKEEP, cumallDROP)
+				     cumallKEEP, cumallDROP,
+				     Rtype, copy_Rvector_elt_FUN)
 		);
 		ans = PROTECT(NEW_LIST(1));
 		SET_VECTOR_ELT(ans, 0, ans_elt);
 		UNPROTECT(1);
 		return ans;
 	}
-	if (op == 0) {
-		/* Keep dimension. */
+	if (op == KEEP_DIM) {
 		if (ndim == 1) {
-			/* 'ops[nops - 1]' is 0, with only 1's on its left.
-			   'SVT' is a "leaf vector". */
+			/* 'ops[nops - 1]' is KEEP_DIM, with only ADD_DIM ops
+			   on its left. 'SVT' is a "leaf vector". */
 			return unroll_lv_as_SVT(SVT, dims[0], nops - 2);
 		}
 		if (nops == ndim && cumallDROP[ndim - 2]) {
-			/* 'ops[nops - 1]' is 0, with only -1's on its left.
-			   Return a "leaf vector". */
-			return roll_SVT_into_lv(SVT, dims, ndim);
+			/* 'ops[nops - 1]' is KEEP_DIM, with only DROP_DIM ops
+			   on its left. Return a "leaf vector". */
+			return roll_SVT_into_lv(SVT, ndim - 2,
+						Rtype, copy_Rvector_elt_FUN);
 		}
 		ans_len = dims[ndim - 1];
 		ans = PROTECT(NEW_LIST(ans_len));
@@ -378,7 +464,8 @@ static SEXP REC_tune_SVT(SEXP SVT, const int *dims, int ndim,
 			ans_elt = PROTECT(
 				REC_tune_SVT(subSVT, dims, ndim - 1,
 					     ops, nops - 1,
-					     cumallKEEP, cumallDROP)
+					     cumallKEEP, cumallDROP,
+					     Rtype, copy_Rvector_elt_FUN)
 			);
 			SET_VECTOR_ELT(ans, i, ans_elt);
 			UNPROTECT(1);
@@ -388,15 +475,18 @@ static SEXP REC_tune_SVT(SEXP SVT, const int *dims, int ndim,
 	}
 	/* Drop ineffective dimension.
 	   Because the 'ops' vector is normalized, it's guaranteed to contain
-	   at least one 0 on the left of the -1 found at position 'nops - 1'.
-	   Furthermore, the closest 0 (i.e. highest 0 position that is
-	   < 'nops - 1') is guaranteed to be separated from the -1 at
-	   position 'nops - 1' by nothing but other -1's.
+	   at least one KEEP_DIM op on the left of the DROP_DIM op found at
+	   position 'nops - 1'.
+	   Furthermore, the closest KEEP_DIM op (i.e. highest KEEP_DIM's
+	   position that is < 'nops - 1') is guaranteed to be separated from
+	   the DROP_DIM op at position 'nops - 1' by nothing but other
+	   DROP_DIM ops.
 	   In particular, this means that 'ndim' is guaranteed to be >= 2
 	   so 'SVT' cannot be a "leaf vector". */
 	return REC_tune_SVT(VECTOR_ELT(SVT, 0), dims, ndim - 1,
 			    ops, nops - 1,
-			    cumallKEEP, cumallDROP);
+			    cumallKEEP, cumallDROP,
+			    Rtype, copy_Rvector_elt_FUN);
 }
 
 /* --- .Call ENTRY POINT ---
@@ -404,8 +494,17 @@ static SEXP REC_tune_SVT(SEXP SVT, const int *dims, int ndim,
    file for a description of the 'dim_tuner' argument. */
 SEXP C_tune_SVT_dims(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP dim_tuner)
 {
+	SEXPTYPE Rtype;
+	CopyRVectorElt_FUNType copy_Rvector_elt_FUN;
 	int ndim, nops, *cumallKEEP, *cumallDROP;
 	const int *dims, *ops;
+
+	Rtype = _get_Rtype_from_Rstring(x_type);
+	copy_Rvector_elt_FUN = _select_copy_Rvector_elt_FUN(Rtype);
+	if (copy_Rvector_elt_FUN == NULL)
+		error("SparseArray internal error in "
+		      "C_tune_SVT_dims():\n"
+		      "    SVT_SparseArray object has invalid type");
 
 	/* Make sure that: 1 <= ndim <= nops. */
 	ndim = LENGTH(x_dim);
@@ -435,7 +534,8 @@ SEXP C_tune_SVT_dims(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP dim_tuner)
 
 	/* Compute tuned 'SVT'. */
 	return REC_tune_SVT(x_SVT, dims, ndim, ops, nops,
-			    cumallKEEP, cumallDROP);
+			    cumallKEEP, cumallDROP,
+			    Rtype, copy_Rvector_elt_FUN);
 }
 
 

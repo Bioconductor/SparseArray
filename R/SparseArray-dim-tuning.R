@@ -44,7 +44,7 @@
                       x@dim, x@type, x@SVT, dim_tuner,
                       PACKAGE="SparseArray")
     ans_dim <- .tune_dims(x@dim, dim_tuner)
-    ans_dimnames <- .tune_dimnames(x@dimnames, x@dim, dim_tuner)
+    ans_dimnames <- .tune_dimnames(x@dimnames, dim_tuner)
 
     new_SVT_SparseArray(ans_dim, ans_dimnames, x@type, ans_SVT, check=FALSE)
 }
