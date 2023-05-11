@@ -5,35 +5,30 @@
 ### Dim tuning is the act of adding and/or dropping ineffective dimensions
 ### to/from an array-like object. The exact actions to perform on the
 ### dimensions of the object are described via the 'dim_tuner' argument.
-### See src/SparseArray_dim_tuning.c or more information.
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### .tune_dims() and .tune_dimnames()
-###
-### Unlike .tune_SVT_SparseArray_dims() below in this file, .tune_dims()
-### and .tune_dimnames() both accept a 'dim_tuner' that is not normalized.
-### See src/SparseArray_dim_tuning.c for more information.
-
-.tune_dims <- function(dim, dim_tuner)
-{
-    stopifnot(is.integer(dim),
-              is.integer(dim_tuner))
-    .Call2("C_tune_dims", dim, dim_tuner, PACKAGE="SparseArray")
-}
-
-.tune_dimnames <- function(dimnames, dim_tuner)
-{
-    stopifnot(is.null(dimnames) || is.list(dimnames),
-              is.integer(dim_tuner))
-    .Call2("C_tune_dimnames", dimnames, dim_tuner, PACKAGE="SparseArray")
-}
+### See src/dim_tuning_utils.c in the S4Arrays package and
+### src/SparseArray_dim_tuning.c in this package for more information.
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### .tune_SVT_SparseArray_dims()
 ###
-### Workhorse behind dim() setter for SVT_SparseArray objects.
+### Workhorse behind drop() method and dim() setter for SVT_SparseArray
+### objects.
+###
+### Unlike with S4Arrays:::tune_dims() and S4Arrays:::tune_dimnames(),
+### the 'dim_tuner' vector passed to .tune_SVT_SparseArray_dims() must
+### be normalized. See src/SparseArray_dim_tuning.c for more information.
+###
+### To revert a dim tuning, simply tune again with '-dim_tuner' (i.e. minus
+### 'dim_tuner'). More precisely, for .tune_SVT_SparseArray_dims() this
+### means that 'svt2' will always be identical to 'svt' here:
+###
+###   tuned_svt <- SparseArray:::.tune_SVT_SparseArray_dims(svt, dim_tuner)
+###   svt2 <- SparseArray:::.tune_SVT_SparseArray_dims(tuned_svt, -dim_tuner)
+###
+### This should be TRUE for any SVT_SparseArray object 'svt' (with no
+### dimnames on its ineffective dimensions) and any 'dim_tuner' vector
+### compatible with 'dim(svt)'.
 
 .tune_SVT_SparseArray_dims <- function(x, dim_tuner)
 {
@@ -43,8 +38,8 @@
     ans_SVT <- .Call2("C_tune_SVT_dims",
                       x@dim, x@type, x@SVT, dim_tuner,
                       PACKAGE="SparseArray")
-    ans_dim <- .tune_dims(x@dim, dim_tuner)
-    ans_dimnames <- .tune_dimnames(x@dimnames, dim_tuner)
+    ans_dim <- S4Arrays:::tune_dims(x@dim, dim_tuner)
+    ans_dimnames <- S4Arrays:::tune_dimnames(x@dimnames, dim_tuner)
 
     new_SVT_SparseArray(ans_dim, ans_dimnames, x@type, ans_SVT, check=FALSE)
 }
@@ -58,13 +53,8 @@
 .drop_SVT_SparseArray <- function(x)
 {
     stopifnot(is(x, "SVT_SparseArray"))
-    ## Returns 'ans_dim', 'ans_dimnames', and 'ans_SVT', in a list of length 3.
-    C_ans <- .Call2("C_drop_SVT_ineffective_dims",
-                    x@dim, x@dimnames, x@type, x@SVT, PACKAGE="SparseArray")
-    ans_dim <- C_ans[[1L]]
-    ans_dimnames <- C_ans[[2L]]
-    ans_SVT <- C_ans[[3L]]
-    new_SVT_SparseArray(ans_dim, ans_dimnames, x@type, ans_SVT, check=FALSE)
+    dim_tuner <- -as.integer(dim(x) == 1L)
+    .tune_SVT_SparseArray_dims(x, dim_tuner)
 }
 
 ### Returns an SVT_SparseArray object or an ordinary vector of type 'type(x)'.
