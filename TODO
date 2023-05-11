@@ -2,11 +2,6 @@
   constructors so that they can be used to create a SVT_SparseArray object
   with the specified dimensions and only zeros (i.e. no nonzero data).
 
-- Implement dim() setter that supports adding or dropping "ineffective"
-  dimensions (i.e. dimensions equal to 1, so adding or dropping them
-  preserves the length of the object). See dim() setter in the DelayedArray
-  package (in R/DelayedArray-class.R) for an example.
-
 - Subassignments like this need to work:
     svt[ , , 1] <- svt[ , , 3, drop=FALSE]
     svt[ , , 1] <- svt[ , , 3]
