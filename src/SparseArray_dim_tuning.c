@@ -269,117 +269,121 @@ SEXP C_tune_dimnames(SEXP dimnames, SEXP dim_tuner)
 
 
 /****************************************************************************
+ * Add/drop ineffective dimensions as outermost dimensions.
+ */
+
+/* Add ineffective dimensions as outermost dimensions.
+   Caller must PROTECT() the result. */
+static SEXP add_outermost_dims(SEXP SVT, int ndim_to_add)
+{
+	SEXP ans, tmp;
+	int along;
+
+	if (ndim_to_add <= 0)
+		return SVT;
+	ans = PROTECT(NEW_LIST(1));
+	SET_VECTOR_ELT(ans, 0, SVT);
+	for (along = 1; along < ndim_to_add; along++) {
+		tmp = PROTECT(NEW_LIST(1));
+		SET_VECTOR_ELT(tmp, 0, VECTOR_ELT(ans, 0));
+		SET_VECTOR_ELT(ans, 0, tmp);
+		UNPROTECT(1);
+	}
+	UNPROTECT(1);
+	return ans;
+}
+
+/* Drop outermost ineffective dimensions.
+   Caller does NOT need to PROTECT() the result. */
+static SEXP drop_outermost_dims(SEXP SVT, int ndim_to_drop)
+{
+	int along;
+
+	for (along = 0; along < ndim_to_drop; along++) {
+		/* Sanity check. */
+		if (SVT == R_NilValue || LENGTH(SVT) != 1)
+			error("SparseArray internal error in "
+			      "drop_outermost_dims():\n"
+			      "    'SVT' not as expected");
+		SVT = VECTOR_ELT(SVT, 0);
+	}
+	return SVT;
+}
+
+
+/****************************************************************************
  * Go back and forth between a "leaf vector" and a 1x1x..xN SVT
  */
 
-/* 'lv' is assumed to be a "leaf vector" that represents a sparse vector
-   of length N. Turn it into an SVT that represents a 1xN matrix. */
-static SEXP make_1xN_SVT_from_lv(SEXP lv)
+/* Return a "leaf vector" of length 1. */
+static SEXP wrap_Rvector_elt_in_lv1(SEXP in_Rvector, int k,
+		CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
 {
-	error("make_1xN_SVT_from_lv() not ready yet!");
-	return R_NilValue;
-}
+	SEXP ans_offs, ans_vals, ans;
 
-/* Generalize make_1xN_SVT_from_lv() above.
-   'lv' is assumed to be a "leaf vector" that represents a sparse vector
-   of length N. unroll_lv_as_SVT() turns it into an SVT that represents
-   a 1x1x..xN array. */
-static SEXP unroll_lv_as_SVT(SEXP lv, int N, int ndim_to_insert)
-{
-	SEXP ans;
-
-	/* Turn 'lv' into an SVT that represents an 1xN matrix. */
-	ans = PROTECT(make_1xN_SVT_from_lv(lv));
-	/* Insert 'ndim_to_insert' additional inner ineffective dimensions. */
-	return R_NilValue;
-}
-
-/* 'SVT' is assumed to represent a 1xN matrix. Turn it into a "leaf vector"
-   that represents a sparse vector of length N.
-   Equivalent to calling:
-
-     roll_SVT_into_lv(SVT, 2, Rtype, copy_Rvector_elt_FUN)
-
-   TODO: Get rid of this and use roll_SVT_into_lv() instead. */
-static SEXP make_lv_from_1xN_SVT(SEXP SVT,
-		SEXPTYPE Rtype, CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
-{
-	int SVT_len, ans_len, i, lv_len;
-	SEXP subSVT, ans_offs, ans_vals, lv_vals, ans;
-
-	SVT_len = LENGTH(SVT);
-	ans_len = 0;
-	for (i = 0; i < SVT_len; i++) {
-		subSVT = VECTOR_ELT(SVT, i);
-		if (subSVT == R_NilValue)
-			continue;
-		/* 'subSVT' is a "leaf vector" of length 1. */
-		lv_len = LENGTH(VECTOR_ELT(subSVT, 0));
-		if (lv_len != 1)
-			error("SparseArray internal error in "
-			      "make_lv_from_1xN_SVT():\n"
-			      "    lv_len != 1");
-		ans_len++;
-	}
-	if (ans_len == 0)
-		error("SparseArray internal error in "
-		      "make_lv_from_1xN_SVT():\n"
-		      "    ans_len == 0");
-	ans_offs = PROTECT(NEW_INTEGER(ans_len));
-	ans_vals = PROTECT(allocVector(Rtype, ans_len));
-	ans_len = 0;
-	for (i = 0; i < SVT_len; i++) {
-		subSVT = VECTOR_ELT(SVT, i);
-		if (subSVT == R_NilValue)
-			continue;
-		/* 'subSVT' is a "leaf vector" of length 1. */
-		INTEGER(ans_offs)[ans_len] = i;
-		lv_vals = VECTOR_ELT(subSVT, 1);
-		copy_Rvector_elt_FUN(lv_vals, 0, ans_vals, ans_len);
-		ans_len++;
-	}
+	ans_offs = PROTECT(NEW_INTEGER(1));
+	ans_vals = PROTECT(allocVector(TYPEOF(in_Rvector), 1));
+	INTEGER(ans_offs)[0] = 0;
+	copy_Rvector_elt_FUN(in_Rvector, k, ans_vals, 0);
 	ans = _new_leaf_vector(ans_offs, ans_vals);
 	UNPROTECT(2);
 	return ans;
 }
 
-/* 'SVT' is assumed to be a linear tree representing a 1x1x..x1 array
-   with a single nonzero value buried at the bottom of the tree. */
-static void fetch_and_copy_SVT_val(SEXP SVT, int ndim,
-		SEXP out_vals, int k,
+/* 'lv' must be a "leaf vector" of length 1. */
+static void copy_lv1_val_to_Rvector(SEXP lv, SEXP out_Rvector, int k,
 		CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
 {
-	int along, SVT_len;
-	SEXP SVT_offs, SVT_vals;
+	int lv_len;
+	SEXP lv_offs, lv_vals;
 
-	for (along = 1; along < ndim; along++) {
-		/* Sanity check. */
-		if (LENGTH(SVT) != 1)
-			error("SparseArray internal error in "
-			      "fetch_and_copy_SVT_val():\n"
-			      "    'SVT' not as expected");
-		SVT = VECTOR_ELT(SVT, 0);
-	}
-	/* 'SVT' is expected to be a "leaf vector" of length 1. */
-	SVT_len = _split_leaf_vector(SVT, &SVT_offs, &SVT_vals);
+	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
 	/* Sanity checks. */
-	if (SVT_len != 1 || INTEGER(SVT_offs)[0] != 0)
+	if (lv_len != 1 || INTEGER(lv_offs)[0] != 0)
 		error("SparseArray internal error in "
-		      "fetch_and_copy_SVT_val():\n"
+		      "copy_lv1_val_to_Rvector():\n"
 		      "    leaf vector not as expected");
-	copy_Rvector_elt_FUN(SVT_vals, 0, out_vals, k);
+	copy_Rvector_elt_FUN(lv_vals, 0, out_Rvector, k);
 	return;
 }
 
-/* Generalize make_lv_from_1xN_SVT() above.
+
+/* From "leaf vector" to 1x1x..xN SVT.
+   'lv' is assumed to be a "leaf vector" that represents a sparse vector
+   of length N. unroll_lv_as_SVT() turns it into an SVT that represents
+   a 1x1x..xN array. 'ans_ndim' is the number of dimensions of the result.
+   It must be >= 2. */
+static SEXP unroll_lv_as_SVT(SEXP lv, int N, int ans_ndim,
+		CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
+{
+	int lv_len, k, i;
+	SEXP lv_offs, lv_vals, ans, ans_elt;
+
+	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
+	ans = PROTECT(NEW_LIST(N));
+	for (k = 0; k < lv_len; k++) {
+		i = INTEGER(lv_offs)[k];
+		ans_elt = PROTECT(
+			wrap_Rvector_elt_in_lv1(lv_vals, k,
+						copy_Rvector_elt_FUN)
+		);
+		ans_elt = PROTECT(add_outermost_dims(ans_elt, ans_ndim - 2));
+		SET_VECTOR_ELT(ans, i, ans_elt);
+		UNPROTECT(2);
+	}
+	UNPROTECT(1);
+	return ans;
+}
+
+/* From 1x1x..xN SVT to "leaf vector".
    'SVT' is assumed to represent a 1x1x..xN array.
    More precisely: 'ndim' is assumed to be >= 2. Except maybe for its
    outermost dimension, all the dimensions in 'SVT' are assumed to be
    ineffective.
    roll_SVT_into_lv() turns 'SVT' into a "leaf vector" that represents a
    sparse vector of length N. */
-static SEXP roll_SVT_into_lv(SEXP SVT, int ndim,
-		SEXPTYPE Rtype, CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
+static SEXP roll_SVT_into_lv(SEXP SVT, int ndim, SEXPTYPE Rtype,
+		CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
 {
 	int N, ans_len, i;
 	SEXP subSVT, ans_offs, ans_vals, ans;
@@ -403,9 +407,11 @@ static SEXP roll_SVT_into_lv(SEXP SVT, int ndim,
 		subSVT = VECTOR_ELT(SVT, i);
 		if (subSVT == R_NilValue)
 			continue;
+		subSVT = drop_outermost_dims(subSVT, ndim - 2);
+		/* 'subSVT' is a "leaf vector" of length 1. */
+		copy_lv1_val_to_Rvector(subSVT, ans_vals, ans_len,
+					copy_Rvector_elt_FUN);
 		INTEGER(ans_offs)[ans_len] = i;
-		fetch_and_copy_SVT_val(subSVT, ndim - 1, ans_vals, ans_len,
-				       copy_Rvector_elt_FUN);
 		ans_len++;
 	}
 	ans = _new_leaf_vector(ans_offs, ans_vals);
@@ -440,22 +446,22 @@ static SEXP REC_tune_SVT(SEXP SVT, const int *dims, int ndim,
 				     cumallKEEP, cumallDROP,
 				     Rtype, copy_Rvector_elt_FUN)
 		);
-		ans = PROTECT(NEW_LIST(1));
-		SET_VECTOR_ELT(ans, 0, ans_elt);
-		UNPROTECT(1);
+		ans = PROTECT(add_outermost_dims(ans_elt, 1));
+		UNPROTECT(2);
 		return ans;
 	}
 	if (op == KEEP_DIM) {
 		if (ndim == 1) {
 			/* 'ops[nops - 1]' is KEEP_DIM, with only ADD_DIM ops
 			   on its left. 'SVT' is a "leaf vector". */
-			return unroll_lv_as_SVT(SVT, dims[0], nops - 2);
+			return unroll_lv_as_SVT(SVT, dims[0], nops,
+						copy_Rvector_elt_FUN);
 		}
 		if (nops == ndim && cumallDROP[ndim - 2]) {
 			/* 'ops[nops - 1]' is KEEP_DIM, with only DROP_DIM ops
 			   on its left. Return a "leaf vector". */
-			return roll_SVT_into_lv(SVT, ndim - 2,
-						Rtype, copy_Rvector_elt_FUN);
+			return roll_SVT_into_lv(SVT, ndim - 2, Rtype,
+						copy_Rvector_elt_FUN);
 		}
 		ans_len = dims[ndim - 1];
 		ans = PROTECT(NEW_LIST(ans_len));
@@ -667,8 +673,8 @@ static SEXP REC_remove_SVT_unary_nodes(SEXP SVT, const int *dim, int ndim,
 	}
 
 	/* 'ans' represents a 1xN matrix. Turn it into a "leaf vector". */
-	ans = make_lv_from_1xN_SVT(ans, Rtype, copy_Rvector_elt_FUN);
-	UNPROTECT(1);
+	ans = PROTECT(roll_SVT_into_lv(ans, 2, Rtype, copy_Rvector_elt_FUN));
+	UNPROTECT(2);
 	return ans;
 }
 
