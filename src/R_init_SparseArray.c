@@ -41,10 +41,7 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_transpose_SVT_SparseMatrix, 3),
 
 /* SparseArray_dim_tuning.c */
-	CALLMETHOD_DEF(C_tune_dims, 2),
-	CALLMETHOD_DEF(C_tune_dimnames, 2),
 	CALLMETHOD_DEF(C_tune_SVT_dims, 4),
-	CALLMETHOD_DEF(C_drop_SVT_ineffective_dims, 4),
 
 /* SparseArray_subsetting.c */
 	CALLMETHOD_DEF(C_subset_SVT_SparseArray, 4),
