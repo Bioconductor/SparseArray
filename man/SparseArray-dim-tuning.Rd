@@ -10,13 +10,12 @@
 \alias{ineffective_dims}
 
 \alias{drop}
-\alias{drop,SVT_SparseArray-method}
-\alias{dim<-,SVT_SparseArray-method}
+\alias{dim<-}
 
 \title{Add/drop ineffective dims to/from a SparseArray object}
 
 \description{
-  The \emph{ineffective} dimensions of an array-like object are its
+  The \emph{ineffective dimensions} of an array-like object are its
   dimensions that have an extent of 1.
 
   Drop all \emph{ineffective dimensions} from \link{SparseArray} object
@@ -26,40 +25,35 @@
   \link{SparseArray} object \code{x} with the \code{dim()} setter.
 }
 
-\usage{
-\S4method{drop}{SVT_SparseArray}(x)
-
-\S4method{dim}{SVT_SparseArray}(x) <- value
-}
-
-\arguments{
-  \item{x}{
-    An \link{SVT_SparseArray} object.
-  }
-  \item{value}{
-    An integer vector containing the dimensions to set on \code{x}.
-  }
-}
-
 \details{
-  The \emph{ineffective} dimensions of an array-like object are its
+  The \emph{ineffective dimensions} of an array-like object are its
   dimensions that have an extent of 1.
-  For example, for a 1 x 1 x 15 x 1 x 6 array, the \emph{ineffective}
-  dimensions are its 1st, 2nd, and 4th dimensions.
+  For example, for a 1 x 1 x 15 x 1 x 6 array, the \emph{ineffective
+  dimensions} are its 1st, 2nd, and 4th dimensions.
 
-  Note that \emph{ineffective} dimensions can be dropped or added
+  Note that \emph{ineffective dimensions} can be dropped or added
   from/to an array-like object \code{x} without changing its length
   (\code{prod(dim(x))}) or altering its content.
-}
 
-\value{
-  An \link{SVT_SparseArray} object with the same content as \code{x},
-  but with its \emph{ineffective} dimensions dropped.
+  \describe{
+    \item{\code{drop(x)}:}{
+      Drop all \emph{ineffective dimensions} from \link{SparseArray}
+      derivative \code{x}. If \code{x} has at most one effective dimension,
+      then the result is returned as an ordinary vector. Otherwise it's
+      returned as a \link{SparseArray} derivative.
+    }
+    \item{\code{dim(x) <- value}:}{
+      Add and/or drop arbitrary \emph{ineffective dimensions} to/from
+      \link{SparseArray} derivative \code{x}. \code{value} must be a
+      vector of dimensions compatible with \code{dim(x)}, that is, it
+      must preserve all the effective dimenions in their original order.
+    }
+  }
 }
 
 \seealso{
   \itemize{
-    \item \code{\link[base]{drop}} in base R.
+    \item \code{\link[base]{drop}()} in base R.
 
     \item The \code{\link[base]{dim}()} getter and setter in base R.
 
