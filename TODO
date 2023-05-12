@@ -1,12 +1,73 @@
-- Extend the capabililties of the SVT_SparseArray() and SparseArray()
-  constructors so that they can be used to create a SVT_SparseArray object
-  with the specified dimensions and only zeros (i.e. no nonzero data).
+- Implement aperm() method for SVT_SparseArray objects.
 
-- Subassignments like this need to work:
-    svt[ , , 1] <- svt[ , , 3, drop=FALSE]
-    svt[ , , 1] <- svt[ , , 3]
-  See Shila Ghazanfar's use case in the #tech-advisory-board channel on the
-  community Slack for some context.
+- To support Shila's use case (see #tech-advisory-board channel on
+  community Slack):
+
+  1. We can't use base::apply() on an SparseArray derivative because it
+     will turn it into an ordinary (i.e. dense) array.
+     Also, trying to circumvent the base::apply() problem by implementing
+     our own loop in R e.g. with something like:
+
+       summarize_along_3rd_dim <- function(X, FUN, ...)
+       {
+           stopifnot(length(dim(X)) == 3L)
+           FUN <- match.fun(FUN)
+           ans <- matrix(0, nrow=nrow(X), ncol=ncol(X))
+           for (i in seq_len(nrow(ans))) {
+               for (j in seq_len(ncol(ans))) {
+                   ans[i, j] <- FUN(X[i, j, ], ...)
+               }
+           }
+           ans
+       }
+
+       res1 <- summarize_along_3rd_dim(big_GxNxk_array, mean)
+
+     is very very slow! e.g. it takes about 17 min. for a 500x200x15000
+     SVT_SparseArray object with a 10% density (memory footprint of the
+     object is 1.6Gb).
+
+     The following is significantly faster (5.5 sec. instead of 17 min.)
+     but feels a little bit too tricky:
+
+       tmp <- lapply(seq_len(ncol(big_GxNxk_array)),
+                     function(j) rowMeans(big_GxNxk_array[,j,]));
+       res2 <- do.call(cbind, tmp)  # identical to 'res1'
+
+     So we need the following:
+       a. We should be able to call row/colSums() and row/colMeans(), as well
+          as any other matrixStats function on an SVT_SparseArray object with
+          an arbitrary number of dimensions, not just on an SVT_SparseMatrix
+          object.
+       b. The row/colSums() and row/colMeans() methods for SVT_SparseArray
+          objects should support the 'dims' argument supported by the base
+          functions. This would allow us to do
+
+            rowMeans(big_GxNxk_array, dims=2)
+
+          instead of the above trick. This syntax is the natural thing to
+          use to compute stats along arbitrary dimensions. Note that its
+          implementation could actually use something like the above trick
+          but now it would be hidden from the user.
+       c. Furthermore, if we find a way to construct 'big_kxGxN_array'
+          efficiently (maybe with 'aperm(big_GxNxk_array, perm=c(3,1,2))'),
+          then we would be able to simply do 'colMeans(big_kxGxN_array)'
+          instead of 'rowMeans(big_GxNxk_array, dims=2)'. There's chance
+          that the former will be slightly more efficient than the latter
+          (slicing of the SVT will require much less rearrangements,
+          no need to transpose each slice, direct summarization of
+          the individual leaf vectors of a given slice).
+       d. These methods must loop at the C level.
+       e. Finally these capabilities should be extended to all matrixStats
+          functions.
+
+  2. Extend the capabilities of the SVT_SparseArray() and SparseArray()
+     constructors so that they can be used to create a SVT_SparseArray object
+     with the specified dimensions and only zeros (i.e. no nonzero data).
+
+  3. Subassignments like this need to work:
+       svt[ , , 1] <- svt[ , , 3, drop=FALSE]
+       svt[ , , 1] <- svt[ , , 3]
 
 - Try to speed up SVT_SparseArray transposition by implementing a one-pass
   approach that uses ExtendableJaggedArray intermediate buffers (offss, valss).
@@ -25,8 +86,6 @@
 
 - Implement more summarization methods for SVT_SparseArray objects.
   See R/SparseArray-summarization.R
-
-- Implement aperm() method for SVT_SparseArray objects.
 
 - Implement readMatrixMarket() to read a Matrix Market file as a SparseMatrix
   object, and writeMatrixMarket() to write a SparseMatrix object to a Matrix
