@@ -22,7 +22,7 @@
     \item \code{\link[base]{[}} in base R.
 
     \item \code{SparseArray::\link[SparseArray]{drop}} to drop
-          \emph{ineffective} dimensions.
+          \emph{ineffective dimensions}.
 
     \item \link{SparseArray} objects.
 
