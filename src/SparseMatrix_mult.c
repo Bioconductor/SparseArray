@@ -11,41 +11,37 @@
 #include <string.h>  /* for memset() */
 
 /* TODO: Maybe move this to Rvector_summarization.c */
-static int is_finite_doubles(const double *x, int x_len)
+static int has_no_NaN_or_Inf(const double *x, int x_len)
 {
-	for (int i = 0; i < x_len; i++, x++) {
-		/* ISNAN(): True for *both* NA and NaN. See <R_ext/Arith.h> */
-		if (ISNAN(*x) || *x == R_PosInf || *x == R_NegInf)
-			return 0;
-	}
+	for (int i = 0; i < x_len; i++, x++)
+		if (!R_FINITE(*x)) return 0;
 	return 1;
 }
 
-static int is_finite_lv(SEXP lv)
+/* TODO: Maybe move this to Rvector_summarization.c */
+static int has_no_NA(const int *x, int x_len)
+{
+	for (int i = 0; i < x_len; i++, x++)
+		if (*x == NA_INTEGER) return 0;
+	return 1;
+}
+
+static int lv_has_no_NaN_or_Inf(SEXP lv)
 {
 	int lv_len;
 	SEXP lv_offs, lv_vals;
 
 	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
-	return is_finite_doubles(REAL(lv_vals), lv_len);
+	return has_no_NaN_or_Inf(REAL(lv_vals), lv_len);
 }
 
-static int noNA_ints(const int *x, int x_len)
-{
-	for (int i = 0; i < x_len; i++, x++) {
-		if (*x == NA_INTEGER)
-			return 0;
-	}
-	return 1;
-}
-
-static int noNA_lv(SEXP lv)
+static int lv_has_no_NA(SEXP lv)
 {
 	int lv_len;
 	SEXP lv_offs, lv_vals;
 
 	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
-	return noNA_ints(INTEGER(lv_vals), lv_len);
+	return has_no_NA(INTEGER(lv_vals), lv_len);
 }
 
 static void sym_fill_with_NAs(double *out, int out_nrow, int j)
@@ -182,7 +178,7 @@ static void compute_dotprods2_with_double_Rcol(SEXP SVT, const double *col,
 	int i;
 	SEXP subSVT;
 
-	if (is_finite_doubles(col, in_nrow)) {
+	if (has_no_NaN_or_Inf(col, in_nrow)) {
 		compute_dotprods2_with_finite_Rcol(SVT, col, out, out_nrow);
 		return;
 	}
@@ -220,7 +216,7 @@ static void compute_dotprods2_with_int_Rcol(SEXP SVT, const int *col,
 	int i;
 	SEXP subSVT;
 
-	if (noNA_ints(col, in_nrow)) {
+	if (has_no_NA(col, in_nrow)) {
 		compute_dotprods2_with_noNA_int_Rcol(SVT, col, out, out_nrow);
 		return;
 	}
@@ -258,7 +254,7 @@ static void compute_dotprods2_with_double_Lcol(const double *col, SEXP SVT,
 	int j;
 	SEXP subSVT;
 
-	if (is_finite_doubles(col, in_nrow)) {
+	if (has_no_NaN_or_Inf(col, in_nrow)) {
 		compute_dotprods2_with_finite_Lcol(col, SVT,
 						   out, out_nrow, out_ncol);
 		return;
@@ -297,7 +293,7 @@ static void compute_dotprods2_with_int_Lcol(const int *col, SEXP SVT,
 	int j;
 	SEXP subSVT;
 
-	if (noNA_ints(col, in_nrow)) {
+	if (has_no_NA(col, in_nrow)) {
 		compute_dotprods2_with_noNA_int_Lcol(col, SVT,
 					out, out_nrow, out_ncol);
 		return;
@@ -669,7 +665,7 @@ static void crossprod2_mat0_SVT_int(SEXP SVT2,
 		return;
 	for (j = 0; j < out_ncol; j++, out += out_nrow) {
 		subSVT2 = VECTOR_ELT(SVT2, j);
-		if (subSVT2 == R_NilValue || noNA_lv(subSVT2))
+		if (subSVT2 == R_NilValue || lv_has_no_NA(subSVT2))
 			continue;
 		fill_col_with_NAs(out, out_nrow);
 	}
@@ -689,7 +685,7 @@ static void crossprod2_SVT_mat0_int(SEXP SVT1,
 		return;
 	for (i = 0; i < out_nrow; i++, out++) {
 		subSVT1 = VECTOR_ELT(SVT1, i);
-		if (subSVT1 == R_NilValue || noNA_lv(subSVT1))
+		if (subSVT1 == R_NilValue || lv_has_no_NA(subSVT1))
 			continue;
 		fill_row_with_NAs(out, out_nrow, out_ncol);
 	}
@@ -720,7 +716,7 @@ static void crossprod2_Rpp_double(SEXP SVT1, SEXP SVT2, int in_nrow,
 			memset(colbuf, 0, sizeof(double) * in_nrow);
 			compute_dotprods2_with_finite_Rcol(SVT1, colbuf,
 						out, out_nrow);
-		} else if (is_finite_lv(subSVT2)) {
+		} else if (lv_has_no_NaN_or_Inf(subSVT2)) {
 			/* Preprocess 'subSVT2'. */
 			expand_double_lv(subSVT2, colbuf, in_nrow);
 			compute_dotprods2_with_finite_Rcol(SVT1, colbuf,
@@ -757,7 +753,7 @@ static void crossprod2_Lpp_double(SEXP SVT1, SEXP SVT2, int in_nrow,
 			memset(colbuf, 0, sizeof(double) * in_nrow);
 			compute_dotprods2_with_finite_Lcol(colbuf, SVT2,
 						out, out_nrow, out_ncol);
-		} else if (is_finite_lv(subSVT1)) {
+		} else if (lv_has_no_NaN_or_Inf(subSVT1)) {
 			/* Preprocess 'subSVT1'. */
 			expand_double_lv(subSVT1, colbuf, in_nrow);
 			compute_dotprods2_with_finite_Lcol(colbuf, SVT2,
@@ -802,7 +798,7 @@ static void crossprod2_Rpp_int(SEXP SVT1, SEXP SVT2, int in_nrow,
 			memset(colbuf, 0, sizeof(int) * in_nrow);
 			compute_dotprods2_with_noNA_int_Rcol(SVT1, colbuf,
 						out, out_nrow);
-		} else if (noNA_lv(subSVT2)) {
+		} else if (lv_has_no_NA(subSVT2)) {
 			/* Preprocess 'subSVT2'. */
 			expand_int_lv(subSVT2, colbuf, in_nrow);
 			compute_dotprods2_with_noNA_int_Rcol(SVT1, colbuf,
@@ -834,7 +830,7 @@ static void crossprod2_Lpp_int(SEXP SVT1, SEXP SVT2, int in_nrow,
 			memset(colbuf, 0, sizeof(int) * in_nrow);
 			compute_dotprods2_with_noNA_int_Lcol(colbuf, SVT2,
 						out, out_nrow, out_ncol);
-		} else if (noNA_lv(subSVT1)) {
+		} else if (lv_has_no_NA(subSVT1)) {
 			/* Preprocess 'subSVT1'. */
 			expand_int_lv(subSVT1, colbuf, in_nrow);
 			compute_dotprods2_with_noNA_int_Lcol(colbuf, SVT2,
@@ -866,7 +862,7 @@ static void crossprod1_double(SEXP SVT, int in_nrow, double *out, int out_ncol)
 			memset(colbuf, 0, sizeof(double) * in_nrow);
 			compute_sym_dotprods_with_finite_col(SVT, colbuf,
 						out, out_ncol, j);
-		} else if (is_finite_lv(subSVT)) {
+		} else if (lv_has_no_NaN_or_Inf(subSVT)) {
 			expand_double_lv(subSVT, colbuf, in_nrow);
 			*out =
 			  _dotprod_leaf_vector_and_finite_col(subSVT, colbuf);
@@ -906,7 +902,7 @@ static void crossprod1_int(SEXP SVT, int in_nrow, double *out, int out_ncol)
 			memset(colbuf, 0, sizeof(int) * in_nrow);
 			compute_sym_dotprods_with_noNA_int_col(SVT, colbuf,
 						out, out_ncol, j);
-		} else if (noNA_lv(subSVT)) {
+		} else if (lv_has_no_NA(subSVT)) {
 			expand_int_lv(subSVT, colbuf, in_nrow);
 			*out =
 			  _dotprod_leaf_vector_and_noNA_int_col(subSVT, colbuf);
