@@ -10,6 +10,7 @@
 \alias{COO_SparseMatrix}
 \alias{coerce,COO_SparseArray,COO_SparseMatrix-method}
 \alias{coerce,COO_SparseMatrix,COO_SparseArray-method}
+\alias{coerce,COO_SparseMatrix,SparseArray-method}
 
 \alias{nzcoo}
 \alias{nzcoo,COO_SparseArray-method}

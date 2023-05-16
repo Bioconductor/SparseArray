@@ -3,6 +3,10 @@
 \alias{sparseMatrix-utils}
 \alias{sparseMatrix_utils}
 
+\alias{coerce,Array,dgCMatrix-method}
+\alias{coerce,Array,dgRMatrix-method}
+\alias{coerce,Array,lgCMatrix-method}
+\alias{coerce,Array,lgRMatrix-method}
 \alias{coerce,Array,CsparseMatrix-method}
 \alias{coerce,Array,RsparseMatrix-method}
 \alias{coerce,Array,sparseMatrix-method}
