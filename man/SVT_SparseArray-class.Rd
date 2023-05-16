@@ -14,6 +14,7 @@
 \alias{SVT_SparseMatrix}
 \alias{coerce,SVT_SparseArray,SVT_SparseMatrix-method}
 \alias{coerce,SVT_SparseMatrix,SVT_SparseArray-method}
+\alias{coerce,SVT_SparseMatrix,SparseArray-method}
 
 \alias{type,SVT_SparseArray-method}
 \alias{type<-,SVT_SparseArray-method}

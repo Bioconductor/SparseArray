@@ -41,20 +41,46 @@ setClass("COO_SparseMatrix",
     )
 )
 
-### Automatic coercion method from COO_SparseArray to COO_SparseMatrix silently
-### returns a broken object (unfortunately these dummy automatic coercion
-### methods don't bother to validate the object they return). So we overwrite
-### it with a method that will fail (as expected) thanks to the validity
-### method for SparseMatrix objects.
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Block going back and forth between COO_SparseArray and COO_SparseMatrix
+###
+
+### --- From COO_SparseArray to COO_SparseMatrix ---
+
+### The user should NOT be able to promote a COO_SparseArray object to
+### COO_SparseMatrix. Problem is that the automatic coercion method from
+### COO_SparseArray to COO_SparseMatrix silently returns a broken object
+### (unfortunately these dummy automatic coercion methods don't bother to
+### validate the object they return). So we overwrite it with a method that
+### will fail (as expected) thanks to the validity method for SparseMatrix
+### objects.
 setAs("COO_SparseArray", "COO_SparseMatrix",
     function(from) new("COO_SparseMatrix", from)
 )
 
-### Also the user should not be able to degrade a COO_SparseMatrix object to a
-### COO_SparseArray object so 'as(x, "COO_SparseArray", strict=TRUE)' should
-### fail or be a no-op when 'x' is a COO_SparseMatrix object. Making this
-### coercion a no-op seems to be the easiest (and safest) way to go.
+### --- From COO_SparseMatrix to COO_SparseArray ---
+
+### The user should NOT be able to demote a COO_SparseMatrix object to
+### COO_SparseArray, so 'as(x, "COO_SparseArray")' and 'as(x, "SparseArray")'
+### should fail or do nothing when 'x' is a COO_SparseMatrix object, even
+### when called with 'strict=TRUE'. Making these coercions behave like no-ops
+### seems to be the easiest (and safest) way to go.
+
 setAs("COO_SparseMatrix", "COO_SparseArray", function(from) from)  # no-op
+
+### Do NOT use setAs() here! setAs() does really bad things if used to define
+### this coercion method e.g. for some reason it calls setIs() internally to
+### make COO_SparseMatrix a **direct** extension of SparseArray, thus
+### altering (and breaking) our class hierarchy. This is not only conceptually
+### wrong but it also seems to break dispatch e.g. calling 'show(x)' on
+### COO_SparseMatrix object 'x' does not find the method for SparseArray
+### objects despite 'is(x, "SparseArray")' being TRUE.
+### Worst part is that this seems to be a "feature" (apparently setAs() tries
+### to be really smart here!) but it's just a big mess.
+setMethod("coerce", c("COO_SparseMatrix", "SparseArray"),
+    function(from, to, strict=TRUE) from  # no-op
+)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

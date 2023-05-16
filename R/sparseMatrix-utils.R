@@ -1,5 +1,5 @@
 ### =========================================================================
-### Low-level manipulation of sparseMatrix derivatives
+### Low-level manipulation of sparseMatrix derivatives (from Matrix package)
 ### -------------------------------------------------------------------------
 ###
 
@@ -42,6 +42,7 @@ new_RsparseMatrix <- function(dim, p, j, x, dimnames=NULL)
     new(ans_class, Dim=dim, p=p, j=j, x=x, Dimnames=ans_dimnames)
 }
 
+
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### High-level CsparseMatrix and RsparseMatrix constructors
 ###
@@ -80,8 +81,34 @@ RsparseMatrix <- function(dim, i, j, nzvals, dimnames=NULL)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Coercion from Array to sparseMatrix
+### Coercion from Array derivative to sparseMatrix derivative
 ###
+
+### These coercions will work out-of-the-box on any Array derivative that
+### supports coercion to SparseArray.
+.from_Array_to_sparseMatrix <- function(from, to)
+{
+    ## If 'from' is a SparseArray derivative, 'as(from, "SparseArray")' will
+    ## be a no-op and thus doing 'as(as(from, "SparseArray"), to)' below will
+    ## lead to an infinite recursion. We explicitly guard against this.
+    if (is(from, "SparseArray"))
+        stop(wmsg("coercion from ", class(from), " to ",
+                  to, " is not supported"))
+    as(as(from, "SparseArray"), to)
+}
+
+setAs("Array", "dgCMatrix",
+    function(from) .from_Array_to_sparseMatrix(from, "dgCMatrix")
+)
+setAs("Array", "dgRMatrix",
+    function(from) .from_Array_to_sparseMatrix(from, "dgRMatrix")
+)
+setAs("Array", "lgCMatrix",
+    function(from) .from_Array_to_sparseMatrix(from, "lgCMatrix")
+)
+setAs("Array", "lgRMatrix",
+    function(from) .from_Array_to_sparseMatrix(from, "lgRMatrix")
+)
 
 ### These coercions will work out-of-the-box on any Array derivative that
 ### supports type() and coercion to [d|l]gCMatrix and to [d|l]gRMatrix.
