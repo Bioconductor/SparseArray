@@ -26,6 +26,15 @@ typedef int (*SummarizeDoubles_FUNType)(
 	void *init, const double *x, int n, int na_rm, R_xlen_t *na_rm_count,
 	int status);
 
+typedef struct summarizer_t {
+	int opcode;
+	SEXPTYPE Rtype;  /* only INTSXP or REALSXP at the moment */
+	int na_rm;
+	double shift;
+	SummarizeInts_FUNType summarize_ints_FUN;
+	SummarizeDoubles_FUNType summarize_doubles_FUN;
+} Summarizer;
+
 typedef struct summarize_op_t {
 	int opcode;
 	SEXPTYPE Rtype;  /* only INTSXP or REALSXP at the moment */
@@ -34,6 +43,18 @@ typedef struct summarize_op_t {
 	SummarizeInts_FUNType summarize_ints_FUN;
 	SummarizeDoubles_FUNType summarize_doubles_FUN;
 } SummarizeOp;
+
+Summarizer _make_Summarizer(
+	int opcode,
+	SEXPTYPE Rtype,
+	int na_rm,
+	double shift
+);
+
+void _init_summarization(
+	void *init,
+	const Summarizer *summarizer
+);
 
 SummarizeOp _init_SummarizeOp(
 	int opcode,
