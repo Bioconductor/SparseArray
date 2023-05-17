@@ -453,7 +453,9 @@ static inline int sum_X_X2_doubles(void *init, const double *x, int n,
 }
 
 /* Only one of '*summarize_ints_FUN' or '*summarize_doubles_FUN' will be set
-   to a non-NULL value. The other one will be set to NULL. */
+   to a non-NULL value. The other one will be set to NULL.
+   'init' must be allocated by the caller and must be able to store 2 ints
+   or doubles. */
 static void select_summarize_FUN(int opcode, SEXPTYPE Rtype, double shift,
 		SummarizeInts_FUNType *summarize_ints_FUN,
 		SummarizeDoubles_FUNType *summarize_doubles_FUN,
@@ -629,6 +631,81 @@ static SEXP init2nakedSEXP(int opcode, SEXPTYPE Rtype, void *init, int status)
 		/* Round 'double_init[0]' to the nearest integer. */
 		return ScalarInteger((int) (double_init[0] + 0.5));
 	return ScalarReal(double_init[0]);
+}
+
+
+/****************************************************************************
+ * _make_Summarizer()
+ * _init_summarization()
+ * _apply_Summarizer()
+ */
+
+Summarizer _make_Summarizer(int opcode, SEXPTYPE Rtype,
+		int na_rm, double shift)
+{
+	Summarizer summarizer;
+	SummarizeInts_FUNType summarize_ints_FUN;
+	SummarizeDoubles_FUNType summarize_doubles_FUN;
+	// The need for 'init' is temporary only. Only needed because
+	// select_summarize_FUN() requires it at the moment.
+        // TODO: select_summarize_FUN() needs to be simplified to not
+	// handle 'init' anymore ('init' is now taken care of by dedicated
+	// function _init_summarization()).
+	double init[2];
+
+	select_summarize_FUN(opcode, Rtype, 0.0,
+		&summarize_ints_FUN, &summarize_doubles_FUN, init);
+
+	summarizer.opcode = opcode;
+	summarizer.Rtype = Rtype;
+	summarizer.na_rm = na_rm;
+	summarizer.shift = shift;
+	summarizer.summarize_ints_FUN = summarize_ints_FUN;
+	summarizer.summarize_doubles_FUN = summarize_doubles_FUN;
+	return summarizer;
+}
+
+void _init_summarization(void *init, const Summarizer *summarizer)
+{
+	int *int_init = (int *) init;
+	double *double_init = (double *) init;
+
+	switch (summarizer->opcode) {
+	    case ANY_OPCODE:
+		int_init[0] = 0;
+		return;
+	    case ALL_OPCODE:
+		int_init[0] = 1;
+		return;
+	    case SUM_OPCODE:
+		double_init[0] = 0.0;
+		return;
+	    case PROD_OPCODE:
+		double_init[0] = 1.0;
+		return;
+	    case SUM_SHIFTED_X2_OPCODE:
+		double_init[0] = 0.0;
+		double_init[1] = summarizer->shift;
+		return;
+	    case SUM_X_X2_OPCODE:
+		double_init[0] = double_init[1] = 0.0;
+		return;
+	}
+	if (summarizer->Rtype == INTSXP)
+		return;  /* NO initialization! */
+	switch (summarizer->opcode) {
+	    case MIN_OPCODE:
+		double_init[0] = R_PosInf;
+		return;
+	    case MAX_OPCODE:
+		double_init[0] = R_NegInf;
+		return;
+	    case RANGE_OPCODE:
+		double_init[0] = R_PosInf;
+		double_init[1] = R_NegInf;
+		return;
+	}
+	return;
 }
 
 

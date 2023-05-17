@@ -2,6 +2,14 @@
 #define _SPARSEARRAY_SUMMARIZATION_H_
 
 #include <Rdefines.h>
+#include "Rvector_summarization.h"
+
+double _summarize_SVT(
+	SEXP SVT,
+	const int *dim,
+	int ndim,
+	const Summarizer *summarizer
+);
 
 SEXP C_summarize_SVT_SparseArray(
 	SEXP x_dim,

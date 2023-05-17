@@ -11,9 +11,43 @@
  * C_summarize_SVT_SparseArray()
  */
 
+/* Recursive. */
+// TODO: Define macros for status values 0, 1, 2 to improve code readability.
+static int REC_summarize_SVT(SEXP SVT, const int *dim, int ndim,
+		void *init, const Summarizer *summarizer, int status)
+{
+	int SVT_len, i;
+	SEXP subSVT;
+
+	if (SVT == R_NilValue) {
+		// TODO: Use a struct instead of 'init' array and add record
+		// for counting number of zeros and number of NAs/NaNs.
+		//*has_null_leaves = 1;
+		return status;
+	}
+
+	if (ndim == 1) {
+		/* 'SVT' is a "leaf vector". */
+		//return _summarize_leaf_vector(SVT, dim[0],
+		//			summarize_op,
+		//			init, na_rm_count, status);
+		return status;
+	}
+
+	/* 'SVT' is a regular node (list). */
+	SVT_len = LENGTH(SVT);
+	for (i = 0; i < SVT_len; i++) {
+		subSVT = VECTOR_ELT(SVT, i);
+		status = REC_summarize_SVT(subSVT, dim, ndim - 1,
+					   init, summarizer, status);
+		if (status == 2)
+			break;
+	}
+	return status;
+}
 
 /* Recursive. */
-static int REC_summarize_SVT(SEXP SVT, const int *dim, int ndim,
+static int REC_summarize_SVT_OLD(SEXP SVT, const int *dim, int ndim,
 		const SummarizeOp *summarize_op,
 		void *init, R_xlen_t *na_rm_count, int status,
 		int *has_null_leaves)
@@ -37,7 +71,7 @@ static int REC_summarize_SVT(SEXP SVT, const int *dim, int ndim,
 	SVT_len = LENGTH(SVT);
 	for (i = 0; i < SVT_len; i++) {
 		subSVT = VECTOR_ELT(SVT, i);
-		status = REC_summarize_SVT(subSVT, dim, ndim - 1,
+		status = REC_summarize_SVT_OLD(subSVT, dim, ndim - 1,
 					summarize_op,
 					init, na_rm_count, status,
 					has_null_leaves);
@@ -47,7 +81,7 @@ static int REC_summarize_SVT(SEXP SVT, const int *dim, int ndim,
 	return status;
 }
 
-static int summarize_SVT(SEXP SVT, const int *dim, int ndim,
+static int summarize_SVT_OLD(SEXP SVT, const int *dim, int ndim,
 		int opcode, SEXPTYPE Rtype,
 		double *init, int na_rm, R_xlen_t *na_rm_count,
 		double shift)
@@ -62,10 +96,10 @@ static int summarize_SVT(SEXP SVT, const int *dim, int ndim,
 		return 0;
 	
 	status = has_null_leaves = 0;
-	status = REC_summarize_SVT(SVT, dim, ndim,
-				   &summarize_op,
-				   init, na_rm_count, status,
-				   &has_null_leaves);
+	status = REC_summarize_SVT_OLD(SVT, dim, ndim,
+				       &summarize_op,
+				       init, na_rm_count, status,
+				       &has_null_leaves);
 	if (status == 2 || !has_null_leaves || opcode == SUM_SHIFTED_X2_OPCODE)
 		return status;
 	if (Rtype == INTSXP) {
@@ -80,6 +114,18 @@ static int summarize_SVT(SEXP SVT, const int *dim, int ndim,
 					     na_rm_count, status);
 	}
 	return status;
+}
+
+double _summarize_SVT(SEXP SVT, const int *dim, int ndim,
+		      const Summarizer *summarizer)
+{
+        double init[2];
+	int status;
+
+        _init_summarization(init, summarizer);
+	status = REC_summarize_SVT(SVT, dim, ndim,
+				   init, summarizer, 0);
+        return -0.05;
 }
 
 SEXP C_summarize_SVT_SparseArray(SEXP x_dim, SEXP x_type, SEXP x_SVT,
@@ -107,10 +153,10 @@ SEXP C_summarize_SVT_SparseArray(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		      "C_summarize_SVT_SparseArray():\n"
 		      "    'shift' must be a single numeric value");
 
-	status = summarize_SVT(x_SVT, INTEGER(x_dim), LENGTH(x_dim),
-			       opcode, Rtype,
-			       init, narm0, &na_rm_count,
-			       REAL(shift)[0]);
+	status = summarize_SVT_OLD(x_SVT, INTEGER(x_dim), LENGTH(x_dim),
+				   opcode, Rtype,
+				   init, narm0, &na_rm_count,
+				   REAL(shift)[0]);
 
 	return _make_SEXP_from_summarize_result(opcode, Rtype,
 			       init, narm0, na_rm_count, status);
