@@ -3,8 +3,9 @@
  ****************************************************************************/
 #include "SparseArray_summarization.h"
 
+#include "Rvector_utils.h"
 #include "Rvector_summarization.h"
-#include "leaf_vector_utils.h"
+#include "leaf_vector_summarization.h"
 
 
 /****************************************************************************
@@ -12,132 +13,69 @@
  */
 
 /* Recursive. */
-// TODO: Define macros for status values 0, 1, 2 to improve code readability.
 static int REC_summarize_SVT(SEXP SVT, const int *dim, int ndim,
-		void *init, const Summarizer *summarizer, int status)
+		const SummarizeOp *summarize_op, SummarizeResult *res)
 {
-	int SVT_len, i;
+	R_xlen_t count;
+	int along, SVT_len, i, bailout;
 	SEXP subSVT;
 
 	if (SVT == R_NilValue) {
-		// TODO: Use a struct instead of 'init' array and add record
-		// for counting number of zeros and number of NAs/NaNs.
-		//*has_null_leaves = 1;
-		return status;
-	}
-
-	if (ndim == 1) {
-		/* 'SVT' is a "leaf vector". */
-		//return _summarize_leaf_vector(SVT, dim[0],
-		//			summarize_op,
-		//			init, na_rm_count, status);
-		return status;
-	}
-
-	/* 'SVT' is a regular node (list). */
-	SVT_len = LENGTH(SVT);
-	for (i = 0; i < SVT_len; i++) {
-		subSVT = VECTOR_ELT(SVT, i);
-		status = REC_summarize_SVT(subSVT, dim, ndim - 1,
-					   init, summarizer, status);
-		if (status == 2)
-			break;
-	}
-	return status;
-}
-
-/* Recursive. */
-static int REC_summarize_SVT_OLD(SEXP SVT, const int *dim, int ndim,
-		const SummarizeOp *summarize_op,
-		void *init, R_xlen_t *na_rm_count, int status,
-		int *has_null_leaves)
-{
-	int SVT_len, i;
-	SEXP subSVT;
-
-	if (SVT == R_NilValue) {
-		*has_null_leaves = 1;
-		return status;
+		count = 1;
+		for (along = 0; along < ndim; along++)
+			count *= dim[along];
+		res->totalcount += count;
+		return 0;
 	}
 
 	if (ndim == 1) {
 		/* 'SVT' is a "leaf vector". */
 		return _summarize_leaf_vector(SVT, dim[0],
-					summarize_op,
-					init, na_rm_count, status);
+					      summarize_op, res);
 	}
 
 	/* 'SVT' is a regular node (list). */
 	SVT_len = LENGTH(SVT);
 	for (i = 0; i < SVT_len; i++) {
 		subSVT = VECTOR_ELT(SVT, i);
-		status = REC_summarize_SVT_OLD(subSVT, dim, ndim - 1,
-					summarize_op,
-					init, na_rm_count, status,
-					has_null_leaves);
-		if (status == 2)
-			break;
+		bailout = REC_summarize_SVT(subSVT, dim, ndim - 1,
+						    summarize_op, res);
+		if (bailout != 0)
+			return bailout;
 	}
-	return status;
+	return 0;
 }
 
-static int summarize_SVT_OLD(SEXP SVT, const int *dim, int ndim,
-		int opcode, SEXPTYPE Rtype,
-		double *init, int na_rm, R_xlen_t *na_rm_count,
-		double shift)
+SummarizeResult _summarize_SVT(SEXP SVT, const int *dim, int ndim,
+			       const SummarizeOp *summarize_op)
 {
-	SummarizeOp summarize_op;
-	int has_null_leaves, status;
+	SummarizeResult res;
+	int bailout;
 
-	summarize_op = _init_SummarizeOp(opcode, Rtype, na_rm, shift, init);
-	*na_rm_count = 0;
-
-	if (SVT == R_NilValue)
-		return 0;
-	
-	status = has_null_leaves = 0;
-	status = REC_summarize_SVT_OLD(SVT, dim, ndim,
-				       &summarize_op,
-				       init, na_rm_count, status,
-				       &has_null_leaves);
-	if (status == 2 || !has_null_leaves || opcode == SUM_SHIFTED_X2_OPCODE)
-		return status;
-	if (Rtype == INTSXP) {
-		int zero = 0;
-		status = _apply_summarize_op(&summarize_op,
-					     init, &zero, 1,
-					     na_rm_count, status);
-	} else {
-		double zero = 0.0;
-		status = _apply_summarize_op(&summarize_op,
-					     init, &zero, 1,
-					     na_rm_count, status);
-	}
-	return status;
-}
-
-double _summarize_SVT(SEXP SVT, const int *dim, int ndim,
-		      const Summarizer *summarizer)
-{
-        double init[2];
-	int status;
-
-        _init_summarization(init, summarizer);
-	status = REC_summarize_SVT(SVT, dim, ndim,
-				   init, summarizer, 0);
-        return -0.05;
+	_init_SummarizeResult(summarize_op, &res);
+	bailout = REC_summarize_SVT(SVT, dim, ndim, summarize_op, &res);
+	if (bailout ||
+	    res.nzcount == res.totalcount ||
+	    summarize_op->opcode == SUM_SHIFTED_X2_OPCODE)
+		return res;
+	/* TODO: Reconsider the need to call _summarize_one_zero() here.
+	   Does it still make sense? Is this the right place for this?
+	   Is it correct? Do we also need to use this trick in
+	   _summarize_leaf_vector()? (see file leaf_vector_summarization.c) */
+	_summarize_one_zero(summarize_op, &res);
+	return res;
 }
 
 SEXP C_summarize_SVT_SparseArray(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		SEXP op, SEXP na_rm, SEXP shift)
 {
 	SEXPTYPE Rtype;
-	int opcode, narm0, status;
-	R_xlen_t na_rm_count;
-	double init[2];  /* 'init' will store 1 or 2 ints or doubles */
+	int opcode, narm;
+	SummarizeOp summarize_op;
+	SummarizeResult res;
 
 	Rtype = _get_Rtype_from_Rstring(x_type);
-        if (Rtype == 0)
+	if (Rtype == 0)
 		error("SparseArray internal error in "
 		      "C_summarize_SVT_SparseArray():\n"
 		      "    SVT_SparseArray object has invalid type");
@@ -146,20 +84,17 @@ SEXP C_summarize_SVT_SparseArray(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 
 	if (!(IS_LOGICAL(na_rm) && LENGTH(na_rm) == 1))
 		error("'na.rm' must be TRUE or FALSE");
-	narm0 = LOGICAL(na_rm)[0];
+	narm = LOGICAL(na_rm)[0];
 
 	if (!IS_NUMERIC(shift) || LENGTH(shift) != 1)
 		error("SparseArray internal error in "
 		      "C_summarize_SVT_SparseArray():\n"
 		      "    'shift' must be a single numeric value");
 
-	status = summarize_SVT_OLD(x_SVT, INTEGER(x_dim), LENGTH(x_dim),
-				   opcode, Rtype,
-				   init, narm0, &na_rm_count,
-				   REAL(shift)[0]);
-
-	return _make_SEXP_from_summarize_result(opcode, Rtype,
-			       init, narm0, na_rm_count, status);
+	summarize_op = _make_SummarizeOp(opcode, Rtype, narm, REAL(shift)[0]);
+	res = _summarize_SVT(x_SVT, INTEGER(x_dim), LENGTH(x_dim),
+			     &summarize_op);
+	return _make_SEXP_from_summarize_result(&summarize_op, &res);
 }
 
 

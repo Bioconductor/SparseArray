@@ -53,7 +53,7 @@ setMethod("Summary", "COO_SparseArray",
 
 ### 'shift' ignored by all ops except "sum_shifted_X2".
 ### Returns an integer or numeric vector of length 1 or 2.
-### If 'na_rm' is TRUE, then the "na_rm_count" attribute is set on the
+### If 'na_rm' is TRUE, then the "nacount" attribute is set on the
 ### returned vector.
 .summarize_SVT_SparseArray <- function(op, x, na.rm=FALSE, shift=0.0)
 {
@@ -70,7 +70,7 @@ setMethod("Summary", "SVT_SparseArray",
                       "objects only accepts a single object"))
         ans <- .summarize_SVT_SparseArray(.Generic, x, na.rm=na.rm)
         if (na.rm)
-            attr(ans, "na_rm_count") <- NULL
+            attr(ans, "nacount") <- NULL
         ans
     }
 )
@@ -124,7 +124,7 @@ range.SVT_SparseArray <- function(..., na.rm=FALSE, finite=FALSE)
     x <- objects[[1L]]
     ans <- .summarize_SVT_SparseArray("range", x, na.rm=na.rm)
     if (na.rm)
-        attr(ans, "na_rm_count") <- NULL
+        attr(ans, "nacount") <- NULL
     ans
 }
 ### The signature of all the members in the 'Summary' group generic is
@@ -165,7 +165,7 @@ setMethod("range", "SVT_SparseArray",
     } else if (is(x, "SVT_SparseArray")) {
         sum_X <- .summarize_SVT_SparseArray("sum", x, na.rm=na.rm)
         if (na.rm)
-            nval <- nval - attr(sum_X, "na_rm_count")
+            nval <- nval - attr(sum_X, "nacount")
     } else {
         stop(wmsg(class(x)[[1L]], " objects are not supported"))
     }
@@ -209,7 +209,7 @@ setMethod("anyNA", "SVT_SparseArray",
         ## A single pass on 'x'.
         ans <- .summarize_SVT_SparseArray("var", x, na.rm=na.rm)
         if (na.rm)
-            attr(ans, "na_rm_count") <- NULL
+            attr(ans, "nacount") <- NULL
         return(ans)
     }
     if (method == 1L) {
@@ -219,7 +219,7 @@ setMethod("anyNA", "SVT_SparseArray",
         nval <- length(x)
         sum_X <- .summarize_SVT_SparseArray("sum", x, na.rm=na.rm)
         if (na.rm)
-            nval <- nval - attr(sum_X, "na_rm_count")
+            nval <- nval - attr(sum_X, "nacount")
         mu <- sum_X / nval
         sum_shifted_X2 <- .summarize_SVT_SparseArray("sum_shifted_X2",
                                                      x, na.rm=na.rm,
@@ -236,7 +236,7 @@ setMethod("anyNA", "SVT_SparseArray",
         nval <- length(x)
         sum_X_X2 <- .summarize_SVT_SparseArray("sum_X_X2", x, na.rm=na.rm)
         if (na.rm)
-            nval <- nval - attr(sum_X_X2, "na_rm_count")
+            nval <- nval - attr(sum_X_X2, "nacount")
         if (nval <= 1L)
             return(NA_real_)
         sum_X <- as.double(sum_X_X2[[1L]])
