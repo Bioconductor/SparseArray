@@ -20,7 +20,7 @@ int _get_summarize_opcode(SEXP op, SEXPTYPE Rtype)
 	s = CHAR(op);
 	if (Rtype != LGLSXP && Rtype != INTSXP && Rtype != REALSXP)
 		error("%s() does not support SparseArray objects "
-		      "of type \"%s\"", s, type2char(Rtype));
+		      "of type() \"%s\"", s, type2char(Rtype));
 	if (strcmp(s, "min") == 0)
 		return MIN_OPCODE;
 	if (strcmp(s, "max") == 0)
@@ -37,7 +37,7 @@ int _get_summarize_opcode(SEXP op, SEXPTYPE Rtype)
 		return SUM_X_X2_OPCODE;
 	if (Rtype == REALSXP)
 		error("%s() does not support SparseArray objects "
-		      "of type \"%s\"", s, type2char(Rtype));
+		      "of type() \"%s\"", s, type2char(Rtype));
 	if (strcmp(s, "any") == 0)
 		return ANY_OPCODE;
 	if (strcmp(s, "all") == 0)
@@ -400,8 +400,8 @@ static inline int sum_X_X2_doubles(const double *x, int n,
 /* Returns an integer or numeric vector of length 1 or 2.
    Looks at 'res->outbuf_is_set' only when 'opcode' is MIN/MAX/RANGE_OPCODE
    and 'Rtype' is INTSXP. */
-static SEXP init2nakedSEXP(int opcode, SEXPTYPE Rtype,
-			   const SummarizeResult *res)
+static SEXP res2nakedSEXP(const SummarizeResult *res,
+			  int opcode, SEXPTYPE in_Rtype)
 {
 	SEXP ans;
 
@@ -409,31 +409,28 @@ static SEXP init2nakedSEXP(int opcode, SEXPTYPE Rtype,
 		return ScalarLogical(res->outbuf.one_int[0]);
 
 	if (opcode == MIN_OPCODE || opcode == MAX_OPCODE) {
-		if (Rtype == REALSXP)
+		if (in_Rtype == REALSXP)
 			return ScalarReal(res->outbuf.one_double[0]);
-		if (res->outbuf_is_set) {
+		if (in_Rtype == INTSXP || in_Rtype == LGLSXP)
 			return ScalarInteger(res->outbuf.one_int[0]);
-		} else {
-			return ScalarReal(opcode == MIN_OPCODE ? R_PosInf
-							       : R_NegInf);
-		}
+		error("SparseArray internal error in res2nakedSEXP()\n"
+		      "    type \"%s\" not supported for min() or max()",
+		      type2char(in_Rtype));
 	}
 
 	if (opcode == RANGE_OPCODE) {
-		if (Rtype == REALSXP) {
+		if (in_Rtype == REALSXP) {
 			ans = PROTECT(NEW_NUMERIC(2));
 			REAL(ans)[0] = res->outbuf.two_doubles[0];
 			REAL(ans)[1] = res->outbuf.two_doubles[1];
+		} else if (in_Rtype == INTSXP || in_Rtype == LGLSXP) {
+			ans = PROTECT(NEW_INTEGER(2));
+			INTEGER(ans)[0] = res->outbuf.two_ints[0];
+			INTEGER(ans)[1] = res->outbuf.two_ints[1];
 		} else {
-			if (res->outbuf_is_set) {
-				ans = PROTECT(NEW_INTEGER(2));
-				INTEGER(ans)[0] = res->outbuf.two_ints[0];
-				INTEGER(ans)[1] = res->outbuf.two_ints[1];
-			} else {
-				ans = PROTECT(NEW_NUMERIC(2));
-				REAL(ans)[0] = R_PosInf;
-				REAL(ans)[1] = R_NegInf;
-			}
+			error("SparseArray internal error in res2nakedSEXP()\n"
+			      "    type \"%s\" not supported for range()",
+			      type2char(in_Rtype));
 		}
 		UNPROTECT(1);
 		return ans;
@@ -447,10 +444,11 @@ static SEXP init2nakedSEXP(int opcode, SEXPTYPE Rtype,
 		   both are set to NA or both are set NaN. */
 		double init0 = res->outbuf.two_doubles[0],
 		       init1 = res->outbuf.two_doubles[1];
-		if (Rtype == INTSXP) {
-			/* When 'Rtype' is INTSXP, the only kind of NA that
-			   can end up in 'init0' is NA_REAL. No NaN. */
-			if (R_IsNA(init0)) {
+		if (in_Rtype == INTSXP) {
+			/* Note that when 'in_Rtype' is INTSXP, the only
+			   kind of NA that can end up in 'init0' is NA_REAL.
+			   No NaN. */
+			if (ISNAN(init0)) {
 				ans = PROTECT(NEW_INTEGER(2));
 				INTEGER(ans)[0] = INTEGER(ans)[1] = NA_INTEGER;
 				UNPROTECT(1);
@@ -482,10 +480,10 @@ static SEXP init2nakedSEXP(int opcode, SEXPTYPE Rtype,
 
 	/* 'opcode' is either SUM_OPCODE, PROD_OPCODE, or
 	   SUM_SHIFTED_X2_OPCODE. */
-	if (Rtype == REALSXP || opcode == SUM_SHIFTED_X2_OPCODE)
+	if (in_Rtype == REALSXP || opcode == SUM_SHIFTED_X2_OPCODE)
 		return ScalarReal(res->outbuf.one_double[0]);
 
-	if (R_IsNA(res->outbuf.one_double[0]))
+	if (ISNAN(res->outbuf.one_double[0]))  // True for *both* NA and NaN
 		return ScalarInteger(NA_INTEGER);
 	if (res->outbuf.one_double[0] <= INT_MAX &&
 	    res->outbuf.one_double[0] >= -INT_MAX)
@@ -500,13 +498,13 @@ static SEXP init2nakedSEXP(int opcode, SEXPTYPE Rtype,
  * _init_SummarizeResult()
  */
 
-SummarizeOp _make_SummarizeOp(int opcode, SEXPTYPE Rtype,
+SummarizeOp _make_SummarizeOp(int opcode, SEXPTYPE in_Rtype,
 			      int na_rm, double shift)
 {
 	SummarizeOp summarize_op;
 
 	summarize_op.opcode = opcode;
-	summarize_op.Rtype = Rtype;
+	summarize_op.in_Rtype = in_Rtype;
 	summarize_op.na_rm = na_rm;
 	summarize_op.shift = shift;
 	return summarize_op;
@@ -517,33 +515,42 @@ void _init_SummarizeResult(const SummarizeOp *summarize_op,
 {
 	res->totalcount = res->nzcount = res->nacount = 0;
 	res->outbuf_is_set = 1;
+	res->warn = 0;
 	switch (summarize_op->opcode) {
 	    case ANY_OPCODE:
+		res->out_Rtype = LGLSXP;
 		res->outbuf.one_int[0] = 0;
 		return;
 	    case ALL_OPCODE:
+		res->out_Rtype = LGLSXP;
 		res->outbuf.one_int[0] = 1;
 		return;
 	    case SUM_OPCODE:
+		res->out_Rtype = REALSXP;
 		res->outbuf.one_double[0] = 0.0;
 		return;
 	    case PROD_OPCODE:
+		res->out_Rtype = REALSXP;
 		res->outbuf.one_double[0] = 1.0;
 		return;
 	    case SUM_SHIFTED_X2_OPCODE:
+		res->out_Rtype = REALSXP;
 		res->outbuf.two_doubles[0] = 0.0;
 		res->outbuf.two_doubles[1] = summarize_op->shift;
 		return;
 	    case SUM_X_X2_OPCODE:
+		res->out_Rtype = REALSXP;
 		res->outbuf.two_doubles[0] = res->outbuf.two_doubles[1] = 0.0;
 		return;
 	}
 	/* From now on, 'summarize_op->opcode' can only be MIN_OPCODE,
 	   MAX_OPCODE, or RANGE_OPCODE. */
-	if (summarize_op->Rtype == INTSXP) {
+	if (summarize_op->in_Rtype == INTSXP) {
 		res->outbuf_is_set = 0;
+		res->out_Rtype = INTSXP;
 		return;
 	}
+	res->out_Rtype = REALSXP;
 	switch (summarize_op->opcode) {
 	    case MIN_OPCODE:
 		res->outbuf.one_double[0] = R_PosInf;
@@ -562,7 +569,6 @@ void _init_SummarizeResult(const SummarizeOp *summarize_op,
 
 /****************************************************************************
  * _summarize_Rvector()
- * _summarize_one_zero()
  */
 
 static int summarize_ints(const int *x, int x_len,
@@ -638,12 +644,12 @@ int _summarize_Rvector(SEXP x, const SummarizeOp *summarize_op,
 {
 	int x_len, bailout;
 
-	if (TYPEOF(x) != summarize_op->Rtype)
+	if (TYPEOF(x) != summarize_op->in_Rtype)
 		error("SparseArray internal error in "
 		      "_summarize_Rvector():\n"
-		      "    TYPEOF(x) != summarize_op->Rtype'");
+		      "    TYPEOF(x) != summarize_op->in_Rtype");
 	x_len = LENGTH(x);
-	if (summarize_op->Rtype == INTSXP) {
+	if (summarize_op->in_Rtype == INTSXP) {
 		bailout = summarize_ints(INTEGER(x), x_len,
 				summarize_op->opcode, summarize_op->na_rm,
 				res);
@@ -656,12 +662,18 @@ int _summarize_Rvector(SEXP x, const SummarizeOp *summarize_op,
 	return bailout;
 }
 
+
+/****************************************************************************
+ * _postprocess_SummarizeResult()
+ */
+
 /* Does NOT increase 'res->totalcount' by 1. */
-int _summarize_one_zero(const SummarizeOp *summarize_op, SummarizeResult *res)
+static int summarize_one_zero(const SummarizeOp *summarize_op,
+			      SummarizeResult *res)
 {
 	int bailout;
 
-	if (summarize_op->Rtype == INTSXP) {
+	if (summarize_op->in_Rtype == INTSXP) {
 		int zero = 0;
 		bailout = summarize_ints(&zero, 1,
 				summarize_op->opcode, summarize_op->na_rm, res);
@@ -671,6 +683,42 @@ int _summarize_one_zero(const SummarizeOp *summarize_op, SummarizeResult *res)
 				summarize_op->opcode, summarize_op->na_rm, res);
 	}
 	return bailout;
+}
+
+
+void _postprocess_SummarizeResult(const SummarizeOp *summarize_op,
+				  SummarizeResult *res)
+{
+	int opcode;
+
+	opcode = summarize_op->opcode;
+	if (res->nzcount < res->totalcount && opcode != SUM_SHIFTED_X2_OPCODE)
+		summarize_one_zero(summarize_op, res);
+	if (!res->outbuf_is_set) {
+		if (res->out_Rtype == INTSXP && (opcode == MIN_OPCODE ||
+						 opcode == MAX_OPCODE ||
+						 opcode == RANGE_OPCODE))
+		{
+			/* Will happen if the virtual vector we're summarizing
+			   has length 0 (i.e. 'res->totalcount == 0'), or if
+			   it contains only NAs (i.e. 'res->nacount ==
+			   res->totalcount') and 'summarize_op->na_rm' is True.
+			   This is a case where we intentional deviate from
+			   base::min(), base::max(), and base::range(). */
+			if (opcode == RANGE_OPCODE) {
+				res->outbuf.two_ints[0] =
+					res->outbuf.two_ints[1] = NA_INTEGER;
+			} else {
+				res->outbuf.one_int[0] = NA_INTEGER;
+			}
+			res->warn = res->outbuf_is_set = 1;
+		} else {
+			error("SparseArray internal error in "
+			      "_postprocess_SummarizeResult():\n",
+			      "    'res->outbuf_is_set' is False");
+		}
+	}
+	return;
 }
 
 
@@ -686,7 +734,7 @@ SEXP _make_SEXP_from_summarize_result(const SummarizeOp *summarize_op,
 {
 	SEXP ans, ans_attrib;
 
-	ans = init2nakedSEXP(summarize_op->opcode, summarize_op->Rtype, res);
+	ans = res2nakedSEXP(res, summarize_op->opcode, summarize_op->in_Rtype);
 	if (!summarize_op->na_rm)
 		return ans;
 	PROTECT(ans);
@@ -780,10 +828,7 @@ static int any_NA_character_elt(SEXP x)
 
 static inline int is_single_NA(SEXP x)
 {
-	SEXPTYPE Rtype;
-
-	Rtype = TYPEOF(x);
-	switch (Rtype) {
+	switch (TYPEOF(x)) {
 	    case LGLSXP: case INTSXP:
 		if (LENGTH(x) == 1 && INTEGER(x)[0] == NA_INTEGER)
 			return 1;
