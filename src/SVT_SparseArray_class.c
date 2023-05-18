@@ -147,9 +147,9 @@ SEXP C_set_SVT_SparseArray_type(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	if (new_Rtype == x_Rtype || x_SVT == R_NilValue)
 		return x_SVT;
 
-	warn = 0;
 	offs_buf = (int *) R_alloc(INTEGER(x_dim)[0], sizeof(int));
 	ans = PROTECT(duplicate(x_SVT));
+	warn = 0;
 	ret = REC_set_SVT_type(ans, INTEGER(x_dim), LENGTH(x_dim),
 			       new_Rtype, &warn, offs_buf);
 	if (ret < 0) {
@@ -322,8 +322,8 @@ SEXP C_build_SVT_from_Rarray(SEXP x, SEXP ans_type)
 
 	x_dim = GET_DIM(x);  /* does not contain zeros */
 	x_ndim = LENGTH(x_dim);
-	warn = 0;
 	offs_buf = (int *) R_alloc(INTEGER(x_dim)[0], sizeof(int));
+	warn = 0;
 	ans = REC_build_SVT_from_Rsubarray(x, 0, x_len,
 					   INTEGER(x_dim), x_ndim,
 					   ans_Rtype, &warn, offs_buf);
@@ -526,9 +526,9 @@ SEXP C_build_SVT_from_CsparseMatrix(SEXP x, SEXP ans_type)
 	x_i = GET_SLOT(x, install("i"));
 	x_x = GET_SLOT(x, install("x"));
 
-	warn = 0;
 	offs_buf = (int *) R_alloc(x_nrow, sizeof(int));
 	ans = PROTECT(NEW_LIST(x_ncol));
+	warn = 0;
 	is_empty = 1;
 	for (j = 0; j < x_ncol; j++) {
 		offset = INTEGER(x_p)[j];

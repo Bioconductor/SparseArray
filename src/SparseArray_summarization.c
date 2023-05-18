@@ -50,37 +50,28 @@ SummarizeResult _summarize_SVT(SEXP SVT, const int *dim, int ndim,
 			       const SummarizeOp *summarize_op)
 {
 	SummarizeResult res;
-	int bailout;
 
 	_init_SummarizeResult(summarize_op, &res);
-	bailout = REC_summarize_SVT(SVT, dim, ndim, summarize_op, &res);
-	if (bailout ||
-	    res.nzcount == res.totalcount ||
-	    summarize_op->opcode == SUM_SHIFTED_X2_OPCODE)
-		return res;
-	/* TODO: Reconsider the need to call _summarize_one_zero() here.
-	   Does it still make sense? Is this the right place for this?
-	   Is it correct? Do we also need to use this trick in
-	   _summarize_leaf_vector()? (see file leaf_vector_summarization.c) */
-	_summarize_one_zero(summarize_op, &res);
+	REC_summarize_SVT(SVT, dim, ndim, summarize_op, &res);
+	_postprocess_SummarizeResult(summarize_op, &res);
 	return res;
 }
 
 SEXP C_summarize_SVT_SparseArray(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		SEXP op, SEXP na_rm, SEXP shift)
 {
-	SEXPTYPE Rtype;
+	SEXPTYPE x_Rtype;
 	int opcode, narm;
 	SummarizeOp summarize_op;
 	SummarizeResult res;
 
-	Rtype = _get_Rtype_from_Rstring(x_type);
-	if (Rtype == 0)
+	x_Rtype = _get_Rtype_from_Rstring(x_type);
+	if (x_Rtype == 0)
 		error("SparseArray internal error in "
 		      "C_summarize_SVT_SparseArray():\n"
 		      "    SVT_SparseArray object has invalid type");
 
-	opcode = _get_summarize_opcode(op, Rtype);
+	opcode = _get_summarize_opcode(op, x_Rtype);
 
 	if (!(IS_LOGICAL(na_rm) && LENGTH(na_rm) == 1))
 		error("'na.rm' must be TRUE or FALSE");
@@ -91,9 +82,12 @@ SEXP C_summarize_SVT_SparseArray(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		      "C_summarize_SVT_SparseArray():\n"
 		      "    'shift' must be a single numeric value");
 
-	summarize_op = _make_SummarizeOp(opcode, Rtype, narm, REAL(shift)[0]);
+	summarize_op = _make_SummarizeOp(opcode, x_Rtype, narm, REAL(shift)[0]);
 	res = _summarize_SVT(x_SVT, INTEGER(x_dim), LENGTH(x_dim),
 			     &summarize_op);
+	if (res.warn)
+		warning("NAs introduced by coercion of "
+			"infinite values to integer range");
 	return _make_SEXP_from_summarize_result(&summarize_op, &res);
 }
 
