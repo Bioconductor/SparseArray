@@ -14,8 +14,6 @@
 ### Notes:
 ### - colSums() and colMeans() are functions actually defined in the base
 ###   package but we still count them as part of the matrixStats family.
-### - The colSums() and colMeans() generics are defined in the BiocGenerics
-###   package.
 ### - All other matrix row/column summarization operations are from the
 ###   matrixStats package with corresponding generics defined in the
 ###   MatrixGenerics package.
@@ -50,7 +48,7 @@
 ### colSums/rowSums
 ###
 ### Like base::colSums() and base::rowSums(), the colSums() and rowSums()
-### generics in BiocGenerics have a 'dims' argument. We do NOT support it.
+### generics in MatrixGenerics have a 'dims' argument. We do NOT support it.
 ### base::colSums() and base::rowSums() propagate the colnames and rownames.
 
 .colSums_SVT_SparseMatrix <- function(x, na.rm=FALSE, dims=1)
@@ -114,7 +112,7 @@ setMethod("rowSums", "SVT_SparseMatrix", .rowSums_SVT_SparseMatrix)
 ### colMeans/rowMeans
 ###
 ### Like base::colMeans() and base::rowMeans(), the colMeans() and rowMeans()
-### generics in BiocGenerics have a 'dims' argument. We do NOT support it.
+### generics in MatrixGenerics have a 'dims' argument. We do NOT support it.
 ### base::colMeans() and base::rowMeans() propagate the colnames and rownames.
 
 .colMeans_SVT_SparseMatrix <- function(x, na.rm=FALSE, dims=1)
