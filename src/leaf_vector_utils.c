@@ -333,7 +333,7 @@ SEXP _subassign_leaf_vector_with_Rvector(SEXP lv, SEXP index, SEXP Rvector)
 
 
 /****************************************************************************
- * lv_apply()
+ * _lv_apply_to_REALSXP()
  */
 
 #define ARGS_AND_BODY_OF_SPARSE_APPLY_FUN(in_type, out_type)(	\
@@ -416,39 +416,5 @@ SEXP _lv_apply_to_REALSXP(SEXP lv, apply_2double_FUNS *funs,
 	}
 	return _new_leaf_vector_from_bufs(REALSXP,
 				offs_buf, vals_buf, ans_len);
-}
-
-
-/****************************************************************************
- * _summarize_leaf_vector()
- */
-
-int _summarize_leaf_vector(SEXP lv, int d,
-		const SummarizeOp *summarize_op,
-		void *init, R_xlen_t *na_rm_count, int status)
-{
-	SEXP lv_vals;
-	int lv_len;
-
-	lv_vals = VECTOR_ELT(lv, 1);
-	lv_len = LENGTH(lv_vals);
-	status = _apply_summarize_op(summarize_op,
-				     init, DATAPTR(lv_vals), lv_len,
-				     na_rm_count, status);
-	if (status == 2 || lv_len == d ||
-	    summarize_op->opcode == SUM_SHIFTED_X2_OPCODE)
-		return status;
-	if (summarize_op->Rtype == INTSXP) {
-		int zero = 0;
-		status = _apply_summarize_op(summarize_op,
-					     init, &zero, 1,
-					     na_rm_count, status);
-	} else {
-		double zero = 0.0;
-		status = _apply_summarize_op(summarize_op,
-					     init, &zero, 1,
-					     na_rm_count, status);
-	}
-	return status;
 }
 

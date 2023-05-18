@@ -1,5 +1,5 @@
 /****************************************************************************
- *                     Summarization an R atomic vector                     *
+ *                   Summarization of an R atomic vector                    *
  ****************************************************************************/
 #include "Rvector_summarization.h"
 
@@ -50,531 +50,389 @@ int _get_summarize_opcode(SEXP op, SEXPTYPE Rtype)
 
 
 /****************************************************************************
- * Callback functions used for summarize operations
+ * Low-level summarization functions
  *
- * All these callback functions return the "new status":
- *    0 = 'init' has not been set yet
- *    1 = 'init' has been set
- *    2 = 'init' has been set and we don't need to continue (break condition)
- *
- * IMPORTANT NOTE: Most of them ignore the supplied 'status', only
- * min/max/range_ints() don't. This is because 'init' should have been set
- * by select_summarize_FUN() before the callback function gets called (see
- * below in this file). So it doesn't matter whether the supplied 'status'
- * is 0 or 1, and it doesn't matter if the callback function returns a new
- * status of 0 or 1.
- * Note that the init2nakedSEXP() function below in this file will ignore
- * the final status anyways, except when 'opcode' is MIN/MAX/RANGE_OPCODE
- * and 'Rtype' is INTSXP.
- * So for the callback functions that ignore the supplied 'status', the only
- * thing that matters is whether the returned 'status' is 2 or not, so the
- * caller knows whether to bail out or not (break condition).
+ * They all return 1 when they bail out early (on reaching a break condition),
+ * and 0 otherwise.
  */
 
-/* ISNAN(): True for *both* NA and NaN. See <R_ext/Arith.h> */
-#define DOUBLE_IS_NA(x) (ISNAN(x))
-
-/* Does NOT ignore 'status'. */
-static inline int min_ints(void *init, const int *x, int n,
-		int na_rm, R_xlen_t *na_rm_count, int status)
+static inline int min_ints(const int *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		int *outbuf_is_set, int outbuf[1])
 {
-	int *int_init;
-
-	int_init = (int *) init;
 	for (int i = 0; i < n; i++, x++) {
 		if (*x == NA_INTEGER) {
 			if (!na_rm) {
-				int_init[0] = *x;
-				return 2;
+				outbuf[0] = *x;
+				*outbuf_is_set = 1;
+				return 1;  // bail out early
 			}
-			(*na_rm_count)++;
+			(*nacount)++;
 			continue;
 		}
-		if (status == 0 || *x < int_init[0]) {
-			int_init[0] = *x;
-			status = 1;
+		if (!*outbuf_is_set || *x < outbuf[0]) {
+			outbuf[0] = *x;
+			*outbuf_is_set = 1;
 		}
 	}
-	return status;
+	return 0;
 }
 
-/* Ignores 'status'. */
-static inline int min_doubles(void *init, const double *x, int n,
-		int na_rm, R_xlen_t *na_rm_count, int status)
+static inline int min_doubles(const double *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		double outbuf[1])
 {
-	double *double_init;
-
-	double_init = (double *) init;
 	for (int i = 0; i < n; i++, x++) {
-		if (DOUBLE_IS_NA(*x)) {
+		if (ISNAN(*x)) {  // True for *both* NA and NaN
 			if (!na_rm) {
-				double_init[0] = *x;
+				outbuf[0] = *x;
 				if (R_IsNA(*x))
-					return 2;
+					return 1;  // bail out early
 			}
-			(*na_rm_count)++;
+			(*nacount)++;
 			continue;
 		}
-		if (!R_IsNaN(double_init[0]) && *x < double_init[0])
-			double_init[0] = *x;
+		if (!R_IsNaN(outbuf[0]) && *x < outbuf[0])
+			outbuf[0] = *x;
 	}
-	return status;
+	return 0;
 }
 
-/* Does NOT ignore 'status'. */
-static inline int max_ints(void *init, const int *x, int n,
-		int na_rm, R_xlen_t *na_rm_count, int status)
+static inline int max_ints(const int *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		int *outbuf_is_set, int outbuf[1])
 {
-	int *int_init;
-
-	int_init = (int *) init;
 	for (int i = 0; i < n; i++, x++) {
 		if (*x == NA_INTEGER) {
 			if (!na_rm) {
-				int_init[0] = *x;
-				return 2;
+				outbuf[0] = *x;
+				*outbuf_is_set = 1;
+				return 1;  // bail out early
 			}
-			(*na_rm_count)++;
+			(*nacount)++;
 			continue;
 		}
-		if (status == 0 || *x > int_init[0]) {
-			int_init[0] = *x;
-			status = 1;
+		if (!*outbuf_is_set || *x > outbuf[0]) {
+			outbuf[0] = *x;
+			*outbuf_is_set = 1;
 		}
 	}
-	return status;
+	return 0;
 }
 
-/* Ignores 'status'. */
-static inline int max_doubles(void *init, const double *x, int n,
-		int na_rm, R_xlen_t *na_rm_count, int status)
+static inline int max_doubles(const double *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		double outbuf[1])
 {
-	double *double_init;
-
-	double_init = (double *) init;
 	for (int i = 0; i < n; i++, x++) {
-		if (DOUBLE_IS_NA(*x)) {
+		if (ISNAN(*x)) {  // True for *both* NA and NaN
 			if (!na_rm) {
-				double_init[0] = *x;
+				outbuf[0] = *x;
 				if (R_IsNA(*x))
-					return 2;
+					return 1;  // bail out early
 			}
-			(*na_rm_count)++;
+			(*nacount)++;
 			continue;
 		}
-		if (!R_IsNaN(double_init[0]) && *x > double_init[0])
-			double_init[0] = *x;
+		if (!R_IsNaN(outbuf[0]) && *x > outbuf[0])
+			outbuf[0] = *x;
 	}
-	return status;
+	return 0;
 }
 
-/* Does NOT ignore 'status'. */
-static inline int range_ints(void *init, const int *x, int n,
-		int na_rm, R_xlen_t *na_rm_count, int status)
+static inline int range_ints(const int *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		int *outbuf_is_set, int outbuf[2])
 {
-	int *int_init;
-
-	int_init = (int *) init;
 	for (int i = 0; i < n; i++, x++) {
 		if (*x == NA_INTEGER) {
 			if (!na_rm) {
-				int_init[0] = int_init[1] = *x;
-				return 2;
+				outbuf[0] = outbuf[1] = *x;
+				*outbuf_is_set = 1;
+				return 1;  // bail out early
 			}
-			(*na_rm_count)++;
+			(*nacount)++;
 			continue;
 		}
-		if (status == 0) {
-			int_init[0] = int_init[1] = *x;
-			status = 1;
+		if (!*outbuf_is_set) {
+			outbuf[0] = outbuf[1] = *x;
+			*outbuf_is_set = 1;
 		} else {
-			if (*x < int_init[0])
-				int_init[0] = *x;
-			if (*x > int_init[1])
-				int_init[1] = *x;
+			if (*x < outbuf[0])
+				outbuf[0] = *x;
+			if (*x > outbuf[1])
+				outbuf[1] = *x;
 		}
 	}
-	return status;
+	return 0;
 }
 
-/* Ignores 'status'. */
-static inline int range_doubles(void *init, const double *x, int n,
-		int na_rm, R_xlen_t *na_rm_count, int status)
+static inline int range_doubles(const double *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		double outbuf[2])
 {
-	double *double_init;
-
-	double_init = (double *) init;
 	for (int i = 0; i < n; i++, x++) {
-		if (DOUBLE_IS_NA(*x)) {
+		if (ISNAN(*x)) {  // True for *both* NA and NaN
 			if (!na_rm) {
-				double_init[0] = double_init[1] = *x;
+				outbuf[0] = outbuf[1] = *x;
 				if (R_IsNA(*x))
-					return 2;
+					return 1;  // bail out early
 			}
-			(*na_rm_count)++;
+			(*nacount)++;
 			continue;
 		}
-		if (!R_IsNaN(double_init[0])) {
-			if (*x < double_init[0])
-				double_init[0] = *x;
-			if (*x > double_init[1])
-				double_init[1] = *x;
+		if (!R_IsNaN(outbuf[0])) {
+			if (*x < outbuf[0])
+				outbuf[0] = *x;
+			if (*x > outbuf[1])
+				outbuf[1] = *x;
 		}
 	}
-	return status;
+	return 0;
 }
 
-/* Ignores 'status'. */
-static inline int sum_ints(void *init, const int *x, int n,
-		int na_rm, R_xlen_t *na_rm_count, int status)
+static inline int sum_ints(const int *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		double outbuf[1])
 {
-	double *double_init;
-
-	double_init = (double *) init;
 	for (int i = 0; i < n; i++, x++) {
 		if (*x == NA_INTEGER) {
 			if (!na_rm) {
-				double_init[0] = NA_REAL;
-				return 2;
+				outbuf[0] = NA_REAL;
+				return 1;  // bail out early
 			}
-			(*na_rm_count)++;
+			(*nacount)++;
 			continue;
 		}
-		double_init[0] += (double) *x;
+		outbuf[0] += (double) *x;
 	}
-	return status;
+	return 0;
 }
 
-/* Ignores 'status'. */
-static inline int sum_doubles(void *init, const double *x, int n,
-		int na_rm, R_xlen_t *na_rm_count, int status)
+static inline int sum_doubles(const double *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		double outbuf[1])
 {
-	double *double_init;
-
-	double_init = (double *) init;
 	for (int i = 0; i < n; i++, x++) {
-		if (DOUBLE_IS_NA(*x)) {
+		if (ISNAN(*x)) {  // True for *both* NA and NaN
 			if (!na_rm) {
-				double_init[0] = *x;
+				outbuf[0] = *x;
 				if (R_IsNA(*x))
-					return 2;
+					return 1;  // bail out early
 			}
-			(*na_rm_count)++;
+			(*nacount)++;
 			continue;
 		}
-		if (!R_IsNaN(double_init[0]))
-			double_init[0] += *x;
+		if (!R_IsNaN(outbuf[0]))
+			outbuf[0] += *x;
 	}
-	return status;
+	return 0;
 }
 
-/* Ignores 'status'. */
-static inline int prod_ints(void *init, const int *x, int n,
-		int na_rm, R_xlen_t *na_rm_count, int status)
+static inline int prod_ints(const int *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		double outbuf[1])
 {
-	double *double_init;
-
-	double_init = (double *) init;
 	for (int i = 0; i < n; i++, x++) {
 		if (*x == NA_INTEGER) {
 			if (!na_rm) {
-				double_init[0] = NA_REAL;
-				return 2;
+				outbuf[0] = NA_REAL;
+				return 1;  // bail out early
 			}
-			(*na_rm_count)++;
+			(*nacount)++;
 			continue;
 		}
-		double_init[0] *= (double) *x;
+		outbuf[0] *= (double) *x;
 	}
-	return status;
+	return 0;
 }
 
-/* Ignores 'status'. */
-static inline int prod_doubles(void *init, const double *x, int n,
-		int na_rm, R_xlen_t *na_rm_count, int status)
+static inline int prod_doubles(const double *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		double outbuf[1])
 {
-	double *double_init;
-
-	double_init = (double *) init;
 	for (int i = 0; i < n; i++, x++) {
-		if (DOUBLE_IS_NA(*x)) {
+		if (ISNAN(*x)) {  // True for *both* NA and NaN
 			if (!na_rm) {
-				double_init[0] = *x;
+				outbuf[0] = *x;
 				if (R_IsNA(*x))
-					return 2;
+					return 1;  // bail out early
 			}
-			(*na_rm_count)++;
+			(*nacount)++;
 			continue;
 		}
-		if (!R_IsNaN(double_init[0]))
-			double_init[0] *= *x;
+		if (!R_IsNaN(outbuf[0]))
+			outbuf[0] *= *x;
 	}
-	return status;
+	return 0;
 }
 
-/* Ignores 'status'. */
-static inline int any_ints(void *init, const int *x, int n,
-		int na_rm, R_xlen_t *na_rm_count, int status)
+static inline int any_ints(const int *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		int outbuf[1])
 {
-	int *int_init;
-
-	int_init = (int *) init;
 	for (int i = 0; i < n; i++, x++) {
 		if (*x == NA_INTEGER) {
 			if (!na_rm)
-				int_init[0] = *x;
-			(*na_rm_count)++;
+				outbuf[0] = NA_INTEGER;
+			(*nacount)++;
 			continue;
 		}
 		if (*x != 0) {
-			int_init[0] = *x;
-			return 2;
+			outbuf[0] = 1;
+			return 1;  // bail out early
 		}
 	}
-	return status;
+	return 0;
 }
 
-/* Ignores 'status'. */
-static inline int all_ints(void *init, const int *x, int n,
-		int na_rm, R_xlen_t *na_rm_count, int status)
+static inline int all_ints(const int *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		int outbuf[1])
 {
-	int *int_init;
-
-	int_init = (int *) init;
 	for (int i = 0; i < n; i++, x++) {
 		if (*x == NA_INTEGER) {
 			if (!na_rm)
-				int_init[0] = *x;
-			(*na_rm_count)++;
+				outbuf[0] = NA_INTEGER;
+			(*nacount)++;
 			continue;
 		}
 		if (*x == 0) {
-			int_init[0] = *x;
-			return 2;
+			outbuf[0] = 0;
+			return 1;  // bail out early
 		}
 	}
-	return status;
+	return 0;
 }
 
-/* Ignores 'status'. */
-static inline int sum_shifted_X2_ints(void *init, const int *x, int n,
-		int na_rm, R_xlen_t *na_rm_count, int status)
+static inline int sum_shifted_X2_ints(const int *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		double outbuf[2])
 {
-	double *double_init, y;
+	double y;
 
-	double_init = (double *) init;
 	for (int i = 0; i < n; i++, x++) {
 		if (*x == NA_INTEGER) {
 			if (!na_rm) {
-				double_init[0] = NA_REAL;
-				return 2;
+				outbuf[0] = NA_REAL;
+				return 1;  // bail out early
 			}
-			(*na_rm_count)++;
+			(*nacount)++;
 			continue;
 		}
-		y = (double) *x - double_init[1];
-		double_init[0] += y * y;
+		y = (double) *x - outbuf[1];
+		outbuf[0] += y * y;
 	}
-	return status;
+	return 0;
 }
 
-/* Ignores 'status'. */
-static inline int sum_shifted_X2_doubles(void *init, const double *x, int n,
-		int na_rm, R_xlen_t *na_rm_count, int status)
+static inline int sum_shifted_X2_doubles(const double *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		double outbuf[2])
 {
-	double *double_init, y;
+	double y;
 
-	double_init = (double *) init;
 	for (int i = 0; i < n; i++, x++) {
-		if (DOUBLE_IS_NA(*x)) {
+		if (ISNAN(*x)) {  // True for *both* NA and NaN
 			if (!na_rm) {
-				double_init[0] = *x;
+				outbuf[0] = *x;
 				if (R_IsNA(*x))
-					return 2;
+					return 1;  // bail out early
 			}
-			(*na_rm_count)++;
+			(*nacount)++;
 			continue;
 		}
-		if (!R_IsNaN(double_init[0])) {
-			y = *x - double_init[1];
-			double_init[0] += y * y;
+		if (!R_IsNaN(outbuf[0])) {
+			y = *x - outbuf[1];
+			outbuf[0] += y * y;
 		}
 	}
-	return status;
+	return 0;
 }
 
-/* Ignores 'status'. */
-static inline int sum_X_X2_ints(void *init, const int *x, int n,
-		int na_rm, R_xlen_t *na_rm_count, int status)
+static inline int sum_X_X2_ints(const int *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		double outbuf[2])
 {
-	double *double_init, xx;
+	double xx;
 
-	double_init = (double *) init;
 	for (int i = 0; i < n; i++, x++) {
 		if (*x == NA_INTEGER) {
 			if (!na_rm) {
-				double_init[0] = double_init[1] = NA_REAL;
-				return 2;
+				outbuf[0] = outbuf[1] = NA_REAL;
+				return 1;  // bail out early
 			}
-			(*na_rm_count)++;
+			(*nacount)++;
 			continue;
 		}
 		xx = (double) *x;
-		double_init[0] += xx;
-		double_init[1] += xx * xx;
+		outbuf[0] += xx;
+		outbuf[1] += xx * xx;
 	}
-	return status;
+	return 0;
 }
 
-/* Ignores 'status'. */
-static inline int sum_X_X2_doubles(void *init, const double *x, int n,
-		int na_rm, R_xlen_t *na_rm_count, int status)
+static inline int sum_X_X2_doubles(const double *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		double outbuf[2])
 {
-	double *double_init, xx;
+	double xx;
 
-	double_init = (double *) init;
 	for (int i = 0; i < n; i++, x++) {
 		xx = *x;
-		if (DOUBLE_IS_NA(xx)) {
+		if (ISNAN(xx)) {  // True for *both* NA and NaN
 			if (!na_rm) {
-				double_init[0] = double_init[1] = xx;
+				outbuf[0] = outbuf[1] = xx;
 				if (R_IsNA(xx))
-					return 2;
+					return 1;  // bail out early
 			}
-			(*na_rm_count)++;
+			(*nacount)++;
 			continue;
 		}
-		if (!R_IsNaN(double_init[0])) {
-			double_init[0] += xx;
-			double_init[1] += xx * xx;
+		if (!R_IsNaN(outbuf[0])) {
+			outbuf[0] += xx;
+			outbuf[1] += xx * xx;
 		}
 	}
-	return status;
+	return 0;
 }
 
-/* Only one of '*summarize_ints_FUN' or '*summarize_doubles_FUN' will be set
-   to a non-NULL value. The other one will be set to NULL.
-   'init' must be allocated by the caller and must be able to store 2 ints
-   or doubles. */
-static void select_summarize_FUN(int opcode, SEXPTYPE Rtype, double shift,
-		SummarizeInts_FUNType *summarize_ints_FUN,
-		SummarizeDoubles_FUNType *summarize_doubles_FUN,
-		void *init)
+/* Returns an integer or numeric vector of length 1 or 2.
+   Looks at 'res->outbuf_is_set' only when 'opcode' is MIN/MAX/RANGE_OPCODE
+   and 'Rtype' is INTSXP. */
+static SEXP init2nakedSEXP(int opcode, SEXPTYPE Rtype,
+			   const SummarizeResult *res)
 {
-	int *int_init = (int *) init;
-	double *double_init = (double *) init;
-
-	*summarize_ints_FUN = NULL;
-	*summarize_doubles_FUN = NULL;
-	if (opcode == ANY_OPCODE) {
-		*summarize_ints_FUN = any_ints;
-		int_init[0] = 0;
-		return;
-	}
-	if (opcode == ALL_OPCODE) {
-		*summarize_ints_FUN = all_ints;
-		int_init[0] = 1;
-		return;
-	}
-	if (opcode == SUM_OPCODE) {
-		if (Rtype == REALSXP) {
-			*summarize_doubles_FUN = sum_doubles;
-		} else {
-			*summarize_ints_FUN = sum_ints;
-		}
-		double_init[0] = 0.0;
-		return;
-	}
-	if (opcode == PROD_OPCODE) {
-		if (Rtype == REALSXP) {
-			*summarize_doubles_FUN = prod_doubles;
-		} else {
-			*summarize_ints_FUN = prod_ints;
-		}
-		double_init[0] = 1.0;
-		return;
-	}
-	if (opcode == SUM_SHIFTED_X2_OPCODE) {
-		if (Rtype == REALSXP) {
-			*summarize_doubles_FUN = sum_shifted_X2_doubles;
-		} else {
-			*summarize_ints_FUN = sum_shifted_X2_ints;
-		}
-		double_init[0] = 0.0;
-		double_init[1] = shift;
-		return;
-	}
-	if (opcode == SUM_X_X2_OPCODE) {
-		if (Rtype == REALSXP) {
-			*summarize_doubles_FUN = sum_X_X2_doubles;
-		} else {
-			*summarize_ints_FUN = sum_X_X2_ints;
-		}
-		double_init[0] = double_init[1] = 0.0;
-		return;
-	}
-	if (Rtype == REALSXP) {
-		switch (opcode) {
-		    case MIN_OPCODE:
-			*summarize_doubles_FUN = min_doubles;
-			double_init[0] = R_PosInf;
-			break;
-		    case MAX_OPCODE:
-			*summarize_doubles_FUN = max_doubles;
-			double_init[0] = R_NegInf;
-			break;
-		    case RANGE_OPCODE:
-			*summarize_doubles_FUN = range_doubles;
-			double_init[0] = R_PosInf;
-			double_init[1] = R_NegInf;
-			break;
-		}
-		return;
-	}
-	/* NO initial value! */
-	switch (opcode) {
-	    case MIN_OPCODE:   *summarize_ints_FUN = min_ints;   break;
-	    case MAX_OPCODE:   *summarize_ints_FUN = max_ints;   break;
-	    case RANGE_OPCODE: *summarize_ints_FUN = range_ints; break;
-	}
-	return;
-}
-
-/* Returns an integer or numeric vector of length 1 or 2. */
-static SEXP init2nakedSEXP(int opcode, SEXPTYPE Rtype, void *init, int status)
-{
-	int *int_init = (int *) init;
-	double *double_init = (double *) init;
 	SEXP ans;
 
 	if (opcode == ANY_OPCODE || opcode == ALL_OPCODE)
-		return ScalarLogical(int_init[0]);
+		return ScalarLogical(res->outbuf.one_int[0]);
 
 	if (opcode == MIN_OPCODE || opcode == MAX_OPCODE) {
 		if (Rtype == REALSXP)
-			return ScalarReal(double_init[0]);
-		if (status == 0) {
+			return ScalarReal(res->outbuf.one_double[0]);
+		if (res->outbuf_is_set) {
+			return ScalarInteger(res->outbuf.one_int[0]);
+		} else {
 			return ScalarReal(opcode == MIN_OPCODE ? R_PosInf
 							       : R_NegInf);
-		} else {
-			return ScalarInteger(int_init[0]);
 		}
 	}
 
 	if (opcode == RANGE_OPCODE) {
 		if (Rtype == REALSXP) {
 			ans = PROTECT(NEW_NUMERIC(2));
-			REAL(ans)[0] = double_init[0];
-			REAL(ans)[1] = double_init[1];
+			REAL(ans)[0] = res->outbuf.two_doubles[0];
+			REAL(ans)[1] = res->outbuf.two_doubles[1];
 		} else {
-			if (status == 0) {
+			if (res->outbuf_is_set) {
+				ans = PROTECT(NEW_INTEGER(2));
+				INTEGER(ans)[0] = res->outbuf.two_ints[0];
+				INTEGER(ans)[1] = res->outbuf.two_ints[1];
+			} else {
 				ans = PROTECT(NEW_NUMERIC(2));
 				REAL(ans)[0] = R_PosInf;
 				REAL(ans)[1] = R_NegInf;
-			} else {
-				ans = PROTECT(NEW_INTEGER(2));
-				INTEGER(ans)[0] = int_init[0];
-				INTEGER(ans)[1] = int_init[1];
 			}
 		}
 		UNPROTECT(1);
@@ -582,11 +440,13 @@ static SEXP init2nakedSEXP(int opcode, SEXPTYPE Rtype, void *init, int status)
 	}
 
 	if (opcode == SUM_X_X2_OPCODE) {
-		/* Either 'double_init[0]' and 'double_init[1]' are both set
+		/* Either 'res->outbuf.two_doubles[0]'
+		   and 'res->outbuf.two_doubles[1]' are both set
 		   to NA or NaN or none of them is. Furthermore, in the former
 		   case, they should both be set to the same kind of NA i.e.
 		   both are set to NA or both are set NaN. */
-		double init0 = double_init[0], init1 = double_init[1];
+		double init0 = res->outbuf.two_doubles[0],
+		       init1 = res->outbuf.two_doubles[1];
 		if (Rtype == INTSXP) {
 			/* When 'Rtype' is INTSXP, the only kind of NA that
 			   can end up in 'init0' is NA_REAL. No NaN. */
@@ -609,7 +469,7 @@ static SEXP init2nakedSEXP(int opcode, SEXPTYPE Rtype, void *init, int status)
 			}
 		}
 		ans = PROTECT(NEW_NUMERIC(2));
-		if (DOUBLE_IS_NA(init0)) {
+		if (ISNAN(init0)) {  // True for *both* NA and NaN
 			/* init0' is NA_REAL or NaN. */
 			REAL(ans)[0] = REAL(ans)[1] = init0;
 		} else {
@@ -623,86 +483,77 @@ static SEXP init2nakedSEXP(int opcode, SEXPTYPE Rtype, void *init, int status)
 	/* 'opcode' is either SUM_OPCODE, PROD_OPCODE, or
 	   SUM_SHIFTED_X2_OPCODE. */
 	if (Rtype == REALSXP || opcode == SUM_SHIFTED_X2_OPCODE)
-		return ScalarReal(double_init[0]);
+		return ScalarReal(res->outbuf.one_double[0]);
 
-	if (R_IsNA(double_init[0]))
+	if (R_IsNA(res->outbuf.one_double[0]))
 		return ScalarInteger(NA_INTEGER);
-	if (double_init[0] <= INT_MAX && double_init[0] >= -INT_MAX)
-		/* Round 'double_init[0]' to the nearest integer. */
-		return ScalarInteger((int) (double_init[0] + 0.5));
-	return ScalarReal(double_init[0]);
+	if (res->outbuf.one_double[0] <= INT_MAX &&
+	    res->outbuf.one_double[0] >= -INT_MAX)
+		/* Round 'res->outbuf.one_double[0]' to the nearest integer. */
+		return ScalarInteger((int) (res->outbuf.one_double[0] + 0.5));
+	return ScalarReal(res->outbuf.one_double[0]);
 }
 
 
 /****************************************************************************
- * _make_Summarizer()
- * _init_summarization()
- * _apply_Summarizer()
+ * _make_SummarizeOp()
+ * _init_SummarizeResult()
  */
 
-Summarizer _make_Summarizer(int opcode, SEXPTYPE Rtype,
-		int na_rm, double shift)
+SummarizeOp _make_SummarizeOp(int opcode, SEXPTYPE Rtype,
+			      int na_rm, double shift)
 {
-	Summarizer summarizer;
-	SummarizeInts_FUNType summarize_ints_FUN;
-	SummarizeDoubles_FUNType summarize_doubles_FUN;
-	// The need for 'init' is temporary only. Only needed because
-	// select_summarize_FUN() requires it at the moment.
-        // TODO: select_summarize_FUN() needs to be simplified to not
-	// handle 'init' anymore ('init' is now taken care of by dedicated
-	// function _init_summarization()).
-	double init[2];
+	SummarizeOp summarize_op;
 
-	select_summarize_FUN(opcode, Rtype, 0.0,
-		&summarize_ints_FUN, &summarize_doubles_FUN, init);
-
-	summarizer.opcode = opcode;
-	summarizer.Rtype = Rtype;
-	summarizer.na_rm = na_rm;
-	summarizer.shift = shift;
-	summarizer.summarize_ints_FUN = summarize_ints_FUN;
-	summarizer.summarize_doubles_FUN = summarize_doubles_FUN;
-	return summarizer;
+	summarize_op.opcode = opcode;
+	summarize_op.Rtype = Rtype;
+	summarize_op.na_rm = na_rm;
+	summarize_op.shift = shift;
+	return summarize_op;
 }
 
-void _init_summarization(void *init, const Summarizer *summarizer)
+void _init_SummarizeResult(const SummarizeOp *summarize_op,
+			   SummarizeResult *res)
 {
-	int *int_init = (int *) init;
-	double *double_init = (double *) init;
-
-	switch (summarizer->opcode) {
+	res->totalcount = res->nzcount = res->nacount = 0;
+	res->outbuf_is_set = 1;
+	switch (summarize_op->opcode) {
 	    case ANY_OPCODE:
-		int_init[0] = 0;
+		res->outbuf.one_int[0] = 0;
 		return;
 	    case ALL_OPCODE:
-		int_init[0] = 1;
+		res->outbuf.one_int[0] = 1;
 		return;
 	    case SUM_OPCODE:
-		double_init[0] = 0.0;
+		res->outbuf.one_double[0] = 0.0;
 		return;
 	    case PROD_OPCODE:
-		double_init[0] = 1.0;
+		res->outbuf.one_double[0] = 1.0;
 		return;
 	    case SUM_SHIFTED_X2_OPCODE:
-		double_init[0] = 0.0;
-		double_init[1] = summarizer->shift;
+		res->outbuf.two_doubles[0] = 0.0;
+		res->outbuf.two_doubles[1] = summarize_op->shift;
 		return;
 	    case SUM_X_X2_OPCODE:
-		double_init[0] = double_init[1] = 0.0;
+		res->outbuf.two_doubles[0] = res->outbuf.two_doubles[1] = 0.0;
 		return;
 	}
-	if (summarizer->Rtype == INTSXP)
-		return;  /* NO initialization! */
-	switch (summarizer->opcode) {
+	/* From now on, 'summarize_op->opcode' can only be MIN_OPCODE,
+	   MAX_OPCODE, or RANGE_OPCODE. */
+	if (summarize_op->Rtype == INTSXP) {
+		res->outbuf_is_set = 0;
+		return;
+	}
+	switch (summarize_op->opcode) {
 	    case MIN_OPCODE:
-		double_init[0] = R_PosInf;
+		res->outbuf.one_double[0] = R_PosInf;
 		return;
 	    case MAX_OPCODE:
-		double_init[0] = R_NegInf;
+		res->outbuf.one_double[0] = R_NegInf;
 		return;
 	    case RANGE_OPCODE:
-		double_init[0] = R_PosInf;
-		double_init[1] = R_NegInf;
+		res->outbuf.two_doubles[0] = R_PosInf;
+		res->outbuf.two_doubles[1] = R_NegInf;
 		return;
 	}
 	return;
@@ -710,66 +561,141 @@ void _init_summarization(void *init, const Summarizer *summarizer)
 
 
 /****************************************************************************
- * _init_SummarizeOp()
- * _apply_summarize_op()
+ * _summarize_Rvector()
+ * _summarize_one_zero()
+ */
+
+static int summarize_ints(const int *x, int x_len,
+		int opcode, int na_rm, SummarizeResult *res)
+{
+	switch (opcode) {
+	    case MIN_OPCODE:
+		return min_ints(x, x_len, na_rm, &(res->nacount),
+				&(res->outbuf_is_set), res->outbuf.one_int);
+	    case MAX_OPCODE:
+		return max_ints(x, x_len, na_rm, &(res->nacount),
+				&(res->outbuf_is_set), res->outbuf.one_int);
+	    case RANGE_OPCODE:
+		return range_ints(x, x_len, na_rm, &(res->nacount),
+				&(res->outbuf_is_set), res->outbuf.two_ints);
+	    case SUM_OPCODE:
+		return sum_ints(x, x_len, na_rm, &(res->nacount),
+				res->outbuf.one_double);
+	    case PROD_OPCODE:
+		return prod_ints(x, x_len, na_rm, &(res->nacount),
+				 res->outbuf.one_double);
+	    case ANY_OPCODE:
+		return any_ints(x, x_len, na_rm, &(res->nacount),
+				res->outbuf.one_int);
+	    case ALL_OPCODE:
+		return all_ints(x, x_len, na_rm, &(res->nacount),
+				res->outbuf.one_int);
+	    case SUM_SHIFTED_X2_OPCODE:
+		return sum_shifted_X2_ints(x, x_len, na_rm, &(res->nacount),
+				res->outbuf.two_doubles);
+	    case SUM_X_X2_OPCODE:
+		return sum_X_X2_ints(x, x_len, na_rm, &(res->nacount),
+				res->outbuf.two_doubles);
+	}
+	error("SparseArray internal error in summarize_ints():\n"
+	      "    unsupported 'opcode'");
+	return 0;  /* will never reach this */
+}
+
+static int summarize_doubles(const double *x, int x_len,
+		int opcode, int na_rm, SummarizeResult *res)
+{
+	switch (opcode) {
+	    case MIN_OPCODE:
+		return min_doubles(x, x_len, na_rm, &(res->nacount),
+				res->outbuf.one_double);
+	    case MAX_OPCODE:
+		return max_doubles(x, x_len, na_rm, &(res->nacount),
+				res->outbuf.one_double);
+	    case RANGE_OPCODE:
+		return range_doubles(x, x_len, na_rm, &(res->nacount),
+				res->outbuf.two_doubles);
+	    case SUM_OPCODE:
+		return sum_doubles(x, x_len, na_rm, &(res->nacount),
+				res->outbuf.one_double);
+	    case PROD_OPCODE:
+		return prod_doubles(x, x_len, na_rm, &(res->nacount),
+				res->outbuf.one_double);
+	    case SUM_SHIFTED_X2_OPCODE:
+		return sum_shifted_X2_doubles(x, x_len, na_rm, &(res->nacount),
+				res->outbuf.two_doubles);
+	    case SUM_X_X2_OPCODE:
+		return sum_X_X2_doubles(x, x_len, na_rm, &(res->nacount),
+				res->outbuf.two_doubles);
+	}
+	error("SparseArray internal error in summarize_doubles():\n"
+	      "    unsupported 'opcode'");
+	return 0;  /* will never reach this */
+}
+
+int _summarize_Rvector(SEXP x, const SummarizeOp *summarize_op,
+		       SummarizeResult *res)
+{
+	int x_len, bailout;
+
+	if (TYPEOF(x) != summarize_op->Rtype)
+		error("SparseArray internal error in "
+		      "_summarize_Rvector():\n"
+		      "    TYPEOF(x) != summarize_op->Rtype'");
+	x_len = LENGTH(x);
+	if (summarize_op->Rtype == INTSXP) {
+		bailout = summarize_ints(INTEGER(x), x_len,
+				summarize_op->opcode, summarize_op->na_rm,
+				res);
+	} else {
+		bailout = summarize_doubles(REAL(x), x_len,
+				summarize_op->opcode, summarize_op->na_rm,
+				res);
+	}
+	res->totalcount += x_len;
+	return bailout;
+}
+
+/* Does NOT increase 'res->totalcount' by 1. */
+int _summarize_one_zero(const SummarizeOp *summarize_op, SummarizeResult *res)
+{
+	int bailout;
+
+	if (summarize_op->Rtype == INTSXP) {
+		int zero = 0;
+		bailout = summarize_ints(&zero, 1,
+				summarize_op->opcode, summarize_op->na_rm, res);
+	} else {
+		double zero = 0.0;
+		bailout = summarize_doubles(&zero, 1,
+				summarize_op->opcode, summarize_op->na_rm, res);
+	}
+	return bailout;
+}
+
+
+/****************************************************************************
  * _make_SEXP_from_summarize_result()
  */
 
-SummarizeOp _init_SummarizeOp(int opcode, SEXPTYPE Rtype,
-		int na_rm, double shift, void *init)
-{
-	SummarizeOp summarize_op;
-	SummarizeInts_FUNType summarize_ints_FUN;
-	SummarizeDoubles_FUNType summarize_doubles_FUN;
-
-	select_summarize_FUN(opcode, Rtype, shift,
-		&summarize_ints_FUN, &summarize_doubles_FUN, init);
-
-	summarize_op.opcode = opcode;
-	summarize_op.Rtype = Rtype;
-	summarize_op.na_rm = na_rm;
-	summarize_op.shift = shift;
-	summarize_op.summarize_ints_FUN = summarize_ints_FUN;
-	summarize_op.summarize_doubles_FUN = summarize_doubles_FUN;
-	return summarize_op;
-}
-
-int _apply_summarize_op(const SummarizeOp *summarize_op,
-		void *init, const void *x, int n, R_xlen_t *na_rm_count,
-		int status)
-{
-	if (summarize_op->Rtype == INTSXP) {
-		status = summarize_op->summarize_ints_FUN(
-					init, (const int *) x, n,
-					summarize_op->na_rm, na_rm_count,
-					status);
-	} else {
-		status = summarize_op->summarize_doubles_FUN(
-					init, (const double *) x, n,
-					summarize_op->na_rm, na_rm_count,
-					status);
-	}
-	return status;
-}
-
 /* Returns an integer or numeric vector of length 1 or 2.
-   If 'na_rm' is TRUE, then the "na_rm_count" attribute is set on the
+   If 'na_rm' is TRUE, then the "nacount" attribute is set on the
    returned vector. */
-SEXP _make_SEXP_from_summarize_result(int opcode, SEXPTYPE Rtype,
-		void *init, int na_rm, R_xlen_t na_rm_count, int status)
+SEXP _make_SEXP_from_summarize_result(const SummarizeOp *summarize_op,
+		const SummarizeResult *res)
 {
 	SEXP ans, ans_attrib;
 
-	ans = init2nakedSEXP(opcode, Rtype, init, status);
-	if (!na_rm)
+	ans = init2nakedSEXP(summarize_op->opcode, summarize_op->Rtype, res);
+	if (!summarize_op->na_rm)
 		return ans;
 	PROTECT(ans);
-	if (na_rm_count > INT_MAX)
-		ans_attrib = ScalarReal((double) na_rm_count);
+	if (res->nacount > INT_MAX)
+		ans_attrib = ScalarReal((double) res->nacount);
 	else
-		ans_attrib = ScalarInteger((int) na_rm_count);
+		ans_attrib = ScalarInteger((int) res->nacount);
 	PROTECT(ans_attrib);
-	setAttrib(ans, install("na_rm_count"), ans_attrib);
+	setAttrib(ans, install("nacount"), ans_attrib);
 	UNPROTECT(2);
 	return ans;
 }
@@ -801,19 +727,19 @@ static int count_NA_double_elts(const double *x, int n)
 	int count;
 
 	for (int i = count = 0; i < n; i++, x++)
-		if (DOUBLE_IS_NA(*x))
+		if (ISNAN(*x))  // True for *both* NA and NaN
 			count++;
 	return count;
 }
 static int any_NA_double_elt(const double *x, int n)
 {
 	for (int i = 0; i < n; i++, x++)
-		if (DOUBLE_IS_NA(*x))
+		if (ISNAN(*x))  // True for *both* NA and NaN
 			return 1;
 	return 0;
 }
 
-#define RCOMPLEX_IS_NA(x) (DOUBLE_IS_NA((x)->r) || DOUBLE_IS_NA((x)->i))
+#define RCOMPLEX_IS_NA(x) (ISNAN((x)->r) || ISNAN((x)->i))
 static int count_NA_Rcomplex_elts(const Rcomplex *x, int n)
 {
 	int count;
@@ -863,7 +789,7 @@ static inline int is_single_NA(SEXP x)
 			return 1;
 	    break;
 	    case REALSXP:
-		if (LENGTH(x) == 1 && DOUBLE_IS_NA(REAL(x)[0]))
+		if (LENGTH(x) == 1 && ISNAN(REAL(x)[0]))
 			return 1;
 	    break;
 	    case CPLXSXP:

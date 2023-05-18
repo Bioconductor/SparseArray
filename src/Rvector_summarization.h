@@ -16,70 +16,62 @@
 #define	SUM_SHIFTED_X2_OPCODE 8  /* to support var1() */
 #define	SUM_X_X2_OPCODE       9  /* to support var2() */
 
-int _get_summarize_opcode(SEXP op, SEXPTYPE Rtype);
-
-typedef int (*SummarizeInts_FUNType)(
-	void *init, const int *x, int n, int na_rm, R_xlen_t *na_rm_count,
-	int status);
-
-typedef int (*SummarizeDoubles_FUNType)(
-	void *init, const double *x, int n, int na_rm, R_xlen_t *na_rm_count,
-	int status);
-
-typedef struct summarizer_t {
-	int opcode;
-	SEXPTYPE Rtype;  /* only INTSXP or REALSXP at the moment */
-	int na_rm;
-	double shift;
-	SummarizeInts_FUNType summarize_ints_FUN;
-	SummarizeDoubles_FUNType summarize_doubles_FUN;
-} Summarizer;
-
 typedef struct summarize_op_t {
 	int opcode;
-	SEXPTYPE Rtype;  /* only INTSXP or REALSXP at the moment */
+	SEXPTYPE Rtype;  // type of the input (only INTSXP or REALSXP for now)
 	int na_rm;
 	double shift;
-	SummarizeInts_FUNType summarize_ints_FUN;
-	SummarizeDoubles_FUNType summarize_doubles_FUN;
 } SummarizeOp;
 
-Summarizer _make_Summarizer(
+typedef union summarize_outbuf_t {
+	int one_int[1];
+	double one_double[1];
+	int two_ints[2];
+	double two_doubles[2];
+	Rcomplex one_complex[1];  // not used yet
+} SummarizeOutbuf;
+
+typedef struct summarize_result_t {
+	/* 'totalcount' is the length of the virtual vector we're summarizing.
+	   We must have 0 <= nacount <= nzcount <= totalcount at any time. */
+	R_xlen_t totalcount;
+	R_xlen_t nzcount;
+	/* 'nacount' is used only when 'summarize_op->na_rm' is True. */
+	R_xlen_t nacount;
+	/* 'outbuf_is_set' is used only when 'summarize_op->opcode' is MIN_OPCODE,
+	   MAX_OPCODE, or RANGE_OPCODE, and 'summarize_op->Rtype' is INTSXP. */
+	int outbuf_is_set;
+	SummarizeOutbuf outbuf;
+} SummarizeResult;
+
+int _get_summarize_opcode(SEXP op, SEXPTYPE Rtype);
+
+SummarizeOp _make_SummarizeOp(
 	int opcode,
 	SEXPTYPE Rtype,
 	int na_rm,
 	double shift
 );
 
-void _init_summarization(
-	void *init,
-	const Summarizer *summarizer
-);
-
-SummarizeOp _init_SummarizeOp(
-	int opcode,
-	SEXPTYPE Rtype,
-	int na_rm,
-	double shift,
-	void *init
-);
-
-int _apply_summarize_op(
+void _init_SummarizeResult(
 	const SummarizeOp *summarize_op,
-	void *init,
-	const void *x,
-	int n,
-	R_xlen_t *na_rm_count,
-	int status
+	SummarizeResult *res
+);
+
+int _summarize_Rvector(
+	SEXP x,
+	const SummarizeOp *summarize_op,
+	SummarizeResult *res
+);
+
+int _summarize_one_zero(
+	const SummarizeOp *summarize_op,
+	SummarizeResult *res
 );
 
 SEXP _make_SEXP_from_summarize_result(
-	int opcode,
-	SEXPTYPE Rtype,
-	void *init,
-	int na_rm,
-	R_xlen_t na_rm_count,
-	int status
+	const SummarizeOp *summarize_op,
+	const SummarizeResult *res
 );
 
 int _count_Rvector_NAs(SEXP Rvector);

@@ -4,11 +4,11 @@
 #include <Rdefines.h>
 #include "Rvector_summarization.h"
 
-double _summarize_SVT(
+SummarizeResult _summarize_SVT(
 	SEXP SVT,
 	const int *dim,
 	int ndim,
-	const Summarizer *summarizer
+	const SummarizeOp *summarize_op
 );
 
 SEXP C_summarize_SVT_SparseArray(
