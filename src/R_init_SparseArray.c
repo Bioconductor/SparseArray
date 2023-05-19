@@ -84,9 +84,7 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_crossprod1_SVT, 5),
 
 /* matrixStats_methods.h.c */
-	CALLMETHOD_DEF(C_colStats1_SVT, 6),
-	CALLMETHOD_DEF(C_colStats2_SVT, 7),
-	CALLMETHOD_DEF(C_colStats3_SVT, 8),
+	CALLMETHOD_DEF(C_colStats_SVT, 8),
 
 /* rowsum_methods.c */
 	CALLMETHOD_DEF(C_rowsum_SVT, 6),

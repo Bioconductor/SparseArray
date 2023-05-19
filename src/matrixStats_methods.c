@@ -95,28 +95,11 @@ static inline void copy_result_to_out(const SummarizeResult *res,
 
 
 /****************************************************************************
- * C_colStats1_SVT()
- */
-
-/* --- .Call ENTRY POINT ---
-   Operations using "interface 1": FUN(x, dims) */
-SEXP C_colStats1_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
-		     SEXP op, SEXP dims)
-{
-	//int opcode;
-
-	error("C_colStats1_SVT() is not ready yet, sorry!");
-	//opcode = _get_matrixStats_opcode(op);
-	return R_NilValue;
-}
-
-
-/****************************************************************************
- * C_colStats2_SVT()
+ * C_colStats_SVT()
  */
 
 /* Recursive. */
-static void REC_colStats2_SVT(SEXP SVT, const int *dims, int ndim,
+static void REC_colStats_SVT(SEXP SVT, const int *dims, int ndim,
 		const SummarizeOp *summarize_op,
 		void *out, SEXPTYPE out_Rtype,
 		const long long int *out_incs, int out_ndim,
@@ -140,20 +123,19 @@ static void REC_colStats2_SVT(SEXP SVT, const int *dims, int ndim,
 	for (i = 0; i < SVT_len; i++) {
 		if (SVT != R_NilValue)
 			subSVT = VECTOR_ELT(SVT, i);
-		REC_colStats2_SVT(subSVT, dims, ndim - 1,
-				  summarize_op,
-				  out, out_Rtype, out_incs, out_ndim - 1,
-				  warn);
+		REC_colStats_SVT(subSVT, dims, ndim - 1,
+				 summarize_op,
+				 out, out_Rtype, out_incs, out_ndim - 1,
+				 warn);
 		out = increment_out(out, out_Rtype, out_inc);
 	}
 	return;
 }
 
 
-/* --- .Call ENTRY POINT ---
-   Operations using "interface 2": FUN(x, na.rm, dims) */
-SEXP C_colStats2_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
-		     SEXP op, SEXP na_rm, SEXP dims)
+/* --- .Call ENTRY POINT --- */
+SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
+		    SEXP op, SEXP na_rm, SEXP center, SEXP dims)
 {
 	SEXPTYPE x_Rtype, ans_Rtype;
 	int opcode, narm, ans_ndim, warn;
@@ -164,7 +146,7 @@ SEXP C_colStats2_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
 	x_Rtype = _get_Rtype_from_Rstring(x_type);
 	if (x_Rtype == 0)
 		error("SparseArray internal error in "
-		      "C_colStats2_SVT():\n"
+		      "C_colStats_SVT():\n"
 		      "    SVT_SparseArray object has invalid type");
 
 	opcode = _get_summarize_opcode(op, x_Rtype);
@@ -173,7 +155,13 @@ SEXP C_colStats2_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
 		error("'na.rm' must be TRUE or FALSE");
 	narm = LOGICAL(na_rm)[0];
 
-	summarize_op = _make_SummarizeOp(opcode, x_Rtype, narm, 0.0);
+	if (!IS_NUMERIC(center) || LENGTH(center) != 1)
+		error("SparseArray internal error in "
+		      "C_colStats_SVT():\n"
+		      "    'center' must be a single numeric value");
+
+	summarize_op = _make_SummarizeOp(opcode, x_Rtype, narm,
+					 REAL(center)[0]);
 	ans_Rtype = get_ans_Rtype(&summarize_op);
 
 	ans_dim = PROTECT(get_ans_dim(x_dim, dims));
@@ -181,31 +169,14 @@ SEXP C_colStats2_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
 	out_incs = (long long int *) R_alloc(ans_ndim, sizeof(long long int));
 	ans = PROTECT(alloc_ans(ans_Rtype, ans_dim, out_incs));
 	warn = 0;
-	REC_colStats2_SVT(x_SVT, INTEGER(x_dim), LENGTH(x_dim),
-			  &summarize_op,
-			  DATAPTR(ans), ans_Rtype, out_incs, ans_ndim,
-			  &warn);
+	REC_colStats_SVT(x_SVT, INTEGER(x_dim), LENGTH(x_dim),
+			 &summarize_op,
+			 DATAPTR(ans), ans_Rtype, out_incs, ans_ndim,
+			 &warn);
 	if (warn)
 		warning("NAs introduced by coercion of "
 			"infinite values to integer range");
 	UNPROTECT(2);
 	return ans;
-}
-
-
-/****************************************************************************
- * C_colStats3_SVT()
- */
-
-/* --- .Call ENTRY POINT ---
-   Operations using "interface 3": FUN(x, na.rm, center, dims) */
-SEXP C_colStats3_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
-		     SEXP op, SEXP na_rm, SEXP center, SEXP dims)
-{
-	//int opcode;
-
-	error("C_colStats3_SVT() is not ready yet, sorry!");
-	//opcode = _get_matrixStats_opcode(op);
-	return R_NilValue;
 }
 
