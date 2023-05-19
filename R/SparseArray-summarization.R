@@ -214,7 +214,7 @@ setMethod("anyNA", "SVT_SparseArray",
     }
     if (method == 1L) {
         ## Uses primary variance formula:
-        ##     sum((x - mean(x))^2) / nval
+        ##     sum((x - mean(x))^2) / (nval - 1)
         ## Two passes on 'x'.
         nval <- length(x)
         sum_X <- .summarize_SVT_SparseArray("sum", x, na.rm=na.rm)

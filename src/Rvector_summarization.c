@@ -3,6 +3,8 @@
  ****************************************************************************/
 #include "Rvector_summarization.h"
 
+#include <math.h>  /* for sqrt() */
+
 
 /****************************************************************************
  * _get_summarize_opcode()
@@ -37,6 +39,14 @@ int _get_summarize_opcode(SEXP op, SEXPTYPE Rtype)
 		return SUM_CENTERED_X2_OPCODE;
 	if (strcmp(s, "sum_X_X2") == 0)
 		return SUM_X_X2_OPCODE;
+	if (strcmp(s, "var1") == 0)
+		return VAR1_OPCODE;
+	if (strcmp(s, "var2") == 0)
+		return VAR2_OPCODE;
+	if (strcmp(s, "sd1") == 0)
+		return SD1_OPCODE;
+	if (strcmp(s, "sd2") == 0)
+		return SD2_OPCODE;
 	if (Rtype != LGLSXP && Rtype != INTSXP)
 		error("%s() does not support SparseArray objects "
 		      "of type() \"%s\"", s, type2char(Rtype));
@@ -47,7 +57,8 @@ int _get_summarize_opcode(SEXP op, SEXPTYPE Rtype)
 	error("'op' must be one of: \"any\", \"all\", \"min\", \"max\", "
 	      "\"range\", \"sum\", \"prod\",\n"
 	      "                       \"mean\", "
-	      "\"sum_centered_X2\", \"sum_X_X2\"");
+	      "\"sum_centered_X2\", \"sum_X_X2\", \"var1\", \"var2\",\n"
+	      "                       \"sd1\", \"sd2\"");
 	return 0;
 }
 
@@ -73,6 +84,7 @@ void _init_SummarizeResult(const SummarizeOp *summarize_op,
 			   SummarizeResult *res)
 {
 	res->totalcount = res->nzcount = res->nacount = 0;
+	res->postprocess_one_zero = 0;
 	res->outbuf_is_set = 1;
 	res->warn = 0;
 	switch (summarize_op->opcode) {
@@ -81,6 +93,7 @@ void _init_SummarizeResult(const SummarizeOp *summarize_op,
 		res->outbuf.one_int[0] = 0;
 		return;
 	    case ALL_OPCODE:
+		res->postprocess_one_zero = 1;
 		res->out_Rtype = LGLSXP;
 		res->outbuf.one_int[0] = 1;
 		return;
@@ -89,20 +102,22 @@ void _init_SummarizeResult(const SummarizeOp *summarize_op,
 		res->outbuf.one_double[0] = 0.0;
 		return;
 	    case PROD_OPCODE:
+		res->postprocess_one_zero = 1;
 		res->out_Rtype = REALSXP;
 		res->outbuf.one_double[0] = 1.0;
 		return;
-	    case SUM_CENTERED_X2_OPCODE:
+	    case SUM_CENTERED_X2_OPCODE: case VAR1_OPCODE: case SD1_OPCODE:
 		res->out_Rtype = REALSXP;
 		res->outbuf.one_double[0] = 0.0;
 		return;
-	    case SUM_X_X2_OPCODE:
+	    case SUM_X_X2_OPCODE: case VAR2_OPCODE: case SD2_OPCODE:
 		res->out_Rtype = REALSXP;
 		res->outbuf.two_doubles[0] = res->outbuf.two_doubles[1] = 0.0;
 		return;
 	}
 	/* From now on, 'summarize_op->opcode' can only be MIN_OPCODE,
 	   MAX_OPCODE, or RANGE_OPCODE. */
+	res->postprocess_one_zero = 1;
 	if (summarize_op->in_Rtype == INTSXP) {
 		res->outbuf_is_set = 0;
 		res->out_Rtype = INTSXP;
@@ -625,10 +640,10 @@ static int summarize_ints(const int *x, int x_len,
 	    case ALL_OPCODE:
 		return all_ints(x, x_len, na_rm, &(res->nacount),
 				res->outbuf.one_int);
-	    case SUM_CENTERED_X2_OPCODE:
+	    case SUM_CENTERED_X2_OPCODE: case VAR1_OPCODE: case SD1_OPCODE:
 		return sum_centered_X2_ints(x, x_len, na_rm, center,
 				&(res->nacount), res->outbuf.one_double);
-	    case SUM_X_X2_OPCODE:
+	    case SUM_X_X2_OPCODE: case VAR2_OPCODE: case SD2_OPCODE:
 		return sum_X_X2_ints(x, x_len, na_rm, &(res->nacount),
 				res->outbuf.two_doubles);
 	}
@@ -656,10 +671,10 @@ static int summarize_doubles(const double *x, int x_len,
 	    case PROD_OPCODE:
 		return prod_doubles(x, x_len, na_rm, &(res->nacount),
 				res->outbuf.one_double);
-	    case SUM_CENTERED_X2_OPCODE:
+	    case SUM_CENTERED_X2_OPCODE: case VAR1_OPCODE: case SD1_OPCODE:
 		return sum_centered_X2_doubles(x, x_len, na_rm, center,
 				&(res->nacount), res->outbuf.one_double);
-	    case SUM_X_X2_OPCODE:
+	    case SUM_X_X2_OPCODE: case VAR2_OPCODE: case SD2_OPCODE:
 		return sum_X_X2_doubles(x, x_len, na_rm, &(res->nacount),
 				res->outbuf.two_doubles);
 	}
@@ -729,20 +744,17 @@ void _postprocess_SummarizeResult(const SummarizeOp *summarize_op,
 				  SummarizeResult *res)
 {
 	int opcode;
+	R_xlen_t zerocount, totalcount;
 
 	opcode = summarize_op->opcode;
-	//printf("totalcount = %ld\n", res->totalcount);
-	//printf("nzcount = %ld\n", res->nzcount);
-	if (res->nzcount < res->totalcount) {
-		if (opcode == SUM_CENTERED_X2_OPCODE) {
-			res->outbuf.one_double[0] +=
-					summarize_op->center *
-					summarize_op->center *
-					(res->totalcount - res->nzcount);
-			return;
-		}
+	zerocount = res->totalcount - res->nzcount;
+	totalcount = res->totalcount;
+	if (summarize_op->na_rm)
+		totalcount -= res->nacount;
+
+	if (res->postprocess_one_zero && zerocount != 0)
 		summarize_one_zero(summarize_op, res);
-	}
+
 	if (!res->outbuf_is_set) {
 		if (res->out_Rtype == INTSXP && (opcode == MIN_OPCODE ||
 						 opcode == MAX_OPCODE ||
@@ -756,7 +768,7 @@ void _postprocess_SummarizeResult(const SummarizeOp *summarize_op,
 			   base::min(), base::max(), and base::range(). */
 			if (opcode == RANGE_OPCODE) {
 				res->outbuf.two_ints[0] =
-					res->outbuf.two_ints[1] = NA_INTEGER;
+				res->outbuf.two_ints[1] = NA_INTEGER;
 			} else {
 				res->outbuf.one_int[0] = NA_INTEGER;
 			}
@@ -767,11 +779,40 @@ void _postprocess_SummarizeResult(const SummarizeOp *summarize_op,
 			      "    'res->outbuf_is_set' is False");
 		}
 	}
-	if (opcode == MEAN_OPCODE) {
-		R_xlen_t count = res->totalcount;
-		if (summarize_op->na_rm)
-			count -= res->nacount;
-		res->outbuf.one_double[0] /= (double) count;
+
+	switch (opcode) {
+	    case MEAN_OPCODE:
+		res->outbuf.one_double[0] /= (double) totalcount;
+		return;
+
+	    case SUM_CENTERED_X2_OPCODE: case VAR1_OPCODE: case SD1_OPCODE:
+		double center = summarize_op->center;
+		res->outbuf.one_double[0] += center * center * zerocount;
+		if (opcode == SUM_CENTERED_X2_OPCODE)
+			return;
+		if (totalcount <= 1) {
+			res->outbuf.one_double[0] = NA_REAL;
+			return;
+		}
+		res->outbuf.one_double[0] /= (totalcount - 1.0);
+		if (opcode == VAR1_OPCODE)
+			return;
+		res->outbuf.one_double[0] = sqrt(res->outbuf.one_double[0]);
+		return;
+
+	    case VAR2_OPCODE: case SD2_OPCODE:
+		if (totalcount <= 1) {
+			res->outbuf.one_double[0] = NA_REAL;
+			return;
+		}
+		double sum_X  = res->outbuf.two_doubles[0];
+		double sum_X2 = res->outbuf.two_doubles[1];
+		double var2   = (sum_X2 - sum_X * sum_X / totalcount) /
+			        (totalcount - 1.0);
+		res->outbuf.one_double[0] = var2;
+		if (opcode == VAR2_OPCODE)
+			return;
+		res->outbuf.one_double[0] = sqrt(res->outbuf.one_double[0]);
 		return;
 	}
 	return;
@@ -801,6 +842,47 @@ static SEXP ScalarLogical2(int i)
 	SEXP ans;
 
 	ans = duplicate(PROTECT(ScalarLogical(i)));
+	UNPROTECT(1);
+	return ans;
+}
+
+static SEXP sum_X_X2_as_SEXP(double sum_X, double sum_X2, SEXPTYPE in_Rtype)
+{
+	SEXP ans;
+
+	/* Either 'sum_X' and 'sum_X2' are both set to NA or NaN or none
+	   of them is. Furthermore, in the former case, they should both
+	   be set to the same kind of NA i.e. both are set to NA or both
+	   are set NaN. */
+	if (in_Rtype == INTSXP) {
+		/* Note that when 'in_Rtype' is INTSXP, the only kind of
+		   NAs that can end up in 'sum_X' is NA_REAL. No NaNs. */
+		if (ISNAN(sum_X)) {
+			ans = PROTECT(NEW_INTEGER(2));
+			INTEGER(ans)[0] = INTEGER(ans)[1] = NA_INTEGER;
+			UNPROTECT(1);
+			return ans;
+		}
+		if (sum_X  <= INT_MAX && sum_X  >= -INT_MAX &&
+		    sum_X2 <= INT_MAX && sum_X2 >= -INT_MAX)
+		{
+			ans = PROTECT(NEW_INTEGER(2));
+			/* We round 'sum_X' and 'sum_X2' to the
+			   nearest integer. */
+			INTEGER(ans)[0] = (int) (sum_X  + 0.5);
+			INTEGER(ans)[1] = (int) (sum_X2 + 0.5);
+			UNPROTECT(1);
+			return ans;
+		}
+	}
+	ans = PROTECT(NEW_NUMERIC(2));
+	if (ISNAN(sum_X)) {  // True for *both* NA and NaN
+		/* 'sum_X' is NA_REAL or NaN. */
+		REAL(ans)[0] = REAL(ans)[1] = sum_X;
+	} else {
+		REAL(ans)[0] = sum_X;
+		REAL(ans)[1] = sum_X2;
+	}
 	UNPROTECT(1);
 	return ans;
 }
@@ -844,59 +926,22 @@ static SEXP res2nakedSEXP(const SummarizeResult *res,
 		return ans;
 	}
 
-	if (opcode == SUM_X_X2_OPCODE) {
-		/* Either 'res->outbuf.two_doubles[0]'
-		   and 'res->outbuf.two_doubles[1]' are both set
-		   to NA or NaN or none of them is. Furthermore, in the former
-		   case, they should both be set to the same kind of NA i.e.
-		   both are set to NA or both are set NaN. */
-		double init0 = res->outbuf.two_doubles[0],
-		       init1 = res->outbuf.two_doubles[1];
-		if (in_Rtype == INTSXP) {
-			/* Note that when 'in_Rtype' is INTSXP, the only
-			   kind of NA that can end up in 'init0' is NA_REAL.
-			   No NaN. */
-			if (ISNAN(init0)) {
-				ans = PROTECT(NEW_INTEGER(2));
-				INTEGER(ans)[0] = INTEGER(ans)[1] = NA_INTEGER;
-				UNPROTECT(1);
-				return ans;
-			}
-			if (init0 <= INT_MAX && init0 >= -INT_MAX &&
-			    init1 <= INT_MAX && init1 >= -INT_MAX)
-			{
-				ans = PROTECT(NEW_INTEGER(2));
-				/* We round 'init0' and 'init1' to the
-				   nearest integer. */
-				INTEGER(ans)[0] = (int) (init0 + 0.5);
-				INTEGER(ans)[1] = (int) (init1 + 0.5);
-				UNPROTECT(1);
-				return ans;
-			}
-		}
-		ans = PROTECT(NEW_NUMERIC(2));
-		if (ISNAN(init0)) {  // True for *both* NA and NaN
-			/* init0' is NA_REAL or NaN. */
-			REAL(ans)[0] = REAL(ans)[1] = init0;
-		} else {
-			REAL(ans)[0] = init0;
-			REAL(ans)[1] = init1;
-		}
-		UNPROTECT(1);
-		return ans;
-	}
+	if (opcode == SUM_X_X2_OPCODE)
+		return sum_X_X2_as_SEXP(res->outbuf.two_doubles[0],
+					res->outbuf.two_doubles[1], in_Rtype);
 
-	/* 'opcode' is either SUM_OPCODE, PROD_OPCODE, MEAN_OPCODE, or
-	   SUM_CENTERED_X2_OPCODE. */
-	if (in_Rtype == REALSXP || opcode == SUM_CENTERED_X2_OPCODE)
-		return ScalarReal(res->outbuf.one_double[0]);
-
-	if (ISNAN(res->outbuf.one_double[0]))  // True for *both* NA and NaN
-		return ScalarInteger(NA_INTEGER);
-	if (res->outbuf.one_double[0] <= INT_MAX &&
-	    res->outbuf.one_double[0] >= -INT_MAX)
+	if (in_Rtype == INTSXP && (opcode == SUM_OPCODE ||
+				   opcode == PROD_OPCODE))
+	{
+		if (ISNAN(res->outbuf.one_double[0]))
+			return ScalarInteger(NA_INTEGER);
+		if (res->outbuf.one_double[0] < -INT_MAX ||
+		    res->outbuf.one_double[0] >  INT_MAX)
+			return ScalarReal(res->outbuf.one_double[0]);
 		/* Round 'res->outbuf.one_double[0]' to the nearest integer. */
 		return ScalarInteger((int) (res->outbuf.one_double[0] + 0.5));
+	}
+
 	return ScalarReal(res->outbuf.one_double[0]);
 }
 
