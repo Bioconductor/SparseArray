@@ -31,20 +31,23 @@ int _get_summarize_opcode(SEXP op, SEXPTYPE Rtype)
 		return SUM_OPCODE;
 	if (strcmp(s, "prod") == 0)
 		return PROD_OPCODE;
-	if (strcmp(s, "sum_shifted_X2") == 0)
-		return SUM_SHIFTED_X2_OPCODE;
+	if (strcmp(s, "mean") == 0)
+		return MEAN_OPCODE;
+	if (strcmp(s, "sum_centered_X2") == 0)
+		return SUM_CENTERED_X2_OPCODE;
 	if (strcmp(s, "sum_X_X2") == 0)
 		return SUM_X_X2_OPCODE;
-	if (Rtype == REALSXP)
+	if (Rtype != LGLSXP && Rtype != INTSXP)
 		error("%s() does not support SparseArray objects "
 		      "of type() \"%s\"", s, type2char(Rtype));
 	if (strcmp(s, "any") == 0)
 		return ANY_OPCODE;
 	if (strcmp(s, "all") == 0)
 		return ALL_OPCODE;
-	error("'op' must be one of: \"min\", \"max\", \"range\", "
-	      "\"sum\", \"prod\", \"any\", \"all\",\n"
-	      "                       \"sum_shifted_X2\", \"sum_X_X2\"");
+	error("'op' must be one of: \"any\", \"all\", \"min\", \"max\", "
+	      "\"range\", \"sum\", \"prod\",\n"
+	      "                       \"mean\", "
+	      "\"sum_centered_X2\", \"sum_X_X2\"");
 	return 0;
 }
 
@@ -55,14 +58,14 @@ int _get_summarize_opcode(SEXP op, SEXPTYPE Rtype)
  */
 
 SummarizeOp _make_SummarizeOp(int opcode, SEXPTYPE in_Rtype,
-			      int na_rm, double shift)
+			      int na_rm, double center)
 {
 	SummarizeOp summarize_op;
 
 	summarize_op.opcode = opcode;
 	summarize_op.in_Rtype = in_Rtype;
 	summarize_op.na_rm = na_rm;
-	summarize_op.shift = shift;
+	summarize_op.center = center;
 	return summarize_op;
 }
 
@@ -81,7 +84,7 @@ void _init_SummarizeResult(const SummarizeOp *summarize_op,
 		res->out_Rtype = LGLSXP;
 		res->outbuf.one_int[0] = 1;
 		return;
-	    case SUM_OPCODE:
+	    case SUM_OPCODE: case MEAN_OPCODE:
 		res->out_Rtype = REALSXP;
 		res->outbuf.one_double[0] = 0.0;
 		return;
@@ -89,7 +92,7 @@ void _init_SummarizeResult(const SummarizeOp *summarize_op,
 		res->out_Rtype = REALSXP;
 		res->outbuf.one_double[0] = 1.0;
 		return;
-	    case SUM_SHIFTED_X2_OPCODE:
+	    case SUM_CENTERED_X2_OPCODE:
 		res->out_Rtype = REALSXP;
 		res->outbuf.one_double[0] = 0.0;
 		return;
@@ -128,291 +131,6 @@ void _init_SummarizeResult(const SummarizeOp *summarize_op,
  * They all return 1 when they bail out early (on reaching a break condition),
  * and 0 otherwise.
  */
-
-static inline int min_ints(const int *x, int n,
-		int na_rm, R_xlen_t *nacount,
-		int *outbuf_is_set, int outbuf[1])
-{
-	int out0;
-
-	out0 = outbuf[0];
-	for (int i = 0; i < n; i++, x++) {
-		if (*x == NA_INTEGER) {
-			if (na_rm) {
-				(*nacount)++;
-				continue;
-			}
-			outbuf[0] = NA_INTEGER;
-			*outbuf_is_set = 1;
-			return 1;  // bail out early
-		}
-		if (!*outbuf_is_set || *x < out0) {
-			out0 = *x;
-			*outbuf_is_set = 1;
-		}
-	}
-	outbuf[0] = out0;
-	return 0;
-}
-
-static inline int min_doubles(const double *x, int n,
-		int na_rm, R_xlen_t *nacount,
-		double outbuf[1])
-{
-	double out0;
-	int out0_is_not_NaN;
-
-	out0 = outbuf[0];
-	out0_is_not_NaN = !R_IsNaN(out0);
-	for (int i = 0; i < n; i++, x++) {
-		if (ISNAN(*x)) {  // True for *both* NA and NaN
-			if (na_rm) {
-				(*nacount)++;
-				continue;
-			}
-			out0 = *x;
-			if (R_IsNA(out0)) {
-				outbuf[0] = NA_REAL;
-				return 1;  // bail out early
-			}
-			out0_is_not_NaN = 0;
-			continue;
-		}
-		if (out0_is_not_NaN && *x < out0)
-			out0 = *x;
-	}
-	outbuf[0] = out0;
-	return 0;
-}
-
-static inline int max_ints(const int *x, int n,
-		int na_rm, R_xlen_t *nacount,
-		int *outbuf_is_set, int outbuf[1])
-{
-	int out0;
-
-	out0 = outbuf[0];
-	for (int i = 0; i < n; i++, x++) {
-		if (*x == NA_INTEGER) {
-			if (na_rm) {
-				(*nacount)++;
-				continue;
-			}
-			outbuf[0] = NA_INTEGER;
-			*outbuf_is_set = 1;
-			return 1;  // bail out early
-		}
-		if (!*outbuf_is_set || *x > out0) {
-			out0 = *x;
-			*outbuf_is_set = 1;
-		}
-	}
-	outbuf[0] = out0;
-	return 0;
-}
-
-static inline int max_doubles(const double *x, int n,
-		int na_rm, R_xlen_t *nacount,
-		double outbuf[1])
-{
-	double out0;
-	int out0_is_not_NaN;
-
-	out0 = outbuf[0];
-	out0_is_not_NaN = !R_IsNaN(out0);
-	for (int i = 0; i < n; i++, x++) {
-		if (ISNAN(*x)) {  // True for *both* NA and NaN
-			if (na_rm) {
-				(*nacount)++;
-				continue;
-			}
-			out0 = *x;
-			if (R_IsNA(out0)) {
-				outbuf[0] = NA_REAL;
-				return 1;  // bail out early
-			}
-			out0_is_not_NaN = 0;
-			continue;
-		}
-		if (out0_is_not_NaN && *x > out0)
-			out0 = *x;
-	}
-	outbuf[0] = out0;
-	return 0;
-}
-
-static inline int range_ints(const int *x, int n,
-		int na_rm, R_xlen_t *nacount,
-		int *outbuf_is_set, int outbuf[2])
-{
-	int out0, out1;
-
-	out0 = outbuf[0];
-	out1 = outbuf[1];
-	for (int i = 0; i < n; i++, x++) {
-		if (*x == NA_INTEGER) {
-			if (na_rm) {
-				(*nacount)++;
-				continue;
-			}
-			outbuf[0] = outbuf[1] = NA_INTEGER;
-			*outbuf_is_set = 1;
-			return 1;  // bail out early
-		}
-		if (*outbuf_is_set) {
-			if (*x < out0)
-				out0 = *x;
-			if (*x > out1)
-				out1 = *x;
-		} else {
-			out0 = out1 = *x;
-			*outbuf_is_set = 1;
-		}
-	}
-	outbuf[0] = out0;
-	outbuf[1] = out1;
-	return 0;
-}
-
-static inline int range_doubles(const double *x, int n,
-		int na_rm, R_xlen_t *nacount,
-		double outbuf[2])
-{
-	double out0, out1;
-	int out0_is_not_NaN;
-
-	out0 = outbuf[0];
-	out1 = outbuf[1];
-	out0_is_not_NaN = !R_IsNaN(out0);
-	for (int i = 0; i < n; i++, x++) {
-		if (ISNAN(*x)) {  // True for *both* NA and NaN
-			if (na_rm) {
-				(*nacount)++;
-				continue;
-			}
-			out0 = out1 = *x;
-			if (R_IsNA(out0)) {
-				outbuf[0] = outbuf[1] = NA_REAL;
-				return 1;  // bail out early
-			}
-			out0_is_not_NaN = 0;
-			continue;
-		}
-		if (out0_is_not_NaN) {
-			if (*x < out0)
-				out0 = *x;
-			if (*x > out1)
-				out1 = *x;
-		}
-	}
-	outbuf[0] = out0;
-	outbuf[1] = out1;
-	return 0;
-}
-
-static inline int sum_ints(const int *x, int n,
-		int na_rm, R_xlen_t *nacount,
-		double outbuf[1])
-{
-	double out0;
-
-	out0 = outbuf[0];
-	for (int i = 0; i < n; i++, x++) {
-		if (*x == NA_INTEGER) {
-			if (na_rm) {
-				(*nacount)++;
-				continue;
-			}
-			outbuf[0] = NA_REAL;
-			return 1;  // bail out early
-		}
-		out0 += (double) *x;
-	}
-	outbuf[0] = out0;
-	return 0;
-}
-
-static inline int sum_doubles(const double *x, int n,
-		int na_rm, R_xlen_t *nacount,
-		double outbuf[1])
-{
-	double out0;
-	int out0_is_not_NaN;
-
-	out0 = outbuf[0];
-	out0_is_not_NaN = !R_IsNaN(out0);
-	for (int i = 0; i < n; i++, x++) {
-		if (ISNAN(*x)) {  // True for *both* NA and NaN
-			if (na_rm) {
-				(*nacount)++;
-				continue;
-			}
-			out0 = *x;
-			if (R_IsNA(out0)) {
-				outbuf[0] = NA_REAL;
-				return 1;  // bail out early
-			}
-			out0_is_not_NaN = 0;
-			continue;
-		}
-		if (out0_is_not_NaN)
-			out0 += *x;
-	}
-	outbuf[0] = out0;
-	return 0;
-}
-
-static inline int prod_ints(const int *x, int n,
-		int na_rm, R_xlen_t *nacount,
-		double outbuf[1])
-{
-	double out0;
-
-	out0 = outbuf[0];
-	for (int i = 0; i < n; i++, x++) {
-		if (*x == NA_INTEGER) {
-			if (na_rm) {
-				(*nacount)++;
-				continue;
-			}
-			outbuf[0] = NA_REAL;
-			return 1;  // bail out early
-		}
-		out0 *= (double) *x;
-	}
-	outbuf[0] = out0;
-	return 0;
-}
-
-static inline int prod_doubles(const double *x, int n,
-		int na_rm, R_xlen_t *nacount,
-		double outbuf[1])
-{
-	double out0;
-	int out0_is_not_NaN;
-
-	out0 = outbuf[0];
-	out0_is_not_NaN = !R_IsNaN(out0);
-	for (int i = 0; i < n; i++, x++) {
-		if (ISNAN(*x)) {  // True for *both* NA and NaN
-			if (na_rm) {
-				(*nacount)++;
-				continue;
-			}
-			out0 = *x;
-			if (R_IsNA(out0)) {
-				outbuf[0] = NA_REAL;
-				return 1;  // bail out early
-			}
-			out0_is_not_NaN = 0;
-			continue;
-		}
-		if (out0_is_not_NaN)
-			out0 *= *x;
-	}
-	outbuf[0] = out0;
-	return 0;
-}
 
 /* No need to read 'outbuf[0]' because we can assume that it's set to
    FALSE or NA (it cannot be TRUE). */
@@ -470,48 +188,349 @@ static inline int all_ints(const int *x, int n,
 	return 0;
 }
 
-static inline int sum_shifted_X2_ints(const int *x, int n,
-		int na_rm, double shift, R_xlen_t *nacount,
-		double outbuf[1])
+static inline int min_ints(const int *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		int *outbuf_is_set, int outbuf[1])
 {
-	double y;
+	int out0;
 
+	out0 = outbuf[0];
 	for (int i = 0; i < n; i++, x++) {
 		if (*x == NA_INTEGER) {
-			if (!na_rm) {
-				outbuf[0] = NA_REAL;
-				return 1;  // bail out early
+			if (na_rm) {
+				(*nacount)++;
+				continue;
 			}
-			(*nacount)++;
-			continue;
+			outbuf[0] = NA_INTEGER;
+			*outbuf_is_set = 1;
+			return 1;  // bail out early
 		}
-		y = (double) *x - shift;
-		outbuf[0] += y * y;
+		if (!*outbuf_is_set || *x < out0) {
+			out0 = *x;
+			*outbuf_is_set = 1;
+		}
 	}
+	outbuf[0] = out0;
 	return 0;
 }
 
-static inline int sum_shifted_X2_doubles(const double *x, int n,
-		int na_rm, double shift, R_xlen_t *nacount,
+static inline int min_doubles(const double *x, int n,
+		int na_rm, R_xlen_t *nacount,
 		double outbuf[1])
 {
-	double y;
+	double out0, xx;
+	int out0_is_not_NaN;
 
+	out0 = outbuf[0];
+	out0_is_not_NaN = !R_IsNaN(out0);
 	for (int i = 0; i < n; i++, x++) {
-		if (ISNAN(*x)) {  // True for *both* NA and NaN
-			if (!na_rm) {
-				outbuf[0] = *x;
-				if (R_IsNA(*x))
-					return 1;  // bail out early
+		xx = *x;
+		if (ISNAN(xx)) {  // True for *both* NA and NaN
+			if (na_rm) {
+				(*nacount)++;
+				continue;
 			}
-			(*nacount)++;
+			if (R_IsNA(xx)) {
+				outbuf[0] = NA_REAL;
+				return 1;  // bail out early
+			}
+			out0 = xx;
+			out0_is_not_NaN = 0;
 			continue;
 		}
-		if (!R_IsNaN(outbuf[0])) {
-			y = *x - shift;
-			outbuf[0] += y * y;
+		if (out0_is_not_NaN && xx < out0)
+			out0 = xx;
+	}
+	outbuf[0] = out0;
+	return 0;
+}
+
+static inline int max_ints(const int *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		int *outbuf_is_set, int outbuf[1])
+{
+	int out0;
+
+	out0 = outbuf[0];
+	for (int i = 0; i < n; i++, x++) {
+		if (*x == NA_INTEGER) {
+			if (na_rm) {
+				(*nacount)++;
+				continue;
+			}
+			outbuf[0] = NA_INTEGER;
+			*outbuf_is_set = 1;
+			return 1;  // bail out early
+		}
+		if (!*outbuf_is_set || *x > out0) {
+			out0 = *x;
+			*outbuf_is_set = 1;
 		}
 	}
+	outbuf[0] = out0;
+	return 0;
+}
+
+static inline int max_doubles(const double *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		double outbuf[1])
+{
+	double out0, xx;
+	int out0_is_not_NaN;
+
+	out0 = outbuf[0];
+	out0_is_not_NaN = !R_IsNaN(out0);
+	for (int i = 0; i < n; i++, x++) {
+		xx = *x;
+		if (ISNAN(xx)) {  // True for *both* NA and NaN
+			if (na_rm) {
+				(*nacount)++;
+				continue;
+			}
+			if (R_IsNA(xx)) {
+				outbuf[0] = NA_REAL;
+				return 1;  // bail out early
+			}
+			out0 = xx;
+			out0_is_not_NaN = 0;
+			continue;
+		}
+		if (out0_is_not_NaN && xx > out0)
+			out0 = xx;
+	}
+	outbuf[0] = out0;
+	return 0;
+}
+
+static inline int range_ints(const int *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		int *outbuf_is_set, int outbuf[2])
+{
+	int out0, out1;
+
+	out0 = outbuf[0];
+	out1 = outbuf[1];
+	for (int i = 0; i < n; i++, x++) {
+		if (*x == NA_INTEGER) {
+			if (na_rm) {
+				(*nacount)++;
+				continue;
+			}
+			outbuf[0] = outbuf[1] = NA_INTEGER;
+			*outbuf_is_set = 1;
+			return 1;  // bail out early
+		}
+		if (*outbuf_is_set) {
+			if (*x < out0)
+				out0 = *x;
+			if (*x > out1)
+				out1 = *x;
+		} else {
+			out0 = out1 = *x;
+			*outbuf_is_set = 1;
+		}
+	}
+	outbuf[0] = out0;
+	outbuf[1] = out1;
+	return 0;
+}
+
+static inline int range_doubles(const double *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		double outbuf[2])
+{
+	double out0, out1, xx;
+	int out0_is_not_NaN;
+
+	out0 = outbuf[0];
+	out1 = outbuf[1];
+	out0_is_not_NaN = !R_IsNaN(out0);
+	for (int i = 0; i < n; i++, x++) {
+		xx = *x;
+		if (ISNAN(xx)) {  // True for *both* NA and NaN
+			if (na_rm) {
+				(*nacount)++;
+				continue;
+			}
+			if (R_IsNA(xx)) {
+				outbuf[0] = outbuf[1] = NA_REAL;
+				return 1;  // bail out early
+			}
+			out0 = out1 = xx;
+			out0_is_not_NaN = 0;
+			continue;
+		}
+		if (out0_is_not_NaN) {
+			if (xx < out0)
+				out0 = xx;
+			if (xx > out1)
+				out1 = xx;
+		}
+	}
+	outbuf[0] = out0;
+	outbuf[1] = out1;
+	return 0;
+}
+
+static inline int sum_ints(const int *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		double outbuf[1])
+{
+	double out0;
+
+	out0 = outbuf[0];
+	for (int i = 0; i < n; i++, x++) {
+		if (*x == NA_INTEGER) {
+			if (na_rm) {
+				(*nacount)++;
+				continue;
+			}
+			outbuf[0] = NA_REAL;
+			return 1;  // bail out early
+		}
+		out0 += (double) *x;
+	}
+	outbuf[0] = out0;
+	return 0;
+}
+
+static inline int sum_doubles(const double *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		double outbuf[1])
+{
+	double out0, xx;
+	int out0_is_not_NaN;
+
+	out0 = outbuf[0];
+	out0_is_not_NaN = !R_IsNaN(out0);
+	for (int i = 0; i < n; i++, x++) {
+		xx = *x;
+		if (ISNAN(xx)) {  // True for *both* NA and NaN
+			if (na_rm) {
+				(*nacount)++;
+				continue;
+			}
+			if (R_IsNA(xx)) {
+				outbuf[0] = NA_REAL;
+				return 1;  // bail out early
+			}
+			out0 = xx;
+			out0_is_not_NaN = 0;
+			continue;
+		}
+		if (out0_is_not_NaN)
+			out0 += xx;
+	}
+	outbuf[0] = out0;
+	return 0;
+}
+
+static inline int prod_ints(const int *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		double outbuf[1])
+{
+	double out0;
+
+	out0 = outbuf[0];
+	for (int i = 0; i < n; i++, x++) {
+		if (*x == NA_INTEGER) {
+			if (na_rm) {
+				(*nacount)++;
+				continue;
+			}
+			outbuf[0] = NA_REAL;
+			return 1;  // bail out early
+		}
+		out0 *= (double) *x;
+	}
+	outbuf[0] = out0;
+	return 0;
+}
+
+static inline int prod_doubles(const double *x, int n,
+		int na_rm, R_xlen_t *nacount,
+		double outbuf[1])
+{
+	double out0, xx;
+	int out0_is_not_NaN;
+
+	out0 = outbuf[0];
+	out0_is_not_NaN = !R_IsNaN(out0);
+	for (int i = 0; i < n; i++, x++) {
+		xx = *x;
+		if (ISNAN(xx)) {  // True for *both* NA and NaN
+			if (na_rm) {
+				(*nacount)++;
+				continue;
+			}
+			if (R_IsNA(xx)) {
+				outbuf[0] = NA_REAL;
+				return 1;  // bail out early
+			}
+			out0 = xx;
+			out0_is_not_NaN = 0;
+			continue;
+		}
+		if (out0_is_not_NaN)
+			out0 *= xx;
+	}
+	outbuf[0] = out0;
+	return 0;
+}
+
+static inline int sum_centered_X2_ints(const int *x, int n,
+		int na_rm, double center, R_xlen_t *nacount,
+		double outbuf[1])
+{
+	double out0, y;
+
+	out0 = outbuf[0];
+	for (int i = 0; i < n; i++, x++) {
+		if (*x == NA_INTEGER) {
+			if (na_rm) {
+				(*nacount)++;
+				continue;
+			}
+			outbuf[0] = NA_REAL;
+			return 1;  // bail out early
+		}
+		y = (double) *x - center;
+		out0 += y * y;
+	}
+	outbuf[0] = out0;
+	return 0;
+}
+
+static inline int sum_centered_X2_doubles(const double *x, int n,
+		int na_rm, double center, R_xlen_t *nacount,
+		double outbuf[1])
+{
+	double out0, xx, y;
+	int out0_is_not_NaN;
+
+	out0 = outbuf[0];
+	out0_is_not_NaN = !R_IsNaN(out0);
+	for (int i = 0; i < n; i++, x++) {
+		xx = *x;
+		if (ISNAN(xx)) {  // True for *both* NA and NaN
+			if (na_rm) {
+				(*nacount)++;
+				continue;
+			}
+			if (R_IsNA(xx)) {
+				outbuf[0] = NA_REAL;
+				return 1;  // bail out early
+			}
+			out0 = xx;
+			out0_is_not_NaN = 0;
+			continue;
+		}
+		if (out0_is_not_NaN) {
+			y = xx - center;
+			out0 += y * y;
+		}
+	}
+	outbuf[0] = out0;
 	return 0;
 }
 
@@ -519,21 +538,25 @@ static inline int sum_X_X2_ints(const int *x, int n,
 		int na_rm, R_xlen_t *nacount,
 		double outbuf[2])
 {
-	double xx;
+	double out0, out1, xx;
 
+	out0 = outbuf[0];
+	out1 = outbuf[1];
 	for (int i = 0; i < n; i++, x++) {
 		if (*x == NA_INTEGER) {
-			if (!na_rm) {
-				outbuf[0] = outbuf[1] = NA_REAL;
-				return 1;  // bail out early
+			if (na_rm) {
+				(*nacount)++;
+				continue;
 			}
-			(*nacount)++;
-			continue;
+			outbuf[0] = outbuf[1] = NA_REAL;
+			return 1;  // bail out early
 		}
 		xx = (double) *x;
-		outbuf[0] += xx;
-		outbuf[1] += xx * xx;
+		out0 += xx;
+		out1 += xx * xx;
 	}
+	outbuf[0] = out0;
+	outbuf[1] = out1;
 	return 0;
 }
 
@@ -541,24 +564,34 @@ static inline int sum_X_X2_doubles(const double *x, int n,
 		int na_rm, R_xlen_t *nacount,
 		double outbuf[2])
 {
-	double xx;
+	double out0, out1, xx;
+	int out0_is_not_NaN;
 
+	out0 = outbuf[0];
+	out1 = outbuf[1];
+	out0_is_not_NaN = !R_IsNaN(out0);
 	for (int i = 0; i < n; i++, x++) {
 		xx = *x;
 		if (ISNAN(xx)) {  // True for *both* NA and NaN
-			if (!na_rm) {
-				outbuf[0] = outbuf[1] = xx;
-				if (R_IsNA(xx))
-					return 1;  // bail out early
+			if (na_rm) {
+				(*nacount)++;
+				continue;
 			}
-			(*nacount)++;
+			if (R_IsNA(xx)) {
+				outbuf[0] = outbuf[1] = NA_REAL;
+				return 1;  // bail out early
+			}
+			out0 = out1 = xx;
+			out0_is_not_NaN = 0;
 			continue;
 		}
-		if (!R_IsNaN(outbuf[0])) {
-			outbuf[0] += xx;
-			outbuf[1] += xx * xx;
+		if (out0_is_not_NaN) {
+			out0 += xx;
+			out1 += xx * xx;
 		}
 	}
+	outbuf[0] = out0;
+	outbuf[1] = out1;
 	return 0;
 }
 
@@ -568,7 +601,7 @@ static inline int sum_X_X2_doubles(const double *x, int n,
  */
 
 static int summarize_ints(const int *x, int x_len,
-		int opcode, int na_rm, double shift, SummarizeResult *res)
+		int opcode, int na_rm, double center, SummarizeResult *res)
 {
 	switch (opcode) {
 	    case MIN_OPCODE:
@@ -580,7 +613,7 @@ static int summarize_ints(const int *x, int x_len,
 	    case RANGE_OPCODE:
 		return range_ints(x, x_len, na_rm, &(res->nacount),
 				&(res->outbuf_is_set), res->outbuf.two_ints);
-	    case SUM_OPCODE:
+	    case SUM_OPCODE: case MEAN_OPCODE:
 		return sum_ints(x, x_len, na_rm, &(res->nacount),
 				res->outbuf.one_double);
 	    case PROD_OPCODE:
@@ -592,8 +625,8 @@ static int summarize_ints(const int *x, int x_len,
 	    case ALL_OPCODE:
 		return all_ints(x, x_len, na_rm, &(res->nacount),
 				res->outbuf.one_int);
-	    case SUM_SHIFTED_X2_OPCODE:
-		return sum_shifted_X2_ints(x, x_len, na_rm, shift,
+	    case SUM_CENTERED_X2_OPCODE:
+		return sum_centered_X2_ints(x, x_len, na_rm, center,
 				&(res->nacount), res->outbuf.one_double);
 	    case SUM_X_X2_OPCODE:
 		return sum_X_X2_ints(x, x_len, na_rm, &(res->nacount),
@@ -605,7 +638,7 @@ static int summarize_ints(const int *x, int x_len,
 }
 
 static int summarize_doubles(const double *x, int x_len,
-		int opcode, int na_rm, double shift, SummarizeResult *res)
+		int opcode, int na_rm, double center, SummarizeResult *res)
 {
 	switch (opcode) {
 	    case MIN_OPCODE:
@@ -617,14 +650,14 @@ static int summarize_doubles(const double *x, int x_len,
 	    case RANGE_OPCODE:
 		return range_doubles(x, x_len, na_rm, &(res->nacount),
 				res->outbuf.two_doubles);
-	    case SUM_OPCODE:
+	    case SUM_OPCODE: case MEAN_OPCODE:
 		return sum_doubles(x, x_len, na_rm, &(res->nacount),
 				res->outbuf.one_double);
 	    case PROD_OPCODE:
 		return prod_doubles(x, x_len, na_rm, &(res->nacount),
 				res->outbuf.one_double);
-	    case SUM_SHIFTED_X2_OPCODE:
-		return sum_shifted_X2_doubles(x, x_len, na_rm, shift,
+	    case SUM_CENTERED_X2_OPCODE:
+		return sum_centered_X2_doubles(x, x_len, na_rm, center,
 				&(res->nacount), res->outbuf.one_double);
 	    case SUM_X_X2_OPCODE:
 		return sum_X_X2_doubles(x, x_len, na_rm, &(res->nacount),
@@ -651,11 +684,11 @@ int _summarize_Rvector(SEXP x, const SummarizeOp *summarize_op,
 	    case LGLSXP: case INTSXP:
 		return summarize_ints(INTEGER(x), x_len,
 				summarize_op->opcode, summarize_op->na_rm,
-				summarize_op->shift, res);
+				summarize_op->center, res);
 	    case REALSXP:
 		return summarize_doubles(REAL(x), x_len,
 				summarize_op->opcode, summarize_op->na_rm,
-				summarize_op->shift, res);
+				summarize_op->center, res);
 	}
 	error("SparseArray internal error in _summarize_Rvector():\n"
 	      "    input type \"%s\" is not supported", type2char(x_Rtype));
@@ -676,13 +709,13 @@ static int summarize_one_zero(const SummarizeOp *summarize_op,
 		int zero = 0;
 		return summarize_ints(&zero, 1,
 				summarize_op->opcode, summarize_op->na_rm,
-				summarize_op->shift, res);
+				summarize_op->center, res);
 	    }
 	    case REALSXP: {
 		double zero = 0.0;
 		return summarize_doubles(&zero, 1,
 				summarize_op->opcode, summarize_op->na_rm,
-				summarize_op->shift, res);
+				summarize_op->center, res);
 	    }
 	}
 	error("SparseArray internal error in summarize_one_zero():\n"
@@ -698,8 +731,18 @@ void _postprocess_SummarizeResult(const SummarizeOp *summarize_op,
 	int opcode;
 
 	opcode = summarize_op->opcode;
-	if (res->nzcount < res->totalcount && opcode != SUM_SHIFTED_X2_OPCODE)
+	//printf("totalcount = %ld\n", res->totalcount);
+	//printf("nzcount = %ld\n", res->nzcount);
+	if (res->nzcount < res->totalcount) {
+		if (opcode == SUM_CENTERED_X2_OPCODE) {
+			res->outbuf.one_double[0] +=
+					summarize_op->center *
+					summarize_op->center *
+					(res->totalcount - res->nzcount);
+			return;
+		}
 		summarize_one_zero(summarize_op, res);
+	}
 	if (!res->outbuf_is_set) {
 		if (res->out_Rtype == INTSXP && (opcode == MIN_OPCODE ||
 						 opcode == MAX_OPCODE ||
@@ -720,9 +763,16 @@ void _postprocess_SummarizeResult(const SummarizeOp *summarize_op,
 			res->warn = res->outbuf_is_set = 1;
 		} else {
 			error("SparseArray internal error in "
-			      "_postprocess_SummarizeResult():\n",
+			      "_postprocess_SummarizeResult():\n"
 			      "    'res->outbuf_is_set' is False");
 		}
+	}
+	if (opcode == MEAN_OPCODE) {
+		R_xlen_t count = res->totalcount;
+		if (summarize_op->na_rm)
+			count -= res->nacount;
+		res->outbuf.one_double[0] /= (double) count;
+		return;
 	}
 	return;
 }
@@ -836,9 +886,9 @@ static SEXP res2nakedSEXP(const SummarizeResult *res,
 		return ans;
 	}
 
-	/* 'opcode' is either SUM_OPCODE, PROD_OPCODE, or
-	   SUM_SHIFTED_X2_OPCODE. */
-	if (in_Rtype == REALSXP || opcode == SUM_SHIFTED_X2_OPCODE)
+	/* 'opcode' is either SUM_OPCODE, PROD_OPCODE, MEAN_OPCODE, or
+	   SUM_CENTERED_X2_OPCODE. */
+	if (in_Rtype == REALSXP || opcode == SUM_CENTERED_X2_OPCODE)
 		return ScalarReal(res->outbuf.one_double[0]);
 
 	if (ISNAN(res->outbuf.one_double[0]))  // True for *both* NA and NaN
@@ -1011,8 +1061,7 @@ int _count_Rvector_NAs(SEXP Rvector)
 	    case STRSXP:  return count_NA_character_elts(Rvector);
 	    case VECSXP:  return count_NA_list_elts(Rvector);
 	}
-	error("SparseArray internal error in "
-	      "_count_Rvector_NAs():\n"
+	error("SparseArray internal error in _count_Rvector_NAs():\n"
 	      "    type \"%s\" is not supported", type2char(Rtype));
 	return -1;  /* will never reach this */
 }
@@ -1033,8 +1082,7 @@ int _Rvector_has_any_NA(SEXP Rvector)
 	    case STRSXP:  return any_NA_character_elt(Rvector);
 	    case VECSXP:  return any_NA_list_elt(Rvector);
 	}
-	error("SparseArray internal error in "
-	      "_Rvector_has_any_NA():\n"
+	error("SparseArray internal error in _Rvector_has_any_NA():\n"
 	      "    type \"%s\" is not supported", type2char(Rtype));
 	return -1;  /* will never reach this */
 }

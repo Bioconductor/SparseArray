@@ -57,8 +57,9 @@ SummarizeResult _summarize_SVT(SEXP SVT, const int *dim, int ndim,
 	return res;
 }
 
+/* --- .Call ENTRY POINT --- */
 SEXP C_summarize_SVT_SparseArray(SEXP x_dim, SEXP x_type, SEXP x_SVT,
-		SEXP op, SEXP na_rm, SEXP shift)
+		SEXP op, SEXP na_rm, SEXP center)
 {
 	SEXPTYPE x_Rtype;
 	int opcode, narm;
@@ -77,12 +78,13 @@ SEXP C_summarize_SVT_SparseArray(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		error("'na.rm' must be TRUE or FALSE");
 	narm = LOGICAL(na_rm)[0];
 
-	if (!IS_NUMERIC(shift) || LENGTH(shift) != 1)
+	if (!IS_NUMERIC(center) || LENGTH(center) != 1)
 		error("SparseArray internal error in "
 		      "C_summarize_SVT_SparseArray():\n"
-		      "    'shift' must be a single numeric value");
+		      "    'center' must be a single numeric value");
 
-	summarize_op = _make_SummarizeOp(opcode, x_Rtype, narm, REAL(shift)[0]);
+	summarize_op = _make_SummarizeOp(opcode, x_Rtype, narm,
+					 REAL(center)[0]);
 	res = _summarize_SVT(x_SVT, INTEGER(x_dim), LENGTH(x_dim),
 			     &summarize_op);
 	if (res.warn)

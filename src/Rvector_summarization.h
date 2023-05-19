@@ -3,24 +3,39 @@
 
 #include <Rdefines.h>
 
-/* "Summarize" operations from Summary group generic */
-#define	MIN_OPCODE      1
-#define	MAX_OPCODE      2
-#define	RANGE_OPCODE    3
-#define	SUM_OPCODE      4
-#define	PROD_OPCODE     5
-#define	ANY_OPCODE      6
-#define	ALL_OPCODE      7
+/* The 3 interfaces of the summarization functions:
+   o Interface 1: FUN(x)
+   o Interface 2: FUN(x, na.rm)
+   o Interface 3: FUN(x, na.rm, center) */
+
+/* Interface 1: FUN(x) */
+#define	COUNTNAS_OPCODE          1
+#define	ANYNA_OPCODE             2
+
+/* "Summarize" operations from Summary group generic
+   Interface 2: FUN(x, na.rm) */
+#define	ANY_OPCODE               3
+#define	ALL_OPCODE               4
+#define	MIN_OPCODE               5
+#define	MAX_OPCODE               6
+#define	RANGE_OPCODE             7
+#define	SUM_OPCODE               8
+#define	PROD_OPCODE              9
 
 /* Other "summarize" operations */
-#define	SUM_SHIFTED_X2_OPCODE 8  /* to support var1() */
-#define	SUM_X_X2_OPCODE       9  /* to support var2() */
+#define	MEAN_OPCODE             10  /* Interface 2 */
+#define	SUM_CENTERED_X2_OPCODE  11  /* Interface 3, supports VAR1_OPCODE */
+#define	SUM_X_X2_OPCODE         12  /* Interface 3, supports VAR2_OPCODE  */
+#define	VAR1_OPCODE             13  /* Interface 3, supports SD1_OPCODE  */
+#define	VAR2_OPCODE             14  /* Interface 3, supports SD2_OPCODE  */
+#define	SD1_OPCODE              15
+#define	SD2_OPCODE              16
 
 typedef struct summarize_op_t {
 	int opcode;
 	SEXPTYPE in_Rtype;   // only INTSXP/REALSXP supported for now
 	int na_rm;
-	double shift;
+	double center;
 } SummarizeOp;
 
 typedef union summarize_outbuf_t {
@@ -53,7 +68,7 @@ SummarizeOp _make_SummarizeOp(
 	int opcode,
 	SEXPTYPE in_Rtype,
 	int na_rm,
-	double shift
+	double center
 );
 
 void _init_SummarizeResult(
