@@ -10,7 +10,7 @@
 #include <string.h>  /* for memcpy() */
 
 
-static SEXPTYPE get_ans_Rtype(const SummarizeOp *summarize_op)
+static SEXPTYPE compute_ans_Rtype(const SummarizeOp *summarize_op)
 {
 	SummarizeResult res;
 
@@ -18,8 +18,8 @@ static SEXPTYPE get_ans_Rtype(const SummarizeOp *summarize_op)
 	return res.out_Rtype;
 }
 
-/* Return 'tail(dim(x), n=-d)'. */
-static SEXP get_ans_dim(SEXP x_dim, SEXP dims)
+/* Returns 'tail(dim(x), n=-dims)'. */
+static SEXP compute_ans_dim(SEXP x_dim, SEXP dims)
 {
 	int d, x_ndim, ans_ndim;
 	SEXP ans_dim;
@@ -38,6 +38,33 @@ static SEXP get_ans_dim(SEXP x_dim, SEXP dims)
 	return ans_dim;
 }
 
+/* Returns 'S4Arrays:::simplify_NULL_dimnames(tail(dimnames(x), n=-dims))'. */
+static SEXP compute_ans_dimnames(SEXP x_dimnames, int dims)
+{
+	int x_ndim, any_retained, along;
+	SEXP ans_dimnames;
+
+	if (x_dimnames == R_NilValue)
+		return R_NilValue;
+	x_ndim = LENGTH(x_dimnames);
+	any_retained = 0;
+	for (along = dims; along < x_ndim; along++) {
+		if (VECTOR_ELT(x_dimnames, along) != R_NilValue) {
+			any_retained = 1;
+			break;
+		}
+	}
+	if (!any_retained)
+		return R_NilValue;
+	ans_dimnames = PROTECT(NEW_LIST(x_ndim - dims));
+	for (along = dims; along < x_ndim; along++)
+		SET_VECTOR_ELT(ans_dimnames, along - dims,
+			       VECTOR_ELT(x_dimnames, along));
+	UNPROTECT(1);
+	return ans_dimnames;
+}
+
+/* Returns an (uninitialized) atomic vector or an array. */
 static SEXP alloc_ans(SEXPTYPE Rtype, SEXP ans_dim, long long int *out_incs)
 {
 	int ans_ndim, ans_len, along;
@@ -58,6 +85,32 @@ static SEXP alloc_ans(SEXPTYPE Rtype, SEXP ans_dim, long long int *out_incs)
 	}
 	UNPROTECT(1);
 	return ans;
+}
+
+static void propagate_dimnames(SEXP ans, SEXP x_dimnames, int dims)
+{
+	int ans_ndim;
+	SEXP ans_names, ans_dimnames;
+
+	if (x_dimnames == R_NilValue)
+		return;
+	ans_ndim = LENGTH(x_dimnames) - dims;
+	if (ans_ndim == 0)
+		return;
+	if (ans_ndim == 1) {
+		ans_names = VECTOR_ELT(x_dimnames, dims);
+		if (ans_names == R_NilValue)
+			return;
+		SET_NAMES(ans, ans_names);
+		return;
+	}
+	ans_dimnames = compute_ans_dimnames(x_dimnames, dims);
+	if (ans_dimnames == R_NilValue)
+		return;
+	PROTECT(ans_dimnames);
+	SET_DIMNAMES(ans, ans_dimnames);
+	UNPROTECT(1);
+	return;
 }
 
 static inline void *increment_out(const void *out, SEXPTYPE out_Rtype,
@@ -162,12 +215,15 @@ SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
 
 	summarize_op = _make_SummarizeOp(opcode, x_Rtype, narm,
 					 REAL(center)[0]);
-	ans_Rtype = get_ans_Rtype(&summarize_op);
+	ans_Rtype = compute_ans_Rtype(&summarize_op);
 
-	ans_dim = PROTECT(get_ans_dim(x_dim, dims));
-	ans_ndim = LENGTH(ans_dim);
+	ans_dim = PROTECT(compute_ans_dim(x_dim, dims));
+	ans_ndim = LENGTH(ans_dim);  /* x_ndim - dims */
 	out_incs = (long long int *) R_alloc(ans_ndim, sizeof(long long int));
+
 	ans = PROTECT(alloc_ans(ans_Rtype, ans_dim, out_incs));
+	propagate_dimnames(ans, x_dimnames, INTEGER(dims)[0]);
+
 	warn = 0;
 	REC_colStats_SVT(x_SVT, INTEGER(x_dim), LENGTH(x_dim),
 			 &summarize_op,
@@ -176,6 +232,7 @@ SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
 	if (warn)
 		warning("NAs introduced by coercion of "
 			"infinite values to integer range");
+
 	UNPROTECT(2);
 	return ans;
 }
