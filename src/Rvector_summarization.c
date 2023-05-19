@@ -687,7 +687,7 @@ int _summarize_Rvector(SEXP x, const SummarizeOp *summarize_op,
 		       SummarizeResult *res)
 {
 	SEXPTYPE x_Rtype;
-	int x_len;
+	int x_len, bailout;
 
 	x_Rtype = TYPEOF(x);
 	if (x_Rtype != summarize_op->in_Rtype)
@@ -697,17 +697,23 @@ int _summarize_Rvector(SEXP x, const SummarizeOp *summarize_op,
 	res->totalcount += x_len;
 	switch (x_Rtype) {
 	    case LGLSXP: case INTSXP:
-		return summarize_ints(INTEGER(x), x_len,
+		bailout = summarize_ints(INTEGER(x), x_len,
 				summarize_op->opcode, summarize_op->na_rm,
 				summarize_op->center, res);
+		break;
 	    case REALSXP:
-		return summarize_doubles(REAL(x), x_len,
+		bailout = summarize_doubles(REAL(x), x_len,
 				summarize_op->opcode, summarize_op->na_rm,
 				summarize_op->center, res);
+		break;
+	    default:
+		error("SparseArray internal error in _summarize_Rvector():\n"
+		      "    input type \"%s\" is not supported",
+		      type2char(x_Rtype));
 	}
-	error("SparseArray internal error in _summarize_Rvector():\n"
-	      "    input type \"%s\" is not supported", type2char(x_Rtype));
-	return 0;  /* will never reach this */
+	if (bailout)
+		res->postprocess_one_zero = 0;
+	return bailout;
 }
 
 
