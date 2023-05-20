@@ -3,15 +3,15 @@
 \alias{matrixStats-methods}
 \alias{matrixStats_methods}
 
-\alias{colSums}
-\alias{colSums,SVT_SparseArray-method}
-\alias{rowSums}
-\alias{rowSums,SVT_SparseArray-method}
+\alias{colAnys}
+\alias{colAnys,SVT_SparseArray-method}
+\alias{rowAnys}
+\alias{rowAnys,SVT_SparseArray-method}
 
-\alias{colMeans}
-\alias{colMeans,SVT_SparseArray-method}
-\alias{rowMeans}
-\alias{rowMeans,SVT_SparseArray-method}
+\alias{colAlls}
+\alias{colAlls,SVT_SparseArray-method}
+\alias{rowAlls}
+\alias{rowAlls,SVT_SparseArray-method}
 
 \alias{colMins}
 \alias{colMins,SVT_SparseArray-method}
@@ -28,6 +28,21 @@
 \alias{rowRanges}
 \alias{rowRanges,SVT_SparseArray-method}
 
+\alias{colSums}
+\alias{colSums,SVT_SparseArray-method}
+\alias{rowSums}
+\alias{rowSums,SVT_SparseArray-method}
+
+\alias{colProds}
+\alias{colProds,SVT_SparseArray-method}
+\alias{rowProds}
+\alias{rowProds,SVT_SparseArray-method}
+
+\alias{colMeans}
+\alias{colMeans,SVT_SparseArray-method}
+\alias{rowMeans}
+\alias{rowMeans,SVT_SparseArray-method}
+
 \alias{colVars}
 \alias{colVars,SVT_SparseArray-method}
 \alias{rowVars}
@@ -43,26 +58,26 @@
 \alias{rowMedians}
 \alias{rowMedians,SVT_SparseArray-method}
 
-\title{SparseMatrix row/col summarization methods}
+\title{SparseArray row/col summarization methods}
 
 \description{
   The \pkg{SparseArray} package provides memory-efficient row/col
-  summarization methods for \link{SparseMatrix} objects, like
+  summarization methods for \link{SparseArray} objects, like
   \code{rowSums()}, \code{colSums()}, \code{rowMedians()},
   \code{colMedians()}, \code{rowVars()}, \code{colVars()}, etc...
 
   Note that these are \emph{S4 generic functions} defined in the
   \pkg{MatrixGenerics} package, with methods for ordinary matrices
   defined in the \pkg{matrixStats} package. This man page documents
-  the methods defined for \link{SVT_SparseMatrix} objects.
+  the methods defined for \link{SVT_SparseArray} objects.
 }
 
 \usage{
-\S4method{rowSums}{SVT_SparseArray}(x, na.rm=FALSE, dims=1)
-\S4method{colSums}{SVT_SparseArray}(x, na.rm=FALSE, dims=1)
+\S4method{rowAnys}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+\S4method{colAnys}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 
-\S4method{rowMeans}{SVT_SparseArray}(x, na.rm=FALSE, dims=1)
-\S4method{colMeans}{SVT_SparseArray}(x, na.rm=FALSE, dims=1)
+\S4method{rowAlls}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+\S4method{colAlls}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 
 \S4method{rowMins}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 \S4method{colMins}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
@@ -72,6 +87,15 @@
 
 \S4method{rowRanges}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 \S4method{colRanges}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+
+\S4method{rowSums}{SVT_SparseArray}(x, na.rm=FALSE, dims=1)
+\S4method{colSums}{SVT_SparseArray}(x, na.rm=FALSE, dims=1)
+
+\S4method{rowProds}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+\S4method{colProds}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+
+\S4method{rowMeans}{SVT_SparseArray}(x, na.rm=FALSE, dims=1)
+\S4method{colMeans}{SVT_SparseArray}(x, na.rm=FALSE, dims=1)
 
 \S4method{rowVars}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL, dims=1,
            ..., useNames=NA)
@@ -95,7 +119,10 @@
     only support 2D objects (i.e. \link{SVT_SparseMatrix} objects) at
     the moment.
   }
-  \item{na.rm, center, useNames}{
+  \item{rows, cols, ...}{
+    Not supported.
+  }
+  \item{na.rm, useNames, center}{
     See man pages for the corresponding generics in the \pkg{MatrixGenerics}
     package (e.g. \code{?MatrixGenerics::\link[MatrixGenerics]{rowVars}})
     for a description of these arguments.
@@ -104,9 +131,6 @@
     See \code{?base::\link[base]{colSums}} for a description of this
     argument. Note that all the methods above support it, except
     \code{rowMedians()} and \code{colMedians()}.
-  }
-  \item{rows, cols, ...}{
-    Not supported.
   }
 }
 

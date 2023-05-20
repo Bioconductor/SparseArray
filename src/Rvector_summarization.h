@@ -31,10 +31,6 @@
 #define	SD1_OPCODE              15  /* Interface 3 */
 #define	SD2_OPCODE              16  /* Interface 2 */
 
-#define	OUTBUF_IS_NOT_SET                  1
-#define	OUTBUF_IS_SET                      2
-#define	OUTBUF_IS_SET_WITH_BREAKING_VALUE  3
-
 typedef struct summarize_op_t {
 	int opcode;
 	SEXPTYPE in_Rtype;   // only INTSXP/REALSXP supported for now
@@ -49,6 +45,11 @@ typedef union summarize_outbuf_t {
 	double two_doubles[2];
 	Rcomplex one_complex[1];  // not used yet
 } SummarizeOutbuf;
+
+/* Possible values for the 'outbuf_status' member below. */
+#define	OUTBUF_IS_NOT_SET                  1
+#define	OUTBUF_IS_SET                      2
+#define	OUTBUF_IS_SET_WITH_BREAKING_VALUE  3
 
 typedef struct summarize_result_t {
   /* 'in_length' is the length of the virtual vector we're summarizing.

@@ -124,36 +124,46 @@
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### colSums/rowSums and colMeans/rowMeans
+### colAnys/rowAnys and colAlls/rowAlls
 ###
-### The corresponding functions in base R propagate the dimnames so we do the
-### same.
 
-.colSums_SVT <- function(x, na.rm=FALSE, dims=1)
+.colAnys_SVT <-
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
-    .colStats_SVT("sum", x, na.rm=na.rm, dims=dims)
+    .check_unused_arguments(...)
+    .check_rows_cols(rows, cols, "colAnys")
+    .colStats_SVT("any", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-setMethod("colSums", "SVT_SparseArray", .colSums_SVT)
+setMethod("colAnys", "SVT_SparseArray", .colAnys_SVT)
 
-.rowSums_SVT <- function(x, na.rm=FALSE, dims=1)
+.rowAnys_SVT <-
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
-    .stopifnot_2D_object(x, "rowSums")
-    .colSums_SVT(t(x), na.rm=na.rm, dims=dims)
+    .check_unused_arguments(...)
+    .stopifnot_2D_object(x, "rowAnys")
+    .check_rows_cols(rows, cols, "rowAnys")
+    .colAnys_SVT(t(x), na.rm=na.rm, dims=dims, useNames=useNames)
 }
-setMethod("rowSums", "SVT_SparseArray", .rowSums_SVT)
+setMethod("rowAnys", "SVT_SparseArray", .rowAnys_SVT)
 
-.colMeans_SVT <- function(x, na.rm=FALSE, dims=1)
+.colAlls_SVT <-
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
-    .colStats_SVT("mean", x, na.rm=na.rm, dims=dims)
+    .check_unused_arguments(...)
+    .check_rows_cols(rows, cols, "colAlls")
+    .colStats_SVT("all", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-setMethod("colMeans", "SVT_SparseArray", .colMeans_SVT)
+setMethod("colAlls", "SVT_SparseArray", .colAlls_SVT)
 
-.rowMeans_SVT <- function(x, na.rm=FALSE, dims=1)
+.rowAlls_SVT <-
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
-    .stopifnot_2D_object(x, "rowMeans")
-    .colMeans_SVT(t(x), na.rm=na.rm, dims=dims)
+    .check_unused_arguments(...)
+    .stopifnot_2D_object(x, "rowAlls")
+    .check_rows_cols(rows, cols, "rowAlls")
+    .colAlls_SVT(t(x), na.rm=na.rm, dims=dims, useNames=useNames)
 }
-setMethod("rowMeans", "SVT_SparseArray", .rowMeans_SVT)
+setMethod("rowAlls", "SVT_SparseArray", .rowAlls_SVT)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -271,6 +281,58 @@ setMethod("colRanges", "SVT_SparseArray", .colRanges_SVT)
     .colRanges_SVT(t(x), na.rm=na.rm, dims=dims, useNames=useNames)
 }
 setMethod("rowRanges", "SVT_SparseArray", .rowRanges_SVT)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### colSums/rowSums, colProds/rowProds, and colMeans/rowMeans
+###
+### The colSums/rowSums/colMeans/rowMeans functions in base R propagate the
+### dimnames so we do the same.
+
+.colSums_SVT <- function(x, na.rm=FALSE, dims=1)
+{
+    .colStats_SVT("sum", x, na.rm=na.rm, dims=dims)
+}
+setMethod("colSums", "SVT_SparseArray", .colSums_SVT)
+
+.rowSums_SVT <- function(x, na.rm=FALSE, dims=1)
+{
+    .stopifnot_2D_object(x, "rowSums")
+    .colSums_SVT(t(x), na.rm=na.rm, dims=dims)
+}
+setMethod("rowSums", "SVT_SparseArray", .rowSums_SVT)
+
+.colProds_SVT <-
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+{
+    .check_unused_arguments(...)
+    .check_rows_cols(rows, cols, "colProds")
+    .colStats_SVT("prod", x, na.rm=na.rm, dims=dims, useNames=useNames)
+}
+setMethod("colProds", "SVT_SparseArray", .colProds_SVT)
+
+.rowProds_SVT <-
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+{
+    .check_unused_arguments(...)
+    .stopifnot_2D_object(x, "rowProds")
+    .check_rows_cols(rows, cols, "rowProds")
+    .colProds_SVT(t(x), na.rm=na.rm, dims=dims, useNames=useNames)
+}
+setMethod("rowProds", "SVT_SparseArray", .rowProds_SVT)
+
+.colMeans_SVT <- function(x, na.rm=FALSE, dims=1)
+{
+    .colStats_SVT("mean", x, na.rm=na.rm, dims=dims)
+}
+setMethod("colMeans", "SVT_SparseArray", .colMeans_SVT)
+
+.rowMeans_SVT <- function(x, na.rm=FALSE, dims=1)
+{
+    .stopifnot_2D_object(x, "rowMeans")
+    .colMeans_SVT(t(x), na.rm=na.rm, dims=dims)
+}
+setMethod("rowMeans", "SVT_SparseArray", .rowMeans_SVT)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
