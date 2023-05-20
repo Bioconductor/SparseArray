@@ -47,19 +47,19 @@ typedef union summarize_outbuf_t {
 } SummarizeOutbuf;
 
 typedef struct summarize_result_t {
-	/* 'totalcount' is the length of the virtual vector we're summarizing.
-	   We must have 0 <= nacount <= nzcount <= totalcount at any time. */
-	R_xlen_t totalcount;
-	R_xlen_t nzcount;
-	/* 'nacount' is used only when 'summarize_op->na_rm' is True. */
-	R_xlen_t nacount;
-	int postprocess_one_zero;
-	/* 'outbuf_is_set' is used only when 'summarize_op->opcode' is
-	   MIN_OPCODE, MAX_OPCODE, or RANGE_OPCODE, and 'summarize_op->in_Rtype'
+  /* 'in_length' is the length of the virtual vector we're summarizing.
+     We must have 0 <= in_nacount <= in_nzcount <= in_length at any time. */
+	R_xlen_t in_length;
+	R_xlen_t in_nzcount;
+  /* 'in_nacount' is used only when 'summarize_op->na_rm' is True. */
+	R_xlen_t in_nacount;
+	SEXPTYPE out_Rtype;  // only LGLSXP/INTSXP/REALSXP supported for now
+  /* 'outbuf_is_set' is used only when 'summarize_op->opcode' is MIN_OPCODE,
+     MAX_OPCODE, or RANGE_OPCODE, and 'summarize_op->in_Rtype'
 	   is INTSXP. */
 	int outbuf_is_set;
-	SEXPTYPE out_Rtype;  // only LGLSXP/INTSXP/REALSXP supported for now
 	SummarizeOutbuf outbuf;
+	int postprocess_one_zero;
 	int warn;
 } SummarizeResult;
 

@@ -3,6 +3,7 @@
  ****************************************************************************/
 #include "SparseArray_subsetting.h"
 
+#include "Rvector_utils.h"
 #include "leaf_vector_utils.h"  /* for _split_leaf_vector() */
 
 #include <limits.h>  /* for INT_MAX */
