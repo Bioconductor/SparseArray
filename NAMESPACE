@@ -80,10 +80,10 @@ exportMethods(
     as.array,
     t,
     which,
-    min, max, range, sum, prod, any, all,   # "Summary" group generic
-    mean,
     anyNA,
-    var,
+    any, all, min, max, range, sum, prod,  # "Summary" group generic
+    mean,
+    var, sd,
     nchar,
     crossprod, tcrossprod, "%*%",
     "+", "-", Arith, "!", Logic, Math, round, signif, Complex,

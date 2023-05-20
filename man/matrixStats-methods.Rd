@@ -29,19 +29,19 @@
 \alias{rowRanges,SVT_SparseArray-method}
 
 \alias{colVars}
-\alias{colVars,SVT_SparseMatrix-method}
+\alias{colVars,SVT_SparseArray-method}
 \alias{rowVars}
-\alias{rowVars,SVT_SparseMatrix-method}
+\alias{rowVars,SVT_SparseArray-method}
 
 \alias{colSds}
-\alias{colSds,SVT_SparseMatrix-method}
+\alias{colSds,SVT_SparseArray-method}
 \alias{rowSds}
-\alias{rowSds,SVT_SparseMatrix-method}
+\alias{rowSds,SVT_SparseArray-method}
 
 \alias{colMedians}
-\alias{colMedians,SVT_SparseMatrix-method}
+\alias{colMedians,SVT_SparseArray-method}
 \alias{rowMedians}
-\alias{rowMedians,SVT_SparseMatrix-method}
+\alias{rowMedians,SVT_SparseArray-method}
 
 \title{SparseMatrix row/col summarization methods}
 
@@ -73,39 +73,48 @@
 \S4method{rowRanges}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 \S4method{colRanges}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 
-\S4method{rowVars}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+\S4method{rowVars}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL, dims=1,
            ..., useNames=NA)
-\S4method{colVars}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+\S4method{colVars}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL, dims=1,
            ..., useNames=NA)
 
-\S4method{rowSds}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+\S4method{rowSds}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL, dims=1,
           ..., useNames=NA)
-\S4method{colSds}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+\S4method{colSds}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL, dims=1,
           ..., useNames=NA)
 
-\S4method{rowMedians}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
-\S4method{colMedians}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
+\S4method{rowMedians}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
+\S4method{colMedians}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
 }
 
 \arguments{
   \item{x}{
-    An \link{SVT_SparseMatrix} object.
+    An \link{SVT_SparseMatrix} or \link{SVT_SparseArray} object.
+
+    Note that the \code{row*()} methods and the \code{colMedians()} method
+    only support 2D objects (i.e. \link{SVT_SparseMatrix} objects) at
+    the moment.
   }
-  \item{rows, cols, ...}{
-    Not supported.
-  }
-  \item{na.rm, dims, center, useNames}{
+  \item{na.rm, center, useNames}{
     See man pages for the corresponding generics in the \pkg{MatrixGenerics}
     package (e.g. \code{?MatrixGenerics::\link[MatrixGenerics]{rowVars}})
     for a description of these arguments.
   }
+  \item{dims}{
+    See \code{?base::\link[base]{colSums}} for a description of this
+    argument. Note that all the methods above support it, except
+    \code{rowMedians()} and \code{colMedians()}.
+  }
+  \item{rows, cols, ...}{
+    Not supported.
+  }
 }
 
 \details{
-  All these methods operate \emph{natively} on the \link{SVT_SparseMatrix}
+  All these methods operate \emph{natively} on the \link{SVT_SparseArray}
   representation, for maximum efficiency.
 
-  Note that more row/col summarization methods will be added in the future.
+  Note that more row/col summarization methods might be added in the future.
 }
 
 \value{
@@ -116,7 +125,7 @@
 
 \seealso{
   \itemize{
-    \item \link{SVT_SparseMatrix} objects.
+    \item \link{SVT_SparseArray} objects.
 
     \item The man pages for the various generic functions defined in
           the \pkg{MatrixGenerics} package e.g.
@@ -125,10 +134,13 @@
 }
 
 \examples{
+## ---------------------------------------------------------------------
+## 2D CASE
+## ---------------------------------------------------------------------
 m0 <- matrix(0L, nrow=6, ncol=4, dimnames=list(letters[1:6], LETTERS[1:4]))
 m0[c(1:2, 8, 10, 15:17, 24)] <- (1:8)*10L
 m0["e", "B"] <- NA
-svt0 <- as(m0, "SVT_SparseMatrix")
+svt0 <- SparseArray(m0)
 svt0
 
 rowSums(svt0)
@@ -160,8 +172,42 @@ stopifnot(
   identical(colRanges(svt0, useNames=FALSE), colRanges(m0)),
   identical(colRanges(svt0, na.rm=TRUE),
             colRanges(m0, na.rm=TRUE, useNames=TRUE)),
-  identical(colVars(svt0), colVars(m0)),
-  identical(colVars(svt0, na.rm=TRUE), colVars(m0, na.rm=TRUE))
+  identical(colVars(svt0), colVars(m0, useNames=TRUE)),
+  identical(colVars(svt0, na.rm=TRUE),
+            colVars(m0, na.rm=TRUE, useNames=TRUE))
+)
+
+## ---------------------------------------------------------------------
+## 3D CASE (AND ARBITRARY NUMBER OF DIMENSIONS)
+## ---------------------------------------------------------------------
+set.seed(2009)
+svt <- 6L * (poissonSparseArray(5:3, density=0.35) -
+             poissonSparseArray(5:3, density=0.35))
+dimnames(svt) <- list(NULL, letters[1:4], LETTERS[1:3])
+
+cs1 <- colSums(svt)
+cs1  # cs1[j , k] is equal to sum(svt[ , j, k])
+
+cs2 <- colSums(svt, dims=2)
+cs2  # cv2[k] is equal to sum(svt[ , , k])
+
+cv1 <- colVars(svt)
+cv1  # cv1[j , k] is equal to var(svt[ , j, k])
+
+cv2 <- colVars(svt, dims=2) 
+cv2  # cv2[k] is equal to var(svt[ , , k])
+
+## Sanity checks:
+k_idx <- setNames(seq_len(dim(svt)[3]), dimnames(svt)[[3]])
+j_idx <- setNames(seq_len(dim(svt)[2]), dimnames(svt)[[2]])
+cv1b <- sapply(k_idx, function(k)
+                      sapply(j_idx, function(j) var(svt[ , j, k, drop=FALSE])))
+cv2b <- sapply(k_idx, function(k) var(svt[ , , k]))
+stopifnot(
+  identical(colSums(svt), colSums(as.array(svt))),
+  identical(colSums(svt, dims=2), colSums(as.array(svt), dims=2)),
+  identical(cv1, cv1b),
+  identical(cv2, cv2b)
 )
 }
 \keyword{array}

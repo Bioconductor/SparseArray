@@ -31,6 +31,10 @@
 #define	SD1_OPCODE              15  /* Interface 3 */
 #define	SD2_OPCODE              16  /* Interface 2 */
 
+#define	OUTBUF_IS_NOT_SET                  1
+#define	OUTBUF_IS_SET                      2
+#define	OUTBUF_IS_SET_WITH_BREAKING_VALUE  3
+
 typedef struct summarize_op_t {
 	int opcode;
 	SEXPTYPE in_Rtype;   // only INTSXP/REALSXP supported for now
@@ -54,10 +58,7 @@ typedef struct summarize_result_t {
   /* 'in_nacount' is used only when 'summarize_op->na_rm' is True. */
 	R_xlen_t in_nacount;
 	SEXPTYPE out_Rtype;  // only LGLSXP/INTSXP/REALSXP supported for now
-  /* 'outbuf_is_set' is used only when 'summarize_op->opcode' is MIN_OPCODE,
-     MAX_OPCODE, or RANGE_OPCODE, and 'summarize_op->in_Rtype'
-	   is INTSXP. */
-	int outbuf_is_set;
+	int outbuf_status;   // see OUTBUF_* macros above for possible values
 	SummarizeOutbuf outbuf;
 	int postprocess_one_zero;
 	int warn;
@@ -77,7 +78,7 @@ void _init_SummarizeResult(
 	SummarizeResult *res
 );
 
-int _summarize_Rvector(
+void _summarize_Rvector(
 	SEXP x,
 	const SummarizeOp *summarize_op,
 	SummarizeResult *res
