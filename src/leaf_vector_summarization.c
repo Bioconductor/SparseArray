@@ -7,7 +7,7 @@
 #include "leaf_vector_utils.h"
 
 
-int _summarize_leaf_vector(SEXP lv, int d,
+void _summarize_leaf_vector(SEXP lv, int d,
 		const SummarizeOp *summarize_op, SummarizeResult *res)
 {
 	int lv_len;
@@ -18,6 +18,7 @@ int _summarize_leaf_vector(SEXP lv, int d,
 	   will add 'lv_len'. */
 	res->in_length += d - lv_len;
 	res->in_nzcount += lv_len;  /* assuming 'lv_vals' contains no zeros! */
-	return _summarize_Rvector(lv_vals, summarize_op, res);
+	_summarize_Rvector(lv_vals, summarize_op, res);
+	return;
 }
 

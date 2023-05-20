@@ -60,16 +60,33 @@
 ###
 
 ### Return an ordinary array with 'length(dim(x)) - dims' dimensions.
-.colStats_SVT <- function(op, x, na.rm=FALSE, center=0.0, dims=1L, useNames=NA)
+.colStats_SVT <- function(op, x, na.rm=FALSE, center=NULL, dims=1L, useNames=NA)
 {
     stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
+
+    ## Check 'na.rm'.
     if (!isTRUEorFALSE(na.rm))
         stop(wmsg("'na.rm' must be TRUE or FALSE"))
+
+    ## Check and normalize 'center'.
+    if (is.null(center)) {
+        center <- NA_real_
+    } else {
+        if (!isSingleNumberOrNA(center))
+            stop(wmsg("'center' must be NULL, or a single number"))
+        if (!is.double(center))
+            center <- as.double(center)
+    }
+
+    ## Check and normalize 'dims'.
     if (!isSingleNumber(dims))
         stop(wmsg("'dims' must be a single integer"))
     if (!is.integer(dims))
         dims <- as.integer(dims)
+
+    ## Check 'useNames'.
     .check_useNames(useNames)
+
     x_dimnames <- if (isFALSE(useNames)) NULL else x@dimnames
     .Call2("C_colStats_SVT", x@dim, x_dimnames, x@type, x@SVT,
                              op, na.rm, center, dims,
@@ -112,31 +129,31 @@
 ### The corresponding functions in base R propagate the dimnames so we do the
 ### same.
 
-.colSums_SVT_SparseArray <- function(x, na.rm=FALSE, dims=1)
+.colSums_SVT <- function(x, na.rm=FALSE, dims=1)
 {
     .colStats_SVT("sum", x, na.rm=na.rm, dims=dims)
 }
-setMethod("colSums", "SVT_SparseArray", .colSums_SVT_SparseArray)
+setMethod("colSums", "SVT_SparseArray", .colSums_SVT)
 
-.rowSums_SVT_SparseArray <- function(x, na.rm=FALSE, dims=1)
+.rowSums_SVT <- function(x, na.rm=FALSE, dims=1)
 {
     .stopifnot_2D_object(x, "rowSums")
-    .colSums_SVT_SparseArray(t(x), na.rm=na.rm, dims=dims)
+    .colSums_SVT(t(x), na.rm=na.rm, dims=dims)
 }
-setMethod("rowSums", "SVT_SparseArray", .rowSums_SVT_SparseArray)
+setMethod("rowSums", "SVT_SparseArray", .rowSums_SVT)
 
-.colMeans_SVT_SparseArray <- function(x, na.rm=FALSE, dims=1)
+.colMeans_SVT <- function(x, na.rm=FALSE, dims=1)
 {
     .colStats_SVT("mean", x, na.rm=na.rm, dims=dims)
 }
-setMethod("colMeans", "SVT_SparseArray", .colMeans_SVT_SparseArray)
+setMethod("colMeans", "SVT_SparseArray", .colMeans_SVT)
 
-.rowMeans_SVT_SparseArray <- function(x, na.rm=FALSE, dims=1)
+.rowMeans_SVT <- function(x, na.rm=FALSE, dims=1)
 {
     .stopifnot_2D_object(x, "rowMeans")
-    .colMeans_SVT_SparseArray(t(x), na.rm=na.rm, dims=dims)
+    .colMeans_SVT(t(x), na.rm=na.rm, dims=dims)
 }
-setMethod("rowMeans", "SVT_SparseArray", .rowMeans_SVT_SparseArray)
+setMethod("rowMeans", "SVT_SparseArray", .rowMeans_SVT)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -296,6 +313,8 @@ setMethod("rowRanges", "SVT_SparseArray", .rowRanges_SVT)
     center
 }
 
+### Original "pure R" implementation. Was originally used by the colVars()
+### method for SVT_SparseMatrix objects. No longer used!
 .colVars_SVT_SparseMatrix <- function(x, na.rm=FALSE, center=NULL, useNames=NA)
 {
     if (!isTRUEorFALSE(na.rm))
@@ -326,50 +345,54 @@ setMethod("rowRanges", "SVT_SparseArray", .rowRanges_SVT)
     ans
 }
 
-setMethod("colVars", "SVT_SparseMatrix",
-    function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
-             ..., useNames=NA)
-    {
-        .check_rows_cols(rows, cols, "colVars")
-        .colVars_SVT_SparseMatrix(x, na.rm=na.rm, center=center,
-                                  useNames=useNames, ...)
-    }
-)
+.colVars_SVT <- function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+                            dims=1, ..., useNames=NA)
+{
+    .check_unused_arguments(...)
+    .check_rows_cols(rows, cols, "colVars")
+    .colStats_SVT("var1", x, na.rm=na.rm, center=center,
+                             dims=dims, useNames=useNames)
+}
+setMethod("colVars", "SVT_SparseArray", .colVars_SVT)
 
-setMethod("rowVars", "SVT_SparseMatrix",
-    function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
-             ..., useNames=NA)
-    {
-        .check_rows_cols(rows, cols, "rowVars")
-        .colVars_SVT_SparseMatrix(t(x), na.rm=na.rm, center=center,
-                                  useNames=useNames, ...)
-    }
-)
+.rowVars_SVT <- function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+                            dims=1, ..., useNames=NA)
+{
+    .check_unused_arguments(...)
+    .stopifnot_2D_object(x, "rowVars")
+    .check_rows_cols(rows, cols, "rowVars")
+    .colVars_SVT(t(x), na.rm=na.rm, center=center,
+                       dims=dims, useNames=useNames)
+}
+setMethod("rowVars", "SVT_SparseArray", .rowVars_SVT)
 
-setMethod("colSds", "SVT_SparseMatrix",
-    function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
-             ..., useNames=NA)
-    {
-        .check_rows_cols(rows, cols, "colSds")
-        sqrt(colVars(x, na.rm=na.rm, center=center, useNames=useNames, ...))
-    }
-)
+.colSds_SVT <- function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+                           dims=1, ..., useNames=NA)
+{
+    .check_unused_arguments(...)
+    .check_rows_cols(rows, cols, "colSds")
+    .colStats_SVT("sd1", x, na.rm=na.rm, center=center,
+                            dims=dims, useNames=useNames)
+}
+setMethod("colSds", "SVT_SparseArray", .colSds_SVT)
 
-setMethod("rowSds", "SVT_SparseMatrix",
-    function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
-             ..., useNames=NA)
-    {
-        .check_rows_cols(rows, cols, "rowSds")
-        sqrt(rowVars(x, na.rm=na.rm, center=center, useNames=useNames, ...))
-    }
-)
+.rowSds_SVT <- function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+                           dims=1, ..., useNames=NA)
+{
+    .check_unused_arguments(...)
+    .stopifnot_2D_object(x, "rowSds")
+    .check_rows_cols(rows, cols, "rowSds")
+    .colSds_SVT(t(x), na.rm=na.rm, center=center,
+                      dims=dims, useNames=useNames)
+}
+setMethod("rowSds", "SVT_SparseArray", .rowSds_SVT)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### colMedians/rowMedians
 ###
-### TODO: Replace current "pure R" implementation with C implementation
-### available thru .Call ENTRY POINT C_colStats_SVT.
+### TODO: How hard would it be to replace current "pure R" implementation
+### with C implementation available thru .Call ENTRY POINT C_colStats_SVT ?
 
 ### All values in 'x' are **assumed** to be >= 0 but we don't check this!
 ### 'padding' is expected to be < length(x).
@@ -466,17 +489,21 @@ setMethod("rowSds", "SVT_SparseMatrix",
     ans
 }
 
-setMethod("colMedians", "SVT_SparseMatrix",
+setMethod("colMedians", "SVT_SparseArray",
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
     {
+        .check_unused_arguments(...)
+        .stopifnot_2D_object(x, "colMedians")
         .check_rows_cols(rows, cols, "colMedians")
-        .colMedians_SVT_SparseMatrix(x, na.rm=na.rm, useNames=useNames, ...)
+        .colMedians_SVT_SparseMatrix(x, na.rm=na.rm, useNames=useNames)
     }
 )
 
-setMethod("rowMedians", "SVT_SparseMatrix",
+setMethod("rowMedians", "SVT_SparseArray",
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
     {
+        .check_unused_arguments(...)
+        .stopifnot_2D_object(x, "rowMedians")
         .check_rows_cols(rows, cols, "rowMedians")
         .colMedians_SVT_SparseMatrix(t(x), na.rm=na.rm, useNames=useNames, ...)
     }

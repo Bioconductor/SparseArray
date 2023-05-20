@@ -84,7 +84,7 @@ void _init_SummarizeResult(const SummarizeOp *summarize_op,
 			   SummarizeResult *res)
 {
 	res->in_length = res->in_nzcount = res->in_nacount = 0;
-	res->outbuf_is_set = 1;
+	res->outbuf_status = OUTBUF_IS_SET;
 	res->postprocess_one_zero = 0;
 	res->warn = 0;
 	switch (summarize_op->opcode) {
@@ -120,7 +120,7 @@ void _init_SummarizeResult(const SummarizeOp *summarize_op,
 	res->postprocess_one_zero = 1;
 	if (summarize_op->in_Rtype == INTSXP) {
 		res->out_Rtype = INTSXP;
-		res->outbuf_is_set = 0;
+		res->outbuf_status = OUTBUF_IS_NOT_SET;
 		return;
 	}
 	res->out_Rtype = REALSXP;
@@ -143,11 +143,11 @@ void _init_SummarizeResult(const SummarizeOp *summarize_op,
 /****************************************************************************
  * Low-level summarization functions
  *
- * They all return 1 when they bail out early (on reaching a break condition),
- * and 0 otherwise.
+ * They all return the new "outbuf status".
  */
 
-/* No need to read 'outbuf[0]' because we can assume that it's set to
+/* 'outbuf' initialized by _init_SummarizeResult() above.
+   No need to read 'outbuf[0]' because we can assume that it's set to
    FALSE or NA (it cannot be TRUE). */
 static inline int any_ints(const int *x, int n,
 		int na_rm, R_xlen_t *nacount,
@@ -166,16 +166,18 @@ static inline int any_ints(const int *x, int n,
 			continue;
 		}
 		if (*x != 0) {
+			/* Bail out early. */
 			outbuf[0] = 1;
-			return 1;  // bail out early
+			return OUTBUF_IS_SET_WITH_BREAKING_VALUE;
 		}
 	}
 	if (set_outbuf_to_NA)
 		outbuf[0] = NA_INTEGER;
-	return 0;
+	return OUTBUF_IS_SET;
 }
 
-/* No need to read 'outbuf[0]' because we can assume that it's set to
+/* 'outbuf' initialized by _init_SummarizeResult() above.
+   No need to read 'outbuf[0]' because we can assume that it's set to
    TRUE or NA (it cannot be FALSE). */
 static inline int all_ints(const int *x, int n,
 		int na_rm, R_xlen_t *nacount,
@@ -194,18 +196,20 @@ static inline int all_ints(const int *x, int n,
 			continue;
 		}
 		if (*x == 0) {
+			/* Bail out early. */
 			outbuf[0] = 0;
-			return 1;  // bail out early
+			return OUTBUF_IS_SET_WITH_BREAKING_VALUE;
 		}
 	}
 	if (set_outbuf_to_NA)
 		outbuf[0] = NA_INTEGER;
-	return 0;
+	return OUTBUF_IS_SET;
 }
 
+/* 'outbuf' NOT initialized by _init_SummarizeResult() above. */
 static inline int min_ints(const int *x, int n,
 		int na_rm, R_xlen_t *nacount,
-		int *outbuf_is_set, int outbuf[1])
+		int outbuf[1], int outbuf_status)
 {
 	int out0;
 
@@ -216,19 +220,20 @@ static inline int min_ints(const int *x, int n,
 				(*nacount)++;
 				continue;
 			}
+			/* Bail out early. */
 			outbuf[0] = NA_INTEGER;
-			*outbuf_is_set = 1;
-			return 1;  // bail out early
+			return OUTBUF_IS_SET_WITH_BREAKING_VALUE;
 		}
-		if (!*outbuf_is_set || *x < out0) {
+		if (outbuf_status == OUTBUF_IS_NOT_SET || *x < out0) {
 			out0 = *x;
-			*outbuf_is_set = 1;
+			outbuf_status = OUTBUF_IS_SET;
 		}
 	}
 	outbuf[0] = out0;
-	return 0;
+	return outbuf_status;
 }
 
+/* 'outbuf' initialized by _init_SummarizeResult() above. */
 static inline int min_doubles(const double *x, int n,
 		int na_rm, R_xlen_t *nacount,
 		double outbuf[1])
@@ -246,8 +251,9 @@ static inline int min_doubles(const double *x, int n,
 				continue;
 			}
 			if (R_IsNA(xx)) {
+				/* Bail out early. */
 				outbuf[0] = NA_REAL;
-				return 1;  // bail out early
+				return OUTBUF_IS_SET_WITH_BREAKING_VALUE;
 			}
 			out0 = xx;
 			out0_is_not_NaN = 0;
@@ -257,12 +263,13 @@ static inline int min_doubles(const double *x, int n,
 			out0 = xx;
 	}
 	outbuf[0] = out0;
-	return 0;
+	return OUTBUF_IS_SET;
 }
 
+/* 'outbuf' NOT initialized by _init_SummarizeResult() above. */
 static inline int max_ints(const int *x, int n,
 		int na_rm, R_xlen_t *nacount,
-		int *outbuf_is_set, int outbuf[1])
+		int outbuf[1], int outbuf_status)
 {
 	int out0;
 
@@ -273,19 +280,20 @@ static inline int max_ints(const int *x, int n,
 				(*nacount)++;
 				continue;
 			}
+			/* Bail out early. */
 			outbuf[0] = NA_INTEGER;
-			*outbuf_is_set = 1;
-			return 1;  // bail out early
+			return OUTBUF_IS_SET_WITH_BREAKING_VALUE;
 		}
-		if (!*outbuf_is_set || *x > out0) {
+		if (outbuf_status == OUTBUF_IS_NOT_SET || *x > out0) {
 			out0 = *x;
-			*outbuf_is_set = 1;
+			outbuf_status = OUTBUF_IS_SET;
 		}
 	}
 	outbuf[0] = out0;
-	return 0;
+	return outbuf_status;
 }
 
+/* 'outbuf' initialized by _init_SummarizeResult() above. */
 static inline int max_doubles(const double *x, int n,
 		int na_rm, R_xlen_t *nacount,
 		double outbuf[1])
@@ -303,8 +311,9 @@ static inline int max_doubles(const double *x, int n,
 				continue;
 			}
 			if (R_IsNA(xx)) {
+				/* Bail out early. */
 				outbuf[0] = NA_REAL;
-				return 1;  // bail out early
+				return OUTBUF_IS_SET_WITH_BREAKING_VALUE;
 			}
 			out0 = xx;
 			out0_is_not_NaN = 0;
@@ -314,12 +323,13 @@ static inline int max_doubles(const double *x, int n,
 			out0 = xx;
 	}
 	outbuf[0] = out0;
-	return 0;
+	return OUTBUF_IS_SET;
 }
 
+/* 'outbuf' NOT initialized by _init_SummarizeResult() above. */
 static inline int range_ints(const int *x, int n,
 		int na_rm, R_xlen_t *nacount,
-		int *outbuf_is_set, int outbuf[2])
+		int outbuf[1], int outbuf_status)
 {
 	int out0, out1;
 
@@ -331,25 +341,26 @@ static inline int range_ints(const int *x, int n,
 				(*nacount)++;
 				continue;
 			}
+			/* Bail out early. */
 			outbuf[0] = outbuf[1] = NA_INTEGER;
-			*outbuf_is_set = 1;
-			return 1;  // bail out early
+			return OUTBUF_IS_SET_WITH_BREAKING_VALUE;
 		}
-		if (*outbuf_is_set) {
+		if (outbuf_status == OUTBUF_IS_NOT_SET) {
+			out0 = out1 = *x;
+			outbuf_status = OUTBUF_IS_SET;
+		} else {
 			if (*x < out0)
 				out0 = *x;
 			if (*x > out1)
 				out1 = *x;
-		} else {
-			out0 = out1 = *x;
-			*outbuf_is_set = 1;
 		}
 	}
 	outbuf[0] = out0;
 	outbuf[1] = out1;
-	return 0;
+	return outbuf_status;
 }
 
+/* 'outbuf' initialized by _init_SummarizeResult() above. */
 static inline int range_doubles(const double *x, int n,
 		int na_rm, R_xlen_t *nacount,
 		double outbuf[2])
@@ -368,8 +379,9 @@ static inline int range_doubles(const double *x, int n,
 				continue;
 			}
 			if (R_IsNA(xx)) {
+				/* Bail out early. */
 				outbuf[0] = outbuf[1] = NA_REAL;
-				return 1;  // bail out early
+				return OUTBUF_IS_SET_WITH_BREAKING_VALUE;
 			}
 			out0 = out1 = xx;
 			out0_is_not_NaN = 0;
@@ -384,9 +396,10 @@ static inline int range_doubles(const double *x, int n,
 	}
 	outbuf[0] = out0;
 	outbuf[1] = out1;
-	return 0;
+	return OUTBUF_IS_SET;
 }
 
+/* 'outbuf' initialized by _init_SummarizeResult() above. */
 static inline int sum_ints(const int *x, int n,
 		int na_rm, R_xlen_t *nacount,
 		double outbuf[1])
@@ -400,15 +413,17 @@ static inline int sum_ints(const int *x, int n,
 				(*nacount)++;
 				continue;
 			}
+			/* Bail out early. */
 			outbuf[0] = NA_REAL;
-			return 1;  // bail out early
+			return OUTBUF_IS_SET_WITH_BREAKING_VALUE;
 		}
 		out0 += (double) *x;
 	}
 	outbuf[0] = out0;
-	return 0;
+	return OUTBUF_IS_SET;
 }
 
+/* 'outbuf' initialized by _init_SummarizeResult() above. */
 static inline int sum_doubles(const double *x, int n,
 		int na_rm, R_xlen_t *nacount,
 		double outbuf[1])
@@ -426,8 +441,9 @@ static inline int sum_doubles(const double *x, int n,
 				continue;
 			}
 			if (R_IsNA(xx)) {
+				/* Bail out early. */
 				outbuf[0] = NA_REAL;
-				return 1;  // bail out early
+				return OUTBUF_IS_SET_WITH_BREAKING_VALUE;
 			}
 			out0 = xx;
 			out0_is_not_NaN = 0;
@@ -437,9 +453,10 @@ static inline int sum_doubles(const double *x, int n,
 			out0 += xx;
 	}
 	outbuf[0] = out0;
-	return 0;
+	return OUTBUF_IS_SET;
 }
 
+/* 'outbuf' initialized by _init_SummarizeResult() above. */
 static inline int prod_ints(const int *x, int n,
 		int na_rm, R_xlen_t *nacount,
 		double outbuf[1])
@@ -453,15 +470,17 @@ static inline int prod_ints(const int *x, int n,
 				(*nacount)++;
 				continue;
 			}
+			/* Bail out early. */
 			outbuf[0] = NA_REAL;
-			return 1;  // bail out early
+			return OUTBUF_IS_SET_WITH_BREAKING_VALUE;
 		}
 		out0 *= (double) *x;
 	}
 	outbuf[0] = out0;
-	return 0;
+	return OUTBUF_IS_SET;
 }
 
+/* 'outbuf' initialized by _init_SummarizeResult() above. */
 static inline int prod_doubles(const double *x, int n,
 		int na_rm, R_xlen_t *nacount,
 		double outbuf[1])
@@ -479,8 +498,9 @@ static inline int prod_doubles(const double *x, int n,
 				continue;
 			}
 			if (R_IsNA(xx)) {
+				/* Bail out early. */
 				outbuf[0] = NA_REAL;
-				return 1;  // bail out early
+				return OUTBUF_IS_SET_WITH_BREAKING_VALUE;
 			}
 			out0 = xx;
 			out0_is_not_NaN = 0;
@@ -490,14 +510,15 @@ static inline int prod_doubles(const double *x, int n,
 			out0 *= xx;
 	}
 	outbuf[0] = out0;
-	return 0;
+	return OUTBUF_IS_SET;
 }
 
+/* 'outbuf' initialized by _init_SummarizeResult() above. */
 static inline int sum_centered_X2_ints(const int *x, int n,
 		int na_rm, double center, R_xlen_t *nacount,
 		double outbuf[1])
 {
-	double out0, y;
+	double out0, delta;
 
 	out0 = outbuf[0];
 	for (int i = 0; i < n; i++, x++) {
@@ -506,21 +527,23 @@ static inline int sum_centered_X2_ints(const int *x, int n,
 				(*nacount)++;
 				continue;
 			}
+			/* Bail out early. */
 			outbuf[0] = NA_REAL;
-			return 1;  // bail out early
+			return OUTBUF_IS_SET_WITH_BREAKING_VALUE;
 		}
-		y = (double) *x - center;
-		out0 += y * y;
+		delta = (double) *x - center;
+		out0 += delta * delta;
 	}
 	outbuf[0] = out0;
-	return 0;
+	return OUTBUF_IS_SET;
 }
 
+/* 'outbuf' initialized by _init_SummarizeResult() above. */
 static inline int sum_centered_X2_doubles(const double *x, int n,
 		int na_rm, double center, R_xlen_t *nacount,
 		double outbuf[1])
 {
-	double out0, xx, y;
+	double out0, xx, delta;
 	int out0_is_not_NaN;
 
 	out0 = outbuf[0];
@@ -533,22 +556,24 @@ static inline int sum_centered_X2_doubles(const double *x, int n,
 				continue;
 			}
 			if (R_IsNA(xx)) {
+				/* Bail out early. */
 				outbuf[0] = NA_REAL;
-				return 1;  // bail out early
+				return OUTBUF_IS_SET_WITH_BREAKING_VALUE;
 			}
 			out0 = xx;
 			out0_is_not_NaN = 0;
 			continue;
 		}
 		if (out0_is_not_NaN) {
-			y = xx - center;
-			out0 += y * y;
+			delta = xx - center;
+			out0 += delta * delta;
 		}
 	}
 	outbuf[0] = out0;
-	return 0;
+	return OUTBUF_IS_SET;
 }
 
+/* 'outbuf' initialized by _init_SummarizeResult() above. */
 static inline int sum_X_X2_ints(const int *x, int n,
 		int na_rm, R_xlen_t *nacount,
 		double outbuf[2])
@@ -563,8 +588,9 @@ static inline int sum_X_X2_ints(const int *x, int n,
 				(*nacount)++;
 				continue;
 			}
+			/* Bail out early. */
 			outbuf[0] = outbuf[1] = NA_REAL;
-			return 1;  // bail out early
+			return OUTBUF_IS_SET_WITH_BREAKING_VALUE;
 		}
 		xx = (double) *x;
 		out0 += xx;
@@ -572,9 +598,10 @@ static inline int sum_X_X2_ints(const int *x, int n,
 	}
 	outbuf[0] = out0;
 	outbuf[1] = out1;
-	return 0;
+	return OUTBUF_IS_SET;
 }
 
+/* 'outbuf' initialized by _init_SummarizeResult() above. */
 static inline int sum_X_X2_doubles(const double *x, int n,
 		int na_rm, R_xlen_t *nacount,
 		double outbuf[2])
@@ -593,8 +620,9 @@ static inline int sum_X_X2_doubles(const double *x, int n,
 				continue;
 			}
 			if (R_IsNA(xx)) {
+				/* Bail out early. */
 				outbuf[0] = outbuf[1] = NA_REAL;
-				return 1;  // bail out early
+				return OUTBUF_IS_SET_WITH_BREAKING_VALUE;
 			}
 			out0 = out1 = xx;
 			out0_is_not_NaN = 0;
@@ -607,7 +635,7 @@ static inline int sum_X_X2_doubles(const double *x, int n,
 	}
 	outbuf[0] = out0;
 	outbuf[1] = out1;
-	return 0;
+	return OUTBUF_IS_SET;
 }
 
 
@@ -630,13 +658,13 @@ static int summarize_ints(const int *x, int x_len,
 				res->outbuf.one_int);
 	    case MIN_OPCODE:
 		return min_ints(x, x_len, na_rm, nacount_p,
-				&(res->outbuf_is_set), res->outbuf.one_int);
+				res->outbuf.one_int, res->outbuf_status);
 	    case MAX_OPCODE:
 		return max_ints(x, x_len, na_rm, nacount_p,
-				&(res->outbuf_is_set), res->outbuf.one_int);
+				res->outbuf.one_int, res->outbuf_status);
 	    case RANGE_OPCODE:
 		return range_ints(x, x_len, na_rm, nacount_p,
-				&(res->outbuf_is_set), res->outbuf.two_ints);
+				res->outbuf.two_ints, res->outbuf_status);
 	    case SUM_OPCODE: case MEAN_OPCODE:
 		return sum_ints(x, x_len, na_rm, nacount_p,
 				res->outbuf.one_double);
@@ -644,7 +672,8 @@ static int summarize_ints(const int *x, int x_len,
 		return prod_ints(x, x_len, na_rm, nacount_p,
 				res->outbuf.one_double);
 	    case SUM_CENTERED_X2_OPCODE: case VAR1_OPCODE: case SD1_OPCODE:
-		return sum_centered_X2_ints(x, x_len, na_rm, center, nacount_p,
+		return sum_centered_X2_ints(x, x_len, na_rm,
+				center, nacount_p,
 				res->outbuf.one_double);
 	    case SUM_X_X2_OPCODE: case VAR2_OPCODE: case SD2_OPCODE:
 		return sum_X_X2_ints(x, x_len, na_rm, nacount_p,
@@ -678,8 +707,9 @@ static int summarize_doubles(const double *x, int x_len,
 		return prod_doubles(x, x_len, na_rm, nacount_p,
 				res->outbuf.one_double);
 	    case SUM_CENTERED_X2_OPCODE: case VAR1_OPCODE: case SD1_OPCODE:
-		return sum_centered_X2_doubles(x, x_len, na_rm, center,
-				nacount_p, res->outbuf.one_double);
+		return sum_centered_X2_doubles(x, x_len, na_rm,
+				center, nacount_p,
+				res->outbuf.one_double);
 	    case SUM_X_X2_OPCODE: case VAR2_OPCODE: case SD2_OPCODE:
 		return sum_X_X2_doubles(x, x_len, na_rm, nacount_p,
 				res->outbuf.two_doubles);
@@ -689,12 +719,15 @@ static int summarize_doubles(const double *x, int x_len,
 	return 0;  /* will never reach this */
 }
 
-int _summarize_Rvector(SEXP x, const SummarizeOp *summarize_op,
-		       SummarizeResult *res)
+void _summarize_Rvector(SEXP x, const SummarizeOp *summarize_op,
+			SummarizeResult *res)
 {
 	SEXPTYPE x_Rtype;
-	int x_len, bailout;
+	int x_len, new_status;
 
+	if (res->outbuf_status == OUTBUF_IS_SET_WITH_BREAKING_VALUE)
+		error("SparseArray internal error in _summarize_Rvector():\n"
+		      "    outbuf already set with breaking value");
 	x_Rtype = TYPEOF(x);
 	if (x_Rtype != summarize_op->in_Rtype)
 		error("SparseArray internal error in _summarize_Rvector():\n"
@@ -703,12 +736,12 @@ int _summarize_Rvector(SEXP x, const SummarizeOp *summarize_op,
 	res->in_length += x_len;
 	switch (x_Rtype) {
 	    case LGLSXP: case INTSXP:
-		bailout = summarize_ints(INTEGER(x), x_len,
+		new_status = summarize_ints(INTEGER(x), x_len,
 				summarize_op->opcode, summarize_op->na_rm,
 				summarize_op->center, res);
 		break;
 	    case REALSXP:
-		bailout = summarize_doubles(REAL(x), x_len,
+		new_status = summarize_doubles(REAL(x), x_len,
 				summarize_op->opcode, summarize_op->na_rm,
 				summarize_op->center, res);
 		break;
@@ -717,9 +750,10 @@ int _summarize_Rvector(SEXP x, const SummarizeOp *summarize_op,
 		      "    input type \"%s\" is not supported",
 		      type2char(x_Rtype));
 	}
-	if (bailout)
+	res->outbuf_status = new_status;
+	if (new_status == OUTBUF_IS_SET_WITH_BREAKING_VALUE)
 		res->postprocess_one_zero = 0;
-	return bailout;
+	return;
 }
 
 
@@ -728,27 +762,36 @@ int _summarize_Rvector(SEXP x, const SummarizeOp *summarize_op,
  */
 
 /* Does NOT increase 'res->in_length' by 1. */
-static int summarize_one_zero(const SummarizeOp *summarize_op,
-			      SummarizeResult *res)
+static void summarize_one_zero(const SummarizeOp *summarize_op,
+			       SummarizeResult *res)
 {
+	int new_status;
+
+	if (res->outbuf_status == OUTBUF_IS_SET_WITH_BREAKING_VALUE)
+		error("SparseArray internal error in summarize_one_zero():\n"
+		      "    outbuf already set with breaking value");
 	switch (summarize_op->in_Rtype) {
 	    case LGLSXP: case INTSXP: {
 		int zero = 0;
-		return summarize_ints(&zero, 1,
+		new_status = summarize_ints(&zero, 1,
 				summarize_op->opcode, summarize_op->na_rm,
 				summarize_op->center, res);
+		break;
 	    }
 	    case REALSXP: {
 		double zero = 0.0;
-		return summarize_doubles(&zero, 1,
+		new_status = summarize_doubles(&zero, 1,
 				summarize_op->opcode, summarize_op->na_rm,
 				summarize_op->center, res);
+		break;
 	    }
+	    default:
+		error("SparseArray internal error in summarize_one_zero():\n"
+		      "    input type \"%s\" is not supported",
+		      type2char(summarize_op->in_Rtype));
 	}
-	error("SparseArray internal error in summarize_one_zero():\n"
-	      "    input type \"%s\" is not supported",
-	      type2char(summarize_op->in_Rtype));
-	return 0;  /* will never reach this */
+	res->outbuf_status = new_status;
+	return;
 }
 
 
@@ -767,7 +810,11 @@ void _postprocess_SummarizeResult(const SummarizeOp *summarize_op,
 	if (res->postprocess_one_zero && zerocount != 0)
 		summarize_one_zero(summarize_op, res);
 
-	if (!res->outbuf_is_set) {
+	/* Nothing else to do if a break condition was reached. */
+	if (res->outbuf_status == OUTBUF_IS_SET_WITH_BREAKING_VALUE)
+		return;
+
+	if (res->outbuf_status == OUTBUF_IS_NOT_SET) {
 		if (res->out_Rtype == INTSXP && (opcode == MIN_OPCODE ||
 						 opcode == MAX_OPCODE ||
 						 opcode == RANGE_OPCODE))
@@ -784,12 +831,13 @@ void _postprocess_SummarizeResult(const SummarizeOp *summarize_op,
 			} else {
 				res->outbuf.one_int[0] = NA_INTEGER;
 			}
-			res->warn = res->outbuf_is_set = 1;
-		} else {
-			error("SparseArray internal error in "
-			      "_postprocess_SummarizeResult():\n"
-			      "    'res->outbuf_is_set' is False");
+			res->warn = 1;
+			res->outbuf_status = OUTBUF_IS_SET;
+			return;
 		}
+		error("SparseArray internal error in "
+		      "_postprocess_SummarizeResult():\n"
+		      "    outbuf is not set");
 	}
 
 	switch (opcode) {
@@ -858,6 +906,9 @@ static SEXP ScalarLogical2(int i)
 	return ans;
 }
 
+/* Round 'x' to nearest int. */
+#define	BACK_TO_INT(x) ((int) ((x) >= 0 ? (x) + 0.5 : (x) - 0.5))
+
 static SEXP sum_X_X2_as_SEXP(double sum_X, double sum_X2, SEXPTYPE in_Rtype)
 {
 	SEXP ans;
@@ -879,16 +930,14 @@ static SEXP sum_X_X2_as_SEXP(double sum_X, double sum_X2, SEXPTYPE in_Rtype)
 		    sum_X2 <= INT_MAX && sum_X2 >= -INT_MAX)
 		{
 			ans = PROTECT(NEW_INTEGER(2));
-			/* We round 'sum_X' and 'sum_X2' to the
-			   nearest integer. */
-			INTEGER(ans)[0] = (int) (sum_X  + 0.5);
-			INTEGER(ans)[1] = (int) (sum_X2 + 0.5);
+			INTEGER(ans)[0] = BACK_TO_INT(sum_X);
+			INTEGER(ans)[1] = BACK_TO_INT(sum_X2);
 			UNPROTECT(1);
 			return ans;
 		}
 	}
 	ans = PROTECT(NEW_NUMERIC(2));
-	if (ISNAN(sum_X)) {  // True for *both* NA and NaN
+	if (ISNAN(sum_X)) {
 		/* 'sum_X' is NA_REAL or NaN. */
 		REAL(ans)[0] = REAL(ans)[1] = sum_X;
 	} else {
@@ -899,13 +948,12 @@ static SEXP sum_X_X2_as_SEXP(double sum_X, double sum_X2, SEXPTYPE in_Rtype)
 	return ans;
 }
 
-/* Returns an integer or numeric vector of length 1 or 2.
-   Looks at 'res->outbuf_is_set' only when 'opcode' is MIN/MAX/RANGE_OPCODE
-   and 'Rtype' is INTSXP. */
+/* Returns an integer or numeric vector of length 1 or 2. */
 static SEXP res2nakedSEXP(const SummarizeResult *res,
 			  int opcode, SEXPTYPE in_Rtype)
 {
 	SEXP ans;
+	double out0;
 
 	if (opcode == ANY_OPCODE || opcode == ALL_OPCODE)
 		return ScalarLogical2(res->outbuf.one_int[0]);
@@ -945,24 +993,26 @@ static SEXP res2nakedSEXP(const SummarizeResult *res,
 	if (in_Rtype == INTSXP && (opcode == SUM_OPCODE ||
 				   opcode == PROD_OPCODE))
 	{
-		if (ISNAN(res->outbuf.one_double[0]))
+		out0 = res->outbuf.one_double[0];
+		if (ISNAN(out0))
 			return ScalarInteger(NA_INTEGER);
-		if (res->outbuf.one_double[0] < -INT_MAX ||
-		    res->outbuf.one_double[0] >  INT_MAX)
-			return ScalarReal(res->outbuf.one_double[0]);
-		/* Round 'res->outbuf.one_double[0]' to the nearest integer. */
-		return ScalarInteger((int) (res->outbuf.one_double[0] + 0.5));
+		if (out0 < -INT_MAX || out0 > INT_MAX)
+			return ScalarReal(out0);
+		/* Round 'out0' to the nearest integer. */
+		return ScalarInteger(BACK_TO_INT(out0));
 	}
 
 	return ScalarReal(res->outbuf.one_double[0]);
 }
 
-/* Returns an integer or numeric vector of length 1 or 2.
-   If 'na_rm' is TRUE, then the "nacount" attribute is set on the
-   returned vector. */
+/* Returns an integer or numeric vector of length 1 or 2. */
 SEXP _make_SEXP_from_summarize_result(const SummarizeOp *summarize_op,
 		const SummarizeResult *res)
 {
+	return res2nakedSEXP(res, summarize_op->opcode, summarize_op->in_Rtype);
+/*
+	// If 'na_rm' is TRUE, then we set the "nacount" attribute on the
+	// returned vector.
 	SEXP ans, ans_attrib;
 
 	ans = res2nakedSEXP(res, summarize_op->opcode, summarize_op->in_Rtype);
@@ -977,6 +1027,7 @@ SEXP _make_SEXP_from_summarize_result(const SummarizeOp *summarize_op,
 	setAttrib(ans, install("nacount"), ans_attrib);
 	UNPROTECT(2);
 	return ans;
+*/
 }
 
 

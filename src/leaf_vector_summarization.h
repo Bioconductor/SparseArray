@@ -4,7 +4,7 @@
 #include <Rdefines.h>
 #include "Rvector_summarization.h"
 
-int _summarize_leaf_vector(
+void _summarize_leaf_vector(
 	SEXP lv,
 	int d,
 	const SummarizeOp *summarize_op,

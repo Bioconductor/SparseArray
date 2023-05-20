@@ -211,7 +211,7 @@ SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
 	if (!IS_NUMERIC(center) || LENGTH(center) != 1)
 		error("SparseArray internal error in "
 		      "C_colStats_SVT():\n"
-		      "    'center' must be a single numeric value");
+		      "    'center' must be a single number");
 
 	summarize_op = _make_SummarizeOp(opcode, x_Rtype, narm,
 					 REAL(center)[0]);

@@ -3,6 +3,9 @@
 \alias{SparseArray-summarization}
 \alias{SparseArray_summarization}
 
+\alias{anyNA,COO_SparseArray-method}
+\alias{anyNA,SVT_SparseArray-method}
+
 \alias{range.COO_SparseArray}
 \alias{range,COO_SparseArray-method}
 \alias{range.SVT_SparseArray}
@@ -10,20 +13,19 @@
 
 \alias{mean,SparseArray-method}
 
-\alias{anyNA,COO_SparseArray-method}
-\alias{anyNA,SVT_SparseArray-method}
-
 \alias{var,SparseArray,ANY-method}
+\alias{sd,SparseArray-method}
 
 \title{SparseArray summarization methods}
 
 \description{
   The \pkg{SparseArray} package provides memory-efficient summarization
   methods for \link{SparseArray} objects. The following methods are
-  supported at the moment: \code{min()}, \code{max()}, \code{range()},
-  \code{sum()}, \code{prod()}, \code{any()}, \code{all()},
-  \code{mean()}, \code{anyNA()}.
-  More will be added in the future.
+  supported at the moment: \code{anyNA()}, \code{any()}, \code{all()},
+  \code{min()}, \code{max()}, \code{range()}, \code{sum()}, \code{prod()},
+  \code{mean()}, \code{var()}, \code{sd()}.
+
+  More might be added in the future.
 
   Note that these are \emph{S4 generic functions} defined in base R
   and in the \pkg{BiocGenerics} package, with default methods defined
@@ -32,10 +34,8 @@
 }
 
 \details{
-  All these methods operate \emph{natively} on the \link{COO_SparseMatrix}
-  or \link{SVT_SparseMatrix} representation, for maximum efficiency.
-
-  Note that more summarization methods will be added in the future.
+  All these methods operate \emph{natively} on the \link{COO_SparseArray}
+  or \link{SVT_SparseArray} representation, for maximum efficiency.
 }
 
 \value{
@@ -63,21 +63,24 @@ m0["e", "B"] <- NA
 svt0 <- as(m0, "SVT_SparseMatrix")
 svt0
 
+anyNA(svt0)
+
 range(svt0)
+
 range(svt0, na.rm=TRUE)
 
-sum(svt0)
 sum(svt0, na.rm=TRUE)
 
-anyNA(svt0)
+sd(svt0, na.rm=TRUE)
 
 ## Sanity checks:
 stopifnot(
+  identical(anyNA(svt0), anyNA(m0)),
   identical(range(svt0), range(m0)),
   identical(range(svt0, na.rm=TRUE), range(m0, na.rm=TRUE)),
   identical(sum(svt0), sum(m0)),
   identical(sum(svt0, na.rm=TRUE), sum(m0, na.rm=TRUE)),
-  identical(anyNA(svt0), anyNA(m0))
+  identical(sd(svt0, na.rm=TRUE), sd(m0, na.rm=TRUE))
 )
 }
 \keyword{array}
