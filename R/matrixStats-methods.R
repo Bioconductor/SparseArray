@@ -23,6 +23,9 @@
 ### Low-level helpers
 ###
 
+### A silly trick used only to trigger an error if called with arguments.
+.check_unused_arguments <- function() NULL
+
 .check_dims <- function(dims, method)
 {
     if (!identical(dims, 1))
@@ -178,50 +181,55 @@ setMethod("rowMeans", "SVT_SparseArray", .rowMeans_SVT_SparseArray)
     ans
 }
 
-.colMins_SVT_SparseArray <- function(x, rows=NULL, cols=NULL,
-                                     na.rm=FALSE, dims=1)
+.colMins_SVT <-
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
+    .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "colMins")
-    .colStats_SVT("min", x, na.rm=na.rm, dims=dims)
+    .colStats_SVT("min", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-setMethod("colMins", "SVT_SparseArray", .colMins_SVT_SparseArray)
+setMethod("colMins", "SVT_SparseArray", .colMins_SVT)
 
-.rowMins_SVT_SparseArray <- function(x, rows=NULL, cols=NULL,
-                                     na.rm=FALSE, dims=1)
+.rowMins_SVT <-
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
+    .check_unused_arguments(...)
     .stopifnot_2D_object(x, "rowMins")
     .check_rows_cols(rows, cols, "rowMins")
-    .colMins_SVT_SparseArray(t(x), na.rm=na.rm, dims=dims)
+    .colMins_SVT(t(x), na.rm=na.rm, dims=dims, useNames=useNames)
 }
-setMethod("rowMins", "SVT_SparseArray", .rowMins_SVT_SparseArray)
+setMethod("rowMins", "SVT_SparseArray", .rowMins_SVT)
 
-.colMaxs_SVT_SparseArray <- function(x, rows=NULL, cols=NULL,
-                                     na.rm=FALSE, dims=1)
+.colMaxs_SVT <-
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
+    .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "colMaxs")
-    .colStats_SVT("max", x, na.rm=na.rm, dims=dims)
+    .colStats_SVT("max", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-setMethod("colMaxs", "SVT_SparseArray", .colMaxs_SVT_SparseArray)
+setMethod("colMaxs", "SVT_SparseArray", .colMaxs_SVT)
 
-.rowMaxs_SVT_SparseArray <- function(x, rows=NULL, cols=NULL,
-                                     na.rm=FALSE, dims=1)
+.rowMaxs_SVT <-
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
+    .check_unused_arguments(...)
     .stopifnot_2D_object(x, "rowMaxs")
     .check_rows_cols(rows, cols, "rowMaxs")
-    .colMaxs_SVT_SparseArray(t(x), na.rm=na.rm, dims=dims)
+    .colMaxs_SVT(t(x), na.rm=na.rm, dims=dims, useNames=useNames)
 }
-setMethod("rowMaxs", "SVT_SparseArray", .rowMaxs_SVT_SparseArray)
+setMethod("rowMaxs", "SVT_SparseArray", .rowMaxs_SVT)
 
-.colRanges_SVT_SparseArray <- function(x, rows=NULL, cols=NULL,
-                                       na.rm=FALSE, dims=1)
+.colRanges_SVT <-
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
+    .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "colRanges")
 
     ## Using two passes at the moment and binding the two results in R.
-    ## TODO: Do all this in a single pass. Call .colStats_SVT("range", ...)
+    ## TODO: Do all this in a single pass. Call '.colStats_SVT("range", ...)'
     ## and modify .Call ENTRY POINT C_colStats_SVT to perform the binding
     ## from the very start.
-    mins <- .colStats_SVT("min", x, na.rm=na.rm, dims=dims)
+    mins <- .colStats_SVT("min", x, na.rm=na.rm, dims=dims, useNames=useNames)
     maxs <- .colStats_SVT("max", x, na.rm=na.rm, dims=dims, useNames=FALSE)
 
     ## Bind 'mins' and 'maxs' together.
@@ -235,21 +243,133 @@ setMethod("rowMaxs", "SVT_SparseArray", .rowMaxs_SVT_SparseArray)
     ans <- S4Arrays:::simple_abind(mins, maxs, along=length(dim(mins)))
     S4Arrays:::set_dimnames(ans, ans_dimnames)
 }
-setMethod("colRanges", "SVT_SparseArray", .colRanges_SVT_SparseArray)
+setMethod("colRanges", "SVT_SparseArray", .colRanges_SVT)
 
-.rowRanges_SVT_SparseArray <- function(x, rows=NULL, cols=NULL,
-                                       na.rm=FALSE, dims=1)
+.rowRanges_SVT <-
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
+    .check_unused_arguments(...)
     .stopifnot_2D_object(x, "rowRanges")
     .check_rows_cols(rows, cols, "rowRanges")
-    .colRanges_SVT_SparseArray(t(x), na.rm=na.rm, dims=dims)
+    .colRanges_SVT(t(x), na.rm=na.rm, dims=dims, useNames=useNames)
 }
-setMethod("rowRanges", "SVT_SparseArray", .rowRanges_SVT_SparseArray)
+setMethod("rowRanges", "SVT_SparseArray", .rowRanges_SVT)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### colVars/rowVars and colSds/rowSds
+###
+
+### Equivalent to 'var(c(x, integer(padding)), ...)' but doesn't actually
+### realize the padding with zeros.
+.padded_var <- function(x, padding=0L, na.rm=FALSE, center=NULL)
+{
+    if (na.rm)
+        x <- x[!is.na(x)]
+    nvals <- length(x) + padding
+    if (nvals <= 1L)
+        return(NA_real_)
+    if (is.null(center)) {
+        center <- sum(x) / nvals
+    } else {
+        stopifnot(isSingleNumberOrNA(center))
+    }
+    delta <- x - center
+    s <- sum(delta * delta) + center * center * padding
+    s / (nvals - 1L)
+}
+
+### Returns a numeric vector of length 'ncol(x)'.
+.normarg_center <- function(center, x, na.rm=FALSE)
+{
+    if (is.null(center))
+        return(colMeans(x, na.rm=na.rm))
+    if (!is.numeric(center))
+        stop(wmsg("'center' must be NULL or a numeric vector"))
+    x_ncol <- ncol(x)
+    if (length(center) != x_ncol) {
+        if (length(center) != 1L)
+            stop(wmsg("'center' must have one element per row ",
+                      "or column in the SparseMatrix object"))
+        center <- rep.int(center, x_ncol)
+    }
+    center
+}
+
+.colVars_SVT_SparseMatrix <- function(x, na.rm=FALSE, center=NULL, useNames=NA)
+{
+    if (!isTRUEorFALSE(na.rm))
+        stop(wmsg("'na.rm' must be TRUE or FALSE"))
+    .check_useNames(useNames)
+    x_nrow <- nrow(x)
+    x_ncol <- ncol(x)
+    if (x_nrow <= 1L) {
+        ans <- rep.int(NA_real_, x_ncol)
+    } else {
+        center <- .normarg_center(center, x, na.rm=na.rm)
+        ans <- center * center * x_nrow / (x_nrow - 1L)
+        if (!is.null(x@SVT)) {
+            ans <- vapply(seq_along(x@SVT),
+                function(i) {
+                    lv <- x@SVT[[i]]
+                    if (is.null(lv))
+                        return(ans[[i]])
+                    lv_vals <- lv[[2L]]
+                    padding <- x_nrow - length(lv_vals)
+                    .padded_var(lv_vals, padding, na.rm=na.rm,
+                                center=center[[i]])
+                }, numeric(1), USE.NAMES=FALSE)
+        }
+    }
+    if (isTRUE(useNames))
+        names(ans) <- colnames(x)
+    ans
+}
+
+setMethod("colVars", "SVT_SparseMatrix",
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+             ..., useNames=NA)
+    {
+        .check_rows_cols(rows, cols, "colVars")
+        .colVars_SVT_SparseMatrix(x, na.rm=na.rm, center=center,
+                                  useNames=useNames, ...)
+    }
+)
+
+setMethod("rowVars", "SVT_SparseMatrix",
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+             ..., useNames=NA)
+    {
+        .check_rows_cols(rows, cols, "rowVars")
+        .colVars_SVT_SparseMatrix(t(x), na.rm=na.rm, center=center,
+                                  useNames=useNames, ...)
+    }
+)
+
+setMethod("colSds", "SVT_SparseMatrix",
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+             ..., useNames=NA)
+    {
+        .check_rows_cols(rows, cols, "colSds")
+        sqrt(colVars(x, na.rm=na.rm, center=center, useNames=useNames, ...))
+    }
+)
+
+setMethod("rowSds", "SVT_SparseMatrix",
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+             ..., useNames=NA)
+    {
+        .check_rows_cols(rows, cols, "rowSds")
+        sqrt(rowVars(x, na.rm=na.rm, center=center, useNames=useNames, ...))
+    }
+)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### colMedians/rowMedians
 ###
+### TODO: Replace current "pure R" implementation with C implementation
+### available thru .Call ENTRY POINT C_colStats_SVT.
 
 ### All values in 'x' are **assumed** to be >= 0 but we don't check this!
 ### 'padding' is expected to be < length(x).
@@ -359,115 +479,6 @@ setMethod("rowMedians", "SVT_SparseMatrix",
     {
         .check_rows_cols(rows, cols, "rowMedians")
         .colMedians_SVT_SparseMatrix(t(x), na.rm=na.rm, useNames=useNames, ...)
-    }
-)
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### colVars/rowVars and colSds/rowSds
-###
-
-### Equivalent to 'var(c(x, integer(padding)), ...)' but doesn't actually
-### realize the padding with zeros.
-.padded_var <- function(x, padding=0L, na.rm=FALSE, center=NULL)
-{
-    if (na.rm)
-        x <- x[!is.na(x)]
-    nvals <- length(x) + padding
-    if (nvals <= 1L)
-        return(NA_real_)
-    if (is.null(center)) {
-        center <- sum(x) / nvals
-    } else {
-        stopifnot(isSingleNumberOrNA(center))
-    }
-    delta <- x - center
-    s <- sum(delta * delta) + center * center * padding
-    s / (nvals - 1L)
-}
-
-### Returns a numeric vector of length 'ncol(x)'.
-.normarg_center <- function(center, x, na.rm=FALSE)
-{
-    if (is.null(center))
-        return(colMeans(x, na.rm=na.rm))
-    if (!is.numeric(center))
-        stop(wmsg("'center' must be NULL or a numeric vector"))
-    x_ncol <- ncol(x)
-    if (length(center) != x_ncol) {
-        if (length(center) != 1L)
-            stop(wmsg("'center' must have one element per row ",
-                      "or column in the SparseMatrix object"))
-        center <- rep.int(center, x_ncol)
-    }
-    center
-}
-
-.colVars_SVT_SparseMatrix <- function(x, na.rm=FALSE, center=NULL, useNames=NA)
-{
-    if (!isTRUEorFALSE(na.rm))
-        stop(wmsg("'na.rm' must be TRUE or FALSE"))
-    .check_useNames(useNames)
-    x_nrow <- nrow(x)
-    x_ncol <- ncol(x)
-    if (x_nrow <= 1L) {
-        ans <- rep.int(NA_real_, x_ncol)
-    } else {
-        center <- .normarg_center(center, x, na.rm=na.rm)
-        ans <- center * center * x_nrow / (x_nrow - 1L)
-        if (!is.null(x@SVT)) {
-            ans <- vapply(seq_along(x@SVT),
-                function(i) {
-                    lv <- x@SVT[[i]]
-                    if (is.null(lv))
-                        return(ans[[i]])
-                    lv_vals <- lv[[2L]]
-                    padding <- x_nrow - length(lv_vals)
-                    .padded_var(lv_vals, padding, na.rm=na.rm,
-                                center=center[[i]])
-                }, numeric(1), USE.NAMES=FALSE)
-        }
-    }
-    if (isTRUE(useNames))
-        names(ans) <- colnames(x)
-    ans
-}
-
-setMethod("colVars", "SVT_SparseMatrix",
-    function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
-             ..., useNames=NA)
-    {
-        .check_rows_cols(rows, cols, "colVars")
-        .colVars_SVT_SparseMatrix(x, na.rm=na.rm, center=center,
-                                  useNames=useNames, ...)
-    }
-)
-
-setMethod("rowVars", "SVT_SparseMatrix",
-    function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
-             ..., useNames=NA)
-    {
-        .check_rows_cols(rows, cols, "rowVars")
-        .colVars_SVT_SparseMatrix(t(x), na.rm=na.rm, center=center,
-                                  useNames=useNames, ...)
-    }
-)
-
-setMethod("colSds", "SVT_SparseMatrix",
-    function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
-             ..., useNames=NA)
-    {
-        .check_rows_cols(rows, cols, "colSds")
-        sqrt(colVars(x, na.rm=na.rm, center=center, useNames=useNames, ...))
-    }
-)
-
-setMethod("rowSds", "SVT_SparseMatrix",
-    function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
-             ..., useNames=NA)
-    {
-        .check_rows_cols(rows, cols, "rowSds")
-        sqrt(rowVars(x, na.rm=na.rm, center=center, useNames=useNames, ...))
     }
 )
 

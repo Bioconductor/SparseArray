@@ -4,34 +4,29 @@
 \alias{matrixStats_methods}
 
 \alias{colSums}
-\alias{colSums,SVT_SparseMatrix-method}
+\alias{colSums,SVT_SparseArray-method}
 \alias{rowSums}
-\alias{rowSums,SVT_SparseMatrix-method}
+\alias{rowSums,SVT_SparseArray-method}
 
 \alias{colMeans}
-\alias{colMeans,SVT_SparseMatrix-method}
+\alias{colMeans,SVT_SparseArray-method}
 \alias{rowMeans}
-\alias{rowMeans,SVT_SparseMatrix-method}
+\alias{rowMeans,SVT_SparseArray-method}
 
 \alias{colMins}
-\alias{colMins,SVT_SparseMatrix-method}
+\alias{colMins,SVT_SparseArray-method}
 \alias{rowMins}
-\alias{rowMins,SVT_SparseMatrix-method}
+\alias{rowMins,SVT_SparseArray-method}
 
 \alias{colMaxs}
-\alias{colMaxs,SVT_SparseMatrix-method}
+\alias{colMaxs,SVT_SparseArray-method}
 \alias{rowMaxs}
-\alias{rowMaxs,SVT_SparseMatrix-method}
+\alias{rowMaxs,SVT_SparseArray-method}
 
 \alias{colRanges}
-\alias{colRanges,SVT_SparseMatrix-method}
+\alias{colRanges,SVT_SparseArray-method}
 \alias{rowRanges}
-\alias{rowRanges,SVT_SparseMatrix-method}
-
-\alias{colMedians}
-\alias{colMedians,SVT_SparseMatrix-method}
-\alias{rowMedians}
-\alias{rowMedians,SVT_SparseMatrix-method}
+\alias{rowRanges,SVT_SparseArray-method}
 
 \alias{colVars}
 \alias{colVars,SVT_SparseMatrix-method}
@@ -42,6 +37,11 @@
 \alias{colSds,SVT_SparseMatrix-method}
 \alias{rowSds}
 \alias{rowSds,SVT_SparseMatrix-method}
+
+\alias{colMedians}
+\alias{colMedians,SVT_SparseMatrix-method}
+\alias{rowMedians}
+\alias{rowMedians,SVT_SparseMatrix-method}
 
 \title{SparseMatrix row/col summarization methods}
 
@@ -58,23 +58,20 @@
 }
 
 \usage{
-\S4method{rowSums}{SVT_SparseMatrix}(x, na.rm=FALSE, dims=1)
-\S4method{colSums}{SVT_SparseMatrix}(x, na.rm=FALSE, dims=1)
+\S4method{rowSums}{SVT_SparseArray}(x, na.rm=FALSE, dims=1)
+\S4method{colSums}{SVT_SparseArray}(x, na.rm=FALSE, dims=1)
 
-\S4method{rowMeans}{SVT_SparseMatrix}(x, na.rm=FALSE, dims=1)
-\S4method{colMeans}{SVT_SparseMatrix}(x, na.rm=FALSE, dims=1)
+\S4method{rowMeans}{SVT_SparseArray}(x, na.rm=FALSE, dims=1)
+\S4method{colMeans}{SVT_SparseArray}(x, na.rm=FALSE, dims=1)
 
-\S4method{rowMins}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
-\S4method{colMins}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
+\S4method{rowMins}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+\S4method{colMins}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 
-\S4method{rowMaxs}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
-\S4method{colMaxs}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
+\S4method{rowMaxs}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+\S4method{colMaxs}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 
-\S4method{rowRanges}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
-\S4method{colRanges}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
-
-\S4method{rowMedians}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
-\S4method{colMedians}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
+\S4method{rowRanges}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+\S4method{colRanges}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 
 \S4method{rowVars}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
            ..., useNames=NA)
@@ -85,6 +82,9 @@
           ..., useNames=NA)
 \S4method{colSds}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
           ..., useNames=NA)
+
+\S4method{rowMedians}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
+\S4method{colMedians}{SVT_SparseMatrix}(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
 }
 
 \arguments{
@@ -156,10 +156,9 @@ stopifnot(
   identical(colSums(svt0, na.rm=TRUE), colSums(m0, na.rm=TRUE)),
   identical(rowMeans(svt0), rowMeans(m0)),
   identical(rowMeans(svt0, na.rm=TRUE), rowMeans(m0, na.rm=TRUE)),
-  identical(colRanges(svt0), colRanges(m0)),
-  identical(colRanges(svt0, useNames=TRUE), colRanges(m0, useNames=TRUE)),
-  identical(colRanges(svt0, na.rm=TRUE), colRanges(m0, na.rm=TRUE)),
-  identical(colRanges(svt0, na.rm=TRUE, useNames=TRUE),
+  identical(colRanges(svt0), colRanges(m0, useNames=TRUE)),
+  identical(colRanges(svt0, useNames=FALSE), colRanges(m0)),
+  identical(colRanges(svt0, na.rm=TRUE),
             colRanges(m0, na.rm=TRUE, useNames=TRUE)),
   identical(colVars(svt0), colVars(m0)),
   identical(colVars(svt0, na.rm=TRUE), colVars(m0, na.rm=TRUE))

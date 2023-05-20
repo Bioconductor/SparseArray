@@ -16,15 +16,15 @@
 static int REC_summarize_SVT(SEXP SVT, const int *dim, int ndim,
 		const SummarizeOp *summarize_op, SummarizeResult *res)
 {
-	R_xlen_t count;
+	R_xlen_t in_len;
 	int along, SVT_len, i, bailout;
 	SEXP subSVT;
 
 	if (SVT == R_NilValue) {
-		count = 1;
+		in_len = 1;
 		for (along = 0; along < ndim; along++)
-			count *= dim[along];
-		res->totalcount += count;
+			in_len *= dim[along];
+		res->in_length += in_len;
 		return 0;
 	}
 

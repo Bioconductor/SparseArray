@@ -83,9 +83,9 @@ SummarizeOp _make_SummarizeOp(int opcode, SEXPTYPE in_Rtype,
 void _init_SummarizeResult(const SummarizeOp *summarize_op,
 			   SummarizeResult *res)
 {
-	res->totalcount = res->nzcount = res->nacount = 0;
-	res->postprocess_one_zero = 0;
+	res->in_length = res->in_nzcount = res->in_nacount = 0;
 	res->outbuf_is_set = 1;
+	res->postprocess_one_zero = 0;
 	res->warn = 0;
 	switch (summarize_op->opcode) {
 	    case ANY_OPCODE:
@@ -93,18 +93,18 @@ void _init_SummarizeResult(const SummarizeOp *summarize_op,
 		res->outbuf.one_int[0] = 0;
 		return;
 	    case ALL_OPCODE:
-		res->postprocess_one_zero = 1;
 		res->out_Rtype = LGLSXP;
 		res->outbuf.one_int[0] = 1;
+		res->postprocess_one_zero = 1;
 		return;
 	    case SUM_OPCODE: case MEAN_OPCODE:
 		res->out_Rtype = REALSXP;
 		res->outbuf.one_double[0] = 0.0;
 		return;
 	    case PROD_OPCODE:
-		res->postprocess_one_zero = 1;
 		res->out_Rtype = REALSXP;
 		res->outbuf.one_double[0] = 1.0;
+		res->postprocess_one_zero = 1;
 		return;
 	    case SUM_CENTERED_X2_OPCODE: case VAR1_OPCODE: case SD1_OPCODE:
 		res->out_Rtype = REALSXP;
@@ -119,8 +119,8 @@ void _init_SummarizeResult(const SummarizeOp *summarize_op,
 	   MAX_OPCODE, or RANGE_OPCODE. */
 	res->postprocess_one_zero = 1;
 	if (summarize_op->in_Rtype == INTSXP) {
-		res->outbuf_is_set = 0;
 		res->out_Rtype = INTSXP;
+		res->outbuf_is_set = 0;
 		return;
 	}
 	res->out_Rtype = REALSXP;
@@ -618,33 +618,36 @@ static inline int sum_X_X2_doubles(const double *x, int n,
 static int summarize_ints(const int *x, int x_len,
 		int opcode, int na_rm, double center, SummarizeResult *res)
 {
+	R_xlen_t *nacount_p;
+
+	nacount_p = &(res->in_nacount);
 	switch (opcode) {
-	    case MIN_OPCODE:
-		return min_ints(x, x_len, na_rm, &(res->nacount),
-				&(res->outbuf_is_set), res->outbuf.one_int);
-	    case MAX_OPCODE:
-		return max_ints(x, x_len, na_rm, &(res->nacount),
-				&(res->outbuf_is_set), res->outbuf.one_int);
-	    case RANGE_OPCODE:
-		return range_ints(x, x_len, na_rm, &(res->nacount),
-				&(res->outbuf_is_set), res->outbuf.two_ints);
-	    case SUM_OPCODE: case MEAN_OPCODE:
-		return sum_ints(x, x_len, na_rm, &(res->nacount),
-				res->outbuf.one_double);
-	    case PROD_OPCODE:
-		return prod_ints(x, x_len, na_rm, &(res->nacount),
-				 res->outbuf.one_double);
 	    case ANY_OPCODE:
-		return any_ints(x, x_len, na_rm, &(res->nacount),
+		return any_ints(x, x_len, na_rm, nacount_p,
 				res->outbuf.one_int);
 	    case ALL_OPCODE:
-		return all_ints(x, x_len, na_rm, &(res->nacount),
+		return all_ints(x, x_len, na_rm, nacount_p,
 				res->outbuf.one_int);
+	    case MIN_OPCODE:
+		return min_ints(x, x_len, na_rm, nacount_p,
+				&(res->outbuf_is_set), res->outbuf.one_int);
+	    case MAX_OPCODE:
+		return max_ints(x, x_len, na_rm, nacount_p,
+				&(res->outbuf_is_set), res->outbuf.one_int);
+	    case RANGE_OPCODE:
+		return range_ints(x, x_len, na_rm, nacount_p,
+				&(res->outbuf_is_set), res->outbuf.two_ints);
+	    case SUM_OPCODE: case MEAN_OPCODE:
+		return sum_ints(x, x_len, na_rm, nacount_p,
+				res->outbuf.one_double);
+	    case PROD_OPCODE:
+		return prod_ints(x, x_len, na_rm, nacount_p,
+				res->outbuf.one_double);
 	    case SUM_CENTERED_X2_OPCODE: case VAR1_OPCODE: case SD1_OPCODE:
-		return sum_centered_X2_ints(x, x_len, na_rm, center,
-				&(res->nacount), res->outbuf.one_double);
+		return sum_centered_X2_ints(x, x_len, na_rm, center, nacount_p,
+				res->outbuf.one_double);
 	    case SUM_X_X2_OPCODE: case VAR2_OPCODE: case SD2_OPCODE:
-		return sum_X_X2_ints(x, x_len, na_rm, &(res->nacount),
+		return sum_X_X2_ints(x, x_len, na_rm, nacount_p,
 				res->outbuf.two_doubles);
 	}
 	error("SparseArray internal error in summarize_ints():\n"
@@ -655,27 +658,30 @@ static int summarize_ints(const int *x, int x_len,
 static int summarize_doubles(const double *x, int x_len,
 		int opcode, int na_rm, double center, SummarizeResult *res)
 {
+	R_xlen_t *nacount_p;
+
+	nacount_p = &(res->in_nacount);
 	switch (opcode) {
 	    case MIN_OPCODE:
-		return min_doubles(x, x_len, na_rm, &(res->nacount),
+		return min_doubles(x, x_len, na_rm, nacount_p,
 				res->outbuf.one_double);
 	    case MAX_OPCODE:
-		return max_doubles(x, x_len, na_rm, &(res->nacount),
+		return max_doubles(x, x_len, na_rm, nacount_p,
 				res->outbuf.one_double);
 	    case RANGE_OPCODE:
-		return range_doubles(x, x_len, na_rm, &(res->nacount),
+		return range_doubles(x, x_len, na_rm, nacount_p,
 				res->outbuf.two_doubles);
 	    case SUM_OPCODE: case MEAN_OPCODE:
-		return sum_doubles(x, x_len, na_rm, &(res->nacount),
+		return sum_doubles(x, x_len, na_rm, nacount_p,
 				res->outbuf.one_double);
 	    case PROD_OPCODE:
-		return prod_doubles(x, x_len, na_rm, &(res->nacount),
+		return prod_doubles(x, x_len, na_rm, nacount_p,
 				res->outbuf.one_double);
 	    case SUM_CENTERED_X2_OPCODE: case VAR1_OPCODE: case SD1_OPCODE:
 		return sum_centered_X2_doubles(x, x_len, na_rm, center,
-				&(res->nacount), res->outbuf.one_double);
+				nacount_p, res->outbuf.one_double);
 	    case SUM_X_X2_OPCODE: case VAR2_OPCODE: case SD2_OPCODE:
-		return sum_X_X2_doubles(x, x_len, na_rm, &(res->nacount),
+		return sum_X_X2_doubles(x, x_len, na_rm, nacount_p,
 				res->outbuf.two_doubles);
 	}
 	error("SparseArray internal error in summarize_doubles():\n"
@@ -694,7 +700,7 @@ int _summarize_Rvector(SEXP x, const SummarizeOp *summarize_op,
 		error("SparseArray internal error in _summarize_Rvector():\n"
 		      "    x_Rtype != summarize_op->in_Rtype");
 	x_len = LENGTH(x);
-	res->totalcount += x_len;
+	res->in_length += x_len;
 	switch (x_Rtype) {
 	    case LGLSXP: case INTSXP:
 		bailout = summarize_ints(INTEGER(x), x_len,
@@ -721,7 +727,7 @@ int _summarize_Rvector(SEXP x, const SummarizeOp *summarize_op,
  * _postprocess_SummarizeResult()
  */
 
-/* Does NOT increase 'res->totalcount' by 1. */
+/* Does NOT increase 'res->in_length' by 1. */
 static int summarize_one_zero(const SummarizeOp *summarize_op,
 			      SummarizeResult *res)
 {
@@ -750,13 +756,13 @@ void _postprocess_SummarizeResult(const SummarizeOp *summarize_op,
 				  SummarizeResult *res)
 {
 	int opcode;
-	R_xlen_t zerocount, totalcount;
+	R_xlen_t zerocount, effective_len;
 
 	opcode = summarize_op->opcode;
-	zerocount = res->totalcount - res->nzcount;
-	totalcount = res->totalcount;
+	zerocount = res->in_length - res->in_nzcount;
+	effective_len = res->in_length;
 	if (summarize_op->na_rm)
-		totalcount -= res->nacount;
+		effective_len -= res->in_nacount;
 
 	if (res->postprocess_one_zero && zerocount != 0)
 		summarize_one_zero(summarize_op, res);
@@ -767,9 +773,9 @@ void _postprocess_SummarizeResult(const SummarizeOp *summarize_op,
 						 opcode == RANGE_OPCODE))
 		{
 			/* Will happen if the virtual vector we're summarizing
-			   has length 0 (i.e. 'res->totalcount == 0'), or if
-			   it contains only NAs (i.e. 'res->nacount ==
-			   res->totalcount') and 'summarize_op->na_rm' is True.
+			   has length 0 (i.e. 'res->in_length == 0'), or if
+			   it contains only NAs (i.e. 'res->in_nacount ==
+			   res->in_length') and 'summarize_op->na_rm' is True.
 			   This is a case where we intentional deviate from
 			   base::min(), base::max(), and base::range(). */
 			if (opcode == RANGE_OPCODE) {
@@ -788,7 +794,7 @@ void _postprocess_SummarizeResult(const SummarizeOp *summarize_op,
 
 	switch (opcode) {
 	    case MEAN_OPCODE:
-		res->outbuf.one_double[0] /= (double) totalcount;
+		res->outbuf.one_double[0] /= (double) effective_len;
 		return;
 
 	    case SUM_CENTERED_X2_OPCODE: case VAR1_OPCODE: case SD1_OPCODE:
@@ -796,25 +802,25 @@ void _postprocess_SummarizeResult(const SummarizeOp *summarize_op,
 		res->outbuf.one_double[0] += center * center * zerocount;
 		if (opcode == SUM_CENTERED_X2_OPCODE)
 			return;
-		if (totalcount <= 1) {
+		if (effective_len <= 1) {
 			res->outbuf.one_double[0] = NA_REAL;
 			return;
 		}
-		res->outbuf.one_double[0] /= (totalcount - 1.0);
+		res->outbuf.one_double[0] /= (effective_len - 1.0);
 		if (opcode == VAR1_OPCODE)
 			return;
 		res->outbuf.one_double[0] = sqrt(res->outbuf.one_double[0]);
 		return;
 
 	    case VAR2_OPCODE: case SD2_OPCODE:
-		if (totalcount <= 1) {
+		if (effective_len <= 1) {
 			res->outbuf.one_double[0] = NA_REAL;
 			return;
 		}
 		double sum_X  = res->outbuf.two_doubles[0];
 		double sum_X2 = res->outbuf.two_doubles[1];
-		double var2   = (sum_X2 - sum_X * sum_X / totalcount) /
-			        (totalcount - 1.0);
+		double var2   = (sum_X2 - sum_X * sum_X / effective_len) /
+			        (effective_len - 1.0);
 		res->outbuf.one_double[0] = var2;
 		if (opcode == VAR2_OPCODE)
 			return;
@@ -963,10 +969,10 @@ SEXP _make_SEXP_from_summarize_result(const SummarizeOp *summarize_op,
 	if (!summarize_op->na_rm)
 		return ans;
 	PROTECT(ans);
-	if (res->nacount > INT_MAX)
-		ans_attrib = ScalarReal((double) res->nacount);
+	if (res->in_nacount > INT_MAX)
+		ans_attrib = ScalarReal((double) res->in_nacount);
 	else
-		ans_attrib = ScalarInteger((int) res->nacount);
+		ans_attrib = ScalarInteger((int) res->in_nacount);
 	PROTECT(ans_attrib);
 	setAttrib(ans, install("nacount"), ans_attrib);
 	UNPROTECT(2);

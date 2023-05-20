@@ -120,7 +120,7 @@ static inline void *increment_out(const void *out, SEXPTYPE out_Rtype,
 	    case LGLSXP: case INTSXP: return ((int    *) out) + inc;
 	    case REALSXP:             return ((double *) out) + inc;
 	}
-	error("SparseArray internal error in increment_out():\n",
+	error("SparseArray internal error in increment_out():\n"
 	      "    output type \"%s\" is not supported", type2char(out_Rtype));
 	return NULL;  /* will never reach this */
 }
@@ -141,7 +141,7 @@ static inline void copy_result_to_out(const SummarizeResult *res,
 		*((double *) out) = res->outbuf.one_double[0];
 		return;
 	}
-	error("SparseArray internal error in copy_result_to_out():\n",
+	error("SparseArray internal error in copy_result_to_out():\n"
 	      "    output type \"%s\" is not supported", type2char(out_Rtype));
 	return;  /* will never reach this */
 }

@@ -3,6 +3,7 @@
  ****************************************************************************/
 #include "SparseArray_Math_methods.h"
 
+#include "Rvector_utils.h"
 #include "leaf_vector_utils.h"
 
 #include <math.h>   /* for fabs(), sqrt(), floor(), ceil(), trunc(),
