@@ -69,6 +69,9 @@
        svt[ , , 1] <- svt[ , , 3, drop=FALSE]
        svt[ , , 1] <- svt[ , , 3]
 
+- Support 'match(svt, table)' where 'svt' is an SVT_SparseArray object
+  and 'table' an atomic vector. This will give us 'svt %in% table' for free.
+
 - Try to speed up SVT_SparseArray transposition by implementing a one-pass
   approach that uses ExtendableJaggedArray intermediate buffers (offss, valss).
   See src/readSparseCSV.c where this approach is already used.

@@ -1159,7 +1159,7 @@ static SEXP res2nakedSEXP(const SummarizeResult *res,
 	}
 
 	if ((opcode == MIN_OPCODE || opcode == MAX_OPCODE) &&
-	    in_Rtype == INTSXP)
+	    in_Rtype != REALSXP)
 	{
 		return ScalarInteger(res->outbuf.one_int[0]);
 	}
@@ -1179,7 +1179,7 @@ static SEXP res2nakedSEXP(const SummarizeResult *res,
 	}
 
 	if ((opcode == SUM_OPCODE || opcode == PROD_OPCODE) &&
-	    in_Rtype == INTSXP)
+	    (in_Rtype == LGLSXP || in_Rtype == INTSXP))
 	{
 		out0 = res->outbuf.one_double[0];
 		if (ISNAN(out0))
