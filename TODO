@@ -35,11 +35,11 @@
        res2 <- do.call(cbind, tmp)  # identical to 'res1'
 
      So we need the following:
-       a. We should be able to call row/colSums() and row/colMeans(), as well
+       a. We should be able to call col/rowSums() and col/rowMeans(), as well
           as any other matrixStats function on an SVT_SparseArray object with
           an arbitrary number of dimensions, not just on an SVT_SparseMatrix
           object.
-       b. The row/colSums() and row/colMeans() methods for SVT_SparseArray
+       b. The col/rowSums() and col/rowMeans() methods for SVT_SparseArray
           objects should support the 'dims' argument supported by the base
           functions. This would allow us to do
 

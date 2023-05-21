@@ -213,9 +213,9 @@ crossprod(svt3)
 
 See `?SparseMatrix_mult` for more information and additional examples.
 
-## matrixStats row/col summarization methods
+## matrixStats methods
 
-The `r Biocpkg("SparseArray")` package provides memory-efficient row/col
+The `r Biocpkg("SparseArray")` package provides memory-efficient col/row
 summarization methods for SVT\_SparseMatrix objects:
 ```{r}
 rowVars(svt4, useNames=TRUE)

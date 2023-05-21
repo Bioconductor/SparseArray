@@ -3,6 +3,11 @@
 \alias{matrixStats-methods}
 \alias{matrixStats_methods}
 
+\alias{colAnyNAs}
+\alias{colAnyNAs,SVT_SparseArray-method}
+\alias{rowAnyNAs}
+\alias{rowAnyNAs,SVT_SparseArray-method}
+
 \alias{colAnys}
 \alias{colAnys,SVT_SparseArray-method}
 \alias{rowAnys}
@@ -58,13 +63,13 @@
 \alias{rowMedians}
 \alias{rowMedians,SVT_SparseArray-method}
 
-\title{SparseArray row/col summarization methods}
+\title{SparseArray col/row summarization methods}
 
 \description{
-  The \pkg{SparseArray} package provides memory-efficient row/col
+  The \pkg{SparseArray} package provides memory-efficient col/row
   summarization methods for \link{SparseArray} objects, like
-  \code{rowSums()}, \code{colSums()}, \code{rowMedians()},
-  \code{colMedians()}, \code{rowVars()}, \code{colVars()}, etc...
+  \code{colSums()}, \code{rowSums()}, \code{colMedians()}, \code{rowMedians()},
+  \code{colVars()}, \code{rowVars()}, etc...
 
   Note that these are \emph{S4 generic functions} defined in the
   \pkg{MatrixGenerics} package, with methods for ordinary matrices
@@ -73,41 +78,33 @@
 }
 
 \usage{
-\S4method{rowAnys}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+## N.B.: Showing ONLY the col*() methods (usage of row*() methods is
+## the same):
+
+\S4method{colAnyNAs}{SVT_SparseArray}(x, rows=NULL, cols=NULL, dims=1, ..., useNames=NA)
+
 \S4method{colAnys}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 
-\S4method{rowAlls}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 \S4method{colAlls}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 
-\S4method{rowMins}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 \S4method{colMins}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 
-\S4method{rowMaxs}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 \S4method{colMaxs}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 
-\S4method{rowRanges}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 \S4method{colRanges}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 
-\S4method{rowSums}{SVT_SparseArray}(x, na.rm=FALSE, dims=1)
 \S4method{colSums}{SVT_SparseArray}(x, na.rm=FALSE, dims=1)
 
-\S4method{rowProds}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 \S4method{colProds}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 
-\S4method{rowMeans}{SVT_SparseArray}(x, na.rm=FALSE, dims=1)
 \S4method{colMeans}{SVT_SparseArray}(x, na.rm=FALSE, dims=1)
 
-\S4method{rowVars}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL, dims=1,
-           ..., useNames=NA)
 \S4method{colVars}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL, dims=1,
            ..., useNames=NA)
 
-\S4method{rowSds}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL, dims=1,
-          ..., useNames=NA)
 \S4method{colSds}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL, dims=1,
           ..., useNames=NA)
 
-\S4method{rowMedians}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
 \S4method{colMedians}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
 }
 
@@ -126,11 +123,19 @@
     See man pages for the corresponding generics in the \pkg{MatrixGenerics}
     package (e.g. \code{?MatrixGenerics::\link[MatrixGenerics]{rowVars}})
     for a description of these arguments.
+
+    Note that, unlike the methods for ordinary matrices defined in
+    the \pkg{matrixStats} package, the \code{center} argument of the
+    \code{colVars()}, \code{rowVars()}, \code{colSds()}, and \code{rowSds()}
+    methods for \link{SVT_SparseArray} objects can only be a
+    \emph{single value} (or a \code{NULL}). In particular, if \code{x}
+    has more than one column, then \code{center} cannot be a vector
+    with one value per column in \code{x}.
   }
   \item{dims}{
     See \code{?base::\link[base]{colSums}} for a description of this
     argument. Note that all the methods above support it, except
-    \code{rowMedians()} and \code{colMedians()}.
+    \code{colMedians()} and \code{rowMedians()}.
   }
 }
 
@@ -138,7 +143,7 @@
   All these methods operate \emph{natively} on the \link{SVT_SparseArray}
   representation, for maximum efficiency.
 
-  Note that more row/col summarization methods might be added in the future.
+  Note that more col/row summarization methods might be added in the future.
 }
 
 \value{
@@ -153,7 +158,7 @@
 
     \item The man pages for the various generic functions defined in
           the \pkg{MatrixGenerics} package e.g.
-          \code{MatrixGenerics::\link[MatrixGenerics]{rowVars}} etc...
+          \code{MatrixGenerics::\link[MatrixGenerics]{colVars}} etc...
   }
 }
 
@@ -167,14 +172,14 @@ m0["e", "B"] <- NA
 svt0 <- SparseArray(m0)
 svt0
 
-rowSums(svt0)
-rowSums(svt0, na.rm=TRUE)
-
 colSums(svt0)
 colSums(svt0, na.rm=TRUE)
 
-rowMeans(svt0)
-rowMeans(svt0, na.rm=TRUE)
+rowSums(svt0)
+rowSums(svt0, na.rm=TRUE)
+
+colMeans(svt0)
+colMeans(svt0, na.rm=TRUE)
 
 colRanges(svt0)
 colRanges(svt0, useNames=TRUE)
@@ -186,12 +191,12 @@ colVars(svt0, useNames=TRUE)
 
 ## Sanity checks:
 stopifnot(
-  identical(rowSums(svt0), rowSums(m0)),
-  identical(rowSums(svt0, na.rm=TRUE), rowSums(m0, na.rm=TRUE)),
   identical(colSums(svt0), colSums(m0)),
   identical(colSums(svt0, na.rm=TRUE), colSums(m0, na.rm=TRUE)),
-  identical(rowMeans(svt0), rowMeans(m0)),
-  identical(rowMeans(svt0, na.rm=TRUE), rowMeans(m0, na.rm=TRUE)),
+  identical(rowSums(svt0), rowSums(m0)),
+  identical(rowSums(svt0, na.rm=TRUE), rowSums(m0, na.rm=TRUE)),
+  identical(colMeans(svt0), colMeans(m0)),
+  identical(colMeans(svt0, na.rm=TRUE), colMeans(m0, na.rm=TRUE)),
   identical(colRanges(svt0), colRanges(m0, useNames=TRUE)),
   identical(colRanges(svt0, useNames=FALSE), colRanges(m0)),
   identical(colRanges(svt0, na.rm=TRUE),

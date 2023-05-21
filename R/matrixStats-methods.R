@@ -14,7 +14,7 @@
 ### Notes:
 ### - colSums() and colMeans() are functions actually defined in the base
 ###   package but we still count them as part of the matrixStats family.
-### - All other matrix row/column summarization operations are from the
+### - All other matrix col/row summarization operations are from the
 ###   matrixStats package with corresponding generics defined in the
 ###   MatrixGenerics package.
 
@@ -56,7 +56,9 @@
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Workhorse behind all the matrixStats methods
+### Workhorse behind all the matrixStats methods for SVT_SparseArray objects
+###
+### Except colMeans()/rowMeans() at the moment.
 ###
 
 ### Return an ordinary array with 'length(dim(x)) - dims' dimensions.
@@ -121,6 +123,30 @@
     .colCountNAs_SVT_SparseMatrix(t(x))
 }
 #setMethod("rowCountNAs", "SVT_SparseMatrix", .rowCountNAs_SVT_SparseMatrix)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### colAnyNAs/rowAnyNAs
+###
+
+.colAnyNAs_SVT <-
+    function(x, rows=NULL, cols=NULL, dims=1, ..., useNames=NA)
+{
+    .check_unused_arguments(...)
+    .check_rows_cols(rows, cols, "colAnyNAs")
+    .colStats_SVT("anyNA", x, dims=dims, useNames=useNames)
+}
+setMethod("colAnyNAs", "SVT_SparseArray", .colAnyNAs_SVT)
+
+.rowAnyNAs_SVT <-
+    function(x, rows=NULL, cols=NULL, dims=1, ..., useNames=NA)
+{
+    .check_unused_arguments(...)
+    .stopifnot_2D_object(x, "rowAnyNAs")
+    .check_rows_cols(rows, cols, "rowAnyNAs")
+    .colAnyNAs_SVT(t(x), dims=dims, useNames=useNames)
+}
+setMethod("rowAnyNAs", "SVT_SparseArray", .rowAnyNAs_SVT)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

@@ -3,16 +3,16 @@
 
 #include <Rdefines.h>
 
-/* The 3 interfaces of the summarization functions:
+/* 3 interfaces to the summarization functions in R:
      o Interface 1: FUN(x)
      o Interface 2: FUN(x, na.rm)
      o Interface 3: FUN(x, na.rm, center) */
 
 /* Interface 1: FUN(x) */
-#define	COUNTNAS_OPCODE          1
-#define	ANYNA_OPCODE             2
+#define	ANYNA_OPCODE             1
+#define	COUNTNAS_OPCODE          2
 
-/* "Summarize" operations from Summary group generic
+/* Operations from 'Summary' group generic.
    Interface 2: FUN(x, na.rm) */
 #define	ANY_OPCODE               3
 #define	ALL_OPCODE               4
@@ -33,7 +33,7 @@
 
 typedef struct summarize_op_t {
 	int opcode;
-	SEXPTYPE in_Rtype;   // only INTSXP/REALSXP supported for now
+	SEXPTYPE in_Rtype;
 	int na_rm;
 	double center;
 } SummarizeOp;
@@ -43,7 +43,7 @@ typedef union summarize_outbuf_t {
 	double one_double[1];
 	int two_ints[2];
 	double two_doubles[2];
-	Rcomplex one_complex[1];  // not used yet
+	Rcomplex one_Rcomplex[1];  // not used yet
 } SummarizeOutbuf;
 
 /* Possible values for the 'outbuf_status' member below. */
@@ -58,7 +58,7 @@ typedef struct summarize_result_t {
 	R_xlen_t in_nzcount;
   /* 'in_nacount' is used only when 'summarize_op->na_rm' is True. */
 	R_xlen_t in_nacount;
-	SEXPTYPE out_Rtype;  // only LGLSXP/INTSXP/REALSXP supported for now
+	SEXPTYPE out_Rtype;  // only LGLSXP/INTSXP/REALSXP are supported
 	int outbuf_status;   // see OUTBUF_* macros above for possible values
 	SummarizeOutbuf outbuf;
 	int postprocess_one_zero;
@@ -94,10 +94,6 @@ SEXP _make_SEXP_from_summarize_result(
 	const SummarizeOp *summarize_op,
 	const SummarizeResult *res
 );
-
-int _count_Rvector_NAs(SEXP Rvector);
-
-int _Rvector_has_any_NA(SEXP Rvector);
 
 #endif  /* _RVECTOR_SUMMARIZATION_H_ */
 
