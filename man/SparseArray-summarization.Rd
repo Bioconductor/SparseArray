@@ -56,9 +56,9 @@
 }
 
 \examples{
-m0 <- matrix(0L, nrow=6, ncol=4, dimnames=list(letters[1:6], LETTERS[1:4]))
+m0 <- matrix(0L, nrow=6, ncol=4)
 m0[c(1:2, 8, 10, 15:17, 24)] <- (1:8)*10L
-m0["e", "B"] <- NA
+m0[5, 2] <- NA
 svt0 <- as(m0, "SVT_SparseMatrix")
 svt0
 
