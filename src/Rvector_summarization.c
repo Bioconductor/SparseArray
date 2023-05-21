@@ -1030,11 +1030,15 @@ void _postprocess_SummarizeResult(const SummarizeOp *summarize_op,
 	}
 
 	switch (opcode) {
-	    case MEAN_OPCODE:
+	    /* For some strange reasons the Apple clang compiler is not
+	       happy if we don't use curly brackets to wrap the blocks
+	       following the case labels.
+	       See https://github.com/Bioconductor/SparseArray/issues/3 */
+	    case MEAN_OPCODE: {
 		res->outbuf.one_double[0] /= (double) effective_len;
 		return;
-
-	    case SUM_CENTERED_X2_OPCODE: case VAR1_OPCODE: case SD1_OPCODE:
+	    }
+	    case SUM_CENTERED_X2_OPCODE: case VAR1_OPCODE: case SD1_OPCODE: {
 		double center = summarize_op->center;
 		res->outbuf.one_double[0] += center * center * zerocount;
 		if (opcode == SUM_CENTERED_X2_OPCODE)
@@ -1048,8 +1052,8 @@ void _postprocess_SummarizeResult(const SummarizeOp *summarize_op,
 			return;
 		res->outbuf.one_double[0] = sqrt(res->outbuf.one_double[0]);
 		return;
-
-	    case VAR2_OPCODE: case SD2_OPCODE:
+	    }
+	    case VAR2_OPCODE: case SD2_OPCODE: {
 		if (effective_len <= 1) {
 			res->outbuf.one_double[0] = NA_REAL;
 			return;
@@ -1063,6 +1067,7 @@ void _postprocess_SummarizeResult(const SummarizeOp *summarize_op,
 			return;
 		res->outbuf.one_double[0] = sqrt(res->outbuf.one_double[0]);
 		return;
+	    }
 	}
 	return;
 }
