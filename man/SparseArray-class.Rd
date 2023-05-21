@@ -156,7 +156,7 @@ SparseArray(x, type=NA)
     \item \link{SparseMatrix_mult} for SparseMatrix multiplication and
           cross-product.
 
-    \item \link{matrixStats_methods} for SparseArray row/col summarization
+    \item \link{matrixStats_methods} for SparseArray col/row summarization
           methods.
 
     \item \link{rowsum_methods} for \code{rowsum()}  methods for sparse

@@ -97,11 +97,12 @@ exportMethods(
     type, "type<-",
 
     ## Methods for generics defined in the MatrixGenerics package:
-    rowAnys, colAnys, rowAlls, colAlls,
-    rowMins, colMins, rowMaxs, colMaxs, rowRanges, colRanges,
-    rowSums, colSums, rowProds, colProds, rowMeans, colMeans,
-    rowVars, colVars, rowSds, colSds,
-    rowMedians, colMedians,
+    colAnyNAs, rowAnyNAs,
+    colAnys, rowAnys, colAlls, rowAlls,
+    colMins, rowMins, colMaxs, rowMaxs, colRanges, rowRanges,
+    colSums, rowSums, colProds, rowProds, colMeans, rowMeans,
+    colVars, rowVars, colSds, rowSds,
+    colMedians, rowMedians,
 
     ## Methods for generics defined in the S4Vectors package:
     bindROWS,

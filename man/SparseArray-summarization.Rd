@@ -3,8 +3,7 @@
 \alias{SparseArray-summarization}
 \alias{SparseArray_summarization}
 
-\alias{anyNA,COO_SparseArray-method}
-\alias{anyNA,SVT_SparseArray-method}
+\alias{anyNA,SparseArray-method}
 
 \alias{range.COO_SparseArray}
 \alias{range,COO_SparseArray-method}

@@ -20,6 +20,14 @@ int _get_summarize_opcode(SEXP op, SEXPTYPE Rtype)
 	if (op == NA_STRING)
 		error("'op' cannot be NA");
 	s = CHAR(op);
+	if (Rtype != LGLSXP && Rtype != INTSXP && Rtype != REALSXP &&
+	    Rtype != CPLXSXP && Rtype != STRSXP)
+		error("%s() does not support SparseArray objects "
+		      "of type() \"%s\"", s, type2char(Rtype));
+	if (strcmp(s, "anyNA") == 0)
+		return ANYNA_OPCODE;
+	if (strcmp(s, "countNAs") == 0)
+		return COUNTNAS_OPCODE;
 	if (Rtype != LGLSXP && Rtype != INTSXP && Rtype != REALSXP)
 		error("%s() does not support SparseArray objects "
 		      "of type() \"%s\"", s, type2char(Rtype));
@@ -54,11 +62,12 @@ int _get_summarize_opcode(SEXP op, SEXPTYPE Rtype)
 		return ANY_OPCODE;
 	if (strcmp(s, "all") == 0)
 		return ALL_OPCODE;
-	error("'op' must be one of: \"any\", \"all\", \"min\", \"max\", "
-	      "\"range\", \"sum\", \"prod\",\n"
-	      "                       \"mean\", "
-	      "\"sum_centered_X2\", \"sum_X_X2\", \"var1\", \"var2\",\n"
-	      "                       \"sd1\", \"sd2\"");
+	error("'op' must be one of: "
+	      "\"anyNA\", \"countNAs\", \"any\", \"all\",\n"
+	      "                       \"min\", \"max\", "
+	      "\"range\", \"sum\", \"prod\", \"mean\",\n"
+	      "                       \"sum_centered_X2\", \"sum_X_X2\",\n"
+	      "                       \"var1\", \"var2\", \"sd1\", \"sd2\"");
 	return 0;
 }
 
@@ -88,9 +97,13 @@ void _init_SummarizeResult(const SummarizeOp *summarize_op,
 	res->postprocess_one_zero = 0;
 	res->warn = 0;
 	switch (summarize_op->opcode) {
-	    case ANY_OPCODE:
+	    case ANYNA_OPCODE: case ANY_OPCODE:
 		res->out_Rtype = LGLSXP;
 		res->outbuf.one_int[0] = 0;
+		return;
+	    case COUNTNAS_OPCODE:
+		res->out_Rtype = REALSXP;
+		res->outbuf.one_double[0] = 0.0;
 		return;
 	    case ALL_OPCODE:
 		res->out_Rtype = LGLSXP;
@@ -118,30 +131,158 @@ void _init_SummarizeResult(const SummarizeOp *summarize_op,
 	/* From now on, 'summarize_op->opcode' can only be MIN_OPCODE,
 	   MAX_OPCODE, or RANGE_OPCODE. */
 	res->postprocess_one_zero = 1;
-	if (summarize_op->in_Rtype == INTSXP) {
+	if (summarize_op->in_Rtype == LGLSXP ||
+	    summarize_op->in_Rtype == INTSXP)
+	{
 		res->out_Rtype = INTSXP;
 		res->outbuf_status = OUTBUF_IS_NOT_SET;
 		return;
 	}
-	res->out_Rtype = REALSXP;
-	switch (summarize_op->opcode) {
-	    case MIN_OPCODE:
-		res->outbuf.one_double[0] = R_PosInf;
-		return;
-	    case MAX_OPCODE:
-		res->outbuf.one_double[0] = R_NegInf;
-		return;
-	    case RANGE_OPCODE:
-		res->outbuf.two_doubles[0] = R_PosInf;
-		res->outbuf.two_doubles[1] = R_NegInf;
-		return;
+	if (summarize_op->in_Rtype == REALSXP) {
+		res->out_Rtype = REALSXP;
+		switch (summarize_op->opcode) {
+		    case MIN_OPCODE:
+			res->outbuf.one_double[0] = R_PosInf;
+			return;
+		    case MAX_OPCODE:
+			res->outbuf.one_double[0] = R_NegInf;
+			return;
+		    case RANGE_OPCODE:
+			res->outbuf.two_doubles[0] = R_PosInf;
+			res->outbuf.two_doubles[1] = R_NegInf;
+			return;
+		}
 	}
+	error("SparseArray internal error in _init_SummarizeResult():\n"
+	      "    operation not supported on SparseArray objects "
+	      "of type() \"%s\"", type2char(summarize_op->in_Rtype));
 	return;
 }
 
 
 /****************************************************************************
- * Low-level summarization functions
+ * Low-level summarization utilities - part I
+ *
+ * Support R summarization functions that use Interface 1: FUN(x)
+ *
+ * For all of them, 'outbuf' is initialized by _init_SummarizeResult() above.
+ * They all return the new "outbuf status".
+ */
+
+static inline int anyNA_ints(const int *x, int n, int outbuf[1])
+{
+	for (int i = 0; i < n; i++, x++) {
+		if (*x == NA_INTEGER) {
+			/* Bail out early. */
+			outbuf[0] = 1;
+			return OUTBUF_IS_SET_WITH_BREAKING_VALUE;
+		}
+	}
+	return OUTBUF_IS_SET;
+}
+
+static inline int anyNA_doubles(const double *x, int n, int outbuf[1])
+{
+	for (int i = 0; i < n; i++, x++) {
+		if (ISNAN(*x)) {  // True for *both* NA and NaN
+			/* Bail out early. */
+			outbuf[0] = 1;
+			return OUTBUF_IS_SET_WITH_BREAKING_VALUE;
+		}
+	}
+	return OUTBUF_IS_SET;
+}
+
+#define	RCOMPLEX_IS_NA(x) (ISNAN((x)->r) || ISNAN((x)->i))
+static inline int anyNA_Rcomplexes(const Rcomplex *x, int n, int outbuf[1])
+{
+	for (int i = 0; i < n; i++, x++) {
+		if (RCOMPLEX_IS_NA(x)) {
+			/* Bail out early. */
+			outbuf[0] = 1;
+			return OUTBUF_IS_SET_WITH_BREAKING_VALUE;
+		}
+	}
+	return OUTBUF_IS_SET;
+}
+
+static inline int anyNA_Rstrings(SEXP x, int outbuf[1])
+{
+	int n;
+
+	n = LENGTH(x);
+	for (int i = 0; i < n; i++) {
+		if (STRING_ELT(x, i) == NA_STRING) {
+			/* Bail out early. */
+			outbuf[0] = 1;
+			return OUTBUF_IS_SET_WITH_BREAKING_VALUE;
+		}
+	}
+	return OUTBUF_IS_SET;
+}
+
+static inline int countNAs_ints(const int *x, int n, double outbuf[1])
+{
+	double out0;
+
+	out0 = outbuf[0];
+	for (int i = 0; i < n; i++, x++) {
+		if (*x == NA_INTEGER)
+			out0++;
+	}
+	outbuf[0] = out0;
+	return OUTBUF_IS_SET;
+}
+
+static inline int countNAs_doubles(const double *x, int n, double outbuf[1])
+{
+	double out0;
+
+	out0 = outbuf[0];
+	for (int i = 0; i < n; i++, x++) {
+		if (ISNAN(*x))
+			out0++;
+	}
+	outbuf[0] = out0;
+	return OUTBUF_IS_SET;
+}
+
+static inline int countNAs_Rcomplexes(const Rcomplex *x, int n,
+				      double outbuf[1])
+{
+	double out0;
+
+	out0 = outbuf[0];
+	for (int i = 0; i < n; i++, x++) {
+		if (RCOMPLEX_IS_NA(x))
+			out0++;
+	}
+	outbuf[0] = out0;
+	return OUTBUF_IS_SET;
+}
+
+static inline int countNAs_Rstrings(SEXP x, double outbuf[1])
+{
+	double out0;
+	int n;
+
+	out0 = outbuf[0];
+	n = LENGTH(x);
+	for (int i = 0; i < n; i++) {
+		if (STRING_ELT(x, i) == NA_STRING)
+			out0++;
+	}
+	outbuf[0] = out0;
+	return OUTBUF_IS_SET;
+}
+
+
+/****************************************************************************
+ * Low-level summarization utilities - part II
+ *
+ * Support R summarization functions that use Interface 2 & Interface 3:
+ * - Interface 2: FUN(x, na.rm)
+ * - Interface 3: FUN(x, na.rm, center)
  *
  * They all return the new "outbuf status".
  */
@@ -650,6 +791,10 @@ static int summarize_ints(const int *x, int x_len,
 
 	nacount_p = &(res->in_nacount);
 	switch (opcode) {
+	    case ANYNA_OPCODE:
+		return anyNA_ints(x, x_len, res->outbuf.one_int);
+	    case COUNTNAS_OPCODE:
+		return countNAs_ints(x, x_len, res->outbuf.one_double);
 	    case ANY_OPCODE:
 		return any_ints(x, x_len, na_rm, nacount_p,
 				res->outbuf.one_int);
@@ -691,6 +836,10 @@ static int summarize_doubles(const double *x, int x_len,
 
 	nacount_p = &(res->in_nacount);
 	switch (opcode) {
+	    case ANYNA_OPCODE:
+		return anyNA_doubles(x, x_len, res->outbuf.one_int);
+	    case COUNTNAS_OPCODE:
+		return countNAs_doubles(x, x_len, res->outbuf.one_double);
 	    case MIN_OPCODE:
 		return min_doubles(x, x_len, na_rm, nacount_p,
 				res->outbuf.one_double);
@@ -719,6 +868,36 @@ static int summarize_doubles(const double *x, int x_len,
 	return 0;  /* will never reach this */
 }
 
+/* Arguments 'na_rm' and 'center' ignored at the moment. */
+static int summarize_Rcomplexes(const Rcomplex *x, int x_len,
+		int opcode, int na_rm, double center, SummarizeResult *res)
+{
+	switch (opcode) {
+	    case ANYNA_OPCODE:
+		return anyNA_Rcomplexes(x, x_len, res->outbuf.one_int);
+	    case COUNTNAS_OPCODE:
+		return countNAs_Rcomplexes(x, x_len, res->outbuf.one_double);
+	}
+	error("SparseArray internal error in summarize_Rcomplexes():\n"
+	      "    unsupported 'opcode'");
+	return 0;  /* will never reach this */
+}
+
+/* Arguments 'na_rm' and 'center' ignored at the moment. */
+static int summarize_Rstrings(SEXP x,
+		int opcode, int na_rm, double center, SummarizeResult *res)
+{
+	switch (opcode) {
+	    case ANYNA_OPCODE:
+		return anyNA_Rstrings(x, res->outbuf.one_int);
+	    case COUNTNAS_OPCODE:
+		return countNAs_Rstrings(x, res->outbuf.one_double);
+	}
+	error("SparseArray internal error in summarize_Rstrings():\n"
+	      "    unsupported 'opcode'");
+	return 0;  /* will never reach this */
+}
+
 void _summarize_Rvector(SEXP x, const SummarizeOp *summarize_op,
 			SummarizeResult *res)
 {
@@ -742,6 +921,16 @@ void _summarize_Rvector(SEXP x, const SummarizeOp *summarize_op,
 		break;
 	    case REALSXP:
 		new_status = summarize_doubles(REAL(x), x_len,
+				summarize_op->opcode, summarize_op->na_rm,
+				summarize_op->center, res);
+		break;
+	    case CPLXSXP:
+		new_status = summarize_Rcomplexes(COMPLEX(x), x_len,
+				summarize_op->opcode, summarize_op->na_rm,
+				summarize_op->center, res);
+		break;
+	    case STRSXP:
+		new_status = summarize_Rstrings(x,
 				summarize_op->opcode, summarize_op->na_rm,
 				summarize_op->center, res);
 		break;
@@ -815,9 +1004,9 @@ void _postprocess_SummarizeResult(const SummarizeOp *summarize_op,
 		return;
 
 	if (res->outbuf_status == OUTBUF_IS_NOT_SET) {
-		if (res->out_Rtype == INTSXP && (opcode == MIN_OPCODE ||
-						 opcode == MAX_OPCODE ||
-						 opcode == RANGE_OPCODE))
+		if ((opcode == MIN_OPCODE || opcode == MAX_OPCODE ||
+		     opcode == RANGE_OPCODE) &&
+		    (res->out_Rtype == LGLSXP || res->out_Rtype == INTSXP))
 		{
 			/* Will happen if the virtual vector we're summarizing
 			   has length 0 (i.e. 'res->in_length == 0'), or if
@@ -955,17 +1144,24 @@ static SEXP res2nakedSEXP(const SummarizeResult *res,
 	SEXP ans;
 	double out0;
 
-	if (opcode == ANY_OPCODE || opcode == ALL_OPCODE)
+	if (opcode == ANYNA_OPCODE ||
+	    opcode == ANY_OPCODE || opcode == ALL_OPCODE)
+	{
 		return ScalarLogical2(res->outbuf.one_int[0]);
+	}
 
-	if (opcode == MIN_OPCODE || opcode == MAX_OPCODE) {
-		if (in_Rtype == REALSXP)
-			return ScalarReal(res->outbuf.one_double[0]);
-		if (in_Rtype == INTSXP || in_Rtype == LGLSXP)
-			return ScalarInteger(res->outbuf.one_int[0]);
-		error("SparseArray internal error in res2nakedSEXP()\n"
-		      "    type \"%s\" not supported for min() or max()",
-		      type2char(in_Rtype));
+	if (opcode == COUNTNAS_OPCODE) {
+		out0 = res->outbuf.one_double[0];
+		if (out0 > INT_MAX)
+			return ScalarReal(out0);
+		/* Round 'out0' to the nearest integer. */
+		return ScalarInteger(BACK_TO_INT(out0));
+	}
+
+	if ((opcode == MIN_OPCODE || opcode == MAX_OPCODE) &&
+	    in_Rtype == INTSXP)
+	{
+		return ScalarInteger(res->outbuf.one_int[0]);
 	}
 
 	if (opcode == RANGE_OPCODE) {
@@ -973,25 +1169,17 @@ static SEXP res2nakedSEXP(const SummarizeResult *res,
 			ans = PROTECT(NEW_NUMERIC(2));
 			REAL(ans)[0] = res->outbuf.two_doubles[0];
 			REAL(ans)[1] = res->outbuf.two_doubles[1];
-		} else if (in_Rtype == INTSXP || in_Rtype == LGLSXP) {
+		} else {
 			ans = PROTECT(NEW_INTEGER(2));
 			INTEGER(ans)[0] = res->outbuf.two_ints[0];
 			INTEGER(ans)[1] = res->outbuf.two_ints[1];
-		} else {
-			error("SparseArray internal error in res2nakedSEXP()\n"
-			      "    type \"%s\" not supported for range()",
-			      type2char(in_Rtype));
 		}
 		UNPROTECT(1);
 		return ans;
 	}
 
-	if (opcode == SUM_X_X2_OPCODE)
-		return sum_X_X2_as_SEXP(res->outbuf.two_doubles[0],
-					res->outbuf.two_doubles[1], in_Rtype);
-
-	if (in_Rtype == INTSXP && (opcode == SUM_OPCODE ||
-				   opcode == PROD_OPCODE))
+	if ((opcode == SUM_OPCODE || opcode == PROD_OPCODE) &&
+	    in_Rtype == INTSXP)
 	{
 		out0 = res->outbuf.one_double[0];
 		if (ISNAN(out0))
@@ -1001,6 +1189,10 @@ static SEXP res2nakedSEXP(const SummarizeResult *res,
 		/* Round 'out0' to the nearest integer. */
 		return ScalarInteger(BACK_TO_INT(out0));
 	}
+
+	if (opcode == SUM_X_X2_OPCODE)
+		return sum_X_X2_as_SEXP(res->outbuf.two_doubles[0],
+					res->outbuf.two_doubles[1], in_Rtype);
 
 	return ScalarReal(res->outbuf.one_double[0]);
 }
@@ -1032,81 +1224,12 @@ SEXP _make_SEXP_from_summarize_result(const SummarizeOp *summarize_op,
 
 
 /****************************************************************************
- * _count_Rvector_NAs() and _Rvector_has_any_NA()
+ * any_NA_list_elt() / count_NA_list_elts()
+ *
+ * NOT USED but we'll need something like this when we implement the
+ * anyNA_list() and countNAs_list() utilities in order to make ops
+ * ANYNA_OPCODE and COUNTNAS_OPCODE work on type "list".
  */
-
-static int count_NA_int_elts(const int *x, int n)
-{
-	int count;
-
-	for (int i = count = 0; i < n; i++, x++)
-		if (*x == NA_INTEGER)
-			count++;
-	return count;
-}
-static int any_NA_int_elt(const int *x, int n)
-{
-	for (int i = 0; i < n; i++, x++)
-		if (*x == NA_INTEGER)
-			return 1;
-	return 0;
-}
-
-static int count_NA_double_elts(const double *x, int n)
-{
-	int count;
-
-	for (int i = count = 0; i < n; i++, x++)
-		if (ISNAN(*x))  // True for *both* NA and NaN
-			count++;
-	return count;
-}
-static int any_NA_double_elt(const double *x, int n)
-{
-	for (int i = 0; i < n; i++, x++)
-		if (ISNAN(*x))  // True for *both* NA and NaN
-			return 1;
-	return 0;
-}
-
-#define RCOMPLEX_IS_NA(x) (ISNAN((x)->r) || ISNAN((x)->i))
-static int count_NA_Rcomplex_elts(const Rcomplex *x, int n)
-{
-	int count;
-
-	for (int i = count = 0; i < n; i++, x++)
-		if (RCOMPLEX_IS_NA(x))
-			count++;
-	return count;
-}
-static int any_NA_Rcomplex_elt(const Rcomplex *x, int n)
-{
-	for (int i = 0; i < n; i++, x++)
-		if (RCOMPLEX_IS_NA(x))
-			return 1;
-	return 0;
-}
-
-static int count_NA_character_elts(SEXP x)
-{
-	int n, count;
-
-	n = LENGTH(x);
-	for (int i = count = 0; i < n; i++)
-		if (STRING_ELT(x, i) == NA_STRING)
-			count++;
-	return count;
-}
-static int any_NA_character_elt(SEXP x)
-{
-	int n;
-
-	n = LENGTH(x);
-	for (int i = 0; i < n; i++)
-		if (STRING_ELT(x, i) == NA_STRING)
-			return 1;
-	return 0;
-}
 
 static inline int is_single_NA(SEXP x)
 {
@@ -1131,16 +1254,6 @@ static inline int is_single_NA(SEXP x)
 	return 0;
 }
 
-static int count_NA_list_elts(SEXP x)
-{
-	int n, count;
-
-	n = LENGTH(x);
-	for (int i = count = 0; i < n; i++)
-		if (is_single_NA(VECTOR_ELT(x, i)))
-			count++;
-	return count;
-}
 static int any_NA_list_elt(SEXP x)
 {
 	int n;
@@ -1153,45 +1266,14 @@ static int any_NA_list_elt(SEXP x)
 	return 0;
 }
 
-int _count_Rvector_NAs(SEXP Rvector)
+static int count_NA_list_elts(SEXP x)
 {
-	SEXPTYPE Rtype;
-	int n;
+	int n, count;
 
-	Rtype = TYPEOF(Rvector);
-	n = LENGTH(Rvector);
-	switch (Rtype) {
-	    case LGLSXP: case INTSXP:
-			  return count_NA_int_elts(INTEGER(Rvector), n);
-	    case REALSXP: return count_NA_double_elts(REAL(Rvector), n);
-	    case CPLXSXP: return count_NA_Rcomplex_elts(COMPLEX(Rvector), n);
-	    case RAWSXP:  return 0;
-	    case STRSXP:  return count_NA_character_elts(Rvector);
-	    case VECSXP:  return count_NA_list_elts(Rvector);
-	}
-	error("SparseArray internal error in _count_Rvector_NAs():\n"
-	      "    type \"%s\" is not supported", type2char(Rtype));
-	return -1;  /* will never reach this */
-}
-
-int _Rvector_has_any_NA(SEXP Rvector)
-{
-	SEXPTYPE Rtype;
-	int n;
-
-	Rtype = TYPEOF(Rvector);
-	n = LENGTH(Rvector);
-	switch (Rtype) {
-	    case LGLSXP: case INTSXP:
-			  return any_NA_int_elt(INTEGER(Rvector), n);
-	    case REALSXP: return any_NA_double_elt(REAL(Rvector), n);
-	    case CPLXSXP: return any_NA_Rcomplex_elt(COMPLEX(Rvector), n);
-	    case RAWSXP:  return 0;
-	    case STRSXP:  return any_NA_character_elt(Rvector);
-	    case VECSXP:  return any_NA_list_elt(Rvector);
-	}
-	error("SparseArray internal error in _Rvector_has_any_NA():\n"
-	      "    type \"%s\" is not supported", type2char(Rtype));
-	return -1;  /* will never reach this */
+	n = LENGTH(x);
+	for (int i = count = 0; i < n; i++)
+		if (is_single_NA(VECTOR_ELT(x, i)))
+			count++;
+	return count;
 }
 

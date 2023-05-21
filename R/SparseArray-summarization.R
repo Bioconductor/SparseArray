@@ -10,38 +10,75 @@
 ###
 
 
-### Not used!
-### TODO: Maybe introduce a new generic for this e.g. countNAs()?
-.count_SparseArray_NAs <- function(x)
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Workhorse behind all the summarization methods for SVT_SparseArray
+### objects
+###
+
+### 'center' ignored by all ops except "sum_centered_X2".
+### Returns an integer or numeric vector of length 1 or 2.
+.summarize_SVT <- function(op, x, na.rm=FALSE, center=NULL)
 {
-    if (is(x, "COO_SparseArray"))
-        return(sum(is.na(x@nzvals)))
+    stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
 
-    if (is(x, "SVT_SparseArray"))
-        return(.Call2("C_count_SVT_NAs",
-                      x@dim, x@type, x@SVT, PACKAGE="SparseArray"))
+    ## Check 'na.rm'.
+    if (!isTRUEorFALSE(na.rm))
+        stop(wmsg("'na.rm' must be TRUE or FALSE"))
 
-    stop(wmsg(class(x)[[1L]], " objects are not supported"))
+    ## Check and normalize 'center'.
+    if (is.null(center)) {
+        center <- NA_real_
+    } else {
+        if (!isSingleNumberOrNA(center))
+            stop(wmsg("'center' must be NULL, or a single number"))
+        if (!is.double(center))
+            center <- as.double(center)
+    }
+
+    .Call2("C_summarize_SVT",
+           x@dim, x@type, x@SVT, op, na.rm, center, PACKAGE="SparseArray")
 }
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### anyNA()
+### anyNA(), countNAs()
 ###
 
-setMethod("anyNA", "COO_SparseArray",
-    function(x, recursive=FALSE) anyNA(x@nzvals, recursive=recursive)
-)
+.anyNA_SparseArray <- function(x, recursive=FALSE)
+{
+    if (!identical(recursive, FALSE))
+        stop(wmsg("the anyNA() method for SparseArray objects ",
+                  "does not support the 'recursive' argument"))
 
-setMethod("anyNA", "SVT_SparseArray",
-    function(x, recursive=FALSE)
-    {
-        if (!identical(recursive, FALSE))
-            stop(wmsg("the anyNA() method for SVT_SparseArray objects ",
-                      "does not support the 'recursive' argument"))
-        .Call2("C_anyNA_SVT", x@dim, x@type, x@SVT, PACKAGE="SparseArray")
-    }
-)
+    if (is(x, "COO_SparseArray"))
+        return(anyNA(x@nzvals))
+
+    if (is(x, "SVT_SparseArray"))
+        return(.summarize_SVT("anyNA", x))
+
+    stop(wmsg(class(x)[[1L]], " objects are not supported"))
+}
+setMethod("anyNA", "SparseArray", .anyNA_SparseArray)
+
+### NOT USED! There's no countNAs() generic yet!
+### TODO: Define the countNAs() in BiocGenerics, and the colCountNAs() and
+### rowCountNAs() generics in MatrixGenerics.
+.countNAs_SparseArray <- function(x, recursive=FALSE)
+{
+    if (!identical(recursive, FALSE))
+        stop(wmsg("the countNAs() method for SparseArray objects ",
+                  "does not support the 'recursive' argument"))
+
+    if (is(x, "COO_SparseArray"))
+        return(sum(is.na(x@nzvals)))  # or do 'countNAs(x@nzvals)' when it
+                                      # becomes available
+
+    if (is(x, "SVT_SparseArray"))
+        return(.summarize_SVT("countNAs", x))
+
+    stop(wmsg(class(x)[[1L]], " objects are not supported"))
+}
+#setMethod("countNAs", "SparseArray", .countNAs_SparseArray)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -85,30 +122,6 @@ setMethod("Summary", "COO_SparseArray",
         .summarize_COO(.Generic, x, na.rm=na.rm)
     }
 )
-
-### 'center' ignored by all ops except "sum_centered_X2".
-### Returns an integer or numeric vector of length 1 or 2.
-.summarize_SVT <- function(op, x, na.rm=FALSE, center=NULL)
-{
-    stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
-
-    ## Check 'na.rm'.
-    if (!isTRUEorFALSE(na.rm))
-        stop(wmsg("'na.rm' must be TRUE or FALSE"))
-
-    ## Check and normalize 'center'.
-    if (is.null(center)) {
-        center <- NA_real_
-    } else {
-        if (!isSingleNumberOrNA(center))
-            stop(wmsg("'center' must be NULL, or a single number"))
-        if (!is.double(center))
-            center <- as.double(center)
-    }
-
-    .Call2("C_summarize_SVT",
-           x@dim, x@type, x@SVT, op, na.rm, center, PACKAGE="SparseArray")
-}
 
 setMethod("Summary", "SVT_SparseArray",
     function(x, ..., na.rm=FALSE)
