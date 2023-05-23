@@ -409,8 +409,8 @@ SEXP _Arith_lv1_v2(SEXP lv1, SEXP v2, int opcode, SEXPTYPE ans_Rtype,
 		error("SparseArray internal error in "
 		      "_Arith_lv1_v2():\n"
 		      "    ans_Rtype != buf_Rtype");
-	return _new_leaf_vector_from_bufs(ans_Rtype,
-				offs_buf, vals_buf, ans_len);
+	return _make_leaf_vector_from_bufs(ans_Rtype,
+					   offs_buf, vals_buf, ans_len);
 }
 
 /* Multiply the vals in 'lv' with zero. Will return R_NilValue if all
@@ -472,8 +472,8 @@ static SEXP mult0_leaf_vector(SEXP lv, SEXPTYPE ans_Rtype,
 	if (ans_len == -1)
 		error("mult0_leaf_vector() only supports input "
 		      "of type \"integer\" or \"double\" at the moment");
-	return _new_leaf_vector_from_bufs(ans_Rtype,
-				offs_buf, vals_buf, ans_len);
+	return _make_leaf_vector_from_bufs(ans_Rtype,
+					   offs_buf, vals_buf, ans_len);
 }
 
 /* 'lv1' and 'lv2' must be "leaf vectors", with the following exceptions:
@@ -549,7 +549,7 @@ SEXP _Arith_lv1_lv2(SEXP lv1, SEXP lv2, int opcode, SEXPTYPE ans_Rtype,
 		error("SparseArray internal error in "
 		      "_Arith_lv1_lv2():\n"
 		      "    ans_Rtype != buf_Rtype");
-	return _new_leaf_vector_from_bufs(ans_Rtype,
-				offs_buf, vals_buf, ans_len);
+	return _make_leaf_vector_from_bufs(ans_Rtype,
+					   offs_buf, vals_buf, ans_len);
 }
 

@@ -29,32 +29,33 @@ static inline int get_NaNs_produced_flag()
  * select_double2double_FUN()
  */
 
-#define	ARGS_AND_BODY_OF_MATH_DOUBLE_FUN(funname)(double x)	\
-{								\
-	double v = funname(x);					\
-	if (ISNAN(v) && !ISNAN(x))				\
-		set_NaNs_produced_flag(1);			\
-	return v;						\
+#define	FUNDEF_Rmath_double(funname)		\
+	(double x)				\
+{						\
+	double v = funname(x);			\
+	if (ISNAN(v) && !ISNAN(x))		\
+		set_NaNs_produced_flag(1);	\
+	return v;				\
 }
 
-static inline double Rabs_double ARGS_AND_BODY_OF_MATH_DOUBLE_FUN(fabs)
-static inline double Rsign_double ARGS_AND_BODY_OF_MATH_DOUBLE_FUN(sign)
-static inline double Rsqrt_double ARGS_AND_BODY_OF_MATH_DOUBLE_FUN(sqrt)
-static inline double Rfloor_double ARGS_AND_BODY_OF_MATH_DOUBLE_FUN(floor)
-static inline double Rceiling_double ARGS_AND_BODY_OF_MATH_DOUBLE_FUN(ceil)
-static inline double Rtrunc_double ARGS_AND_BODY_OF_MATH_DOUBLE_FUN(trunc)
-static inline double Rlog1p_double ARGS_AND_BODY_OF_MATH_DOUBLE_FUN(log1p)
-static inline double Rexpm1_double ARGS_AND_BODY_OF_MATH_DOUBLE_FUN(expm1)
-static inline double Rsin_double ARGS_AND_BODY_OF_MATH_DOUBLE_FUN(sin)
-static inline double Rsinpi_double ARGS_AND_BODY_OF_MATH_DOUBLE_FUN(sinpi)
-static inline double Rasin_double ARGS_AND_BODY_OF_MATH_DOUBLE_FUN(asin)
-static inline double Rtan_double ARGS_AND_BODY_OF_MATH_DOUBLE_FUN(tan)
-static inline double Rtanpi_double ARGS_AND_BODY_OF_MATH_DOUBLE_FUN(tanpi)
-static inline double Ratan_double ARGS_AND_BODY_OF_MATH_DOUBLE_FUN(atan)
-static inline double Rsinh_double ARGS_AND_BODY_OF_MATH_DOUBLE_FUN(sinh)
-static inline double Rasinh_double ARGS_AND_BODY_OF_MATH_DOUBLE_FUN(asinh)
-static inline double Rtanh_double ARGS_AND_BODY_OF_MATH_DOUBLE_FUN(tanh)
-static inline double Ratanh_double ARGS_AND_BODY_OF_MATH_DOUBLE_FUN(atanh)
+static inline double Rabs_double	FUNDEF_Rmath_double(fabs)
+static inline double Rsign_double	FUNDEF_Rmath_double(sign)
+static inline double Rsqrt_double	FUNDEF_Rmath_double(sqrt)
+static inline double Rfloor_double	FUNDEF_Rmath_double(floor)
+static inline double Rceiling_double	FUNDEF_Rmath_double(ceil)
+static inline double Rtrunc_double	FUNDEF_Rmath_double(trunc)
+static inline double Rlog1p_double	FUNDEF_Rmath_double(log1p)
+static inline double Rexpm1_double	FUNDEF_Rmath_double(expm1)
+static inline double Rsin_double	FUNDEF_Rmath_double(sin)
+static inline double Rsinpi_double	FUNDEF_Rmath_double(sinpi)
+static inline double Rasin_double	FUNDEF_Rmath_double(asin)
+static inline double Rtan_double	FUNDEF_Rmath_double(tan)
+static inline double Rtanpi_double	FUNDEF_Rmath_double(tanpi)
+static inline double Ratan_double	FUNDEF_Rmath_double(atan)
+static inline double Rsinh_double	FUNDEF_Rmath_double(sinh)
+static inline double Rasinh_double	FUNDEF_Rmath_double(asinh)
+static inline double Rtanh_double	FUNDEF_Rmath_double(tanh)
+static inline double Ratanh_double	FUNDEF_Rmath_double(atanh)
 
 static double digits0;
 static inline double Rround_double(double x) { return fround(x, digits0); }

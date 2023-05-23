@@ -2,6 +2,7 @@
 #define _RVECTOR_UTILS_H_
 
 #include <Rdefines.h>
+#include <string.h>  /* for memcpy() */
 
 
 /****************************************************************************

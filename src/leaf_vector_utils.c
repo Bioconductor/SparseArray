@@ -17,7 +17,7 @@
  * _new_leaf_vector()
  * _alloc_leaf_vector()
  * _alloc_and_split_leaf_vector()
- * _new_leaf_vector_from_bufs()
+ * _make_leaf_vector_from_bufs()
  */
 
 SEXP _new_leaf_vector(SEXP lv_offs, SEXP lv_vals)
@@ -69,7 +69,7 @@ SEXP _alloc_and_split_leaf_vector(int lv_len, SEXPTYPE Rtype,
 
 /* Returns R_NilValue (if 'buf_len' is 0) or a "leaf vector".
    Does NOT work for 'Rtype' == STRSXP or VECSXP. */
-SEXP _new_leaf_vector_from_bufs(SEXPTYPE Rtype,
+SEXP _make_leaf_vector_from_bufs(SEXPTYPE Rtype,
 		const int *offs_buf, const void *vals_buf, int buf_len)
 {
 	size_t Rtype_size;
@@ -80,7 +80,7 @@ SEXP _new_leaf_vector_from_bufs(SEXPTYPE Rtype,
 	Rtype_size = _get_Rtype_size(Rtype);
 	if (Rtype_size == 0)
 		error("SparseArray internal error in "
-		      "_new_leaf_vector_from_bufs():\n"
+		      "_make_leaf_vector_from_bufs():\n"
 		      "    type \"%s\" is not supported", type2char(Rtype));
 	ans = PROTECT(_alloc_and_split_leaf_vector(buf_len, Rtype,
 						   &ans_offs, &ans_vals));
@@ -336,10 +336,10 @@ SEXP _subassign_leaf_vector_with_Rvector(SEXP lv, SEXP index, SEXP Rvector)
  * _lv_apply_to_REALSXP()
  */
 
-#define ARGS_AND_BODY_OF_SPARSE_APPLY_FUN(in_type, out_type)(	\
-		const int *offs, const in_type *vals, int n,	\
-		out_type (*FUN)(in_type),			\
-		int *offs_buf, out_type *vals_buf)		\
+#define FUNDEF_sparse_apply(in_type, out_type)			\
+	(const int *offs, const in_type *vals, int n,		\
+	 out_type (*FUN)(in_type),				\
+	 int *offs_buf, out_type *vals_buf)			\
 {								\
 	int ans_len, k;						\
 	out_type v;						\
@@ -355,14 +355,10 @@ SEXP _subassign_leaf_vector_with_Rvector(SEXP lv, SEXP index, SEXP Rvector)
 	return ans_len;						\
 }
 
-static int sparse_Rbyte2double_apply
-	ARGS_AND_BODY_OF_SPARSE_APPLY_FUN(Rbyte, double)
-static int sparse_int2double_apply
-	ARGS_AND_BODY_OF_SPARSE_APPLY_FUN(int, double)
-static int sparse_double2double_apply
-	ARGS_AND_BODY_OF_SPARSE_APPLY_FUN(double, double)
-static int sparse_Rcomplex2double_apply
-	ARGS_AND_BODY_OF_SPARSE_APPLY_FUN(Rcomplex, double)
+static int sparse_Rbyte2double_apply	FUNDEF_sparse_apply(Rbyte, double)
+static int sparse_int2double_apply	FUNDEF_sparse_apply(int, double)
+static int sparse_double2double_apply	FUNDEF_sparse_apply(double, double)
+static int sparse_Rcomplex2double_apply	FUNDEF_sparse_apply(Rcomplex, double)
 
 /* 'lv' must be a "leaf vector" (cannot be R_NilValue). */
 SEXP _lv_apply_to_REALSXP(SEXP lv, apply_2double_FUNS *funs,
@@ -414,7 +410,7 @@ SEXP _lv_apply_to_REALSXP(SEXP lv, apply_2double_FUNS *funs,
 		      "    unsupported 'in_Rtype': \"%s\"",
 		      type2char(in_Rtype));
 	}
-	return _new_leaf_vector_from_bufs(REALSXP,
-				offs_buf, vals_buf, ans_len);
+	return _make_leaf_vector_from_bufs(REALSXP,
+					   offs_buf, vals_buf, ans_len);
 }
 

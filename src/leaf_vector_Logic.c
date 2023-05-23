@@ -87,7 +87,7 @@ SEXP _Logic_lv1_lv2(SEXP lv1, SEXP lv2, int opcode,
 			INTEGER(lv1_offs), INTEGER(lv1_vals), lv1_len,
 			INTEGER(lv2_offs), INTEGER(lv2_vals), lv2_len,
 			opcode, offs_buf, vals_buf);
-	return _new_leaf_vector_from_bufs(LGLSXP,
-				offs_buf, vals_buf, ans_len);
+	return _make_leaf_vector_from_bufs(LGLSXP,
+					   offs_buf, vals_buf, ans_len);
 }
 

@@ -20,11 +20,10 @@ static const int int0 = 0;
 static const double double0 = 0.0;
 static const Rcomplex Rcomplex0 = {{0.0, 0.0}};
 
-#define ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(Ltype, Rtype)(	\
-		const int *offs1, const Ltype *vals1, int n1,	\
-		const int *offs2, const Rtype *vals2, int n2,	\
-		int *k1, int *k2,				\
-		int *off, Ltype *v1, Rtype *v2)			\
+#define FUNDEF_next_nzvals(Ltype, Rtype)	\
+	(const int *offs1, const Ltype *vals1, int n1,		\
+	 const int *offs2, const Rtype *vals2, int n2,		\
+	 int *k1, int *k2, int *off, Ltype *v1, Rtype *v2)	\
 {								\
 	int off1, off2;						\
 								\
@@ -64,37 +63,37 @@ static const Rcomplex Rcomplex0 = {{0.0, 0.0}};
 }
 
 static inline int next_nzvals_Rbyte_Rbyte
-	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(Rbyte, Rbyte)
+	FUNDEF_next_nzvals(Rbyte, Rbyte)
 
 static inline int next_nzvals_Rbyte_int
-	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(Rbyte, int)
+	FUNDEF_next_nzvals(Rbyte, int)
 
 static inline int next_nzvals_Rbyte_double
-	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(Rbyte, double)
+	FUNDEF_next_nzvals(Rbyte, double)
 
 static inline int next_nzvals_Rbyte_Rcomplex
-	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(Rbyte, Rcomplex)
+	FUNDEF_next_nzvals(Rbyte, Rcomplex)
 
 static inline int next_nzvals_int_int
-	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(int, int)
+	FUNDEF_next_nzvals(int, int)
 
 static inline int next_nzvals_int_double
-	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(int, double)
+	FUNDEF_next_nzvals(int, double)
 
 static inline int next_nzvals_int_Rcomplex
-	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(int, Rcomplex)
+	FUNDEF_next_nzvals(int, Rcomplex)
 
 static inline int next_nzvals_double_int
-	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(double, int)
+	FUNDEF_next_nzvals(double, int)
 
 static inline int next_nzvals_double_double
-	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(double, double)
+	FUNDEF_next_nzvals(double, double)
 
 static inline int next_nzvals_double_Rcomplex
-	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(double, Rcomplex)
+	FUNDEF_next_nzvals(double, Rcomplex)
 
 static inline int next_nzvals_Rcomplex_Rcomplex
-	ARGS_AND_BODY_OF_NEXT_NZVALS_FUNCTION(Rcomplex, Rcomplex)
+	FUNDEF_next_nzvals(Rcomplex, Rcomplex)
 
 SEXP _new_leaf_vector(
 	SEXP lv_offs,
@@ -141,7 +140,7 @@ SEXP _alloc_and_split_leaf_vector(
 	SEXP *lv_vals
 );
 
-SEXP _new_leaf_vector_from_bufs(
+SEXP _make_leaf_vector_from_bufs(
 	SEXPTYPE Rtype,
 	const int *offs_buf,
 	const void * vals_buf,
