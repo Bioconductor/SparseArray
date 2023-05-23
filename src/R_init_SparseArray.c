@@ -4,6 +4,7 @@
 #include "SparseArray_class.h"
 #include "SVT_SparseArray_class.h"
 #include "SparseArray_dim_tuning.h"
+#include "SparseArray_aperm.h"
 #include "SparseArray_subsetting.h"
 #include "SparseArray_subassignment.h"
 #include "SparseArray_combine.h"
@@ -43,6 +44,9 @@ static const R_CallMethodDef callMethods[] = {
 
 /* SparseArray_dim_tuning.c */
 	CALLMETHOD_DEF(C_tune_SVT_dims, 4),
+
+/* SparseArray_aperm.c */
+	CALLMETHOD_DEF(C_transpose_SVT, 3),
 
 /* SparseArray_subsetting.c */
 	CALLMETHOD_DEF(C_subset_SVT_SparseArray, 4),

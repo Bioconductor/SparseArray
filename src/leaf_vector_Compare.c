@@ -46,10 +46,9 @@ static inline int flip_opcode(int opcode)
 	return 0;  /* will never reach this */
 }
 
-#define ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN1(Ltype, Rtype)(		\
-		const int *offs1, const Ltype *vals1, int n1,		\
-		Rtype y,						\
-		int opcode, int *offs_buf, int *vals_buf)		\
+#define FUNDEF_sparse_Compare1(Ltype, Rtype)				\
+	(const int *offs1, const Ltype *vals1, int n1, Rtype y,		\
+	 int opcode, int *offs_buf, int *vals_buf)			\
 {									\
 	int ans_len, k, v;						\
 									\
@@ -65,10 +64,10 @@ static inline int flip_opcode(int opcode)
 	return ans_len;							\
 }
 
-#define ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN2(Ltype, Rtype)(		\
-		const int *offs1, const Ltype *vals1, int n1,		\
-		const int *offs2, const Rtype *vals2, int n2,		\
-		int opcode, int *offs_buf, int *vals_buf)		\
+#define FUNDEF_sparse_Compare2(Ltype, Rtype)				\
+	(const int *offs1, const Ltype *vals1, int n1,			\
+	 const int *offs2, const Rtype *vals2, int n2,			\
+	 int opcode, int *offs_buf, int *vals_buf)			\
 {									\
 	int ans_len, k1, k2, off, v;					\
 	Ltype x;							\
@@ -112,9 +111,9 @@ static inline int Compare_Rbyte_Rbyte(Rbyte x, Rbyte y, int opcode)
 }
 
 static int sparse_Compare_Rbytes_Rbyte
-	ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN1(Rbyte, Rbyte)
+	FUNDEF_sparse_Compare1(Rbyte, Rbyte)
 static int sparse_Compare_Rbytes_Rbytes
-	ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN2(Rbyte, Rbyte)
+	FUNDEF_sparse_Compare2(Rbyte, Rbyte)
 
 /* WARNING: Only valid to use on the int values of an integer vector (INTSXP).
    Should NOT be used on the int values of a logical vector (LGLSEXP), on
@@ -142,9 +141,9 @@ static inline int Compare_Rbyte_int(Rbyte x, int y, int opcode)
 }
 
 static int sparse_Compare_Rbytes_int
-	ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN1(Rbyte, int)
+	FUNDEF_sparse_Compare1(Rbyte, int)
 static int sparse_Compare_Rbytes_ints
-	ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN2(Rbyte, int)
+	FUNDEF_sparse_Compare2(Rbyte, int)
 
 static inline int Compare_Rbyte_double(Rbyte x, double y, int opcode)
 {
@@ -167,9 +166,9 @@ static inline int Compare_Rbyte_double(Rbyte x, double y, int opcode)
 }
 
 static int sparse_Compare_Rbytes_double
-	ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN1(Rbyte, double)
+	FUNDEF_sparse_Compare1(Rbyte, double)
 static int sparse_Compare_Rbytes_doubles
-	ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN2(Rbyte, double)
+	FUNDEF_sparse_Compare2(Rbyte, double)
 
 static inline int Compare_Rbyte_Rcomplex(Rbyte x, Rcomplex y, int opcode)
 {
@@ -188,9 +187,9 @@ static inline int Compare_Rbyte_Rcomplex(Rbyte x, Rcomplex y, int opcode)
 }
 
 static int sparse_Compare_Rbytes_Rcomplex
-	ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN1(Rbyte, Rcomplex)
+	FUNDEF_sparse_Compare1(Rbyte, Rcomplex)
 static int sparse_Compare_Rbytes_Rcomplexes
-	ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN2(Rbyte, Rcomplex)
+	FUNDEF_sparse_Compare2(Rbyte, Rcomplex)
 
 /* 'v2' is assumed to be an atomic vector of length 1. This is NOT checked!
    Also its type is expected to be "raw" or bigger. */
@@ -248,9 +247,9 @@ static inline int Compare_int_int(int x, int y, int opcode)
 }
 
 static int sparse_Compare_ints_int
-	ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN1(int, int)
+	FUNDEF_sparse_Compare1(int, int)
 static int sparse_Compare_ints_ints
-	ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN2(int, int)
+	FUNDEF_sparse_Compare2(int, int)
 
 static inline int Compare_int_double(int x, double y, int opcode)
 {
@@ -273,9 +272,9 @@ static inline int Compare_int_double(int x, double y, int opcode)
 }
 
 static int sparse_Compare_ints_double
-	ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN1(int, double)
+	FUNDEF_sparse_Compare1(int, double)
 static int sparse_Compare_ints_doubles
-	ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN2(int, double)
+	FUNDEF_sparse_Compare2(int, double)
 
 static inline int Compare_int_Rcomplex(int x, Rcomplex y, int opcode)
 {
@@ -294,9 +293,9 @@ static inline int Compare_int_Rcomplex(int x, Rcomplex y, int opcode)
 }
 
 static int sparse_Compare_ints_Rcomplex
-	ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN1(int, Rcomplex)
+	FUNDEF_sparse_Compare1(int, Rcomplex)
 static int sparse_Compare_ints_Rcomplexes
-	ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN2(int, Rcomplex)
+	FUNDEF_sparse_Compare2(int, Rcomplex)
 
 /* 'v2' is assumed to be an atomic vector of length 1. This is NOT checked!
    Also its type is expected to be "integer" or bigger. */
@@ -350,9 +349,9 @@ static inline int Compare_double_double(double x, double y, int opcode)
 }
 
 static int sparse_Compare_doubles_double
-	ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN1(double, double)
+	FUNDEF_sparse_Compare1(double, double)
 static int sparse_Compare_doubles_doubles
-	ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN2(double, double)
+	FUNDEF_sparse_Compare2(double, double)
 
 static inline int Compare_double_Rcomplex(double x, Rcomplex y, int opcode)
 {
@@ -368,9 +367,9 @@ static inline int Compare_double_Rcomplex(double x, Rcomplex y, int opcode)
 }
 
 static int sparse_Compare_doubles_Rcomplex
-	ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN1(double, Rcomplex)
+	FUNDEF_sparse_Compare1(double, Rcomplex)
 static int sparse_Compare_doubles_Rcomplexes
-	ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN2(double, Rcomplex)
+	FUNDEF_sparse_Compare2(double, Rcomplex)
 
 /* 'v2' is assumed to be an atomic vector of length 1. This is NOT checked!
    Also its type is expected to be "double" or bigger. */
@@ -416,9 +415,9 @@ static inline int Compare_Rcomplex_Rcomplex(Rcomplex x, Rcomplex y, int opcode)
 }
 
 static int sparse_Compare_Rcomplexes_Rcomplex
-	ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN1(Rcomplex, Rcomplex)
+	FUNDEF_sparse_Compare1(Rcomplex, Rcomplex)
 static int sparse_Compare_Rcomplexes_Rcomplexes
-	ARGS_AND_BODY_OF_SPARSE_COMPARE_FUN2(Rcomplex, Rcomplex)
+	FUNDEF_sparse_Compare2(Rcomplex, Rcomplex)
 
 /* 'v2' is assumed to be an atomic vector of length 1. This is NOT checked!
    Also its type is expected to be "complex". */
@@ -652,8 +651,8 @@ static SEXP Compare_lv1_zero(SEXP lv1, int opcode,
 		      "    unsupported 'TYPEOF(lv1_vals)': \"%s\"",
 		      type2char(TYPEOF(lv1_vals)));
 	}
-	return _new_leaf_vector_from_bufs(LGLSXP,
-				offs_buf, vals_buf, ans_len);
+	return _make_leaf_vector_from_bufs(LGLSXP,
+					   offs_buf, vals_buf, ans_len);
 }
 
 /* 'v2' is assumed to be an atomic vector of length 1. This is NOT checked!
@@ -694,8 +693,8 @@ SEXP _Compare_lv1_v2(SEXP lv1, SEXP v2, int opcode,
 		      "    unsupported 'TYPEOF(lv1_vals)': \"%s\"",
 		      type2char(TYPEOF(lv1_vals)));
 	}
-	return _new_leaf_vector_from_bufs(LGLSXP,
-				offs_buf, vals_buf, ans_len);
+	return _make_leaf_vector_from_bufs(LGLSXP,
+					   offs_buf, vals_buf, ans_len);
 }
 
 /* Each of 'lv1' and 'lv2' must be a "leaf vector" or NULL. */
@@ -745,7 +744,7 @@ SEXP _Compare_lv1_lv2(SEXP lv1, SEXP lv2, int opcode,
 		      "_Compare_lv1_lv2():\n"
 		      "    unsupported 'Rtype1': \"%s\"", type2char(Rtype1));
 	}
-	return _new_leaf_vector_from_bufs(LGLSXP,
-				offs_buf, vals_buf, ans_len);
+	return _make_leaf_vector_from_bufs(LGLSXP,
+					   offs_buf, vals_buf, ans_len);
 }
 

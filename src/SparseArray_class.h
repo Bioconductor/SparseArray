@@ -1,5 +1,5 @@
-#ifndef _SPARSE_ARRAY_CLASS_H_
-#define _SPARSE_ARRAY_CLASS_H_
+#ifndef _SPARSEARRAY_CLASS_H_
+#define _SPARSEARRAY_CLASS_H_
 
 #include <Rdefines.h>
 
@@ -13,5 +13,5 @@ SEXP C_coercion_can_introduce_zeros(
 	SEXP to_type
 );
 
-#endif  /* _SPARSE_ARRAY_CLASS_H_ */
+#endif  /* _SPARSEARRAY_CLASS_H_ */
 
