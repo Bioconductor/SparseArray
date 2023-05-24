@@ -1,5 +1,5 @@
 /****************************************************************************
- *                            Sparse Buffer Tree                            *
+ *               Basic manipulation of a "Sparse Buffer Tree"               *
  ****************************************************************************/
 #include "SBT_utils.h"
 
@@ -15,19 +15,19 @@
  * Manipulation of SparseBuf structs
  */
 
-typedef union vals_buf_t {
+typedef union sparse_buf_vals_t {
 	int *ints;
 	double *doubles;
 	Rcomplex *Rcomplexes;
 	Rbyte *Rbytes;
 	SEXP *SEXPs;
-} ValsBuf;
+} SparseBufVals;
 
 typedef struct sparse_buf_t {
 	int buflength;
 	int nelt;
 	int *offs;
-	ValsBuf vals;
+	SparseBufVals vals;
 } SparseBuf;
 
 /* Guaranteed to return a value > 'buflength', or to raise an error. */
@@ -135,47 +135,85 @@ static void free_Rcomplex_SparseBuf FUNDEF_free_SparseBuf(Rcomplexes)
 static void free_Rbyte_SparseBuf FUNDEF_free_SparseBuf(Rbytes)
 static void free_SEXP_SparseBuf FUNDEF_free_SparseBuf(SEXPs)
 
+static void copy_SparseBuf_ints_to_Rvector(const SparseBufVals vals,
+		SEXP Rvector, int n)
+{
+	memcpy(INTEGER(Rvector), vals.ints, sizeof(int) * n);
+	return;
+}
+static void copy_SparseBuf_doubles_to_Rvector(const SparseBufVals vals,
+		SEXP Rvector, int n)
+{
+	memcpy(REAL(Rvector), vals.doubles, sizeof(double) * n);
+	return;
+}
+static void copy_SparseBuf_Rcomplexes_to_Rvector(const SparseBufVals vals,
+		SEXP Rvector, int n)
+{
+	memcpy(COMPLEX(Rvector), vals.Rcomplexes, sizeof(Rcomplex) * n);
+	return;
+}
+static void copy_SparseBuf_Rbytes_to_Rvector(const SparseBufVals vals,
+		SEXP Rvector, int n)
+{
+	memcpy(RAW(Rvector), vals.Rbytes, sizeof(Rbyte) * n);
+	return;
+}
+static void copy_SparseBuf_SEXPs_to_character(const SparseBufVals vals,
+		SEXP Rvector, int n)
+{
+	int k;
+
+	for (k = 0; k < n; k++)
+		SET_STRING_ELT(Rvector, k, vals.SEXPs[k]);
+	return;
+}
+static void copy_SparseBuf_SEXPs_to_list(const SparseBufVals vals,
+		SEXP Rvector, int n)
+{
+	int k;
+
+	for (k = 0; k < n; k++)
+		SET_VECTOR_ELT(Rvector, k, vals.SEXPs[k]);
+	return;
+}
+
+typedef void (*copy_vals_FUNType)(const SparseBufVals vals,
+				  SEXP Rvector, int n);
+
+static copy_vals_FUNType _select_copy_vals_FUN(SEXPTYPE Rtype)
+{
+	switch (Rtype) {
+	    case LGLSXP: case INTSXP:
+		return copy_SparseBuf_ints_to_Rvector;
+	    case REALSXP:
+		return copy_SparseBuf_doubles_to_Rvector;
+	    case CPLXSXP:
+		return copy_SparseBuf_Rcomplexes_to_Rvector;
+	    case RAWSXP:
+		return copy_SparseBuf_Rbytes_to_Rvector;
+	    case STRSXP:
+		return copy_SparseBuf_SEXPs_to_character;
+	    case VECSXP:
+		return copy_SparseBuf_SEXPs_to_list;
+	}
+	error("SparseArray internal error in _select_copy_vals_FUN():\n"
+	      "    type \"%s\" is not supported", type2char(Rtype));
+	return NULL;  /* will never reach this */
+}
+
 /* 'buf' can NOT be empty! Returns a "leaf vector". */
 static SEXP make_leaf_vector_from_SparseBuf(SEXPTYPE Rtype,
-					    const SparseBuf *buf)
+		const SparseBuf *buf, copy_vals_FUNType copy_vals_FUN)
 {
-	int ans_len, k;
+	int ans_len;
 	SEXP ans_offs, ans_vals, ans;
 
 	ans_len = buf->nelt;
 	ans_offs = PROTECT(NEW_INTEGER(ans_len));
 	memcpy(INTEGER(ans_offs), buf->offs, sizeof(int) * ans_len);
 	ans_vals = PROTECT(allocVector(Rtype, ans_len));
-	switch (Rtype) {
-	    case LGLSXP: case INTSXP:
-		memcpy(INTEGER(ans_vals), buf->vals.ints,
-		       sizeof(int) * ans_len);
-		break;
-	    case REALSXP:
-		memcpy(REAL(ans_vals), buf->vals.doubles,
-		       sizeof(double) * ans_len);
-		break;
-	    case CPLXSXP:
-		memcpy(COMPLEX(ans_vals), buf->vals.Rcomplexes,
-		       sizeof(Rcomplex) * ans_len);
-		break;
-	    case RAWSXP:
-		memcpy(RAW(ans_vals), buf->vals.Rbytes,
-		       sizeof(Rbyte) * ans_len);
-		break;
-	    case STRSXP:
-		for (k = 0; k < ans_len; k++)
-			SET_STRING_ELT(ans_vals, k, buf->vals.SEXPs[k]);
-		break;
-	    case VECSXP:
-		for (k = 0; k < ans_len; k++)
-			SET_VECTOR_ELT(ans_vals, k, buf->vals.SEXPs[k]);
-		break;
-	    default:
-		error("SparseArray internal error in "
-		      "make_leaf_vector_from_SparseBuf():\n"
-		      "    type \"%s\" is not supported", type2char(Rtype));
-	}
+	copy_vals_FUN(buf->vals, ans_vals, ans_len);
 	ans = _new_leaf_vector(ans_offs, ans_vals);
 	UNPROTECT(2);
 	return ans;
@@ -265,9 +303,10 @@ static inline int push_SEXP_to_leaf_buffer
 	FUNDEF_push_val_to_leaf_buffer(SEXP, SEXPs)
 
 /* Returns a "leaf vector". */
-static SEXP lb2lv(SEXP lb, SEXPTYPE Rtype)
+static SEXP lb2lv(SEXP lb, SEXPTYPE Rtype, copy_vals_FUNType copy_vals_FUN)
 {
-	return make_leaf_vector_from_SparseBuf(Rtype, R_ExternalPtrAddr(lb));
+	return make_leaf_vector_from_SparseBuf(Rtype, R_ExternalPtrAddr(lb),
+					       copy_vals_FUN);
 }
 
 
@@ -336,7 +375,8 @@ void _push_SEXP_to_SBT		FUNDEF_push_val_to_SBT(SEXP)
  */
 
 /* Recursive. 'SBT' can NOT be R_NilValue! */
-static void REC_SBT2SVT(SEXP SBT, const int *dim, int ndim, SEXPTYPE Rtype)
+static void REC_SBT2SVT(SEXP SBT, const int *dim, int ndim,
+		SEXPTYPE Rtype, copy_vals_FUNType copy_vals_FUN)
 {
 	int SBT_len, i;
 	SEXP subSBT, lv;
@@ -347,11 +387,12 @@ static void REC_SBT2SVT(SEXP SBT, const int *dim, int ndim, SEXPTYPE Rtype)
 		if (subSBT == R_NilValue)
 			continue;
 		if (ndim >= 3) {
-			REC_SBT2SVT(subSBT, dim, ndim - 1, Rtype);
+			REC_SBT2SVT(subSBT, dim, ndim - 1,
+				    Rtype, copy_vals_FUN);
 			continue;
 		}
 		/* 'subSBT' is a "leaf buffer". */
-		lv = PROTECT(lb2lv(subSBT, Rtype));
+		lv = PROTECT(lb2lv(subSBT, Rtype, copy_vals_FUN));
 		SET_VECTOR_ELT(SBT, i, lv);
 		finalize_int_leaf_buffer(subSBT);
 		UNPROTECT(1);
@@ -363,7 +404,10 @@ static void REC_SBT2SVT(SEXP SBT, const int *dim, int ndim, SEXPTYPE Rtype)
    'SBT' can NOT be R_NilValue! Must be called with 'ndim' >= 2. */
 void _SBT2SVT(SEXP SBT, const int *dim, int ndim, SEXPTYPE Rtype)
 {
-	REC_SBT2SVT(SBT, dim, ndim, Rtype);
+	copy_vals_FUNType copy_vals_FUN;
+
+	copy_vals_FUN = _select_copy_vals_FUN(Rtype);
+	REC_SBT2SVT(SBT, dim, ndim, Rtype, copy_vals_FUN);
 	return;
 }
 

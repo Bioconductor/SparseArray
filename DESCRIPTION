@@ -35,6 +35,7 @@ Collate: sparseMatrix-utils.R
 	extract_sparse_array.R
 	read_block_as_sparse.R
 	SparseArray-dim-tuning.R
+	SparseArray-aperm.R
 	SparseArray-subsetting.R
 	SparseArray-subassignment.R
 	SparseArray-combine.R

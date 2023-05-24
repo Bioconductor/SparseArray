@@ -69,14 +69,23 @@
        svt[ , , 1] <- svt[ , , 3, drop=FALSE]
        svt[ , , 1] <- svt[ , , 3]
 
-- Support 'match(svt, table)' where 'svt' is an SVT_SparseArray object
-  and 'table' an atomic vector. This will give us 'svt %in% table' for free.
+- Revisit implementation of C_readSparseCSV_as_SVT_SparseMatrix(): Try to
+  use an SBT instead of an ExtendableJaggedArray. Performance should not be
+  impacted. Then we can get rid of the ExtendableJaggedArray thing.
+
+- Revisit implementation of C_subassign_SVT_by_Mindex() and
+  C_subassign_SVT_by_Lindex(). Can we use an SBT instead of the "extended
+  leaves" approach? This would probably lead to a cleaner/simpler
+  implementation. It might be slightly faster too.
 
 - Try to speed up SVT_SparseArray transposition by implementing a one-pass
   approach that uses ExtendableJaggedArray intermediate buffers (offss, valss).
   See src/readSparseCSV.c where this approach is already used.
   Note that this will require that ExtendableJaggedArray structs are able
   to support other types of columns (only support int at the moment).
+
+- Support 'match(svt, table)' where 'svt' is an SVT_SparseArray object
+  and 'table' an atomic vector. This will give us 'svt %in% table' for free.
 
 - Implement C_subassign_SVT_with_Rarray() and C_subassign_SVT_with_SVT().
 
