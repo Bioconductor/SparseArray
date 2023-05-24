@@ -41,9 +41,6 @@
 \alias{coerce,RsparseMatrix,SparseArray-method}
 \alias{coerce,RsparseMatrix,SparseMatrix-method}
 
-\alias{t.SVT_SparseMatrix}
-\alias{t,SVT_SparseMatrix-method}
-
 \title{SVT_SparseArray objects}
 
 \description{

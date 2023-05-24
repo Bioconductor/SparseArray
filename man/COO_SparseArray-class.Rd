@@ -40,9 +40,6 @@
 
 \alias{coerce,Matrix,COO_SparseArray-method}
 
-\alias{aperm.COO_SparseArray}
-\alias{aperm,COO_SparseArray-method}
-
 \title{COO_SparseArray objects}
 
 \description{

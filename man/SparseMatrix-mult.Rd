@@ -46,7 +46,7 @@
     \item \code{S4Arrays::\link[S4Arrays]{type}} in the \pkg{S4Arrays}
           package to get the type of the elements of an array-like object.
 
-    \item \link[base]{matrix} objects in base R.
+    \item Ordinary \link[base]{matrix} objects in base R.
   }
 }
 
