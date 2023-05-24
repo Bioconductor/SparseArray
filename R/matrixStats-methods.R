@@ -56,10 +56,21 @@
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Workhorse behind all the matrixStats methods for SVT_SparseArray objects
+### .colStats_SVT(), .rowStats_SVT()
 ###
-### Except colMeans()/rowMeans() at the moment.
+### Workhorses behind all the matrixStats methods for SVT_SparseArray
+### objects, with the exception of the colMedians()/rowMedians() methods
+### at the moment.
 ###
+
+.normarg_dims <- function(dims)
+{
+    if (!isSingleNumber(dims))
+        stop(wmsg("'dims' must be a single integer"))
+    if (!is.integer(dims))
+        dims <- as.integer(dims)
+    dims
+}
 
 ### Return an ordinary array with 'length(dim(x)) - dims' dimensions.
 .colStats_SVT <- function(op, x, na.rm=FALSE, center=NULL, dims=1L, useNames=NA)
@@ -81,10 +92,7 @@
     }
 
     ## Check and normalize 'dims'.
-    if (!isSingleNumber(dims))
-        stop(wmsg("'dims' must be a single integer"))
-    if (!is.integer(dims))
-        dims <- as.integer(dims)
+    dims <- .normarg_dims(dims)
 
     ## Check 'useNames'.
     .check_useNames(useNames)
@@ -93,6 +101,57 @@
     .Call2("C_colStats_SVT", x@dim, x_dimnames, x@type, x@SVT,
                              op, na.rm, center, dims,
                              PACKAGE="SparseArray")
+}
+
+### WORK-IN-PROGRESS!
+### The naive implementation would be to simply do:
+###
+###     aperm(.colStats_SVT(op, aperm(x), ..., dims=length(dim(x))-dims))
+###
+### This is semantically correct for any number of dimensions. However,
+### it is VERY inefficient when 'x' has more than 2 dimensions because
+### multi-dimensional transposition of SVT_SparseArray object 'x' (i.e.
+### 'aperm(x)') is VERY expensive when 'length(dim(x))' is >= 3. So we
+### use some tricks to avoid this multi-dimensional transposition.
+.rowStats_SVT <- function(op, x, na.rm=FALSE, center=NULL, dims=1L, useNames=NA){
+    stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
+
+    ## Check and normalize 'dims'.
+    dims <- .normarg_dims(dims)
+
+    x_ndim <- length(x@dim)
+    if (length(x) == 0L || x_ndim <= 2L || dims == x_ndim) {
+        if (x_ndim >= 2L && dims < x_ndim)
+            x <- aperm(x)
+        return(.colStats_SVT(op, x, na.rm=na.rm, center=center,
+                             dims=dims, useNames=useNames))
+    }
+
+    if (x_ndim == 3L) {
+        if (dims == 1L) {
+            ## dims == 1
+            x <- aperm(x, perm=c(2:1, 3))
+            ans <- sapply(seq_len(x@dim[[2L]]),
+                function(j) {
+                    slice <- x[ , j, , drop=FALSE]
+                    dim(slice) <- dim(x)[-2L]  # 2D slice
+                    .colStats_SVT(op, slice, na.rm=na.rm, center=center,
+                                  dims=2L, useNames=useNames)
+                })
+            return(ans)
+        }
+        ## dims == 2
+        ans_cols <- lapply(seq_len(x@dim[[2L]]),
+            function(j) {
+                slice <- x[ , j, , drop=FALSE]
+                dim(slice) <- dim(x)[-2L]  # 2D slice
+                .colStats_SVT(op, t(slice), na.rm=na.rm, center=center,
+                              useNames=useNames)
+            })
+        return(do.call(cbind, ans_cols))
+    }
+
+    stop(wmsg("objects with more than 3 dimensions are not supported yet"))
 }
 
 

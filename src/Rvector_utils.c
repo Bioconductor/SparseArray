@@ -19,7 +19,7 @@ static const SEXPTYPE Rvector_types[] = {
         VECSXP    // "list"
 };
 
-/* Return 0 if supplied 'type' is invalid string. */
+/* Returns 0 if supplied 'type' is invalid string. */
 SEXPTYPE _get_Rtype_from_Rstring(SEXP type)
 {
 	SEXP type0;

@@ -342,7 +342,7 @@ SEXP C_build_SVT_from_Rarray(SEXP x, SEXP ans_type)
  * Going from SVT_SparseMatrix to [d|l]gCMatrix
  */
 
-/* Return nb of nonzero values in column. */
+/* Returns nb of nonzero values in column. */
 static int dump_col_to_CsparseMatrix_slots(SEXP SVT, int col_idx,
 		SEXP ans_i, SEXP ans_x, int offset)
 {

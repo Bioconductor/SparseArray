@@ -11,7 +11,7 @@
 ### S3/S4 combo for t.SVT_SparseMatrix
 t.SVT_SparseMatrix <- function(x)
 {
-    new_SVT <- .Call2("C_transpose_SVT_SparseMatrix",
+    new_SVT <- .Call2("C_transpose_2D_SVT",
                       x@dim, x@type, x@SVT, PACKAGE="SparseArray")
     BiocGenerics:::replaceSlots(x, dim=rev(x@dim),
                                    dimnames=rev(x@dimnames),
@@ -66,16 +66,13 @@ setMethod("aperm", "COO_SparseArray", aperm.COO_SparseArray)
 
 .aperm.SVT_SparseArray <- function(a, perm)
 {
-    a_dim <- dim(a)
-    perm <- S4Arrays:::normarg_perm(perm, a_dim)
-    msg <- S4Arrays:::validate_perm(perm, a_dim)
-    if (!isTRUE(msg))
-        stop(wmsg(msg))
-    if (!identical(perm, rev(seq_along(a_dim))))
-        stop("'perm' not suported yet!")
-    if (length(a_dim) == 2L)
-        return(t.SVT_SparseMatrix(a))
-    .transpose_SVT(a)
+    perm <- S4Arrays:::normarg_perm(perm, a@dim)
+    new_SVT <- .Call2("C_aperm_SVT",
+                      a@dim, a@type, a@SVT, perm, PACKAGE="SparseArray")
+    BiocGenerics:::replaceSlots(a, dim=a@dim[perm],
+                                   dimnames=a@dimnames[perm],
+                                   SVT=new_SVT,
+                                   check=FALSE)
 }
 
 ### S3/S4 combo for aperm.SVT_SparseArray
