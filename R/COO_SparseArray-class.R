@@ -377,32 +377,3 @@ setAs("lgRMatrix", "COO_SparseMatrix",
 
 setAs("Matrix", "COO_SparseArray", function(from) as(from, "COO_SparseMatrix"))
 
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### aperm()
-###
-### Like aperm2() in S4Arrays, extend base::aperm() by allowing dropping
-### and/or adding ineffective dimensions.
-###
-
-.aperm.COO_SparseArray <- function(a, perm)
-{
-    a_dim <- dim(a)
-    perm <- S4Arrays:::normarg_perm(perm, a_dim)
-    msg <- S4Arrays:::validate_perm(perm, a_dim)
-    if (!isTRUE(msg))
-        stop(wmsg(msg))
-    ans_dim <- a_dim[perm]
-    ans_dim[is.na(perm)] <- 1L
-    ans_nzcoo <- a@nzcoo[ , perm, drop=FALSE]
-    ans_nzcoo[ , is.na(perm)] <- 1L
-    ans_dimnames <- a@dimnames[perm]
-    new_COO_SparseArray(ans_dim, ans_dimnames,
-                        ans_nzcoo, a@nzvals, check=FALSE)
-}
-
-### S3/S4 combo for aperm.COO_SparseArray
-aperm.COO_SparseArray <-
-    function(a, perm, ...) .aperm.COO_SparseArray(a, perm, ...)
-setMethod("aperm", "COO_SparseArray", aperm.COO_SparseArray)
-

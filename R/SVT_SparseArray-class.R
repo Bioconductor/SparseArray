@@ -372,20 +372,3 @@ SparseArray <- function(x, type=NA)
     .SVT_SparseArray(x, type=type)
 }
 
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Transposition
-###
-
-### S3/S4 combo for t.SVT_SparseMatrix
-t.SVT_SparseMatrix <- function(x)
-{
-    new_SVT <- .Call2("C_transpose_SVT_SparseMatrix",
-                      x@dim, x@type, x@SVT, PACKAGE="SparseArray")
-    BiocGenerics:::replaceSlots(x, dim=rev(x@dim),
-                                   dimnames=rev(x@dimnames),
-                                   SVT=new_SVT,
-                                   check=FALSE)
-}
-setMethod("t", "SVT_SparseMatrix", t.SVT_SparseMatrix)
-

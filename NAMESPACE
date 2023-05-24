@@ -34,6 +34,7 @@ exportClasses(
 ###
 
 S3method(aperm, COO_SparseArray)
+S3method(aperm, SVT_SparseArray)
 
 S3method(as.array, COO_SparseArray)
 S3method(as.array, SVT_SparseArray)
@@ -54,6 +55,7 @@ S3method(t, SVT_SparseMatrix)
 
 export(
     aperm.COO_SparseArray,
+    aperm.SVT_SparseArray,
 
     as.array.COO_SparseArray,
     as.array.SVT_SparseArray,

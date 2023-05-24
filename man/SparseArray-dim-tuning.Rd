@@ -59,7 +59,7 @@
 
     \item \link{SparseArray} objects.
 
-    \item \link[base]{array} objects in base R.
+    \item Ordinary \link[base]{array} objects in base R.
   }
 }
 
