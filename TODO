@@ -69,14 +69,23 @@
        svt[ , , 1] <- svt[ , , 3, drop=FALSE]
        svt[ , , 1] <- svt[ , , 3]
 
-- Revisit implementation of C_readSparseCSV_as_SVT_SparseMatrix(): Try to
-  use an SBT instead of an ExtendableJaggedArray. Performance should not be
-  impacted. Then we can get rid of the ExtendableJaggedArray thing.
+- More SBT ("Sparse Buffer Tree") use cases:
 
-- Revisit implementation of C_subassign_SVT_by_Mindex() and
-  C_subassign_SVT_by_Lindex(). Can we use an SBT instead of the "extended
-  leaves" approach? This would probably lead to a cleaner/simpler
-  implementation. It might be slightly faster too.
+  1. Implement C helper _push_vals_to_SBT_by_Mindex(), and modify coercion
+     from COO_SparseArray to SVT_SparseArray to use that instead of
+     C_subassign_SVT_by_Mindex(). This will probably lead to a cleaner/simpler
+     implementation. But is it faster too?
+
+  2. Revisit implementation of C_subassign_SVT_by_Mindex() and
+     C_subassign_SVT_by_Lindex(): Can they use an SBT instead of the "extended
+     leaves" approach? E.g. they would use _push_vals_to_SBT_by_Mindex()
+     and _push_vals_to_SBT_by_Lindex(), respectively, then "merge" the SBT
+     with the original SVT. This will probably lead to a cleaner/simpler
+     implementation. But is it faster too?
+
+  3. Revisit implementation of C_readSparseCSV_as_SVT_SparseMatrix(): Try to
+     use an SBT instead of an ExtendableJaggedArray. Performance should not
+     be impacted. Then we can get rid of the ExtendableJaggedArray thing.
 
 - Try to speed up SVT_SparseArray transposition by implementing a one-pass
   approach that uses ExtendableJaggedArray intermediate buffers (offss, valss).

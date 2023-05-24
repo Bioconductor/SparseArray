@@ -138,7 +138,7 @@ static SEXP drop_outermost_dims(SEXP SVT, int ndim_to_drop)
  * Go back and forth between a "leaf vector" and a 1x1x..xN SVT
  */
 
-/* Return a "leaf vector" of length 1. */
+/* Returns a "leaf vector" of length 1. */
 static SEXP wrap_Rvector_elt_in_lv1(SEXP in_Rvector, int k,
 		CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
 {
@@ -282,7 +282,7 @@ static SEXP REC_tune_SVT(SEXP SVT, const int *dims, int ndim,
 		}
 		if (nops == ndim && cumallDROP[ndim - 2]) {
 			/* 'ops[nops - 1]' is KEEP_DIM, with only DROP_DIM ops
-			   on its left. Return a "leaf vector". */
+			   on its left. Returns a "leaf vector". */
 			return roll_SVT_into_lv(SVT, ndim, Rtype,
 						copy_Rvector_elt_FUN);
 		}

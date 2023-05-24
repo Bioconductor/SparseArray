@@ -58,11 +58,5 @@ SEXP C_from_SVT_SparseArray_to_COO_SparseArray(
 	SEXP x_SVT
 );
 
-SEXP C_transpose_SVT_SparseMatrix(
-	SEXP x_dim,
-	SEXP x_type,
-	SEXP x_SVT
-);
-
 #endif  /* _SVT_SPARSEARRAY_CLASS_H_ */
 
