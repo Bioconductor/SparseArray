@@ -90,7 +90,7 @@ setMethod("extract_array", "COO_SparseArray",
 ### one list element per dimension in 'x'. Each list element must be an
 ### integer vector of valid indices along the corresponding dimension
 ### in 'x', or a NULL.
-.subset_SVT_SparseArray <- function(x, index, ignore.dimnames=FALSE)
+subset_SVT_SparseArray <- function(x, index, ignore.dimnames=FALSE)
 {
     stopifnot(is(x, "SVT_SparseArray"),
               is.list(index),
@@ -117,7 +117,7 @@ setMethod("extract_array", "COO_SparseArray",
 
 ### No need to propagate the dimnames.
 setMethod("extract_sparse_array", "SVT_SparseArray",
-    function(x, index) .subset_SVT_SparseArray(x, index, ignore.dimnames=TRUE)
+    function(x, index) subset_SVT_SparseArray(x, index, ignore.dimnames=TRUE)
 )
 
 
@@ -162,7 +162,7 @@ setMethod("extract_sparse_array", "SVT_SparseArray",
     if (nsubscript != x_ndim)
         stop(wmsg("incorrect number of subscripts"))
     index <- S4Arrays:::normalize_Nindex(Nindex, x)
-    ans <- .subset_SVT_SparseArray(x, index)
+    ans <- subset_SVT_SparseArray(x, index)
     if (drop)
         ans <- drop(ans)
     ans
@@ -177,6 +177,6 @@ setMethod("[", "SVT_SparseArray", .single_bracket_SVT_SparseArray)
 ### The method below completely bypasses all this complexity.
 setMethod("extract_array", "SVT_SparseArray",
     function(x, index)
-        as.array(.subset_SVT_SparseArray(x, index, ignore.dimnames=TRUE))
+        as.array(subset_SVT_SparseArray(x, index, ignore.dimnames=TRUE))
 )
 

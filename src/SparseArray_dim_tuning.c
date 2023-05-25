@@ -36,7 +36,7 @@ static int dim_tuner_is_normalized(const int *ops, int nops)
    src/dim_tuning_utils.c in the S4Arrays package for a description of
    this argument. */
 static void set_cumallKEEP_cumallDROP(int *cumallKEEP, int *cumallDROP,
-		const int *ops, int nops, const int *dims, int ndim)
+		const int *ops, int nops, const int *dim, int ndim)
 {
 	int along1, along2, nkept, r, op;
 
@@ -67,13 +67,13 @@ static void set_cumallKEEP_cumallDROP(int *cumallKEEP, int *cumallDROP,
 			      "set_cumallKEEP_cumallDROP():\n"
 			      "    'dim_tuner' can only contain 0 (KEEP), "
 			      "-1 (DROP), or 1 (ADD) values");
-		if (dims[along1] != 1)
+		if (dim[along1] != 1)
 			error("SparseArray internal error in "
 			      "set_cumallKEEP_cumallDROP():\n"
 			      "    'dim_tuner[%d]' (= -1) is "
 			      "mapped to 'dim(x)[%d]' (= %d)\n"
 			      "    which cannot be dropped",
-			      r + 1, along1 + 1, dims[along1]);
+			      r + 1, along1 + 1, dim[along1]);
 		if (r == along1 && (r == 0 || cumallDROP[r - 1]))
 			cumallDROP[r] = 1;
 		along1++;
@@ -249,7 +249,7 @@ static SEXP roll_SVT_into_lv(SEXP SVT, int ndim, SEXPTYPE Rtype,
 
 /* Assumes that 'dim_tuner' is normalized.
    Recursive. */
-static SEXP REC_tune_SVT(SEXP SVT, const int *dims, int ndim,
+static SEXP REC_tune_SVT(SEXP SVT, const int *dim, int ndim,
 		const int *ops, int nops,
 		const int *cumallKEEP, const int *cumallDROP,
 		SEXPTYPE Rtype, CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
@@ -264,7 +264,7 @@ static SEXP REC_tune_SVT(SEXP SVT, const int *dims, int ndim,
 	if (op == ADD_DIM) {
 		/* Add ineffective dimension (as outermost dimension). */
 		ans_elt = PROTECT(
-			REC_tune_SVT(SVT, dims, ndim,
+			REC_tune_SVT(SVT, dim, ndim,
 				     ops, nops - 1,
 				     cumallKEEP, cumallDROP,
 				     Rtype, copy_Rvector_elt_FUN)
@@ -277,7 +277,7 @@ static SEXP REC_tune_SVT(SEXP SVT, const int *dims, int ndim,
 		if (ndim == 1) {
 			/* 'ops[nops - 1]' is KEEP_DIM, with only ADD_DIM ops
 			   on its left. 'SVT' is a "leaf vector". */
-			return unroll_lv_as_SVT(SVT, dims[0], nops,
+			return unroll_lv_as_SVT(SVT, dim[0], nops,
 						copy_Rvector_elt_FUN);
 		}
 		if (nops == ndim && cumallDROP[ndim - 2]) {
@@ -286,12 +286,12 @@ static SEXP REC_tune_SVT(SEXP SVT, const int *dims, int ndim,
 			return roll_SVT_into_lv(SVT, ndim, Rtype,
 						copy_Rvector_elt_FUN);
 		}
-		ans_len = dims[ndim - 1];
+		ans_len = dim[ndim - 1];
 		ans = PROTECT(NEW_LIST(ans_len));
 		for (i = 0; i < ans_len; i++) {
 			subSVT = VECTOR_ELT(SVT, i);
 			ans_elt = PROTECT(
-				REC_tune_SVT(subSVT, dims, ndim - 1,
+				REC_tune_SVT(subSVT, dim, ndim - 1,
 					     ops, nops - 1,
 					     cumallKEEP, cumallDROP,
 					     Rtype, copy_Rvector_elt_FUN)
@@ -312,7 +312,7 @@ static SEXP REC_tune_SVT(SEXP SVT, const int *dims, int ndim,
 	   DROP_DIM ops.
 	   In particular, this means that 'ndim' is guaranteed to be >= 2
 	   so 'SVT' cannot be a "leaf vector". */
-	return REC_tune_SVT(VECTOR_ELT(SVT, 0), dims, ndim - 1,
+	return REC_tune_SVT(VECTOR_ELT(SVT, 0), dim, ndim - 1,
 			    ops, nops - 1,
 			    cumallKEEP, cumallDROP,
 			    Rtype, copy_Rvector_elt_FUN);
@@ -326,7 +326,7 @@ SEXP C_tune_SVT_dims(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP dim_tuner)
 	SEXPTYPE Rtype;
 	CopyRVectorElt_FUNType copy_Rvector_elt_FUN;
 	int ndim, nops, *cumallKEEP, *cumallDROP;
-	const int *dims, *ops;
+	const int *dim, *ops;
 
 	Rtype = _get_Rtype_from_Rstring(x_type);
 	copy_Rvector_elt_FUN = _select_copy_Rvector_elt_FUN(Rtype);
@@ -356,14 +356,14 @@ SEXP C_tune_SVT_dims(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP dim_tuner)
 		      "C_tune_SVT_dims():\n"
 		      "    'dim_tuner' is not normalized");
 
-	dims = INTEGER(x_dim);
+	dim = INTEGER(x_dim);
 	cumallKEEP = (int *) R_alloc(ndim, sizeof(int));
 	cumallDROP = (int *) R_alloc(ndim, sizeof(int));
 	set_cumallKEEP_cumallDROP(cumallKEEP, cumallDROP,
-				  ops, nops, dims, ndim);
+				  ops, nops, dim, ndim);
 
 	/* Compute tuned 'SVT'. */
-	return REC_tune_SVT(x_SVT, dims, ndim, ops, nops,
+	return REC_tune_SVT(x_SVT, dim, ndim, ops, nops,
 			    cumallKEEP, cumallDROP,
 			    Rtype, copy_Rvector_elt_FUN);
 }

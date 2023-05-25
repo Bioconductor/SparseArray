@@ -40,10 +40,12 @@
                   "does not support the 'rows' or 'cols' argument"))
 }
 
-.check_useNames <- function(useNames)
+### Returns TRUE or FALSE.
+.normarg_useNames <- function(useNames=NA)
 {
     if (!(is.logical(useNames) && length(useNames) == 1L))
         stop(wmsg("'useNames' must be a single logical value"))
+    !isFALSE(useNames)
 }
 
 .stopifnot_2D_object <- function(x, method)
@@ -93,11 +95,15 @@
 
     ## Check and normalize 'dims'.
     dims <- .normarg_dims(dims)
+    if (dims <= 0L || dims > length(x@dim))
+        stop(wmsg("'dims' must be a single integer that is ",
+                  "> 0 and <= length(dim(x)) for the col*() functions, and ",
+                  ">= 0 and < length(dim(x)) for the row*() functions"))
 
-    ## Check 'useNames'.
-    .check_useNames(useNames)
+    ## Normalize 'useNames'.
+    useNames <- .normarg_useNames(useNames)
 
-    x_dimnames <- if (isFALSE(useNames)) NULL else x@dimnames
+    x_dimnames <- if (useNames) x@dimnames else NULL
     .Call2("C_colStats_SVT", x@dim, x_dimnames, x@type, x@SVT,
                              op, na.rm, center, dims,
                              PACKAGE="SparseArray")
@@ -118,40 +124,64 @@
 
     ## Check and normalize 'dims'.
     dims <- .normarg_dims(dims)
+    if (dims < 0L || dims >= length(x@dim))
+        stop(wmsg("'dims' must be a single integer that is ",
+                  "> 0 and <= length(dim(x)) for the col*() functions, and ",
+                  ">= 0 and < length(dim(x)) for the row*() functions"))
+
+    ## Normalize 'useNames'.
+    useNames <- .normarg_useNames(useNames)
 
     x_ndim <- length(x@dim)
-    if (length(x) == 0L || x_ndim <= 2L || dims == x_ndim) {
-        if (x_ndim >= 2L && dims < x_ndim)
+    if (x_ndim <= 2L || dims == 0L || length(x) == 0L) {
+        if (x_ndim >= 2L && dims != 0L)
             x <- aperm(x)
-        return(.colStats_SVT(op, x, na.rm=na.rm, center=center,
-                             dims=dims, useNames=useNames))
+        ans <- .colStats_SVT(op, x, na.rm=na.rm, center=center,
+                             dims=x_ndim-dims, useNames=useNames)
+        if (!is.null(dim(ans)))
+            ans <- aperm(ans)
+        return(ans)
     }
 
-    if (x_ndim == 3L) {
-        if (dims == 1L) {
-            ## dims == 1
-            x <- aperm(x, perm=c(2:1, 3))
-            ans <- sapply(seq_len(x@dim[[2L]]),
-                function(j) {
-                    slice <- x[ , j, , drop=FALSE]
-                    dim(slice) <- dim(x)[-2L]  # 2D slice
-                    .colStats_SVT(op, slice, na.rm=na.rm, center=center,
-                                  dims=2L, useNames=useNames)
-                })
-            return(ans)
-        }
-        ## dims == 2
+    extract_j_slice <- function(j) {
+        index <- vector("list", x_ndim)
+        index[[2L]] <- j
+        slice <- subset_SVT_SparseArray(x, index, ignore.dimnames=TRUE)
+        dim(slice) <- dim(x)[-2L]  # 'x_ndim - 1' dimensions
+        slice
+    }
+
+    if (dims == 1L) {
+        x <- aperm(x, perm=c(2:1, 3:x_ndim))
+        ## We summarize the individual slices obtained by walking along the
+        ## 2nd dimension of 'x'. Each slice has 'x_ndim - 1' dimensions.
+        ans <- sapply(seq_len(x@dim[[2L]]),
+            function(j) {
+                slice <- extract_j_slice(j)  # 'x_ndim - 1' dimensions
+                .colStats_SVT(op, slice, na.rm=na.rm, center=center,
+                              dims=x_ndim-1L, useNames=FALSE)
+            })
+        if (useNames)
+            names(ans) <- x@dimnames[[2L]]
+        return(ans)
+    }
+
+    if (dims == 2L) {
+        ## We summarize the individual slices obtained by walking along the
+        ## 2nd dimension of 'x'. Each slice has 'x_ndim - 1' dimensions.
         ans_cols <- lapply(seq_len(x@dim[[2L]]),
             function(j) {
-                slice <- x[ , j, , drop=FALSE]
-                dim(slice) <- dim(x)[-2L]  # 2D slice
-                .colStats_SVT(op, t(slice), na.rm=na.rm, center=center,
-                              useNames=useNames)
+                slice <- extract_j_slice(j)  # 'x_ndim - 1' dimensions
+                .rowStats_SVT(op, slice, na.rm=na.rm, center=center,
+                              useNames=FALSE)
             })
-        return(do.call(cbind, ans_cols))
+        ans <- do.call(cbind, ans_cols)
+        if (useNames)
+            dimnames(ans) <- dimnames(x)[1:2]
+        return(ans)
     }
 
-    stop(wmsg("objects with more than 3 dimensions are not supported yet"))
+    stop(wmsg("row*() summarization functions don't support 'dims' >= 3 yet"))
 }
 
 
@@ -201,9 +231,8 @@ setMethod("colAnyNAs", "SVT_SparseArray", .colAnyNAs_SVT)
     function(x, rows=NULL, cols=NULL, dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
-    .stopifnot_2D_object(x, "rowAnyNAs")
     .check_rows_cols(rows, cols, "rowAnyNAs")
-    .colAnyNAs_SVT(t(x), dims=dims, useNames=useNames)
+    .rowStats_SVT("anyNA", x, dims=dims, useNames=useNames)
 }
 setMethod("rowAnyNAs", "SVT_SparseArray", .rowAnyNAs_SVT)
 
@@ -225,9 +254,8 @@ setMethod("colAnys", "SVT_SparseArray", .colAnys_SVT)
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
-    .stopifnot_2D_object(x, "rowAnys")
     .check_rows_cols(rows, cols, "rowAnys")
-    .colAnys_SVT(t(x), na.rm=na.rm, dims=dims, useNames=useNames)
+    .rowStats_SVT("any", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
 setMethod("rowAnys", "SVT_SparseArray", .rowAnys_SVT)
 
@@ -244,9 +272,8 @@ setMethod("colAlls", "SVT_SparseArray", .colAlls_SVT)
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
-    .stopifnot_2D_object(x, "rowAlls")
     .check_rows_cols(rows, cols, "rowAlls")
-    .colAlls_SVT(t(x), na.rm=na.rm, dims=dims, useNames=useNames)
+    .rowStats_SVT("all", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
 setMethod("rowAlls", "SVT_SparseArray", .rowAlls_SVT)
 
@@ -262,7 +289,7 @@ setMethod("rowAlls", "SVT_SparseArray", .rowAlls_SVT)
 {
     if (!isTRUEorFALSE(na.rm))
         stop(wmsg("'na.rm' must be TRUE or FALSE"))
-    .check_useNames(useNames)
+    useNames <- .normarg_useNames(useNames)
     x_nrow <- nrow(x)
     x_ncol <- ncol(x)
     if (x_ncol == 0L) {
@@ -288,7 +315,7 @@ setMethod("rowAlls", "SVT_SparseArray", .rowAlls_SVT)
                 res
             }), use.names=FALSE)
     }
-    if (!isFALSE(useNames))
+    if (useNames)
         names(ans) <- colnames(x)
     ans
 }
@@ -306,9 +333,8 @@ setMethod("colMins", "SVT_SparseArray", .colMins_SVT)
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
-    .stopifnot_2D_object(x, "rowMins")
     .check_rows_cols(rows, cols, "rowMins")
-    .colMins_SVT(t(x), na.rm=na.rm, dims=dims, useNames=useNames)
+    .rowStats_SVT("min", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
 setMethod("rowMins", "SVT_SparseArray", .rowMins_SVT)
 
@@ -325,35 +351,40 @@ setMethod("colMaxs", "SVT_SparseArray", .colMaxs_SVT)
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
-    .stopifnot_2D_object(x, "rowMaxs")
     .check_rows_cols(rows, cols, "rowMaxs")
-    .colMaxs_SVT(t(x), na.rm=na.rm, dims=dims, useNames=useNames)
+    .rowStats_SVT("max", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
 setMethod("rowMaxs", "SVT_SparseArray", .rowMaxs_SVT)
+
+.bind_mins_maxs <- function(mins, maxs, just.use.c)
+{
+    ## Bind 'mins' and 'maxs' together.
+    if (just.use.c)
+        return(c(mins, maxs))
+    if (is.null(dim(mins))) {
+        ans <- cbind(mins, maxs, deparse.level=0L)
+        dimnames(ans) <- S4Arrays:::simplify_NULL_dimnames(dimnames(ans))
+        return(ans)
+    }
+    ans_dimnames <- dimnames(mins)
+    dim(mins) <- c(dim(mins), 1L)
+    dim(maxs) <- c(dim(maxs), 1L)
+    ans <- S4Arrays:::simple_abind(mins, maxs, along=length(dim(mins)))
+    S4Arrays:::set_dimnames(ans, ans_dimnames)
+}
 
 .colRanges_SVT <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "colRanges")
-
     ## Using two passes at the moment and binding the two results in R.
     ## TODO: Do all this in a single pass. Call '.colStats_SVT("range", ...)'
     ## and modify .Call ENTRY POINT C_colStats_SVT to perform the binding
-    ## from the very start.
+    ## from the very start at the C level.
     mins <- .colStats_SVT("min", x, na.rm=na.rm, dims=dims, useNames=useNames)
     maxs <- .colStats_SVT("max", x, na.rm=na.rm, dims=dims, useNames=FALSE)
-
-    ## Bind 'mins' and 'maxs' together.
-    if (dims == length(dim(x)))
-        return(c(mins, maxs))
-    if (is.null(dim(mins)))
-        return(cbind(mins, maxs, deparse.level=0L))
-    ans_dimnames <- dimnames(mins)
-    dim(mins) <- c(dim(mins), 1L)
-    dim(maxs) <- c(dim(maxs), 1L)
-    ans <- S4Arrays:::simple_abind(mins, maxs, along=length(dim(mins)))
-    S4Arrays:::set_dimnames(ans, ans_dimnames)
+    .bind_mins_maxs(mins, maxs, dims == length(dim(x)))
 }
 setMethod("colRanges", "SVT_SparseArray", .colRanges_SVT)
 
@@ -361,9 +392,14 @@ setMethod("colRanges", "SVT_SparseArray", .colRanges_SVT)
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
-    .stopifnot_2D_object(x, "rowRanges")
     .check_rows_cols(rows, cols, "rowRanges")
-    .colRanges_SVT(t(x), na.rm=na.rm, dims=dims, useNames=useNames)
+    ## Using two passes at the moment and binding the two results in R.
+    ## TODO: Do all this in a single pass. Call '.rowStats_SVT("range", ...)'
+    ## and modify .Call ENTRY POINT C_colStats_SVT to perform the binding
+    ## from the very start at the C level.
+    mins <- .rowStats_SVT("min", x, na.rm=na.rm, dims=dims, useNames=useNames)
+    maxs <- .rowStats_SVT("max", x, na.rm=na.rm, dims=dims, useNames=FALSE)
+    .bind_mins_maxs(mins, maxs, dims == 0L)
 }
 setMethod("rowRanges", "SVT_SparseArray", .rowRanges_SVT)
 
@@ -382,8 +418,7 @@ setMethod("colSums", "SVT_SparseArray", .colSums_SVT)
 
 .rowSums_SVT <- function(x, na.rm=FALSE, dims=1)
 {
-    .stopifnot_2D_object(x, "rowSums")
-    .colSums_SVT(t(x), na.rm=na.rm, dims=dims)
+    .rowStats_SVT("sum", x, na.rm=na.rm, dims=dims)
 }
 setMethod("rowSums", "SVT_SparseArray", .rowSums_SVT)
 
@@ -400,9 +435,8 @@ setMethod("colProds", "SVT_SparseArray", .colProds_SVT)
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
-    .stopifnot_2D_object(x, "rowProds")
     .check_rows_cols(rows, cols, "rowProds")
-    .colProds_SVT(t(x), na.rm=na.rm, dims=dims, useNames=useNames)
+    .rowStats_SVT("prod", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
 setMethod("rowProds", "SVT_SparseArray", .rowProds_SVT)
 
@@ -414,8 +448,7 @@ setMethod("colMeans", "SVT_SparseArray", .colMeans_SVT)
 
 .rowMeans_SVT <- function(x, na.rm=FALSE, dims=1)
 {
-    .stopifnot_2D_object(x, "rowMeans")
-    .colMeans_SVT(t(x), na.rm=na.rm, dims=dims)
+    .rowStats_SVT("mean", x, na.rm=na.rm, dims=dims)
 }
 setMethod("rowMeans", "SVT_SparseArray", .rowMeans_SVT)
 
@@ -466,7 +499,7 @@ setMethod("rowMeans", "SVT_SparseArray", .rowMeans_SVT)
 {
     if (!isTRUEorFALSE(na.rm))
         stop(wmsg("'na.rm' must be TRUE or FALSE"))
-    .check_useNames(useNames)
+    useNames <- .normarg_useNames(useNames)
     x_nrow <- nrow(x)
     x_ncol <- ncol(x)
     if (x_nrow <= 1L) {
@@ -487,7 +520,7 @@ setMethod("rowMeans", "SVT_SparseArray", .rowMeans_SVT)
                 }, numeric(1), USE.NAMES=FALSE)
         }
     }
-    if (isTRUE(useNames))
+    if (useNames)
         names(ans) <- colnames(x)
     ans
 }
@@ -506,10 +539,9 @@ setMethod("colVars", "SVT_SparseArray", .colVars_SVT)
                             dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
-    .stopifnot_2D_object(x, "rowVars")
     .check_rows_cols(rows, cols, "rowVars")
-    .colVars_SVT(t(x), na.rm=na.rm, center=center,
-                       dims=dims, useNames=useNames)
+    .rowStats_SVT("var1", x, na.rm=na.rm, center=center,
+                             dims=dims, useNames=useNames)
 }
 setMethod("rowVars", "SVT_SparseArray", .rowVars_SVT)
 
@@ -527,10 +559,9 @@ setMethod("colSds", "SVT_SparseArray", .colSds_SVT)
                            dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
-    .stopifnot_2D_object(x, "rowSds")
     .check_rows_cols(rows, cols, "rowSds")
-    .colSds_SVT(t(x), na.rm=na.rm, center=center,
-                      dims=dims, useNames=useNames)
+    .rowStats_SVT("sd1", x, na.rm=na.rm, center=center,
+                            dims=dims, useNames=useNames)
 }
 setMethod("rowSds", "SVT_SparseArray", .rowSds_SVT)
 
@@ -612,7 +643,7 @@ setMethod("rowSds", "SVT_SparseArray", .rowSds_SVT)
 {
     if (!isTRUEorFALSE(na.rm))
         stop(wmsg("'na.rm' must be TRUE or FALSE"))
-    .check_useNames(useNames)
+    useNames <- .normarg_useNames(useNames)
     x_nrow <- nrow(x)
     x_ncol <- ncol(x)
     if (x_nrow == 0L) {
@@ -631,7 +662,7 @@ setMethod("rowSds", "SVT_SparseArray", .rowSds_SVT)
                 }, numeric(1), USE.NAMES=FALSE)
         }
     }
-    if (isTRUE(useNames))
+    if (useNames)
         names(ans) <- colnames(x)
     ans
 }
