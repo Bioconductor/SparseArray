@@ -1,14 +1,15 @@
 Package: SparseArray
 Title: Efficient in-memory representation of multidimensional sparse arrays
-Description: The SparseArray package defines the SparseArray virtual class
-	to be extended by other S4 classes that wish to represent in-memory
-	multidimensional sparse arrays. One such extension is the
-	SVT_SparseArray class, also defined in the package, that provides
-	an efficient representation of the nonzero multidimensional data
-	via a novel layout called the "SVT layout". SVT_SparseArray objects
-	mimic the behavior of ordinary matrices or arrays in R as much as
-	possible. In particular, they suppport most of the "standard array
-	API" defined in base R.
+Description: The SparseArray package is an infrastructure package that
+	provides an array-like container for efficient in-memory representation
+	of multidimensional sparse data in R. The package defines the
+	SparseArray virtual class and two concrete subclasses: COO_SparseArray
+	and SVT_SparseArray. Each subclass uses its own internal representation
+	of the nonzero multidimensional data, the "COO layout" and the "SVT
+	layout", respectively. SVT_SparseArray objects mimic as much as
+	possible the behavior of ordinary matrix and array objects in base R.
+	In particular, they suppport most of the "standard matrix and array API"
+	defined in base R and in the matrixStats package from CRAN.
 biocViews: Infrastructure, DataRepresentation
 URL: https://bioconductor.org/packages/SparseArray
 BugReports: https://github.com/Bioconductor/SparseArray/issues

@@ -3,7 +3,7 @@ title: "SparseArray objects"
 author:
 - name: Hervé Pagès
   affiliation: Fred Hutchinson Cancer Research Center, Seattle, WA
-date: "Compiled `r doc_date()`;  Modified 5 April 2023"
+date: "Compiled `r doc_date()`;  Modified 24 May 2023"
 package: SparseArray
 vignette: |
   %\VignetteIndexEntry{SparseArray objects}
@@ -16,17 +16,20 @@ output:
 
 # Introduction
 
-`r Biocpkg("SparseArray")` is an infrastructure package that defines the
-SparseArray virtual class whose purpose is to be extended by other S4
-classes that wish to represent in-memory multidimensional sparse arrays.
+`r Biocpkg("SparseArray")` is an infrastructure package that provides
+an array-like container for efficient in-memory representation of
+multidimensional sparse data in R.
 
-The package currently defines two concrete SparseArray subclasses:
+The package defines the SparseArray virtual class and two concrete subclasses:
 COO\_SparseArray and SVT\_SparseArray. Each subclass uses its own internal
-representation for the nonzero multidimensional data, the "COO layout"
+representation of the nonzero multidimensional data, the "COO layout"
 and the "SVT layout", respectively.
 
-This vignette focuses on SVT\_SparseArray objects.
+Note that the SparseArray virtual class could easily be extended by other
+S4 classes that intent to implement alternative internal representations
+of the nonzero multidimensional data.
 
+This vignette focuses on the SVT\_SparseArray container.
 
 # Install and load the package
 
@@ -43,12 +46,13 @@ library(SparseArray)
 
 # SVT\_SparseArray objects
 
-The SVT\_SparseArray class provides an efficient representation of the
+The SVT\_SparseArray container provides an efficient representation of the
 nonzero multidimensional data via a novel layout called the "SVT layout".
 
-Note that SVT\_SparseArray objects mimic the behavior of ordinary matrices
-or arrays in R as much as possible. In particular, they suppport most of
-the "standard array API" defined in base R.
+Note that SVT\_SparseArray objects mimic as much as possible the behavior of
+ordinary matrix and array objects in base R. In particular, they suppport
+most of the "standard matrix and array API" defined in base R and in the
+`r Biocpkg("matrixStats")` package from CRAN.
 
 ## Construction
 
@@ -144,23 +148,39 @@ See `?SparseArray_subsetting` for more information and additional examples.
 
 ## Summarization methods (whole array)
 
-The following summarization methods are provided at the moment:
+The following summarization methods are provided at the moment: `anyNA()`,
+`any`, `all`, `min`, `max`, `range`, `sum`, `prod`, `mean`, `var`, `sd`.
+
 ```{r}
 anyNA(svt2)
 
 range(svt2, na.rm=TRUE)
 
 mean(svt2, na.rm=TRUE)
+
+var(svt2, na.rm=TRUE)
 ```
 
 See `?SparseArray_summarization` for more information and additional examples.
 
+## Operations from the 'Ops', 'Math', and 'Complex' groups
+
+SVT\_SparseArray objects support operations from the 'Ops', 'Math',
+and 'Complex' groups, with some restrictions.
+See `?S4groupGeneric` in the `r Biocpkg("methods")` package for more
+information about these group generics.
+
+```{r}
+signif((svt1^1.5 + svt1) %% 100 - 0.6 * svt1, digits=2)
+```
+
+See `?SparseArray_Ops`, `?SparseArray_Math`, and `?SparseArray_Complex`,
+for more information and additional examples.
+
 ## Other operations on SVT\_SparseArray objects
 
 More operations will be added in the future e.g. `which()`, `is.na()`,
-`is.infinite()`, `is.nan()`, etc..., as well as operations from
-the `Compare`, `Logic`, `Math`, `Math2`, and `Complex` groups
-(see `?S4groupGeneric` for more information).
+`is.infinite()`, `is.nan()`, etc...
 
 ## Generate a random SVT\_SparseArray object
 
@@ -180,6 +200,11 @@ See `?randomSparseArray` for more information and additional examples.
 
 ```{r}
 t(svt1)
+```
+
+Note that multidimensional transposition is supported via `aperm()`:
+```{r}
+aperm(svt2)
 ```
 
 ## Combining objects by rows or columns
@@ -218,7 +243,15 @@ See `?SparseMatrix_mult` for more information and additional examples.
 The `r Biocpkg("SparseArray")` package provides memory-efficient col/row
 summarization methods for SVT\_SparseMatrix objects:
 ```{r}
-rowVars(svt4, useNames=TRUE)
+colVars(svt4)
+```
+
+Note that multidimensional objects are supported:
+```{r}
+colVars(svt2)
+colVars(svt2, dims=2)
+colAnyNAs(svt2)
+colAnyNAs(svt2, dims=2)
 ```
 
 See `?matrixStats_methods` for more information and additional examples.

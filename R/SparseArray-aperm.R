@@ -22,7 +22,7 @@ setMethod("t", "SVT_SparseMatrix", t.SVT_SparseMatrix)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Multi-dimensional transposition
+### Multidimensional transposition
 ###
 
 .transpose_SVT <- function(x)
