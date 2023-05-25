@@ -116,9 +116,9 @@
 ###
 ### This is semantically correct for any number of dimensions. However,
 ### it is VERY inefficient when 'x' has more than 2 dimensions because
-### multi-dimensional transposition of SVT_SparseArray object 'x' (i.e.
+### multidimensional transposition of SVT_SparseArray object 'x' (i.e.
 ### 'aperm(x)') is VERY expensive when 'length(dim(x))' is >= 3. So we
-### use some tricks to avoid this multi-dimensional transposition.
+### use some tricks to avoid this multidimensional transposition.
 .rowStats_SVT <- function(op, x, na.rm=FALSE, center=NULL, dims=1L, useNames=NA){
     stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
 

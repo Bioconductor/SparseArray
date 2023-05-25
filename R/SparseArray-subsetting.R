@@ -154,7 +154,7 @@ setMethod("extract_sparse_array", "SVT_SparseArray",
             return(.subset_SVT_SparseArray_by_Mindex(x, i, drop=drop))
         ## Linear single bracket subsetting e.g. x[5:2].
         ## If 'x' is monodimensional and 'drop' is FALSE, we fallback
-        ## to "multi-dimensional single bracket subsetting" which is an
+        ## to "multidimensional single bracket subsetting" which is an
         ## endomorphism.
         if (x_ndim != 1L || drop)
             return(.subset_SVT_SparseArray_by_Lindex(x, i))

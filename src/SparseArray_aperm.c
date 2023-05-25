@@ -316,7 +316,7 @@ SEXP C_transpose_2D_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT)
 
 
 /****************************************************************************
- * Multi-dimensional transposition
+ * Multidimensional transposition
  */
 
 static void push_leaf_vector_to_SBT_row(
