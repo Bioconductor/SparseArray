@@ -118,7 +118,7 @@ static double (*select_double2double_FUN(const char *op))(double)
  */
 
 /* Recursive. */
-static SEXP REC_Math_SVT(SEXP SVT, const int *dims, int ndim,
+static SEXP REC_Math_SVT(SEXP SVT, const int *dim, int ndim,
 			 apply_2double_FUNS *funs,
 			 int *offs_buf, double *vals_buf)
 {
@@ -134,12 +134,12 @@ static SEXP REC_Math_SVT(SEXP SVT, const int *dims, int ndim,
 	}
 
 	/* 'SVT' is a list. */
-	ans_len = dims[ndim - 1];
+	ans_len = dim[ndim - 1];
 	ans = PROTECT(NEW_LIST(ans_len));
 	is_empty = 1;
 	for (i = 0; i < ans_len; i++) {
 		subSVT = VECTOR_ELT(SVT, i);
-		ans_elt = REC_Math_SVT(subSVT, dims, ndim - 1,
+		ans_elt = REC_Math_SVT(subSVT, dim, ndim - 1,
 				       funs, offs_buf, vals_buf);
 		if (ans_elt != R_NilValue) {
 			PROTECT(ans_elt);

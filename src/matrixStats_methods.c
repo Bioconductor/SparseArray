@@ -24,7 +24,7 @@ static SEXP compute_ans_dim(SEXP x_dim, SEXP dims)
 	int d, x_ndim, ans_ndim;
 	SEXP ans_dim;
 
-	if (TYPEOF(dims) != INTSXP || LENGTH(dims) != 1)
+	if (!IS_INTEGER(dims) || LENGTH(dims) != 1)
 		error("'dims' must be a single integer");
 	d = INTEGER(dims)[0];
 	x_ndim = LENGTH(x_dim);
@@ -231,7 +231,7 @@ SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
 			 &warn);
 	if (warn)
 		warning("NAs introduced by coercion of "
-			"infinite values to integer range");
+			"infinite values to integers");
 
 	UNPROTECT(2);
 	return ans;

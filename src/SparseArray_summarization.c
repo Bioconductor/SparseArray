@@ -121,7 +121,7 @@ SEXP C_summarize_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 			     &summarize_op);
 	if (res.warn)
 		warning("NAs introduced by coercion of "
-			"infinite values to integer range");
+			"infinite values to integers");
 	return _make_SEXP_from_summarize_result(&summarize_op, &res);
 }
 

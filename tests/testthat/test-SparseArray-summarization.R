@@ -11,7 +11,7 @@
 {
     FUN <- match.fun(op)
     if (op %in% c("var", "sd") ||
-        is.double(a) &&  op %in% c("sum", "prod", "mean"))
+        is.double(a) && op %in% c("sum", "prod", "mean"))
     {
         EXPECT_FUN <- expect_equal
     } else {
@@ -53,11 +53,9 @@ test_that("anyNA() method for SVT_SparseArray objects", {
                    0, 0.25, 1e3), nrow=2, byrow=TRUE)
     svt3 <- as(m3, "SVT_SparseArray")
     .test_summarize_op1(m3, svt3, "anyNA")
-    m3[1, 2] <- NaN
-    svt3 <- as(m3, "SVT_SparseArray")
+    m3[1, 2] <- svt3[1, 2] <- NaN
     .test_summarize_op1(m3, svt3, "anyNA")
-    m3[1, 2] <- NA
-    svt3 <- as(m3, "SVT_SparseArray")
+    m3[1, 2] <- svt3[1, 2] <- NA
     .test_summarize_op1(m3, svt3, "anyNA")
 
     ## input of type() "complex"
@@ -103,13 +101,13 @@ test_that("other summarization methods for SVT_SparseArray objects", {
     .test_summarize_op2(m1, svt1, "var")
     .test_summarize_op2(m1, svt1, "sd")
     m0 <- m1[0, ]
-    expect_warning(min(SparseArray(m0)), "NAs introduced")
-    expect_identical(suppressWarnings(min(SparseArray(m0))), NA_integer_)
-    expect_warning(max(SparseArray(m0)), "NAs introduced")
-    expect_identical(suppressWarnings(max(SparseArray(m0))), NA_integer_)
-    expect_warning(range(SparseArray(m0)), "NAs introduced")
-    expect_identical(suppressWarnings(range(SparseArray(m0))),
-                     rep.int(NA_integer_,2))
+    svt0 <- svt1[0, ]
+    expect_warning(min(svt0), "NAs introduced")
+    expect_warning(max(svt0), "NAs introduced")
+    expect_warning(range(svt0), "NAs introduced")
+    expect_identical(suppressWarnings(min(svt0)), NA_integer_)
+    expect_identical(suppressWarnings(max(svt0)), NA_integer_)
+    expect_identical(suppressWarnings(range(svt0)), rep(NA_integer_,2))
 
     ## input of type() "logical"
     m2 <- is.na(m1)
@@ -125,21 +123,26 @@ test_that("other summarization methods for SVT_SparseArray objects", {
     .test_summarize_op2(m2, svt2, "var")
     .test_summarize_op2(m2, svt2, "sd")
     m0 <- m2[0, ]
-    expect_warning(min(SparseArray(m0)), "NAs introduced")
-    expect_identical(suppressWarnings(min(SparseArray(m0))), NA_integer_)
-    expect_warning(max(SparseArray(m0)), "NAs introduced")
-    expect_identical(suppressWarnings(max(SparseArray(m0))), NA_integer_)
-    expect_warning(range(SparseArray(m0)), "NAs introduced")
-    expect_identical(suppressWarnings(range(SparseArray(m0))),
-                     rep.int(NA_integer_,2))
+    svt0 <- svt2[0, ]
+    expect_warning(min(svt0), "NAs introduced")
+    expect_warning(max(svt0), "NAs introduced")
+    expect_warning(range(svt0), "NAs introduced")
+    expect_identical(suppressWarnings(min(svt0)), NA_integer_)
+    expect_identical(suppressWarnings(max(svt0)), NA_integer_)
+    expect_identical(suppressWarnings(range(svt0)), rep(NA_integer_,2))
+})
 
+test_that("summarization methods for 3D SVT_SparseArray objects", {
     ## input of type() "double"
     a <- array(0, 6:4)
     a[1, , 2] <- c(1e12, -1234.55, -2.1, -1, -0.55)
     a[3, , 2] <- c(-0.55, 0, 1e-10, 0.88, 1)
     a[5, , 2] <- c(pi, 10.33, 3.4567895e8, 300, 2009.01)
-    a[6, 3:4, 2] <- c(NA, NaN)
     svt3 <- as(a, "SVT_SparseArray")
+    .test_summarize_op1(a, svt3, "anyNA")
+    a[6, 3, 2] <- svt3[6, 3, 2] <- NA
+    a[6, 4, 2] <- svt3[6, 4, 2] <- NaN
+    .test_summarize_op1(a, svt3, "anyNA")
     expect_error(any(svt3), "does not support")
     expect_error(all(svt3), "does not support")
     .test_summarize_op2(a, svt3, "min")

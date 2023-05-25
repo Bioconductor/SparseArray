@@ -112,7 +112,7 @@
   \item{x}{
     An \link{SVT_SparseMatrix} or \link{SVT_SparseArray} object.
 
-    Note that the \code{row*()} methods and the \code{colMedians()} method
+    Note that the \code{colMedians()} and \code{rowMedians()} methods
     only support 2D objects (i.e. \link{SVT_SparseMatrix} objects) at
     the moment.
   }
@@ -156,8 +156,8 @@
   \itemize{
     \item \link{SVT_SparseArray} objects.
 
-    \item The man pages for the various generic functions defined in
-          the \pkg{MatrixGenerics} package e.g.
+    \item The man pages for the various generic functions defined
+          in the \pkg{MatrixGenerics} package e.g.
           \code{MatrixGenerics::\link[MatrixGenerics]{colVars}} etc...
   }
 }

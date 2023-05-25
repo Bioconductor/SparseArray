@@ -13,7 +13,7 @@
 
 
 /* Recursive. */
-static void REC_unary_minus_SVT(SEXP SVT, const int *dims, int ndim)
+static void REC_unary_minus_SVT(SEXP SVT, const int *dim, int ndim)
 {
 	int SVT_len, i;
 
@@ -24,15 +24,15 @@ static void REC_unary_minus_SVT(SEXP SVT, const int *dims, int ndim)
 		_unary_minus_leaf_vector(SVT, 0);
 		return;
 	}
-	SVT_len = dims[ndim - 1];
+	SVT_len = dim[ndim - 1];
 	for (i = 0; i < SVT_len; i++)
-		REC_unary_minus_SVT(VECTOR_ELT(SVT, i), dims, ndim - 1);
+		REC_unary_minus_SVT(VECTOR_ELT(SVT, i), dim, ndim - 1);
 	return;
 }
 
 /* Recursive. */
 static SEXP REC_Arith_SVT1_v2(SEXP SVT1, SEXP v2,
-			      const int *dims, int ndim,
+			      const int *dim, int ndim,
 			      int opcode, SEXPTYPE ans_Rtype,
 			      int *offs_buf, void *vals_buf, int *ovflow)
 {
@@ -49,13 +49,13 @@ static SEXP REC_Arith_SVT1_v2(SEXP SVT1, SEXP v2,
 	}
 
 	/* 'SVT1' is a list. */
-	ans_len = dims[ndim - 1];
+	ans_len = dim[ndim - 1];
 	ans = PROTECT(NEW_LIST(ans_len));
 	is_empty = 1;
 	for (i = 0; i < ans_len; i++) {
 		subSVT1 = VECTOR_ELT(SVT1, i);
 		ans_elt = REC_Arith_SVT1_v2(subSVT1, v2,
-					    dims, ndim - 1,
+					    dim, ndim - 1,
 					    opcode, ans_Rtype,
 					    offs_buf, vals_buf, ovflow);
 		if (ans_elt != R_NilValue) {
@@ -71,7 +71,7 @@ static SEXP REC_Arith_SVT1_v2(SEXP SVT1, SEXP v2,
 
 /* Recursive. */
 static SEXP REC_Compare_SVT1_v2(SEXP SVT1, SEXP v2,
-				const int *dims, int ndim,
+				const int *dim, int ndim,
 				int opcode, int *offs_buf, void *vals_buf)
 {
 	int ans_len, is_empty, i;
@@ -86,13 +86,13 @@ static SEXP REC_Compare_SVT1_v2(SEXP SVT1, SEXP v2,
 	}
 
 	/* 'SVT1' is a list. */
-	ans_len = dims[ndim - 1];
+	ans_len = dim[ndim - 1];
 	ans = PROTECT(NEW_LIST(ans_len));
 	is_empty = 1;
 	for (i = 0; i < ans_len; i++) {
 		subSVT1 = VECTOR_ELT(SVT1, i);
 		ans_elt = REC_Compare_SVT1_v2(subSVT1, v2,
-					      dims, ndim - 1,
+					      dim, ndim - 1,
 					      opcode, offs_buf, vals_buf);
 		if (ans_elt != R_NilValue) {
 			PROTECT(ans_elt);
@@ -108,7 +108,7 @@ static SEXP REC_Compare_SVT1_v2(SEXP SVT1, SEXP v2,
 /* Recursive. */
 static SEXP REC_Arith_SVT1_SVT2(SEXP SVT1, SEXPTYPE Rtype1,
 				SEXP SVT2, SEXPTYPE Rtype2,
-				const int *dims, int ndim,
+				const int *dim, int ndim,
 				int opcode, SEXPTYPE ans_Rtype,
 				int *offs_buf, void *vals_buf, int *ovflow)
 {
@@ -119,11 +119,11 @@ static SEXP REC_Arith_SVT1_SVT2(SEXP SVT1, SEXPTYPE Rtype1,
 		if (SVT2 == R_NilValue)
 			return R_NilValue;
 		if (opcode == ADD_OPCODE)
-			return _coerce_SVT(SVT2, dims, ndim,
+			return _coerce_SVT(SVT2, dim, ndim,
 					   Rtype2, ans_Rtype, offs_buf);
 	} else if (SVT2 == R_NilValue) {
 		if (opcode == ADD_OPCODE || opcode == SUB_OPCODE)
-			return _coerce_SVT(SVT1, dims, ndim,
+			return _coerce_SVT(SVT1, dim, ndim,
 					   Rtype1, ans_Rtype, offs_buf);
 	}
 
@@ -138,7 +138,7 @@ static SEXP REC_Arith_SVT1_SVT2(SEXP SVT1, SEXPTYPE Rtype1,
 
 	/* Each of 'SVT1' and 'SVT2' is either a list or NULL, but they
 	   cannot both be NULL. */
-	ans_len = dims[ndim - 1];
+	ans_len = dim[ndim - 1];
 	ans = PROTECT(NEW_LIST(ans_len));
 	subSVT1 = subSVT2 = R_NilValue;
 	is_empty = 1;
@@ -148,7 +148,7 @@ static SEXP REC_Arith_SVT1_SVT2(SEXP SVT1, SEXPTYPE Rtype1,
 		if (SVT2 != R_NilValue)
 			subSVT2 = VECTOR_ELT(SVT2, i);
 		ans_elt = REC_Arith_SVT1_SVT2(subSVT1, Rtype1, subSVT2, Rtype2,
-					      dims, ndim - 1,
+					      dim, ndim - 1,
 					      opcode, ans_Rtype,
 					      offs_buf, vals_buf, ovflow);
 		if (ans_elt != R_NilValue) {
@@ -164,7 +164,7 @@ static SEXP REC_Arith_SVT1_SVT2(SEXP SVT1, SEXPTYPE Rtype1,
 
 /* Recursive. */
 static SEXP REC_Compare_SVT1_SVT2(SEXP SVT1, SEXP SVT2,
-				  const int *dims, int ndim,
+				  const int *dim, int ndim,
 				  int opcode, int *offs_buf, int *vals_buf)
 {
 	int ans_len, is_empty, i;
@@ -181,7 +181,7 @@ static SEXP REC_Compare_SVT1_SVT2(SEXP SVT1, SEXP SVT2,
 
 	/* Each of 'SVT1' and 'SVT2' is either a list or NULL, but they
 	   cannot both be NULL. */
-	ans_len = dims[ndim - 1];
+	ans_len = dim[ndim - 1];
 	ans = PROTECT(NEW_LIST(ans_len));
 	subSVT1 = subSVT2 = R_NilValue;
 	is_empty = 1;
@@ -191,7 +191,7 @@ static SEXP REC_Compare_SVT1_SVT2(SEXP SVT1, SEXP SVT2,
 		if (SVT2 != R_NilValue)
 			subSVT2 = VECTOR_ELT(SVT2, i);
 		ans_elt = REC_Compare_SVT1_SVT2(subSVT1, subSVT2,
-						dims, ndim - 1,
+						dim, ndim - 1,
 						opcode, offs_buf, vals_buf);
 		if (ans_elt != R_NilValue) {
 			PROTECT(ans_elt);
@@ -206,7 +206,7 @@ static SEXP REC_Compare_SVT1_SVT2(SEXP SVT1, SEXP SVT2,
 
 /* Recursive. */
 static SEXP REC_Logic_SVT1_SVT2(SEXP SVT1, SEXP SVT2,
-				const int *dims, int ndim,
+				const int *dim, int ndim,
 				int opcode, int *offs_buf, int *vals_buf)
 {
 	int ans_len, is_empty, i;
@@ -222,14 +222,14 @@ static SEXP REC_Logic_SVT1_SVT2(SEXP SVT1, SEXP SVT2,
 		return _Logic_lv1_lv2(SVT1, SVT2, opcode, offs_buf, vals_buf);
 
 	/* Each of 'SVT1' and 'SVT2' is a list. */
-	ans_len = dims[ndim - 1];
+	ans_len = dim[ndim - 1];
 	ans = PROTECT(NEW_LIST(ans_len));
 	is_empty = 1;
 	for (i = 0; i < ans_len; i++) {
 		subSVT1 = VECTOR_ELT(SVT1, i);
 		subSVT2 = VECTOR_ELT(SVT2, i);
 		ans_elt = REC_Logic_SVT1_SVT2(subSVT1, subSVT2,
-					      dims, ndim - 1,
+					      dim, ndim - 1,
 					      opcode, offs_buf, vals_buf);
 		if (ans_elt != R_NilValue) {
 			PROTECT(ans_elt);
