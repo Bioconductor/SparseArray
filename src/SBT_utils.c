@@ -11,25 +11,6 @@
 #include <string.h>  /* for memcpy() */
 
 
-/****************************************************************************
- * Manipulation of SparseBuf structs
- */
-
-typedef union sparse_buf_vals_t {
-	int *ints;
-	double *doubles;
-	Rcomplex *Rcomplexes;
-	Rbyte *Rbytes;
-	SEXP *SEXPs;
-} SparseBufVals;
-
-typedef struct sparse_buf_t {
-	int buflength;
-	int nelt;
-	int *offs;
-	SparseBufVals vals;
-} SparseBuf;
-
 /* Guaranteed to return a value > 'buflength', or to raise an error. */
 #define	MAX_BUFLENGTH_INC 16777216  /* 2^24 */
 static int increase_buflength(int buflength)
@@ -52,6 +33,78 @@ static int increase_buflength(int buflength)
 		new_len = INT_MAX;
 	return new_len;
 }
+
+void _alloc_int_SparseBufNEW(SparseBufNEW *SBuf, int buflength)
+{
+	SBuf->offs = (int *) malloc(sizeof(int) * buflength);
+	if (SBuf->offs == NULL)
+		error("_alloc_SparseBufNEW(): malloc() error");
+	SBuf->vals = (int *) malloc(sizeof(int) * buflength);
+	if (SBuf->vals == NULL) {
+		free(SBuf->offs);
+		error("_alloc_SparseBufNEW(): malloc() error");
+	}
+	SBuf->buflength = buflength;
+	SBuf->nelt = 0;
+	return;
+}
+
+void _free_SparseBufNEW(SparseBufNEW *SBuf)
+{
+	free(SBuf->offs);
+	free(SBuf->vals);
+	return;
+}
+
+static void extend_int_SparseBufNEW(SparseBufNEW *SBuf, int new_buflength)
+{
+	int *new_offs;
+	int *new_vals;
+
+	new_offs = (int *) realloc(SBuf->offs, sizeof(int) * new_buflength);
+	if (new_offs == NULL)
+		error("extend_int_SparseBuf: realloc() error");
+	SBuf->offs = new_offs;
+	new_vals = (int *) realloc(SBuf->vals, sizeof(int) * new_buflength);
+	if (new_vals == NULL)
+		error("extend_int_SparseBuf: realloc() error");
+	SBuf->vals = new_vals;
+	SBuf->buflength = new_buflength;
+	return;
+}
+
+int _push_int_to_SparseBufNEW(SparseBufNEW *SBuf, int off, int val)
+{
+	int new_buflength;
+
+	if (SBuf->nelt == SBuf->buflength) {
+		new_buflength = increase_buflength(SBuf->buflength);
+		extend_int_SparseBufNEW(SBuf, new_buflength);
+	}
+	SBuf->offs[SBuf->nelt] = off;
+	((int *) SBuf->vals)[SBuf->nelt] = val;
+	return ++SBuf->nelt;
+}
+
+
+/****************************************************************************
+ * Manipulation of SparseBuf structs
+ */
+
+typedef union sparse_buf_vals_t {
+	int *ints;
+	double *doubles;
+	Rcomplex *Rcomplexes;
+	Rbyte *Rbytes;
+	SEXP *SEXPs;
+} SparseBufVals;
+
+typedef struct sparse_buf_t {
+	int buflength;
+	int nelt;
+	int *offs;
+	SparseBufVals vals;
+} SparseBuf;
 
 #define	FUNDEF_new_SparseBuf(type, union_member)			     \
 	(int buflength)							     \
