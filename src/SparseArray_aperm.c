@@ -662,15 +662,21 @@ SEXP C_transpose_SVT_v2(SEXP x_dim, SEXP x_type, SEXP x_SVT)
  * Multidimensional transposition: C_transpose_SVT_v3()
  */
 
+typedef struct leaf_holder_t {
+	int *offs;
+	SEXP vals;
+} LeafHolder;
+
+/* ans_dim0 x ans_inc0 = ans_len */
 static inline void count_lv_nzvals(int *nzcount_buf, SEXP lv,
 		unsigned long long int ans_baseoffset,
-		unsigned long long int ans_inc,
-		int ans_dim0)
+		//unsigned long long int ans_inc0, int ans_dim0)
+		unsigned long long int rev_inc0)
 {
 	int lv_len, k, off;
 	SEXP lv_offs, lv_vals;
 	const int *lv_offs_p;
-	unsigned long long int ans_offset, outer_idx;
+	unsigned long long int outer_idx;
 
 	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
 	if (lv_len < 0)
@@ -680,15 +686,9 @@ static inline void count_lv_nzvals(int *nzcount_buf, SEXP lv,
 	lv_offs_p = INTEGER(lv_offs);
 	for (k = 0; k < lv_len; k++) {
 		off = *lv_offs_p;
-	// Is there a simpler way to obtain 'outer_idx'?
-	// How about:
-	//   outer_idx = off * (ans_inc/ans_dim0) + (ans_baseoffset/ans_dim0)
-		ans_offset = ans_baseoffset + off * ans_inc;
-		//inner_idx = ans_offset % ans_dim0;
-		outer_idx = ans_offset / ans_dim0;
-		//printf("off = %3d --> ans_offset = %5llu "
-		//       "(inner_idx=%3d / outer_idx=%5llu)\n",
-		//       off, ans_offset, inner_idx, outer_idx);
+		//ans_offset = ans_baseoffset + off * ans_inc0;
+		//outer_idx = ans_offset / ans_dim0;
+		outer_idx = ans_baseoffset + off * rev_inc0;
 		nzcount_buf[outer_idx]++;
 		lv_offs_p++;
 	}
@@ -697,28 +697,34 @@ static inline void count_lv_nzvals(int *nzcount_buf, SEXP lv,
 
 /* Recursive. */
 static void REC_count_SVT_nzvals(int *nzcount_buf,
-		SEXP SVT, const int *dim, int ndim,
-		const int *ans_dim,
-		const unsigned long long int *ans_incs,
+		SEXP SVT, int ndim,
+		//const int *ans_dim,
+		//const unsigned long long int *ans_incs,
+		const unsigned long long int *rev_nzcount_buf_incs,
 		unsigned long long int ans_baseoffset)
 {
 	int SVT_len, i;
-	unsigned long long int ans_inc;
+	//unsigned long long int ans_inc;
+	unsigned long long int rev_inc;
 	SEXP subSVT;
 
 	if (SVT == R_NilValue)
 		return;
 	if (ndim == 1) {
 		count_lv_nzvals(nzcount_buf, SVT,
-				ans_baseoffset, ans_incs[0], ans_dim[0]);
+				//ans_baseoffset, ans_incs[0], ans_dim[0]);
+				ans_baseoffset, rev_nzcount_buf_incs[0]);
 		return;
 	}
 	SVT_len = LENGTH(SVT);
-	ans_inc = ans_incs[ndim - 1];
-	for (i = 0; i < SVT_len; i++, ans_baseoffset += ans_inc) {
+	//ans_inc = ans_incs[ndim - 1];
+	rev_inc = rev_nzcount_buf_incs[ndim - 1];
+	//for (i = 0; i < SVT_len; i++, ans_baseoffset += ans_inc) {
+	for (i = 0; i < SVT_len; i++, ans_baseoffset += rev_inc) {
 		subSVT = VECTOR_ELT(SVT, i);
-		REC_count_SVT_nzvals(nzcount_buf, subSVT, dim, ndim - 1,
-				     ans_dim, ans_incs, ans_baseoffset);
+		REC_count_SVT_nzvals(nzcount_buf, subSVT, ndim - 1,
+				     //ans_dim,
+				     rev_nzcount_buf_incs, ans_baseoffset);
 	}
 	return;
 }
@@ -726,9 +732,9 @@ static void REC_count_SVT_nzvals(int *nzcount_buf,
 /* Recursive. */
 static SEXP REC_grow_and_alloc_leaves(const int *dim, int ndim,
 		SEXPTYPE Rtype,
-		const int *nzcount_buf,
+		int *nzcount_buf,
 		const unsigned long long int *nzcount_buf_incs,
-		int **ans_offs_buf, SEXP *ans_vals_buf)
+		LeafHolder *leaf_holders)
 {
 	int ans_len, is_empty, i;
 	unsigned long long int nzcount_buf_inc;
@@ -738,11 +744,11 @@ static SEXP REC_grow_and_alloc_leaves(const int *dim, int ndim,
 		if (*nzcount_buf == 0)
 			return R_NilValue;
 		ans = PROTECT(
-			_alloc_and_split_leaf_vector(*nzcount_buf, Rtype,
-						     &lv_offs, &lv_vals)
+			_alloc_and_split_leaf_vector(*nzcount_buf,
+						     Rtype, &lv_offs, &lv_vals)
 		);
-		*ans_offs_buf = INTEGER(lv_offs);
-		*ans_vals_buf = lv_vals;
+		leaf_holders->offs = INTEGER(lv_offs);
+		leaf_holders->vals = lv_vals;
 		UNPROTECT(1);
 		return ans;
 	}
@@ -753,7 +759,7 @@ static SEXP REC_grow_and_alloc_leaves(const int *dim, int ndim,
 	for (i = 0; i < ans_len; i++) {
 		ans_elt = REC_grow_and_alloc_leaves(dim, ndim - 1, Rtype,
 					nzcount_buf, nzcount_buf_incs,
-					ans_offs_buf, ans_vals_buf);
+					leaf_holders);
 		if (ans_elt != R_NilValue) {
 			PROTECT(ans_elt);
 			SET_VECTOR_ELT(ans, i, ans_elt);
@@ -761,83 +767,100 @@ static SEXP REC_grow_and_alloc_leaves(const int *dim, int ndim,
 			is_empty = 0;
 		}
 		nzcount_buf += nzcount_buf_inc;
-		ans_offs_buf += nzcount_buf_inc;
-		ans_vals_buf += nzcount_buf_inc;
+		leaf_holders += nzcount_buf_inc;
 	}
 	UNPROTECT(1);
 	return is_empty ? R_NilValue : ans;
 }
 
-static inline void copy_lv_to_ans(SEXP lv,
+/* ans_dim0 x ans_inc0 = ans_len */
+static inline void spray_ans_with_lv(SEXP lv,
 		unsigned long long int ans_baseoffset,
-		unsigned long long int ans_inc,
-		int ans_dim0,
+		//unsigned long long int ans_inc0, int ans_dim0,
+		unsigned long long int rev_inc0,
+		int inner_idx,
 		SEXPTYPE Rtype,
-		int *nzcount_buf, int **ans_offs_buf, SEXP *ans_vals_buf)
+		int *nzcount_buf,
+		LeafHolder *leaf_holders)
 {
-	int lv_len, k, off, inner_idx, k2;
+	int lv_len, k, off, k2;
 	SEXP lv_offs, lv_vals;
 	const int *lv_offs_p;
-	unsigned long long int ans_offset, outer_idx;
+	//unsigned long long int ans_offset;
+	unsigned long long int outer_idx;
+	LeafHolder *holder_p;
 
 	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
 	if (lv_len < 0)
 		error("SparseArray internal error in "
-		      "copy_lv_to_ans():\n"
+		      "spray_ans_with_lv():\n"
 		      "    invalid leaf vector");
 	lv_offs_p = INTEGER(lv_offs);
 	for (k = 0; k < lv_len; k++) {
 		off = *lv_offs_p;
-	// Is there a simpler way to obtain 'outer_idx'?
-	// How about:
-	//   outer_idx = off * (ans_inc/ans_dim0) + (ans_baseoffset/ans_dim0)
-		ans_offset = ans_baseoffset + off * ans_inc;
-		inner_idx = ans_offset % ans_dim0;
-		outer_idx = ans_offset / ans_dim0;
+		//ans_offset = ans_baseoffset + off * ans_inc0;
+		//inner_idx = ans_offset % ans_dim0;
+		//outer_idx = ans_offset / ans_dim0;
+		outer_idx = ans_baseoffset + off * rev_inc0;
 		k2 = nzcount_buf[outer_idx]++;
-		ans_offs_buf[outer_idx][k2] = inner_idx;
-		INTEGER(ans_vals_buf[outer_idx])[k2] = INTEGER(lv_vals)[k];
+		holder_p = leaf_holders + outer_idx;
+		holder_p->offs[k2] = inner_idx;
+		INTEGER(holder_p->vals)[k2] = INTEGER(lv_vals)[k];
 		lv_offs_p++;
 	}
 	return;
 }
 
 /* Recursive. */
-static void REC_copy_SVT_to_ans(SEXP SVT, const int *dim, int ndim,
-		const int *ans_dim,
-		const unsigned long long int *ans_incs,
+static void REC_spray_ans_with_SVT(SEXP SVT, int ndim,
+		//const int *ans_dim,
+		//const unsigned long long int *ans_incs,
+		const unsigned long long int *rev_nzcount_buf_incs,
 		unsigned long long int ans_baseoffset,
 		SEXPTYPE Rtype,
-		int *nzcount_buf, int **ans_offs_buf, SEXP *ans_vals_buf)
+		int *nzcount_buf,
+		LeafHolder *leaf_holders)
 {
+	static int inner_idx;
 	int SVT_len, i;
-	unsigned long long int ans_inc;
+	//unsigned long long int ans_inc;
+	unsigned long long int rev_inc;
 	SEXP subSVT;
 
 	if (SVT == R_NilValue)
 		return;
 	if (ndim == 1) {
-		copy_lv_to_ans(SVT, ans_baseoffset, ans_incs[0], ans_dim[0],
-			       Rtype, nzcount_buf, ans_offs_buf, ans_vals_buf);
+		spray_ans_with_lv(SVT,
+				  //ans_baseoffset, ans_incs[0], ans_dim[0],
+				  ans_baseoffset, rev_nzcount_buf_incs[0],
+				  inner_idx,
+				  Rtype, nzcount_buf, leaf_holders);
 		return;
 	}
 	SVT_len = LENGTH(SVT);
-	ans_inc = ans_incs[ndim - 1];
-	for (i = 0; i < SVT_len; i++, ans_baseoffset += ans_inc) {
+	//ans_inc = ans_incs[ndim - 1];
+	rev_inc = rev_nzcount_buf_incs[ndim - 1];
+	//for (i = 0; i < SVT_len; i++, ans_baseoffset += ans_inc) {
+	for (i = 0; i < SVT_len; i++, ans_baseoffset += rev_inc) {
+		/* 'rev_inc == 0' means we're looping on the **rightmost**
+		   dimension (a.k.a. outermost dimension) of 'SVT'. */
+		if (rev_inc == 0)
+			inner_idx = i;
 		subSVT = VECTOR_ELT(SVT, i);
-		REC_copy_SVT_to_ans(subSVT, dim, ndim - 1,
-				    ans_dim, ans_incs, ans_baseoffset, Rtype,
-				    nzcount_buf, ans_offs_buf, ans_vals_buf);
+		REC_spray_ans_with_SVT(subSVT, ndim - 1,
+				rev_nzcount_buf_incs, ans_baseoffset,
+				Rtype, nzcount_buf, leaf_holders);
 	}
 	return;
 }
 
 static SEXP transpose_SVT_v3(SEXP SVT, const int *dim, int ndim,
 		SEXPTYPE Rtype,
-		const int *ans_dim, const unsigned long long int *ans_incs,
-		int *nzcount_buf,
+		const int *ans_dim,
+		int *nzcount_buf, int nzcount_buf_len,
+		const unsigned long long int *rev_nzcount_buf_incs,
 		const unsigned long long int *nzcount_buf_incs,
-		int **ans_offs_buf, SEXP *ans_vals_buf)
+		LeafHolder *leaf_holders)
 {
 	SEXP ans;
 
@@ -845,26 +868,19 @@ static SEXP transpose_SVT_v3(SEXP SVT, const int *dim, int ndim,
 		return SVT;
 
 	/* 1st pass */
-	memset(nzcount_buf, 0, sizeof(int) * nzcount_buf_incs[ndim - 1]);
-	REC_count_SVT_nzvals(nzcount_buf, SVT, dim, ndim, ans_dim, ans_incs, 0);
-/*
-	for (unsigned long long int i = 0;
-	     i < nzcount_buf_incs[ndim - 1]; i++)
-	{
-		printf("nzcount[%llu] = %d\n", i, nzcount_buf[i]);
-	}
-*/
+	memset(nzcount_buf, 0, sizeof(int) * nzcount_buf_len);
+	REC_count_SVT_nzvals(nzcount_buf, SVT, ndim,
+			     rev_nzcount_buf_incs, 0);
+	//for (unsigned long long int i = 0; i < nzcount_buf_len; i++)
+	//	printf("nzcount_buf[%llu] = %d\n", i, nzcount_buf[i]);
 	/* 2nd pass */
-	ans = PROTECT(
-		REC_grow_and_alloc_leaves(ans_dim, ndim, Rtype,
-					  nzcount_buf, nzcount_buf_incs,
-					  ans_offs_buf, ans_vals_buf)
-	);
+	ans = PROTECT(REC_grow_and_alloc_leaves(ans_dim, ndim, Rtype,
+						nzcount_buf, nzcount_buf_incs,
+						leaf_holders));
 	/* 3rd pass */
-	memset(nzcount_buf, 0, sizeof(int) * nzcount_buf_incs[ndim - 1]);
-	REC_copy_SVT_to_ans(SVT, dim, ndim, ans_dim, ans_incs, 0, Rtype,
-			    nzcount_buf, ans_offs_buf, ans_vals_buf);
-	//return REC_SBufs2SVT(ans_dim, ndim, SBufs, SBufs_incs);
+	memset(nzcount_buf, 0, sizeof(int) * nzcount_buf_len);
+	REC_spray_ans_with_SVT(SVT, ndim, rev_nzcount_buf_incs, 0,
+			       Rtype, nzcount_buf, leaf_holders);
 	UNPROTECT(1);
 	return ans;
 }
@@ -874,10 +890,11 @@ SEXP C_transpose_SVT_v3(SEXP x_dim, SEXP x_type, SEXP x_SVT)
 {
 	SEXPTYPE x_Rtype;
 	int x_ndim, *ans_dim, along;
-	unsigned long long int *ans_incs, *nzcount_buf_incs,
-				ans_inc, nzcount_buf_inc;
-	int *nzcount_buf, **ans_offs_buf;
-	SEXP *ans_vals_buf;
+	//unsigned long long int *ans_incs, ans_inc;
+	unsigned long long int *nzcount_buf_incs, *rev_nzcount_buf_incs,
+				nzcount_buf_inc;
+	int *nzcount_buf;
+	LeafHolder *leaf_holders;
 
 	x_Rtype = _get_Rtype_from_Rstring(x_type);
 	if (x_Rtype == 0)
@@ -887,30 +904,45 @@ SEXP C_transpose_SVT_v3(SEXP x_dim, SEXP x_type, SEXP x_SVT)
 
 	x_ndim = LENGTH(x_dim);
 	ans_dim = (int *) R_alloc(x_ndim, sizeof(int));
-	ans_incs = (unsigned long long int *)
-		R_alloc(x_ndim, sizeof(unsigned long long int));
+	//ans_incs = (unsigned long long int *)
+	//	R_alloc(x_ndim, sizeof(unsigned long long int));
 	nzcount_buf_incs = (unsigned long long int *)
+		R_alloc(x_ndim - 1, sizeof(unsigned long long int));
+	rev_nzcount_buf_incs = (unsigned long long int *)
 		R_alloc(x_ndim, sizeof(unsigned long long int));
-	ans_inc = nzcount_buf_inc = 1;
+	//ans_inc = 1;
+	rev_nzcount_buf_incs[x_ndim - 1] = 0;
+	nzcount_buf_inc = 1;
 	for (along = x_ndim - 1; along >= 0; along--) {
 		int d = INTEGER(x_dim)[along];
 		ans_dim[x_ndim - 1 - along] = d;
-		ans_incs[along] = ans_inc;
-		ans_inc *= d;
+		//ans_incs[along] = ans_inc;
+		//ans_inc *= d;
 		if (along <= x_ndim - 2) {
 			nzcount_buf_incs[x_ndim - 2 - along] = nzcount_buf_inc;
+			rev_nzcount_buf_incs[along] = nzcount_buf_inc;
 			nzcount_buf_inc *= d;
 		}
 	}
-	nzcount_buf_incs[x_ndim - 1] = nzcount_buf_inc;
+	
+	for (along = 0; along < x_ndim - 1; along++) {
+		printf("nzcount_buf_incs[%d] = %llu\n",
+			along, nzcount_buf_incs[along]);
+	}
+	for (along = 0; along < x_ndim; along++) {
+		printf("rev_nzcount_buf_incs[%d] = %llu\n",
+			along, rev_nzcount_buf_incs[along]);
+	}
 	printf("buf_len = %llu\n", nzcount_buf_inc);
 	nzcount_buf = (int *) R_alloc(nzcount_buf_inc, sizeof(int));
-	ans_offs_buf = (int **) R_alloc(nzcount_buf_inc, sizeof(int *));
-	ans_vals_buf = (SEXP *) R_alloc(nzcount_buf_inc, sizeof(SEXP));
+	leaf_holders = (LeafHolder *)
+		R_alloc(nzcount_buf_inc, sizeof(LeafHolder));
 	return transpose_SVT_v3(x_SVT, INTEGER(x_dim), x_ndim,
-				x_Rtype, ans_dim, ans_incs,
-				nzcount_buf, nzcount_buf_incs,
-				ans_offs_buf, ans_vals_buf);
+				x_Rtype, ans_dim,
+				//ans_incs,
+				nzcount_buf, nzcount_buf_inc,
+				rev_nzcount_buf_incs,
+				nzcount_buf_incs, leaf_holders);
 }
 
 
