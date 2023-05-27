@@ -36,7 +36,7 @@ static void count_nonzero_vals_per_row(SEXP SVT, int nrow, int ncol,
 	return;
 }
 
-static void **set_quick_out_vals_p_OLD(SEXP out_SVT, SEXPTYPE Rtype)
+static void **set_quick_out_vals_p(SEXP out_SVT, SEXPTYPE Rtype)
 {
 	int out_SVT_len, i;
 	SEXP lv;
@@ -265,7 +265,7 @@ static SEXP transpose_2D_SVT(SEXP SVT, int nrow, int ncol, SEXPTYPE Rtype,
 			quick_out_offs_p[i] = INTEGER(VECTOR_ELT(ans_elt, 0));
 		}
 	}
-	quick_out_vals_p = set_quick_out_vals_p_OLD(ans, Rtype);
+	quick_out_vals_p = set_quick_out_vals_p(ans, Rtype);
 
 	memset(nzcount_buf, 0, sizeof(int) * nrow);
 	for (j = 0; j < ncol; j++) {
@@ -536,17 +536,21 @@ static void *alloc_quick_out_vals_p(unsigned long long int n, SEXPTYPE Rtype)
 	    case REALSXP:             return R_alloc(n, sizeof(double *));
 	    case CPLXSXP:             return R_alloc(n, sizeof(Rcomplex *));
 	    case RAWSXP:              return R_alloc(n, sizeof(Rbyte *));
+	    case STRSXP: case VECSXP: return R_alloc(n, sizeof(SEXP));
 	}
-	return NULL;
+	error("SparseArray internal error in alloc_quick_out_vals_p():\n"
+	      "    type \"%s\" is not supported", type2char(Rtype));
+	return NULL;  /* will never reach this */
 }
 
-static inline void set_quick_out_vals_p(void *p, SEXPTYPE Rtype, void *vals_p)
+static inline void init_quick_out_vals_p(void *p, SEXPTYPE Rtype, SEXP vals)
 {
 	switch (Rtype) {
-	    case LGLSXP: case INTSXP: *((int      **) p) = vals_p;
-	    case REALSXP:             *((double   **) p) = vals_p;
-	    case CPLXSXP:             *((Rcomplex **) p) = vals_p;
-	    case RAWSXP:              *((Rbyte    **) p) = vals_p;
+	    case LGLSXP: case INTSXP: *((int      **) p) = DATAPTR(vals); break;
+	    case REALSXP:             *((double   **) p) = DATAPTR(vals); break;
+	    case CPLXSXP:             *((Rcomplex **) p) = DATAPTR(vals); break;
+	    case RAWSXP:              *((Rbyte    **) p) = DATAPTR(vals); break;
+	    case STRSXP: case VECSXP: *((SEXP      *) p) = vals; break;
 	}
 	return;
 }
@@ -559,6 +563,7 @@ static inline void *inc_quick_out_vals_p(void *p, SEXPTYPE Rtype,
 	    case REALSXP:             return ((double   **) p) + inc;
 	    case CPLXSXP:             return ((Rcomplex **) p) + inc;
 	    case RAWSXP:              return ((Rbyte    **) p) + inc;
+	    case STRSXP: case VECSXP: return ((SEXP      *) p) + inc;
 	}
 	return NULL;
 }
@@ -582,7 +587,7 @@ static SEXP REC_grow_and_alloc_leaves(const int *dim, int ndim,
 						     Rtype, &lv_offs, &lv_vals)
 		);
 		*quick_out_offs_p = INTEGER(lv_offs);
-		set_quick_out_vals_p(quick_out_vals_p, Rtype, DATAPTR(lv_vals));
+		init_quick_out_vals_p(quick_out_vals_p, Rtype, lv_vals);
 		UNPROTECT(1);
 		return ans;
 	}
@@ -644,6 +649,52 @@ static inline void spray_ans_with_Rcomplexes
 static inline void spray_ans_with_Rbytes
 	FUNDEF_spray_ans_with_vals(Rbyte)
 
+static inline void spray_ans_with_CHARSXPs(
+	const int *offs, SEXP vals,
+	unsigned long long int outer_inc0,
+	unsigned long long int outer_offset0,
+	int *nzcount_buf, int **quick_out_offs_p, void *quick_out_vals_p,
+	int inner_idx)
+{
+	int n, k, k2;
+	SEXP *out_vals_p;
+	unsigned long long int outer_idx;
+
+	n = LENGTH(vals);
+	out_vals_p = quick_out_vals_p;
+	for (k = 0; k < n; k++) {
+		outer_idx = outer_offset0 + outer_inc0 * *offs;
+		k2 = nzcount_buf[outer_idx]++;
+		quick_out_offs_p[outer_idx][k2] = inner_idx;
+		SET_STRING_ELT(out_vals_p[outer_idx], k2, STRING_ELT(vals, k));
+		offs++;
+	}
+	return;
+}
+
+static inline void spray_ans_with_list_elts(
+	const int *offs, SEXP vals,
+	unsigned long long int outer_inc0,
+	unsigned long long int outer_offset0,
+	int *nzcount_buf, int **quick_out_offs_p, void *quick_out_vals_p,
+	int inner_idx)
+{
+	int n, k, k2;
+	SEXP *out_vals_p;
+	unsigned long long int outer_idx;
+
+	n = LENGTH(vals);
+	out_vals_p = quick_out_vals_p;
+	for (k = 0; k < n; k++) {
+		outer_idx = outer_offset0 + outer_inc0 * *offs;
+		k2 = nzcount_buf[outer_idx]++;
+		quick_out_offs_p[outer_idx][k2] = inner_idx;
+		SET_VECTOR_ELT(out_vals_p[outer_idx], k2, VECTOR_ELT(vals, k));
+		offs++;
+	}
+	return;
+}
+
 static void spray_ans_with_lv(SEXP lv, SEXPTYPE Rtype,
 	 unsigned long long int outer_inc0,
 	 unsigned long long int outer_offset0,
@@ -668,12 +719,8 @@ static void spray_ans_with_lv(SEXP lv, SEXPTYPE Rtype,
 	    case REALSXP: spray_FUN = spray_ans_with_doubles; break;
 	    case CPLXSXP: spray_FUN = spray_ans_with_Rcomplexes; break;
 	    case RAWSXP: spray_FUN = spray_ans_with_Rbytes; break;
-	    case STRSXP:
-		error("case STRSXP not ready in spray_ans_with_lv()");
-		break;
-	    case VECSXP:
-		error("case VECSXP not ready in spray_ans_with_lv()");
-		break;
+	    case STRSXP: spray_FUN = spray_ans_with_CHARSXPs; break;
+	    case VECSXP: spray_FUN = spray_ans_with_list_elts; break;
 	    default:
 		error("SparseArray internal error in spray_ans_with_lv():\n"
 		      "    type \"%s\" is not supported", type2char(Rtype));

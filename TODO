@@ -87,6 +87,10 @@
      use an SBT instead of an ExtendableJaggedArray. Performance should not
      be impacted. Then we can get rid of the ExtendableJaggedArray thing.
 
+- Define apply() and asplit() methods for SparseArray objects that fail with
+  a friendly error message. Otherwise base::apply() or base::asplit() get
+  called and they call as.array() on the object internally which is BAD!
+
 - Try to speed up SVT_SparseArray transposition by implementing a one-pass
   approach that uses ExtendableJaggedArray intermediate buffers (offss, valss).
   See src/readSparseCSV.c where this approach is already used.
