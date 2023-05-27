@@ -3,26 +3,6 @@
 
 #include <Rdefines.h>
 
-typedef struct sparse_buf_NEW_t {
-	int buflength;
-	int nelt;
-	int *offs;
-	void *vals;
-} SparseBufNEW;
-
-void _alloc_int_SparseBufNEW(
-	SparseBufNEW *SBuf,
-	int buflength
-);
-
-void _free_SparseBufNEW(SparseBufNEW *SBuf);
-
-int _push_int_to_SparseBufNEW(
-	SparseBufNEW *SBuf,
-	int off,
-	int val
-);
-
 /* A "Sparse Buffer Tree" is a "Sparse Vector Tree" where the leaves
    are "leaf buffers" instead of "leaf vectors". */
 

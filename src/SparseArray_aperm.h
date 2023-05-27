@@ -15,12 +15,6 @@ SEXP C_transpose_SVT(
 	SEXP x_SVT
 );
 
-SEXP C_transpose_SVT_v2(
-	SEXP x_dim,
-	SEXP x_type,
-	SEXP x_SVT
-);
-
 SEXP C_transpose_SVT_v3(
 	SEXP x_dim,
 	SEXP x_type,
