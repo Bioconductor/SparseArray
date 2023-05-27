@@ -9,7 +9,11 @@
 
 
 /****************************************************************************
- * 2D transposition
+ * C_transpose_2D_SVT()
+ *
+ * TODO: Do we still need this? C_transpose_SVT() below reimplements this for
+ * the multidimensional case and with no significant/measurable differences
+ * from a performance point of view with C_transpose_2D_SVT() in the 2D case.
  */
 
 static void count_nonzero_vals_per_row(SEXP SVT, int nrow, int ncol,
@@ -316,166 +320,94 @@ SEXP C_transpose_2D_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT)
 
 
 /****************************************************************************
- * Multidimensional transposition: C_transpose_SVT()
+ * Basic manipulation of the transpose_SVT() buffers
  */
 
-static void push_leaf_vector_to_SBT_row(
-		SEXP SBT, const int *dim, int ndim,
-		SEXP lv, int *coords0_buf)
+static void *alloc_quick_out_vals_p(unsigned long long int n, SEXPTYPE Rtype)
 {
-	int lv_len, k;
-	SEXP lv_offs, lv_vals;
-	const int *lv_offs_p;
-
-	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
-	lv_offs_p = INTEGER(lv_offs);
-	switch (TYPEOF(lv_vals)) {
-	    case LGLSXP: case INTSXP: {
-		const int *lv_vals_p = INTEGER(lv_vals);
-		for (k = 0; k < lv_len; k++) {
-			coords0_buf[ndim - 1] = *lv_offs_p;
-			_push_int_to_SBT(SBT, dim, ndim,
-					 coords0_buf, *lv_vals_p);
-			lv_offs_p++;
-			lv_vals_p++;
-		}
-		return;
-	    }
-	    case REALSXP: {
-		const double *lv_vals_p = REAL(lv_vals);
-		for (k = 0; k < lv_len; k++) {
-			coords0_buf[ndim - 1] = *lv_offs_p;
-			_push_double_to_SBT(SBT, dim, ndim,
-					    coords0_buf, *lv_vals_p);
-			lv_offs_p++;
-			lv_vals_p++;
-		}
-		return;
-	    }
-	    case CPLXSXP: {
-		const Rcomplex *lv_vals_p = COMPLEX(lv_vals);
-		for (k = 0; k < lv_len; k++) {
-			coords0_buf[ndim - 1] = *lv_offs_p;
-			_push_Rcomplex_to_SBT(SBT, dim, ndim,
-					      coords0_buf, *lv_vals_p);
-			lv_offs_p++;
-			lv_vals_p++;
-		}
-		return;
-	    }
-	    case RAWSXP: {
-		const Rbyte *lv_vals_p = RAW(lv_vals);
-		for (k = 0; k < lv_len; k++) {
-			coords0_buf[ndim - 1] = *lv_offs_p;
-			_push_Rbyte_to_SBT(SBT, dim, ndim,
-					   coords0_buf, *lv_vals_p);
-			lv_offs_p++;
-			lv_vals_p++;
-		}
-		return;
-	    }
-	    case STRSXP: {
-		for (k = 0; k < lv_len; k++) {
-			coords0_buf[ndim - 1] = *lv_offs_p;
-			_push_SEXP_to_SBT(SBT, dim, ndim,
-					  coords0_buf, STRING_ELT(lv_vals, k));
-			lv_offs_p++;
-		}
-		return;
-	    }
-	    case VECSXP: {
-		for (k = 0; k < lv_len; k++) {
-			coords0_buf[ndim - 1] = *lv_offs_p;
-			_push_SEXP_to_SBT(SBT, dim, ndim, coords0_buf,
-						VECTOR_ELT(lv_vals, k));
-			lv_offs_p++;
-		}
-		return;
-	    }
+	switch (Rtype) {
+	    case LGLSXP: case INTSXP: return R_alloc(n, sizeof(int *));
+	    case REALSXP:             return R_alloc(n, sizeof(double *));
+	    case CPLXSXP:             return R_alloc(n, sizeof(Rcomplex *));
+	    case RAWSXP:              return R_alloc(n, sizeof(Rbyte *));
+	    case STRSXP: case VECSXP: return R_alloc(n, sizeof(SEXP));
 	}
-	error("SparseArray internal error in "
-	      "push_leaf_vector_to_SBT_row():\n"
-	      "    type \"%s\" is not supported", type2char(TYPEOF(lv_vals)));
-	return;  /* will never reach this */
+	error("SparseArray internal error in alloc_quick_out_vals_p():\n"
+	      "    type \"%s\" is not supported", type2char(Rtype));
+	return NULL;  /* will never reach this */
 }
 
-/* Recursive. */
-static void REC_push_transposed_SVT_to_SBT(
-		SEXP SBT, const int *SBT_dim, int SBT_ndim,
-		SEXP SVT, const int *SVT_dim, int SVT_ndim,
-		int *coords0_buf)
+static inline void init_quick_out_vals_p(void *p, SEXPTYPE Rtype, SEXP vals)
 {
-	int SVT_len, i;
-	SEXP subSVT;
-
-	SVT_len = LENGTH(SVT);
-	for (i = 0; i < SVT_len; i++) {
-		subSVT = VECTOR_ELT(SVT, i);
-		if (subSVT == R_NilValue)
-			continue;
-		coords0_buf[SBT_ndim - SVT_ndim] = i;
-		if (SVT_ndim == 2) {
-			push_leaf_vector_to_SBT_row(
-					SBT, SBT_dim, SBT_ndim,
-					subSVT, coords0_buf);
-		} else {
-			REC_push_transposed_SVT_to_SBT(
-					SBT, SBT_dim, SBT_ndim,
-					subSVT, SVT_dim, SVT_ndim - 1,
-					coords0_buf);
-		}
+	switch (Rtype) {
+	    case LGLSXP: case INTSXP: *((int      **) p) = DATAPTR(vals); break;
+	    case REALSXP:             *((double   **) p) = DATAPTR(vals); break;
+	    case CPLXSXP:             *((Rcomplex **) p) = DATAPTR(vals); break;
+	    case RAWSXP:              *((Rbyte    **) p) = DATAPTR(vals); break;
+	    case STRSXP: case VECSXP: *((SEXP      *) p) = vals; break;
 	}
 	return;
 }
 
-static SEXP transpose_SVT(SEXP SVT, const int *dim, int ndim, SEXPTYPE Rtype,
-		const int *ans_dim, int *nzcount_buf, int *coords0_buf)
+static inline void *inc_quick_out_vals_p(void *p, SEXPTYPE Rtype,
+					 unsigned long long int inc)
 {
-	SEXP ans;
-
-	if (ndim <= 1 || SVT == R_NilValue)
-		return SVT;
-
-	if (ndim == 2)
-		return transpose_2D_SVT(SVT, dim[0], dim[1], Rtype,
-					nzcount_buf);
-
-	ans = PROTECT(NEW_LIST(ans_dim[ndim - 1]));
-	REC_push_transposed_SVT_to_SBT(ans, ans_dim, ndim,
-				       SVT, dim, ndim,
-				       coords0_buf);
-	_SBT2SVT(ans, ans_dim, ndim, Rtype);
-	UNPROTECT(1);
-	return ans;
+	switch (Rtype) {
+	    case LGLSXP: case INTSXP: return ((int      **) p) + inc;
+	    case REALSXP:             return ((double   **) p) + inc;
+	    case CPLXSXP:             return ((Rcomplex **) p) + inc;
+	    case RAWSXP:              return ((Rbyte    **) p) + inc;
+	    case STRSXP: case VECSXP: return ((SEXP      *) p) + inc;
+	}
+	return NULL;
 }
 
-/* --- .Call ENTRY POINT --- */
-SEXP C_transpose_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT)
+typedef struct transpose_bufs_t {
+	int *nzcount_buf;     /* array of dims 'rev(head(dim(x), n=-1))' */
+	unsigned long long int nzcount_buf_len;
+	unsigned long long int *nzcount_buf_incs;
+	unsigned long long int *outer_incs;
+	int **quick_out_offs_p;
+	void *quick_out_vals_p;
+} TransposeBufs;
+
+static TransposeBufs new_TBufs(const int *dim, int ndim, SEXPTYPE Rtype)
 {
-	SEXPTYPE x_Rtype;
-	int x_ndim, *ans_dim, along, *nzcount_buf, *coords0_buf;
+	TransposeBufs TBufs;
 
-	x_Rtype = _get_Rtype_from_Rstring(x_type);
-	if (x_Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_transpose_SVT():\n"
-		      "    SVT_SparseArray object has invalid type");
+	unsigned long long int *nzcount_buf_incs;
+	unsigned long long int *outer_incs;
+	unsigned long long int nzcount_buf_len;
+	int along, d;
 
-	x_ndim = LENGTH(x_dim);
-	ans_dim = (int *) R_alloc(x_ndim, sizeof(int));
-	for (along = 0; along < x_ndim; along++)
-		ans_dim[along] = INTEGER(x_dim)[x_ndim - 1 - along];
+	nzcount_buf_incs = (unsigned long long int *)
+		R_alloc(ndim - 1, sizeof(unsigned long long int));
+	outer_incs = (unsigned long long int *)
+		R_alloc(ndim, sizeof(unsigned long long int));
+	outer_incs[ndim - 1] = 0;
+	nzcount_buf_len = 1;
+	for (along = ndim - 2; along >= 0; along--) {
+		d = dim[along];
+		nzcount_buf_incs[ndim - 2 - along] = nzcount_buf_len;
+		outer_incs[along] = nzcount_buf_len;
+		nzcount_buf_len *= d;
+	}
 
-	nzcount_buf = (int *) R_alloc(INTEGER(x_dim)[0], sizeof(int));
-	coords0_buf = (int *) R_alloc(x_ndim, sizeof(int));
-
-	return transpose_SVT(x_SVT, INTEGER(x_dim), x_ndim, x_Rtype,
-			     ans_dim, nzcount_buf, coords0_buf);
+	TBufs.nzcount_buf = (int *)
+		R_alloc(nzcount_buf_len, sizeof(int));
+	TBufs.nzcount_buf_len = nzcount_buf_len;
+	TBufs.nzcount_buf_incs = nzcount_buf_incs;
+	TBufs.outer_incs = outer_incs;
+	TBufs.quick_out_offs_p = (int **)
+		R_alloc(nzcount_buf_len, sizeof(int *));
+	TBufs.quick_out_vals_p =
+		alloc_quick_out_vals_p(nzcount_buf_len, Rtype);
+	return TBufs;
 }
 
 
 /****************************************************************************
- * Multidimensional transposition: C_transpose_SVT_v3()
+ * Multidimensional transposition: C_transpose_SVT()
  */
 
 static inline void count_lv_nzvals(SEXP lv,
@@ -529,50 +461,11 @@ static void REC_count_SVT_nzvals(SEXP SVT, int ndim,
 	return;
 }
 
-static void *alloc_quick_out_vals_p(unsigned long long int n, SEXPTYPE Rtype)
-{
-	switch (Rtype) {
-	    case LGLSXP: case INTSXP: return R_alloc(n, sizeof(int *));
-	    case REALSXP:             return R_alloc(n, sizeof(double *));
-	    case CPLXSXP:             return R_alloc(n, sizeof(Rcomplex *));
-	    case RAWSXP:              return R_alloc(n, sizeof(Rbyte *));
-	    case STRSXP: case VECSXP: return R_alloc(n, sizeof(SEXP));
-	}
-	error("SparseArray internal error in alloc_quick_out_vals_p():\n"
-	      "    type \"%s\" is not supported", type2char(Rtype));
-	return NULL;  /* will never reach this */
-}
-
-static inline void init_quick_out_vals_p(void *p, SEXPTYPE Rtype, SEXP vals)
-{
-	switch (Rtype) {
-	    case LGLSXP: case INTSXP: *((int      **) p) = DATAPTR(vals); break;
-	    case REALSXP:             *((double   **) p) = DATAPTR(vals); break;
-	    case CPLXSXP:             *((Rcomplex **) p) = DATAPTR(vals); break;
-	    case RAWSXP:              *((Rbyte    **) p) = DATAPTR(vals); break;
-	    case STRSXP: case VECSXP: *((SEXP      *) p) = vals; break;
-	}
-	return;
-}
-
-static inline void *inc_quick_out_vals_p(void *p, SEXPTYPE Rtype,
-					 unsigned long long int inc)
-{
-	switch (Rtype) {
-	    case LGLSXP: case INTSXP: return ((int      **) p) + inc;
-	    case REALSXP:             return ((double   **) p) + inc;
-	    case CPLXSXP:             return ((Rcomplex **) p) + inc;
-	    case RAWSXP:              return ((Rbyte    **) p) + inc;
-	    case STRSXP: case VECSXP: return ((SEXP      *) p) + inc;
-	}
-	return NULL;
-}
-
 /* Recursive. */
 static SEXP REC_grow_and_alloc_leaves(const int *dim, int ndim,
 		SEXPTYPE Rtype,
 		const unsigned long long int *nzcount_buf_incs,
-		int *nzcount_buf,
+		const int *nzcount_buf,
 		int **quick_out_offs_p, void *quick_out_vals_p)
 {
 	int ans_len, is_empty, i;
@@ -769,13 +662,8 @@ static void REC_spray_ans_with_SVT(SEXP SVT, int ndim, SEXPTYPE Rtype,
 	return;
 }
 
-static SEXP transpose_SVT_v3(SEXP SVT, const int *dim, int ndim,
-		SEXPTYPE Rtype,
-		const int *ans_dim,
-		int *nzcount_buf, int nzcount_buf_len,
-		const unsigned long long int *outer_incs,
-		const unsigned long long int *nzcount_buf_incs,
-		int **quick_out_offs_p, void *quick_out_vals_p)
+static SEXP transpose_SVT(SEXP SVT, const int *dim, int ndim, SEXPTYPE Rtype,
+		const int *ans_dim, TransposeBufs *TBufs)
 {
 	SEXP ans;
 
@@ -783,66 +671,47 @@ static SEXP transpose_SVT_v3(SEXP SVT, const int *dim, int ndim,
 		return SVT;
 
 	/* 1st pass */
-	memset(nzcount_buf, 0, sizeof(int) * nzcount_buf_len);
-	REC_count_SVT_nzvals(SVT, ndim, outer_incs, 0, nzcount_buf);
+	memset(TBufs->nzcount_buf, 0, sizeof(int) * TBufs->nzcount_buf_len);
+	REC_count_SVT_nzvals(SVT, ndim, TBufs->outer_incs, 0,
+			     TBufs->nzcount_buf);
 	/* 2nd pass */
 	ans = PROTECT(REC_grow_and_alloc_leaves(ans_dim, ndim, Rtype,
-						nzcount_buf_incs,
-						nzcount_buf,
-						quick_out_offs_p,
-						quick_out_vals_p));
+						TBufs->nzcount_buf_incs,
+						TBufs->nzcount_buf,
+						TBufs->quick_out_offs_p,
+						TBufs->quick_out_vals_p));
 	/* 3rd pass */
-	memset(nzcount_buf, 0, sizeof(int) * nzcount_buf_len);
+	memset(TBufs->nzcount_buf, 0, sizeof(int) * TBufs->nzcount_buf_len);
 	REC_spray_ans_with_SVT(SVT, ndim, Rtype,
-			       outer_incs, 0,
-			       nzcount_buf,
-			       quick_out_offs_p, quick_out_vals_p);
+			       TBufs->outer_incs, 0,
+			       TBufs->nzcount_buf,
+			       TBufs->quick_out_offs_p,
+			       TBufs->quick_out_vals_p);
 	UNPROTECT(1);
 	return ans;
 }
 
 /* --- .Call ENTRY POINT --- */
-SEXP C_transpose_SVT_v3(SEXP x_dim, SEXP x_type, SEXP x_SVT)
+SEXP C_transpose_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT)
 {
-	SEXPTYPE x_Rtype;
-	int x_ndim, *ans_dim, along;
-	unsigned long long int *nzcount_buf_incs, *outer_incs,
-				nzcount_buf_inc;
-	int *nzcount_buf;
-	int **quick_out_offs_p;
-	void *quick_out_vals_p;
+	SEXPTYPE Rtype;
+	int ndim, *ans_dim, along;
+	const int *dim;
+	TransposeBufs TBufs;
 
-	x_Rtype = _get_Rtype_from_Rstring(x_type);
-	if (x_Rtype == 0)
+	Rtype = _get_Rtype_from_Rstring(x_type);
+	if (Rtype == 0)
 		error("SparseArray internal error in "
-		      "C_transpose_SVT_v3():\n"
+		      "C_transpose_SVT():\n"
 		      "    SVT_SparseArray object has invalid type");
 
-	x_ndim = LENGTH(x_dim);
-	ans_dim = (int *) R_alloc(x_ndim, sizeof(int));
-	nzcount_buf_incs = (unsigned long long int *)
-		R_alloc(x_ndim - 1, sizeof(unsigned long long int));
-	outer_incs = (unsigned long long int *)
-		R_alloc(x_ndim, sizeof(unsigned long long int));
-	outer_incs[x_ndim - 1] = 0;
-	nzcount_buf_inc = 1;
-	for (along = x_ndim - 1; along >= 0; along--) {
-		int d = INTEGER(x_dim)[along];
-		ans_dim[x_ndim - 1 - along] = d;
-		if (along <= x_ndim - 2) {
-			nzcount_buf_incs[x_ndim - 2 - along] = nzcount_buf_inc;
-			outer_incs[along] = nzcount_buf_inc;
-			nzcount_buf_inc *= d;
-		}
-	}
-	nzcount_buf = (int *) R_alloc(nzcount_buf_inc, sizeof(int));
-	quick_out_offs_p = (int **) R_alloc(nzcount_buf_inc, sizeof(int *));
-	quick_out_vals_p = alloc_quick_out_vals_p(nzcount_buf_inc, x_Rtype);
-	return transpose_SVT_v3(x_SVT, INTEGER(x_dim), x_ndim,
-				x_Rtype, ans_dim,
-				nzcount_buf, nzcount_buf_inc,
-				outer_incs, nzcount_buf_incs,
-				quick_out_offs_p, quick_out_vals_p);
+	ndim = LENGTH(x_dim);
+	dim = INTEGER(x_dim);
+	ans_dim = (int *) R_alloc(ndim, sizeof(int));
+	for (along = 0; along < ndim; along++)
+		ans_dim[along] = dim[ndim - 1 - along];
+	TBufs = new_TBufs(dim, ndim, Rtype);
+	return transpose_SVT(x_SVT, dim, ndim, Rtype, ans_dim, &TBufs);
 }
 
 
@@ -896,8 +765,7 @@ static int compute_aperm_ans_dim(const int *dim, int ndim,
 
 /* Recursive. 'ndim' is guaranteed to be >= "perm rank". */
 static SEXP REC_aperm_SVT(SEXP SVT, const int *dim, int ndim, SEXPTYPE Rtype,
-		const int *perm,
-		const int *ans_dim, int *nzcount_buf, int *coords0_buf)
+		const int *perm, const int *ans_dim, TransposeBufs *TBufs)
 {
 	int ans_len, i;
 	SEXP ans, subSVT, ans_elt;
@@ -907,8 +775,7 @@ static SEXP REC_aperm_SVT(SEXP SVT, const int *dim, int ndim, SEXPTYPE Rtype,
 		   We know 'head(perm, n=ndim)' is guaranteed to represent a
 		   transposition, i.e., that it's identical to 'ndim:1'.
 		   See TEMPORARY RESTRICTION above. */
-		return transpose_SVT(SVT, dim, ndim, Rtype,
-				     ans_dim, nzcount_buf, coords0_buf);
+		return transpose_SVT(SVT, dim, ndim, Rtype, ans_dim, TBufs);
 	}
 
 	/* 'ndim' > "perm rank". */
@@ -920,9 +787,8 @@ static SEXP REC_aperm_SVT(SEXP SVT, const int *dim, int ndim, SEXPTYPE Rtype,
 	for (i = 0; i < ans_len; i++) {
 		subSVT = VECTOR_ELT(SVT, i);
 		ans_elt = PROTECT(
-			REC_aperm_SVT(subSVT, dim, ndim - 1, Rtype,
-				      perm,
-				      ans_dim, nzcount_buf, coords0_buf)
+			REC_aperm_SVT(subSVT, dim, ndim - 1, Rtype, perm,
+				      ans_dim, TBufs)
 		);
 		SET_VECTOR_ELT(ans, i, ans_elt);
 		UNPROTECT(1);
@@ -934,32 +800,32 @@ static SEXP REC_aperm_SVT(SEXP SVT, const int *dim, int ndim, SEXPTYPE Rtype,
 /* --- .Call ENTRY POINT --- */
 SEXP C_aperm_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP perm)
 {
-	SEXPTYPE x_Rtype;
-	int x_ndim, *ans_dim, perm_rank, *nzcount_buf, *coords0_buf;
+	SEXPTYPE Rtype;
+	int ndim, *ans_dim, perm_rank;
+	const int *dim;
+	TransposeBufs TBufs;
 
-	x_Rtype = _get_Rtype_from_Rstring(x_type);
-	if (x_Rtype == 0)
+	Rtype = _get_Rtype_from_Rstring(x_type);
+	if (Rtype == 0)
 		error("SparseArray internal error in "
 		      "C_aperm_SVT():\n"
 		      "    SVT_SparseArray object has invalid type");
 
-	x_ndim = LENGTH(x_dim);
+	ndim = LENGTH(x_dim);
+	dim = INTEGER(x_dim);
 	if (!IS_INTEGER(perm))
 		error("'perm' must be an integer vector");
-	if (LENGTH(perm) != x_ndim)
+	if (LENGTH(perm) != ndim)
 		error("'length(perm)' not equal to number "
 		      "of dimensions of object to transpose");
-	ans_dim = (int *) R_alloc(x_ndim, sizeof(int));
-	perm_rank = compute_aperm_ans_dim(INTEGER(x_dim), LENGTH(x_dim),
+	ans_dim = (int *) R_alloc(ndim, sizeof(int));
+	perm_rank = compute_aperm_ans_dim(dim, ndim,
 					  INTEGER(perm), ans_dim);
 	if (perm_rank == 0)  /* identity permutation (no-op) */
 		return x_SVT;
 
-	nzcount_buf = (int *) R_alloc(INTEGER(x_dim)[0], sizeof(int));
-	coords0_buf = (int *) R_alloc(x_ndim, sizeof(int));
-
-	return REC_aperm_SVT(x_SVT, INTEGER(x_dim), LENGTH(x_dim), x_Rtype,
-			     INTEGER(perm),
-			     ans_dim, nzcount_buf, coords0_buf);
+	TBufs = new_TBufs(dim, perm_rank, Rtype);
+	return REC_aperm_SVT(x_SVT, dim, ndim, Rtype, INTEGER(perm),
+			     ans_dim, &TBufs);
 }
 
