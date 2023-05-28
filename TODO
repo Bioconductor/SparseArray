@@ -85,13 +85,6 @@
      use an SBT instead of an ExtendableJaggedArray. Performance should not
      be impacted. Then we can get rid of the ExtendableJaggedArray thing.
 
-- aperm() for SVT_SparseArray objects should suport **any** permutation.
-  At the moment it's restricted to permutations that transpose the **leftmost
-  dimensions** (a.k.a. innermost or fastest moving dimensions in the memory
-  layout). In other words, it only supports a 'perm' that is identical
-  to 'c(r:1, (r+1):ndim)', where 'r' is the "perm rank".
-  See src/SparseArray_aperm.c for the details.
-
 - Define apply() and asplit() methods for SparseArray objects that fail with
   a friendly error message. Otherwise base::apply() or base::asplit() get
   called and they call as.array() on the object internally which is BAD!

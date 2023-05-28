@@ -46,7 +46,7 @@ static const R_CallMethodDef callMethods[] = {
 
 /* SparseArray_aperm.c */
 	CALLMETHOD_DEF(C_transpose_2D_SVT, 3),
-	CALLMETHOD_DEF(C_transpose_SVT, 3),
+	CALLMETHOD_DEF(C_aperm0_SVT, 4),
 	CALLMETHOD_DEF(C_aperm_SVT, 4),
 
 /* SparseArray_subsetting.c */
