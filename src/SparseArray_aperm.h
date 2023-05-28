@@ -9,10 +9,11 @@ SEXP C_transpose_2D_SVT(
 	SEXP x_SVT
 );
 
-SEXP C_transpose_SVT(
+SEXP C_aperm0_SVT(
 	SEXP x_dim,
 	SEXP x_type,
-	SEXP x_SVT
+	SEXP x_SVT,
+	SEXP perm
 );
 
 SEXP C_aperm_SVT(

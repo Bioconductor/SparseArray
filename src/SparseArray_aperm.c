@@ -11,9 +11,9 @@
 /****************************************************************************
  * C_transpose_2D_SVT()
  *
- * TODO: Do we still need this? C_transpose_SVT() below reimplements this for
+ * TODO: Do we still need this? C_aperm0_SVT() below reimplements this for
  * the multidimensional case and with no significant/measurable differences
- * from a performance point of view with C_transpose_2D_SVT() in the 2D case.
+ * in terms of performance for the 2D case compared to C_transpose_2D_SVT().
  */
 
 static void count_nonzero_vals_per_row(SEXP SVT, int nrow, int ncol,
@@ -320,7 +320,45 @@ SEXP C_transpose_2D_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT)
 
 
 /****************************************************************************
- * Basic manipulation of the transpose_SVT() buffers
+ * compute_aperm_ans_dim()
+ */
+
+/* Returns the "perm rank", that is, the number of leftmost dimensions that
+   actually get permuted. In other words, the "perm rank" is the smallest
+   number 'r' for which 'tail(perm, n=-r) ' is identical to '(r+1):ndim'.
+   A "perm rank" of 0 means that 'perm' is '1:ndim', which is the identity
+   permutation (no-op).
+   Note that 'r' is guaranteed to be 0 or 2 <= r <= ndim. It can never be 1! */
+static int compute_aperm_ans_dim(const int *dim, int ndim,
+				 const int *perm, int *ans_dim)
+{
+	int *p_is_taken, along, p;
+
+	p_is_taken = (int *) R_alloc(ndim, sizeof(int));
+	memset(p_is_taken, 0, sizeof(int) * ndim);
+	for (along = 0; along < ndim; along++) {
+		p = perm[along];
+		if (p == NA_INTEGER || p < 1 || p > ndim)
+			error("invalid 'perm' argument");
+		p--;
+		if (p_is_taken[p])
+			error("'perm' cannot contain duplicates");
+		ans_dim[along] = dim[p];
+		p_is_taken[p] = 1;
+	}
+	/* Compute the "perm rank". */
+	for (along = ndim - 1; along >= 0; along--) {
+		p = perm[along];
+		if (p != along + 1)
+			break;
+	}
+	//printf("perm_rank = %d\n", along + 1);
+	return along + 1;  /* "perm rank" */
+}
+
+
+/****************************************************************************
+ * Basic manipulation of the aperm0_SVT() buffers
  */
 
 static void *alloc_quick_out_vals_p(unsigned long long int n, SEXPTYPE Rtype)
@@ -362,52 +400,61 @@ static inline void *inc_quick_out_vals_p(void *p, SEXPTYPE Rtype,
 	return NULL;
 }
 
-typedef struct transpose_bufs_t {
+typedef struct aperm0_bufs_t {
 	int *nzcount_buf;     /* array of dims 'rev(head(dim(x), n=-1))' */
 	unsigned long long int nzcount_buf_len;
 	unsigned long long int *nzcount_buf_incs;
 	unsigned long long int *outer_incs;
 	int **quick_out_offs_p;
 	void *quick_out_vals_p;
-} TransposeBufs;
+} Aperm0Bufs;
 
-static TransposeBufs new_TBufs(const int *dim, int ndim, SEXPTYPE Rtype)
+/* Will always be called with 'ndim' >= 2. */
+static Aperm0Bufs new_A0Bufs(const int *dim, int ndim, const int *perm,
+			     SEXPTYPE Rtype)
 {
-	TransposeBufs TBufs;
+	Aperm0Bufs A0Bufs;
 
 	unsigned long long int *nzcount_buf_incs;
 	unsigned long long int *outer_incs;
 	unsigned long long int nzcount_buf_len;
-	int along, d;
+	int along, p;
 
 	nzcount_buf_incs = (unsigned long long int *)
 		R_alloc(ndim - 1, sizeof(unsigned long long int));
 	outer_incs = (unsigned long long int *)
 		R_alloc(ndim, sizeof(unsigned long long int));
-	outer_incs[ndim - 1] = 0;
+	outer_incs[perm[0] - 1] = 0;
 	nzcount_buf_len = 1;
-	for (along = ndim - 2; along >= 0; along--) {
-		d = dim[along];
-		nzcount_buf_incs[ndim - 2 - along] = nzcount_buf_len;
-		outer_incs[along] = nzcount_buf_len;
-		nzcount_buf_len *= d;
+	for (along = 1; along < ndim; along++) {
+		p = perm[along] - 1;
+		nzcount_buf_incs[along - 1] = nzcount_buf_len;
+		outer_incs[p] = nzcount_buf_len;
+		nzcount_buf_len *= dim[p];
 	}
-
-	TBufs.nzcount_buf = (int *)
+/*
+	for (along = 0; along < ndim - 1; along++)
+		printf("nzcount_buf_incs[%d] = %llu\n",
+			along, nzcount_buf_incs[along]);
+	for (along = 0; along < ndim; along++)
+		printf("outer_incs[%d] = %llu\n",
+			along, outer_incs[along]);
+*/
+	A0Bufs.nzcount_buf = (int *)
 		R_alloc(nzcount_buf_len, sizeof(int));
-	TBufs.nzcount_buf_len = nzcount_buf_len;
-	TBufs.nzcount_buf_incs = nzcount_buf_incs;
-	TBufs.outer_incs = outer_incs;
-	TBufs.quick_out_offs_p = (int **)
+	A0Bufs.nzcount_buf_len = nzcount_buf_len;
+	A0Bufs.nzcount_buf_incs = nzcount_buf_incs;
+	A0Bufs.outer_incs = outer_incs;
+	A0Bufs.quick_out_offs_p = (int **)
 		R_alloc(nzcount_buf_len, sizeof(int *));
-	TBufs.quick_out_vals_p =
+	A0Bufs.quick_out_vals_p =
 		alloc_quick_out_vals_p(nzcount_buf_len, Rtype);
-	return TBufs;
+	return A0Bufs;
 }
 
 
 /****************************************************************************
- * Multidimensional transposition: C_transpose_SVT()
+ * Multidimensional transposition: C_aperm0_SVT()
  */
 
 static inline void count_lv_nzvals(SEXP lv,
@@ -649,8 +696,10 @@ static void REC_spray_ans_with_SVT(SEXP SVT, int ndim, SEXPTYPE Rtype,
 	}
 	SVT_len = LENGTH(SVT);
 	for (i = 0; i < SVT_len; i++, outer_offset0 += outer_inc) {
-		/* 'outer_inc == 0' means we're looping on the **rightmost**
-		   dimension (a.k.a. outermost dimension) of 'SVT'. */
+		/* 'outer_inc == 0' means we're looping along the dimension
+		   of SVT that becomes the **leftmost** dimension (a.k.a.
+		   innermost dimension) after permutation, that is the leftmost
+		   dimension in 'ans'. */
 		if (outer_inc == 0)
 			inner_idx = i;
 		subSVT = VECTOR_ELT(SVT, i);
@@ -662,56 +711,55 @@ static void REC_spray_ans_with_SVT(SEXP SVT, int ndim, SEXPTYPE Rtype,
 	return;
 }
 
-static SEXP transpose_SVT(SEXP SVT, const int *dim, int ndim, SEXPTYPE Rtype,
-		const int *ans_dim, TransposeBufs *TBufs)
+static SEXP aperm0_SVT(SEXP SVT, const int *dim, int ndim, SEXPTYPE Rtype,
+		const int *ans_dim, Aperm0Bufs *A0Bufs)
 {
 	SEXP ans;
 
-	if (ndim <= 1 || SVT == R_NilValue)
-		return SVT;
-
 	/* 1st pass */
-	memset(TBufs->nzcount_buf, 0, sizeof(int) * TBufs->nzcount_buf_len);
-	REC_count_SVT_nzvals(SVT, ndim, TBufs->outer_incs, 0,
-			     TBufs->nzcount_buf);
+	memset(A0Bufs->nzcount_buf, 0, sizeof(int) * A0Bufs->nzcount_buf_len);
+	REC_count_SVT_nzvals(SVT, ndim, A0Bufs->outer_incs, 0,
+			     A0Bufs->nzcount_buf);
 	/* 2nd pass */
 	ans = PROTECT(REC_grow_and_alloc_leaves(ans_dim, ndim, Rtype,
-						TBufs->nzcount_buf_incs,
-						TBufs->nzcount_buf,
-						TBufs->quick_out_offs_p,
-						TBufs->quick_out_vals_p));
+						A0Bufs->nzcount_buf_incs,
+						A0Bufs->nzcount_buf,
+						A0Bufs->quick_out_offs_p,
+						A0Bufs->quick_out_vals_p));
 	/* 3rd pass */
-	memset(TBufs->nzcount_buf, 0, sizeof(int) * TBufs->nzcount_buf_len);
+	memset(A0Bufs->nzcount_buf, 0, sizeof(int) * A0Bufs->nzcount_buf_len);
 	REC_spray_ans_with_SVT(SVT, ndim, Rtype,
-			       TBufs->outer_incs, 0,
-			       TBufs->nzcount_buf,
-			       TBufs->quick_out_offs_p,
-			       TBufs->quick_out_vals_p);
+			       A0Bufs->outer_incs, 0,
+			       A0Bufs->nzcount_buf,
+			       A0Bufs->quick_out_offs_p,
+			       A0Bufs->quick_out_vals_p);
 	UNPROTECT(1);
 	return ans;
 }
 
 /* --- .Call ENTRY POINT --- */
-SEXP C_transpose_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT)
+SEXP C_aperm0_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP perm)
 {
 	SEXPTYPE Rtype;
-	int ndim, *ans_dim, along;
+	int ndim, *ans_dim, perm_rank;
 	const int *dim;
-	TransposeBufs TBufs;
+	Aperm0Bufs A0Bufs;
 
 	Rtype = _get_Rtype_from_Rstring(x_type);
 	if (Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_transpose_SVT():\n"
+		error("SparseArray internal error in C_aperm0_SVT():\n"
 		      "    SVT_SparseArray object has invalid type");
 
 	ndim = LENGTH(x_dim);
 	dim = INTEGER(x_dim);
 	ans_dim = (int *) R_alloc(ndim, sizeof(int));
-	for (along = 0; along < ndim; along++)
-		ans_dim[along] = dim[ndim - 1 - along];
-	TBufs = new_TBufs(dim, ndim, Rtype);
-	return transpose_SVT(x_SVT, dim, ndim, Rtype, ans_dim, &TBufs);
+	perm_rank = compute_aperm_ans_dim(dim, ndim, INTEGER(perm), ans_dim);
+	if (perm_rank == 0 || x_SVT == R_NilValue)
+		return x_SVT;
+
+	/* 'ndim' is guaranteed to be >= 2. */
+	A0Bufs = new_A0Bufs(dim, ndim, INTEGER(perm), Rtype);
+	return aperm0_SVT(x_SVT, dim, ndim, Rtype, ans_dim, &A0Bufs);
 }
 
 
@@ -719,76 +767,28 @@ SEXP C_transpose_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT)
  * Permutation of the dimensions (most general case)
  */
 
-/* Returns the "perm rank", that is, the number of leftmost dimensions that
-   actually get permuted. In other words, the "perm rank" is the smallest
-   number 'r' for which 'tail(perm, n=-r) ' is identical to '(r+1):ndim'.
-   A "perm rank" of 0 means that 'perm' is '1:ndim', which is the identity
-   permutation (no-op). */
-static int compute_aperm_ans_dim(const int *dim, int ndim,
-				 const int *perm, int *ans_dim)
-{
-	int *p_is_taken, along, p;
-
-	p_is_taken = (int *) R_alloc(ndim, sizeof(int));
-	memset(p_is_taken, 0, sizeof(int) * ndim);
-	for (along = 0; along < ndim; along++) {
-		p = perm[along];
-		if (p == NA_INTEGER || p < 1 || p > ndim)
-			error("invalid 'perm' argument");
-		p--;
-		if (p_is_taken[p])
-			error("'perm' cannot contain duplicates");
-		ans_dim[along] = dim[p];
-		p_is_taken[p] = 1;
-	}
-	/* Compute the "perm rank". */
-	for (along = ndim - 1; along >= 0; along--) {
-		p = perm[along];
-		if (p != along + 1)
-			break;
-	}
-	//printf("perm_rank = %d\n", along + 1);
-
-	/* TEMPORARY RESTRICTION: We support only dim permutations that
-	   transpose the **leftmost dimensions** (a.k.a. innermost or
-	   fastest moving dimensions in the memory layout). In other words,
-	   we support only a 'perm' that is identical to 'c(r:1, (r+1):ndim)',
-	   where 'r' is the "perm rank" ('r' is 'along' + 1).
-	   TODO: Support any permutation. */
-	for (int along2 = 0; along2 <= along; along2++)
-		if (perm[along2] - 1 + along2 != along)
-			error("we only support transposing the leftmost "
-			      "dimensions at the moment, sorry");
-
-	return along + 1;  /* "perm rank" */
-}
-
 /* Recursive. 'ndim' is guaranteed to be >= "perm rank". */
 static SEXP REC_aperm_SVT(SEXP SVT, const int *dim, int ndim, SEXPTYPE Rtype,
-		const int *perm, const int *ans_dim, TransposeBufs *TBufs)
+		const int *perm, const int *ans_dim, Aperm0Bufs *A0Bufs)
 {
 	int ans_len, i;
 	SEXP ans, subSVT, ans_elt;
 
 	if (perm[ndim - 1] != ndim) {
-		/* 'ndim' is equal to the "perm rank".
-		   We know 'head(perm, n=ndim)' is guaranteed to represent a
-		   transposition, i.e., that it's identical to 'ndim:1'.
-		   See TEMPORARY RESTRICTION above. */
-		return transpose_SVT(SVT, dim, ndim, Rtype, ans_dim, TBufs);
+		/* 'ndim' is equal to the "perm rank". */
+		return aperm0_SVT(SVT, dim, ndim, Rtype, ans_dim, A0Bufs);
 	}
 
 	/* 'ndim' > "perm rank". */
-	if (SVT == R_NilValue)
-		return SVT;
-
 	ans_len = LENGTH(SVT);
 	ans = PROTECT(NEW_LIST(ans_len));
 	for (i = 0; i < ans_len; i++) {
 		subSVT = VECTOR_ELT(SVT, i);
+		if (subSVT == R_NilValue)
+			continue;
 		ans_elt = PROTECT(
 			REC_aperm_SVT(subSVT, dim, ndim - 1, Rtype, perm,
-				      ans_dim, TBufs)
+				      ans_dim, A0Bufs)
 		);
 		SET_VECTOR_ELT(ans, i, ans_elt);
 		UNPROTECT(1);
@@ -803,12 +803,11 @@ SEXP C_aperm_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP perm)
 	SEXPTYPE Rtype;
 	int ndim, *ans_dim, perm_rank;
 	const int *dim;
-	TransposeBufs TBufs;
+	Aperm0Bufs A0Bufs;
 
 	Rtype = _get_Rtype_from_Rstring(x_type);
 	if (Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_aperm_SVT():\n"
+		error("SparseArray internal error in C_aperm_SVT():\n"
 		      "    SVT_SparseArray object has invalid type");
 
 	ndim = LENGTH(x_dim);
@@ -821,11 +820,12 @@ SEXP C_aperm_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP perm)
 	ans_dim = (int *) R_alloc(ndim, sizeof(int));
 	perm_rank = compute_aperm_ans_dim(dim, ndim,
 					  INTEGER(perm), ans_dim);
-	if (perm_rank == 0)  /* identity permutation (no-op) */
+	if (perm_rank == 0 || x_SVT == R_NilValue)
 		return x_SVT;
 
-	TBufs = new_TBufs(dim, perm_rank, Rtype);
+	/* 'perm_rank' is guaranteed to be >= 2. */
+	A0Bufs = new_A0Bufs(dim, perm_rank, INTEGER(perm), Rtype);
 	return REC_aperm_SVT(x_SVT, dim, ndim, Rtype, INTEGER(perm),
-			     ans_dim, &TBufs);
+			     ans_dim, &A0Bufs);
 }
 
