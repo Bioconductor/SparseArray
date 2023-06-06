@@ -85,6 +85,10 @@
      use an SBT instead of an ExtendableJaggedArray. Performance should not
      be impacted. Then we can get rid of the ExtendableJaggedArray thing.
 
+- Improve readSparseCSV() functionality by adding a few read.table-like args
+  to it. See https://github.com/Bioconductor/SparseArray/issues/5 for the
+  details.
+
 - Define apply() and asplit() methods for SparseArray objects that fail with
   a friendly error message. Otherwise base::apply() or base::asplit() get
   called and they call as.array() on the object internally which is BAD!
