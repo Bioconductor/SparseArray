@@ -58,5 +58,10 @@ SEXP C_from_SVT_SparseArray_to_COO_SparseArray(
 	SEXP x_SVT
 );
 
+SEXP _extract_nzcoo_from_SVT(
+	SEXP SVT,
+	int ndim
+);
+
 #endif  /* _SVT_SPARSEARRAY_CLASS_H_ */
 
