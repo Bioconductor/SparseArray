@@ -246,8 +246,8 @@ SEXP C_from_SVT_SparseArray_to_Rarray(SEXP x_dim, SEXP x_dimnames,
 				ans, 0, XLENGTH(ans));
 	UNPROTECT(1);
 	if (ret < 0)
-		error("SparseArray internal error "
-		      "in C_from_SVT_SparseArray_to_Rarray():\n"
+		error("SparseArray internal error in "
+		      "C_from_SVT_SparseArray_to_Rarray():\n"
 		      "    invalid SVT_SparseArray object");
 	return ans;
 }
@@ -269,8 +269,8 @@ static SEXP REC_build_SVT_from_Rsubarray(
 	if (ndim == 1) {
 		/* Sanity check (should never fail). */
 		if (dim[0] != subarr_len)
-			error("SparseArray internal error "
-			      "in REC_build_SVT_from_Rsubarray():\n"
+			error("SparseArray internal error in "
+			      "REC_build_SVT_from_Rsubarray():\n"
 			      "    dim[0] != subarr_len");
 		ans = _make_leaf_vector_from_Rsubvec(
 					Rarray, subarr_offset, dim[0],
@@ -570,9 +570,9 @@ static SEXP alloc_nzvals(SEXP type, R_xlen_t n)
 
 /* Recursive. */
 static int REC_extract_nzcoo_and_nzvals_from_SVT(SEXP SVT,
-		SEXP nzvals, int *nzdata_offset,
 		int *nzcoo, int nzcoo_nrow, int nzcoo_ncol,
-		int *rowbuf, int rowbuf_offset)
+		int *rowbuf, int rowbuf_offset,
+		SEXP nzvals, int *nzdata_offset)
 {
 	int SVT_len, i, ret, lv_len, k, *p, j;
 	SEXP subSVT, lv_offs, lv_vals;
@@ -587,11 +587,10 @@ static int REC_extract_nzcoo_and_nzvals_from_SVT(SEXP SVT,
 		for (i = 0; i < SVT_len; i++) {
 			subSVT = VECTOR_ELT(SVT, i);
 			rowbuf[rowbuf_offset] = i + 1;
-			ret = REC_extract_nzcoo_and_nzvals_from_SVT(
-					subSVT,
-					nzvals, nzdata_offset,
+			ret = REC_extract_nzcoo_and_nzvals_from_SVT(subSVT,
 					nzcoo, nzcoo_nrow, nzcoo_ncol,
-					rowbuf, rowbuf_offset - 1);
+					rowbuf, rowbuf_offset - 1,
+					nzvals, nzdata_offset);
 			if (ret < 0)
 				return -1;
 		}
@@ -603,11 +602,13 @@ static int REC_extract_nzcoo_and_nzvals_from_SVT(SEXP SVT,
 	if (lv_len < 0)
 		return -1;
 
-	ret = copy_Rvector_elts(lv_vals, (R_xlen_t) 0,
-				nzvals, (R_xlen_t) *nzdata_offset,
-				XLENGTH(lv_vals));
-	if (ret < 0)
-		return -1;
+	if (nzvals != R_NilValue) {
+		ret = copy_Rvector_elts(lv_vals, (R_xlen_t) 0,
+					nzvals, (R_xlen_t) *nzdata_offset,
+					XLENGTH(lv_vals));
+		if (ret < 0)
+			return -1;
+	}
 
 	for (k = 0; k < lv_len; k++) {
 		rowbuf[0] = INTEGER(lv_offs)[k] + 1;
@@ -624,12 +625,45 @@ static int REC_extract_nzcoo_and_nzvals_from_SVT(SEXP SVT,
 	return 0;
 }
 
+static SEXP extract_nzcoo_and_nzvals_from_SVT(SEXP SVT,
+		int nzcoo_nrow, int nzcoo_ncol,
+		SEXP nzvals)
+{
+	int *rowbuf, nzdata_offset, ret;
+	SEXP nzcoo;
+
+	rowbuf = (int *) R_alloc(nzcoo_ncol, sizeof(int));
+	nzcoo = PROTECT(allocMatrix(INTSXP, nzcoo_nrow, nzcoo_ncol));
+
+	nzdata_offset = 0;
+	ret = REC_extract_nzcoo_and_nzvals_from_SVT(SVT,
+			INTEGER(nzcoo), nzcoo_nrow, nzcoo_ncol,
+			rowbuf, nzcoo_ncol - 1,
+			nzvals, &nzdata_offset);
+	if (ret < 0) {
+		UNPROTECT(1);
+		error("SparseArray internal error in "
+		      "extract_nzcoo_and_nzvals_from_SVT():\n"
+		      "    invalid SVT_SparseArray object");
+	}
+
+	/* Sanity check (should never fail). */
+	if (nzdata_offset != nzcoo_nrow) {
+		UNPROTECT(1);
+		error("SparseArray internal error in "
+		      "extract_nzcoo_and_nzvals_from_SVT():\n"
+		      "    *out_offset != nzcoo_nrow");
+	}
+
+	UNPROTECT(1);
+	return nzcoo;
+}
+
 /* --- .Call ENTRY POINT --- */
 SEXP C_from_SVT_SparseArray_to_COO_SparseArray(SEXP x_dim,
 		SEXP x_type, SEXP x_SVT)
 {
 	R_xlen_t nzcount;
-	int nzcoo_nrow, nzcoo_ncol, *rowbuf, nzdata_offset, ret;
 	SEXP nzcoo, nzvals, ans;
 
 	nzcount = _REC_get_SVT_nzcount(x_SVT, LENGTH(x_dim));
@@ -638,36 +672,28 @@ SEXP C_from_SVT_SparseArray_to_COO_SparseArray(SEXP x_dim,
 		      "values to be turned into a COO_SparseArray object");
 
 	nzvals = PROTECT(alloc_nzvals(x_type, nzcount));
-
-	nzcoo_nrow = (int) nzcount;
-	nzcoo_ncol = LENGTH(x_dim);
-	rowbuf = (int *) R_alloc(nzcoo_ncol, sizeof(int));
-	nzcoo = PROTECT(allocMatrix(INTSXP, nzcoo_nrow, nzcoo_ncol));
-
-	nzdata_offset = 0;
-	ret = REC_extract_nzcoo_and_nzvals_from_SVT(x_SVT,
-			nzvals, &nzdata_offset,
-			INTEGER(nzcoo), nzcoo_nrow, nzcoo_ncol,
-			rowbuf, nzcoo_ncol - 1);
-	if (ret < 0) {
-		UNPROTECT(2);
-		error("SparseArray internal error "
-		      "in C_from_SVT_SparseArray_to_COO_SparseArray():\n"
-		      "    invalid SVT_SparseArray object");
-	}
-
-	/* Sanity check (should never fail). */
-	if (nzdata_offset != nzcoo_nrow) {
-		UNPROTECT(2);
-		error("SparseArray internal error "
-		      "in C_from_SVT_SparseArray_to_COO_SparseArray():\n"
-		      "    *out_offset != nzcoo_nrow");
-	}
+	nzcoo = PROTECT(extract_nzcoo_and_nzvals_from_SVT(x_SVT,
+					(int) nzcount, LENGTH(x_dim), nzvals));
 
 	ans = PROTECT(NEW_LIST(2));
 	SET_VECTOR_ELT(ans, 0, nzcoo);
 	SET_VECTOR_ELT(ans, 1, nzvals);
 	UNPROTECT(3);
 	return ans;
+}
+
+/* Workhorse behind 'which(svt, arr.ind=TRUE)'. */
+SEXP _extract_nzcoo_from_SVT(SEXP SVT, int ndim)
+{
+	R_xlen_t nzcount;
+
+	nzcount = _REC_get_SVT_nzcount(SVT, ndim);
+	if (nzcount > INT_MAX)
+		error("too many nonzero values in SVT_SparseArray object "
+		      "to return their \"array coordinates\" (n-tuples) "
+		      "in a matrix");
+
+	return extract_nzcoo_and_nzvals_from_SVT(SVT, (int) nzcount, ndim,
+						 R_NilValue);
 }
 
