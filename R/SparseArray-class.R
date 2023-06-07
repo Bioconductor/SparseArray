@@ -15,6 +15,7 @@
 ###    - sparsity()
 ### 2) Implemented elsewhere:
 ###    - nzcount() methods
+###    - which() methods
 ###    - as.array()
 ###    - extract_array() and extract_sparse_array()
 ###    - Subsetting (`[`) and subassignment (`[<-`)

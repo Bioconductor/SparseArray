@@ -43,7 +43,7 @@ setClass("COO_SparseMatrix",
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Block going back and forth between COO_SparseArray and COO_SparseMatrix
+### Going back and forth between COO_SparseArray and COO_SparseMatrix
 ###
 
 ### --- From COO_SparseArray to COO_SparseMatrix ---
@@ -169,10 +169,41 @@ setReplaceMethod("type", "COO_SparseArray", .set_COO_SparseArray_type)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### nzcount()
+### nzcount() and which()
 ###
 
+### length(nzvals(x)) is the same as nrow(nzcoo(x)) but doing the former
+### should be slightly more efficient.
 setMethod("nzcount", "COO_SparseArray", function(x) length(nzvals(x)))
+
+.nzcoo_order <- function(nzcoo)
+    do.call(order, lapply(ncol(nzcoo):1L, function(along) nzcoo[ , along]))
+
+.which_COO_SparseArray <- function(x, arr.ind=FALSE)
+{
+    stopifnot(is(x, "COO_SparseArray"))
+    if (!isTRUEorFALSE(arr.ind))
+        stop(wmsg("'arr.ind' must be TRUE or FALSE"))
+    idx1 <- which_is_nonzero(x@nzvals)
+    nzcoo1 <- x@nzcoo[idx1, , drop=FALSE]
+    oo <- .nzcoo_order(nzcoo1)
+    ans <- nzcoo1[oo, , drop=FALSE]
+    if (arr.ind)
+        return(ans)
+    Mindex2Lindex(ans, dim=dim(x))
+}
+
+### Returns an integer vector of length nzcount(x) if 'arr.ind=FALSE', or
+### a matrix with nzcount(x) rows if 'arr.ind=TRUE'.
+setMethod("which", "COO_SparseArray",
+    function(x, arr.ind=FALSE, useNames=TRUE)
+    {
+        if (!identical(useNames, TRUE))
+            warning(wmsg("'useNames' is ignored when 'x' is ",
+                         "a COO_SparseArray object or derivative"))
+        .which_COO_SparseArray(x, arr.ind=arr.ind)
+    }
+)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

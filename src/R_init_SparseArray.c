@@ -33,8 +33,9 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_coercion_can_introduce_zeros, 2),
 
 /* SVT_SparseArray_class.c */
-	CALLMETHOD_DEF(C_get_SVT_SparseArray_nzcount, 2),
 	CALLMETHOD_DEF(C_set_SVT_SparseArray_type, 4),
+	CALLMETHOD_DEF(C_nzcount_SVT_SparseArray, 2),
+	CALLMETHOD_DEF(C_which_SVT_SparseArray, 3),
 	CALLMETHOD_DEF(C_from_SVT_SparseArray_to_Rarray, 4),
 	CALLMETHOD_DEF(C_build_SVT_from_Rarray, 2),
 	CALLMETHOD_DEF(C_from_SVT_SparseMatrix_to_CsparseMatrix, 3),

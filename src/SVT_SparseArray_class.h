@@ -3,16 +3,6 @@
 
 #include <Rdefines.h>
 
-R_xlen_t _REC_get_SVT_nzcount(
-	SEXP SVT,
-	int ndim
-);
-
-SEXP C_get_SVT_SparseArray_nzcount(
-	SEXP x_dim,
-	SEXP x_SVT
-);
-
 SEXP C_set_SVT_SparseArray_type(
 	SEXP x_dim,
 	SEXP x_type,
@@ -27,6 +17,22 @@ SEXP _coerce_SVT(
 	SEXPTYPE from_Rtype,
 	SEXPTYPE to_Rtype,
 	int *offs_buf
+);
+
+R_xlen_t _REC_nzcount_SVT(
+	SEXP SVT,
+	int ndim
+);
+
+SEXP C_nzcount_SVT_SparseArray(
+	SEXP x_dim,
+	SEXP x_SVT
+);
+
+SEXP C_which_SVT_SparseArray(
+	SEXP x_dim,
+	SEXP x_SVT,
+	SEXP arr_ind
 );
 
 SEXP C_from_SVT_SparseArray_to_Rarray(
@@ -56,11 +62,6 @@ SEXP C_from_SVT_SparseArray_to_COO_SparseArray(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT
-);
-
-SEXP _extract_nzcoo_from_SVT(
-	SEXP SVT,
-	int ndim
 );
 
 #endif  /* _SVT_SPARSEARRAY_CLASS_H_ */

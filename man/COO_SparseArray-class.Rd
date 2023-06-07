@@ -21,6 +21,7 @@
 \alias{type<-,COO_SparseArray-method}
 
 \alias{nzcount,COO_SparseArray-method}
+\alias{which,COO_SparseArray-method}
 
 \alias{as.array.COO_SparseArray}
 \alias{as.array,COO_SparseArray-method}
