@@ -98,8 +98,8 @@ SparseArray(x, type=NA)
   etc...
 
   SparseArray derivatives also support \code{type()}, \code{`type<-`()},
-  \code{is_sparse()}, \code{nzcount()}, \code{sparsity()}, \code{arbind()}
-  and \code{acbind()}.
+  \code{is_sparse()}, \code{nzcount()}, \code{which()}, \code{sparsity()},
+  \code{arbind()}, and \code{acbind()}.
 
   \code{sparsity(x)} returns the ratio between the number of zero-valued
   elements in array-like object \code{x} and its total number of elements
@@ -179,21 +179,64 @@ SparseArray(x, type=NA)
           package.
 
     \item Ordinary \link[base]{array} objects in base R.
+
+    \item \code{base::\link[base]{which}} in base R.
   }
 }
 
 \examples{
+## ---------------------------------------------------------------------
+## Display details of class definition & known subclasses
+## ---------------------------------------------------------------------
+
 showClass("SparseArray")
 
+## ---------------------------------------------------------------------
+## The SparseArray() constructor
+## ---------------------------------------------------------------------
+
 a <- array(rpois(9e6, lambda=0.3), dim=c(500, 3000, 6))
-SparseArray(a)     # a SVT_SparseArray object
+SparseArray(a)    # an SVT_SparseArray object
 
 m <- matrix(rpois(9e6, lambda=0.3), ncol=500)
-SparseArray(m)     # a SVT_SparseMatrix object
+SparseArray(m)    # an SVT_SparseMatrix object
 
-dgrm <- sparseMatrix(i=c(4:1, 2:4, 9:12, 11:9), j=c(1:7, 1:7),
-                     x=runif(14), dims=c(12, 7), repr="R")
-SparseArray(dgrm)  # a COO_SparseMatrix object
+dgc <- sparseMatrix(i=c(4:1, 2:4, 9:12, 11:9), j=c(1:7, 1:7),
+                    x=runif(14), dims=c(12, 7))
+class(dgc)
+SparseArray(dgc)  # an SVT_SparseMatrix object
+
+dgr <- as(dgc, "RsparseMatrix")
+class(dgr)
+SparseArray(dgr)  # a COO_SparseMatrix object
+
+## ---------------------------------------------------------------------
+## nzcount() and which()
+## ---------------------------------------------------------------------
+x <- SparseArray(a)
+
+nzcount(x)
+
+## Unlike with an ordinary array where it works only if the array is of
+## type() "logical", which() works on a SparseArray object of any type()
+## and returns the indices of its nonzero elements. Either as an integer
+## vector of length 'nzcount(x)':
+nzidx <- which(x)
+length(nzidx)
+head(nzidx)
+
+## Or as an integer matrix with 'nzcount(x)' rows and 1 column per
+## dimension:
+Mnzidx <- which(x, arr.ind=TRUE)
+dim(Mnzidx)
+
+## Each row in the matrix is an n-tuple representing "array coordinates":
+head(Mnzidx)
+tail(Mnzidx)
+
+## Sanity checks:
+stopifnot(identical(nzidx, which(a != 0)))
+stopifnot(identical(Mnzidx, which(a != 0, arr.ind=TRUE, useNames=FALSE)))
 }
 
 \keyword{methods}

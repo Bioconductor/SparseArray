@@ -149,7 +149,7 @@ SEXP _make_leaf_vector_from_bufs(
 
 SEXP _make_leaf_vector_from_Rsubvec(
 	SEXP Rvector,
-	R_xlen_t subvec_offset,
+	R_xlen_t vec_offset,
 	int subvec_len,
 	int *offs_buf,
 	int avoid_copy_if_all_nonzeros

@@ -6,7 +6,7 @@
 #include "Rvector_utils.h"
 #include "leaf_vector_utils.h"
 #include "leaf_vector_dotprod.h"
-#include "SVT_SparseArray_class.h"  /* for _REC_get_SVT_nzcount() */
+#include "SVT_SparseArray_class.h"  /* for _REC_nzcount_SVT() */
 
 #include <string.h>  /* for memset() */
 
@@ -1094,8 +1094,8 @@ SEXP C_crossprod2_SVT_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 
 	/* Calculate the nb of ops if doing right preprocessing vs
 	   doing left preprocessing. */
-	Rpp_nops = _REC_get_SVT_nzcount(x_SVT, LENGTH(x_dim)) * y_ncol;
-	Lpp_nops = _REC_get_SVT_nzcount(y_SVT, LENGTH(y_dim)) * x_ncol;
+	Rpp_nops = _REC_nzcount_SVT(x_SVT, LENGTH(x_dim)) * y_ncol;
+	Lpp_nops = _REC_nzcount_SVT(y_SVT, LENGTH(y_dim)) * x_ncol;
 	if (Rpp_nops <= Lpp_nops) {
 		/* Will preprocess cols in 'y_SVT' (right preprocessing). */
 		if (x_Rtype == REALSXP) {

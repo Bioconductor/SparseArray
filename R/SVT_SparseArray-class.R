@@ -45,7 +45,7 @@ setClass("SVT_SparseMatrix",
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Block going back and forth between SVT_SparseArray and SVT_SparseMatrix
+### Going back and forth between SVT_SparseArray and SVT_SparseMatrix
 ###
 
 ### --- From SVT_SparseArray to SVT_SparseMatrix ---
@@ -91,45 +91,10 @@ setMethod("coerce", c("SVT_SparseMatrix", "SparseArray"),
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Low-level constructor
-###
-
-new_SVT_SparseArray <- function(dim, dimnames=NULL,
-                                type="logical", SVT=NULL, check=TRUE)
-{
-    stopifnot(is.integer(dim))
-    if (length(dim) == 2L) {
-        ans_class <- "SVT_SparseMatrix"
-    } else {
-        ans_class <- "SVT_SparseArray"
-    }
-    dimnames <- S4Arrays:::normarg_dimnames(dimnames, dim)
-    new2(ans_class, dim=dim, dimnames=dimnames,
-                    type=type, SVT=SVT, check=check)
-}
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Getters
+### type() getter and setter
 ###
 
 setMethod("type", "SVT_SparseArray", function(x) x@type)
-
-### Note that like for the length of atomic vectors in base R, the returned
-### length will be a double if it's > .Machine$integer.max
-.get_SVT_SparseArray_nzcount <- function(x)
-{
-    stopifnot(is(x, "SVT_SparseArray"))
-    .Call2("C_get_SVT_SparseArray_nzcount",
-           x@dim, x@SVT, PACKAGE="SparseArray")
-}
-
-setMethod("nzcount", "SVT_SparseArray", .get_SVT_SparseArray_nzcount)
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### type() setter
-###
 
 .set_SVT_SparseArray_type <- function(x, value)
 {
@@ -147,6 +112,61 @@ setMethod("nzcount", "SVT_SparseArray", .get_SVT_SparseArray_nzcount)
 }
 
 setReplaceMethod("type", "SVT_SparseArray", .set_SVT_SparseArray_type)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### nzcount() and which()
+###
+
+### Note that like for the length of atomic vectors in base R, the "nonzero
+### count" will be returned as a double if it's > .Machine$integer.max
+.get_SVT_SparseArray_nzcount <- function(x)
+{
+    stopifnot(is(x, "SVT_SparseArray"))
+    .Call2("C_nzcount_SVT_SparseArray", x@dim, x@SVT, PACKAGE="SparseArray")
+}
+
+setMethod("nzcount", "SVT_SparseArray", .get_SVT_SparseArray_nzcount)
+
+.which_SVT_SparseArray <- function(x, arr.ind=FALSE)
+{
+    stopifnot(is(x, "SVT_SparseArray"))
+    if (!isTRUEorFALSE(arr.ind))
+        stop(wmsg("'arr.ind' must be TRUE or FALSE"))
+    .Call2("C_which_SVT_SparseArray",
+           x@dim, x@SVT, arr.ind, PACKAGE="SparseArray")
+}
+
+### Returns an integer vector of length nzcount(x) if 'arr.ind=FALSE', or
+### a matrix with nzcount(x) rows if 'arr.ind=TRUE'.
+setMethod("which", "SVT_SparseArray",
+    function(x, arr.ind=FALSE, useNames=TRUE)
+    {
+        if (!identical(useNames, TRUE))
+            warning(wmsg("'useNames' is ignored when 'x' is ",
+                         "a SVT_SparseArray object or derivative"))
+        .which_SVT_SparseArray(x, arr.ind=arr.ind)
+    }
+)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Low-level constructor
+###
+
+new_SVT_SparseArray <- function(dim, dimnames=NULL,
+                                type="logical", SVT=NULL, check=TRUE)
+{
+    stopifnot(is.integer(dim))
+    if (length(dim) == 2L) {
+        ans_class <- "SVT_SparseMatrix"
+    } else {
+        ans_class <- "SVT_SparseArray"
+    }
+    dimnames <- S4Arrays:::normarg_dimnames(dimnames, dim)
+    new2(ans_class, dim=dim, dimnames=dimnames,
+                    type=type, SVT=SVT, check=check)
+}
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

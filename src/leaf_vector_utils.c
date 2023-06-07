@@ -98,14 +98,14 @@ SEXP _make_leaf_vector_from_bufs(SEXPTYPE Rtype,
 /* 'offs_buf' must be of length 'subvec_len' (or more).
    Returns R_NilValue or a "leaf vector". */
 SEXP _make_leaf_vector_from_Rsubvec(
-		SEXP Rvector, R_xlen_t subvec_offset, int subvec_len,
+		SEXP Rvector, R_xlen_t vec_offset, int subvec_len,
 		int *offs_buf, int avoid_copy_if_all_nonzeros)
 {
 	int ans_len;
 	SEXP ans_offs, ans_vals, ans;
 
 	ans_len = _collect_offsets_of_nonzero_Rsubvec_elts(
-				Rvector, subvec_offset, subvec_len,
+				Rvector, vec_offset, subvec_len,
 				offs_buf);
 	if (ans_len == 0)
 		return R_NilValue;
@@ -114,7 +114,7 @@ SEXP _make_leaf_vector_from_Rsubvec(
 	memcpy(INTEGER(ans_offs), offs_buf, sizeof(int) * ans_len);
 
 	if (avoid_copy_if_all_nonzeros && ans_len == subvec_len &&
-	    subvec_offset == 0 && XLENGTH(Rvector) == subvec_len)
+	    vec_offset == 0 && XLENGTH(Rvector) == subvec_len)
 	{
 		/* The full 'Rvector' contains no zeros and can be reused
 		   as-is without the need to copy its nonzero values to a
@@ -125,7 +125,7 @@ SEXP _make_leaf_vector_from_Rsubvec(
 	}
 
 	ans_vals = PROTECT(allocVector(TYPEOF(Rvector), ans_len));
-	_copy_selected_Rsubvec_elts(Rvector, subvec_offset, offs_buf, ans_vals);
+	_copy_selected_Rsubvec_elts(Rvector, vec_offset, offs_buf, ans_vals);
 	ans = _new_leaf_vector(ans_offs, ans_vals);
 	UNPROTECT(2);
 	return ans;

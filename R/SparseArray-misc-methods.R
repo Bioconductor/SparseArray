@@ -42,30 +42,3 @@ setMethod("nchar", "COO_SparseArray",
     }
 )
 
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### which()
-###
-### TODO: Add method for SVT_SparseArray objects.
-
-.nzcoo_order <- function(nzcoo)
-    do.call(order, lapply(ncol(nzcoo):1L, function(along) nzcoo[ , along]))
-
-setMethod("which", "COO_SparseArray",
-    function(x, arr.ind=FALSE, useNames=TRUE)
-    {
-        if (!identical(useNames, TRUE))
-            warning(wmsg("'useNames' is ignored when 'x' is ",
-                         "a COO_SparseArray object or derivative"))
-        if (!isTRUEorFALSE(arr.ind))
-            stop(wmsg("'arr.ind' must be TRUE or FALSE"))
-        idx1 <- which(x@nzvals)
-        nzcoo1 <- x@nzcoo[idx1, , drop=FALSE]
-        oo <- .nzcoo_order(nzcoo1)
-        ans <- nzcoo1[oo, , drop=FALSE]
-        if (arr.ind)
-            return(ans)
-        Mindex2Lindex(ans, dim=dim(x))
-    }
-)
-
