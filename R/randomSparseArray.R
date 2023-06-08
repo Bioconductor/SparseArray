@@ -95,7 +95,7 @@ poissonSparseArray <- function(dim, lambda=-log(0.95), density=NA)
         if (nn > chunksize)
             nn <- chunksize
         vals <- rpois(nn, lambda)
-        nzidx <- which(vals != 0L)
+        nzidx <- nzwhich(vals)
         key <- sprintf("%04d", k)
         assign(key, offset + nzidx, envir=nzidx_env)
         assign(key, vals[nzidx], envir=nzvals_env)

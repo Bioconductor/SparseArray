@@ -157,7 +157,7 @@ setMethod("nzvals", "COO_SparseArray", function(x) x@nzvals)
 
     new_nzvals <- x@nzvals
     storage.mode(new_nzvals) <- value
-    nzidx <- which_is_nonzero(new_nzvals)
+    nzidx <- default_nzwhich(new_nzvals)
     new_nzcoo <- x@nzcoo[nzidx, , drop=FALSE]
     new_nzvals <- new_nzvals[nzidx]
     BiocGenerics:::replaceSlots(x, nzcoo=new_nzcoo,
@@ -169,7 +169,7 @@ setReplaceMethod("type", "COO_SparseArray", .set_COO_SparseArray_type)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### nzcount() and which()
+### nzcount() and nzwhich()
 ###
 
 ### length(nzvals(x)) is the same as nrow(nzcoo(x)) but doing the former
@@ -179,12 +179,14 @@ setMethod("nzcount", "COO_SparseArray", function(x) length(nzvals(x)))
 .nzcoo_order <- function(nzcoo)
     do.call(order, lapply(ncol(nzcoo):1L, function(along) nzcoo[ , along]))
 
-.which_COO_SparseArray <- function(x, arr.ind=FALSE)
+### Returns an integer vector of length nzcount(x) if 'arr.ind=FALSE', or
+### a matrix with nzcount(x) rows if 'arr.ind=TRUE'.
+.nzwhich_COO_SparseArray <- function(x, arr.ind=FALSE)
 {
     stopifnot(is(x, "COO_SparseArray"))
     if (!isTRUEorFALSE(arr.ind))
         stop(wmsg("'arr.ind' must be TRUE or FALSE"))
-    idx1 <- which_is_nonzero(x@nzvals)
+    idx1 <- default_nzwhich(x@nzvals)
     nzcoo1 <- x@nzcoo[idx1, , drop=FALSE]
     oo <- .nzcoo_order(nzcoo1)
     ans <- nzcoo1[oo, , drop=FALSE]
@@ -193,17 +195,7 @@ setMethod("nzcount", "COO_SparseArray", function(x) length(nzvals(x)))
     Mindex2Lindex(ans, dim=dim(x))
 }
 
-### Returns an integer vector of length nzcount(x) if 'arr.ind=FALSE', or
-### a matrix with nzcount(x) rows if 'arr.ind=TRUE'.
-setMethod("which", "COO_SparseArray",
-    function(x, arr.ind=FALSE, useNames=TRUE)
-    {
-        if (!identical(useNames, TRUE))
-            warning(wmsg("'useNames' is ignored when 'x' is ",
-                         "a COO_SparseArray object or derivative"))
-        .which_COO_SparseArray(x, arr.ind=arr.ind)
-    }
-)
+setMethod("nzwhich", "COO_SparseArray", .nzwhich_COO_SparseArray)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -288,7 +280,7 @@ COO_SparseArray <- function(dim, nzcoo=NULL, nzvals=NULL, dimnames=NULL,
     x_dim <- dim(x)
     if (is.null(x_dim))
         stop(wmsg("'x' must be an array-like object"))
-    ans_nzcoo <- which_is_nonzero(x, arr.ind=TRUE)  # M-index
+    ans_nzcoo <- default_nzwhich(x, arr.ind=TRUE)  # M-index
     ans_nzvals <- x[ans_nzcoo]
     ## Work around bug in base::`[`
     if (length(x_dim) == 1L)

@@ -38,7 +38,7 @@ test_that("subassign an SVT_SparseArray object by an Mindex or Lindex", {
     a0 <- make_3D_test_array()
     Mindex23 <- rbind(cbind(Mindex2, 1L), Mindex3)
     vals2 <- c(vals, vals)
-    Mindex0 <- SparseArray:::which_is_nonzero(a0, arr.ind=TRUE)
+    Mindex0 <- nzwhich(a0, arr.ind=TRUE)
     .test_SparseArray_subassignment_by_Mindex_and_Lindex(a0, Mindex23, vals2,
                                                          "SVT_SparseArray")
     .test_SparseArray_subassignment_by_Mindex_and_Lindex(a0, Mindex0, 0,
@@ -106,7 +106,7 @@ test_that(paste("subassign an SVT_SparseArray object by an Nindex",
     svt <- `[<-`(svt0, , 8, 1, value=0L)
     check_SparseArray_object(svt, "SVT_SparseArray", a)
     expect_null(svt@SVT[[1L]][[8L]])
-    i0 <- SparseArray:::which_is_nonzero(a0[ , 8, 1])
+    i0 <- nzwhich(a0[ , 8, 1])
     svt2 <- `[<-`(svt0, i0, 8, 1, value=0L)
     expect_identical(svt2, svt)
 
@@ -114,7 +114,7 @@ test_that(paste("subassign an SVT_SparseArray object by an Nindex",
     a <- `[<-`(a0, 17, , 1, value=0L)
     svt <- `[<-`(svt0, 17, , 1, value=0L)
     check_SparseArray_object(svt, "SVT_SparseArray", a)
-    j0 <- SparseArray:::which_is_nonzero(a0[17, , 1])
+    j0 <- nzwhich(a0[17, , 1])
     svt2 <- `[<-`(svt0, 17, j0, 1, value=0L)
     expect_identical(svt2, svt)
 

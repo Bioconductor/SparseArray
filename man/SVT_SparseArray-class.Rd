@@ -20,7 +20,7 @@
 \alias{type<-,SVT_SparseArray-method}
 
 \alias{nzcount,SVT_SparseArray-method}
-\alias{which,SVT_SparseArray-method}
+\alias{nzwhich,SVT_SparseArray-method}
 
 \alias{as.array.SVT_SparseArray}
 \alias{as.array,SVT_SparseArray-method}

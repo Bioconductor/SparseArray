@@ -16,6 +16,8 @@
 \alias{nzcount}
 \alias{nzcount,CsparseMatrix-method}
 \alias{nzcount,RsparseMatrix-method}
+\alias{nzwhich}
+\alias{nzwhich,ANY-method}
 \alias{sparsity}
 
 \alias{show,SparseArray-method}
@@ -98,7 +100,7 @@ SparseArray(x, type=NA)
   etc...
 
   SparseArray derivatives also support \code{type()}, \code{`type<-`()},
-  \code{is_sparse()}, \code{nzcount()}, \code{which()}, \code{sparsity()},
+  \code{is_sparse()}, \code{nzcount()}, \code{nzwhich()}, \code{sparsity()},
   \code{arbind()}, and \code{acbind()}.
 
   \code{sparsity(x)} returns the ratio between the number of zero-valued
@@ -211,26 +213,26 @@ class(dgr)
 SparseArray(dgr)  # a COO_SparseMatrix object
 
 ## ---------------------------------------------------------------------
-## nzcount() and which()
+## nzcount() and nzwhich()
 ## ---------------------------------------------------------------------
 x <- SparseArray(a)
 
-nzcount(x)
+nzcount(x)  # number of nonzero elements in 'x'
 
-## Unlike with an ordinary array where it works only if the array is of
-## type() "logical", which() works on a SparseArray object of any type()
-## and returns the indices of its nonzero elements. Either as an integer
-## vector of length 'nzcount(x)':
-nzidx <- which(x)
+## nzwhich() returns the indices of the nonzero elements in 'x'.
+## Either as "linear indices" (returned in an integer vector of
+## length 'nzcount(x)'):
+nzidx <- nzwhich(x)
 length(nzidx)
 head(nzidx)
 
-## Or as an integer matrix with 'nzcount(x)' rows and 1 column per
-## dimension:
-Mnzidx <- which(x, arr.ind=TRUE)
+## Or as "array indices" (a.k.a. "array coordinates") returned in an
+## integer matrix with 'nzcount(x)' rows and 1 column per dimension:
+Mnzidx <- nzwhich(x, arr.ind=TRUE)
 dim(Mnzidx)
 
-## Each row in the matrix is an n-tuple representing "array coordinates":
+## Each row in the matrix is an n-tuple representing the "array
+## coordinates" of a nonzero element:
 head(Mnzidx)
 tail(Mnzidx)
 

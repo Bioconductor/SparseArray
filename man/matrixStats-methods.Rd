@@ -182,12 +182,12 @@ colMeans(svt0)
 colMeans(svt0, na.rm=TRUE)
 
 colRanges(svt0)
-colRanges(svt0, useNames=TRUE)
+colRanges(svt0, useNames=FALSE)
 colRanges(svt0, na.rm=TRUE)
-colRanges(svt0, na.rm=TRUE, useNames=TRUE)
+colRanges(svt0, na.rm=TRUE, useNames=FALSE)
 
 colVars(svt0)
-colVars(svt0, useNames=TRUE)
+colVars(svt0, useNames=FALSE)
 
 ## Sanity checks:
 stopifnot(
@@ -198,7 +198,7 @@ stopifnot(
   identical(colMeans(svt0), colMeans(m0)),
   identical(colMeans(svt0, na.rm=TRUE), colMeans(m0, na.rm=TRUE)),
   identical(colRanges(svt0), colRanges(m0, useNames=TRUE)),
-  identical(colRanges(svt0, useNames=FALSE), colRanges(m0)),
+  identical(colRanges(svt0, useNames=FALSE), colRanges(m0, useNames=FALSE)),
   identical(colRanges(svt0, na.rm=TRUE),
             colRanges(m0, na.rm=TRUE, useNames=TRUE)),
   identical(colVars(svt0), colVars(m0, useNames=TRUE)),
