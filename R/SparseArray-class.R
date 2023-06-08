@@ -11,11 +11,10 @@
 ###    - Getters dim(), length(), dimnames(), type()
 ###    - Setters `dimnames<-`() and `type<-`()
 ###    - An is_sparse() method that returns TRUE
-###    - nzcount() generic
+###    - nzcount() and nzwhich() generics
 ###    - sparsity()
 ### 2) Implemented elsewhere:
-###    - nzcount() methods
-###    - which() methods
+###    - nzcount() and nzwhich() methods
 ###    - as.array()
 ###    - extract_array() and extract_sparse_array()
 ###    - Subsetting (`[`) and subassignment (`[<-`)
@@ -100,16 +99,8 @@ setReplaceMethod("dimnames", "SparseArray",
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### which_is_nonzero() and coercion_can_introduce_zeros()
+### coercion_can_introduce_zeros()
 ###
-
-which_is_nonzero <- function(x, arr.ind=FALSE)
-{
-    ## Make sure to use 'type()' and not 'typeof()'.
-    zero <- vector(type(x), length=1L)
-    is_nonzero <- x != zero
-    which(is_nonzero | is.na(is_nonzero), arr.ind=arr.ind)
-}
 
 coercion_can_introduce_zeros <- function(from_type, to_type)
 {
@@ -125,7 +116,7 @@ coercion_can_introduce_zeros <- function(from_type, to_type)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### is_sparse(), nzcount(), and sparsity()
+### is_sparse(), nzcount(), nzwhich(), and sparsity()
 ###
 
 setMethod("is_sparse", "SparseArray", function(x) TRUE)
@@ -136,6 +127,20 @@ setGeneric("nzcount", function(x) standardGeneric("nzcount"))
 ### zeros in their "x" slot! See src/SVT_SparseArray_class.c for an example.
 setMethod("nzcount", "CsparseMatrix", function(x) length(x@i))
 setMethod("nzcount", "RsparseMatrix", function(x) length(x@j))
+
+setGeneric("nzwhich", signature="x",
+    function(x, arr.ind=FALSE) standardGeneric("nzwhich")
+)
+
+default_nzwhich <- function(x, arr.ind=FALSE)
+{
+    ## Make sure to use 'type()' and not 'typeof()'.
+    zero <- vector(type(x), length=1L)
+    is_nonzero <- x != zero
+    which(is_nonzero | is.na(is_nonzero), arr.ind=arr.ind, useNames=FALSE)
+}
+
+setMethod("nzwhich", "ANY", default_nzwhich)
 
 sparsity <- function(x) { 1 - nzcount(x) / length(x) }
 

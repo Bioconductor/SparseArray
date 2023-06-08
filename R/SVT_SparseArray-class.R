@@ -115,7 +115,7 @@ setReplaceMethod("type", "SVT_SparseArray", .set_SVT_SparseArray_type)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### nzcount() and which()
+### nzcount() and nzwhich()
 ###
 
 ### Note that like for the length of atomic vectors in base R, the "nonzero
@@ -128,26 +128,18 @@ setReplaceMethod("type", "SVT_SparseArray", .set_SVT_SparseArray_type)
 
 setMethod("nzcount", "SVT_SparseArray", .get_SVT_SparseArray_nzcount)
 
-.which_SVT_SparseArray <- function(x, arr.ind=FALSE)
+### Returns an integer vector of length nzcount(x) if 'arr.ind=FALSE', or
+### a matrix with nzcount(x) rows if 'arr.ind=TRUE'.
+.nzwhich_SVT_SparseArray <- function(x, arr.ind=FALSE)
 {
     stopifnot(is(x, "SVT_SparseArray"))
     if (!isTRUEorFALSE(arr.ind))
         stop(wmsg("'arr.ind' must be TRUE or FALSE"))
-    .Call2("C_which_SVT_SparseArray",
+    .Call2("C_nzwhich_SVT_SparseArray",
            x@dim, x@SVT, arr.ind, PACKAGE="SparseArray")
 }
 
-### Returns an integer vector of length nzcount(x) if 'arr.ind=FALSE', or
-### a matrix with nzcount(x) rows if 'arr.ind=TRUE'.
-setMethod("which", "SVT_SparseArray",
-    function(x, arr.ind=FALSE, useNames=TRUE)
-    {
-        if (!identical(useNames, TRUE))
-            warning(wmsg("'useNames' is ignored when 'x' is ",
-                         "a SVT_SparseArray object or derivative"))
-        .which_SVT_SparseArray(x, arr.ind=arr.ind)
-    }
-)
+setMethod("nzwhich", "SVT_SparseArray", .nzwhich_SVT_SparseArray)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

@@ -3,7 +3,7 @@ title: "SparseArray objects"
 author:
 - name: Hervé Pagès
   affiliation: Fred Hutchinson Cancer Research Center, Seattle, WA
-date: "Compiled `r doc_date()`;  Modified 24 May 2023"
+date: "Compiled `r doc_date()`;  Modified 7 June 2023"
 package: SparseArray
 vignette: |
   %\VignetteIndexEntry{SparseArray objects}
@@ -123,11 +123,23 @@ type(svt1) <- "double"
 svt1
 
 is_sparse(svt1)
+```
 
-nzcount(svt1)
+Other accessors/extractors specific to sparse arrays:
+```{r}
+nzcount(svt1)  # number of nonzero elements in 'svt1'
+
+## "Linear indices" of the nonzero elements in 'svt1':
+nzwhich(svt1)
+
+## "Array indices" (a.k.a. "array coordinates") of the nonzero elements
+## in 'svt1':
+nzwhich(svt1, arr.ind=TRUE)
 
 sparsity(svt1)
 ```
+
+See `?SparseArray` for more information and additional examples.
 
 ## Subsetting and subassignment
 
@@ -179,8 +191,8 @@ for more information and additional examples.
 
 ## Other operations on SVT\_SparseArray objects
 
-More operations will be added in the future e.g. `which()`, `is.na()`,
-`is.infinite()`, `is.nan()`, etc...
+More operations will be added in the future e.g. `is.na()`, `is.infinite()`,
+`is.nan()`, etc...
 
 ## Generate a random SVT\_SparseArray object
 

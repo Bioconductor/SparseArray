@@ -189,7 +189,7 @@ SEXP C_nzcount_SVT_SparseArray(SEXP x_dim, SEXP x_SVT)
 
 
 /****************************************************************************
- * C_which_SVT_SparseArray()
+ * C_nzwhich_SVT_SparseArray()
  */
 
 static inline void from_offs_to_int_Lindex(const int *offs, int n,
@@ -213,7 +213,7 @@ static inline void from_offs_to_double_Lindex(const int *offs, int n,
 }
 
 /* Recursive. */
-static int REC_which_SVT_as_Lindex(SEXP SVT,
+static int REC_nzwhich_SVT_as_Lindex(SEXP SVT,
 		const int *dim, const R_xlen_t *dimcumprod, int ndim,
 		R_xlen_t arr_offset, SEXP Lindex, R_xlen_t *Lindex_offset)
 {
@@ -252,8 +252,9 @@ static int REC_which_SVT_as_Lindex(SEXP SVT,
 	subarr_len = dimcumprod[ndim - 2];
 	for (i = 0; i < SVT_len; i++) {
 		subSVT = VECTOR_ELT(SVT, i);
-		ret = REC_which_SVT_as_Lindex(subSVT, dim, dimcumprod, ndim - 1,
-					 arr_offset, Lindex, Lindex_offset);
+		ret = REC_nzwhich_SVT_as_Lindex(subSVT,
+					dim, dimcumprod, ndim - 1,
+					arr_offset, Lindex, Lindex_offset);
 		if (ret < 0)
 			return -1;
 		arr_offset += subarr_len;
@@ -261,7 +262,7 @@ static int REC_which_SVT_as_Lindex(SEXP SVT,
 	return 0;
 }
 
-static SEXP which_SVT_as_Lindex(SEXP SVT, const int *dim, int ndim,
+static SEXP nzwhich_SVT_as_Lindex(SEXP SVT, const int *dim, int ndim,
 		R_xlen_t nzcount)
 {
 	R_xlen_t *dimcumprod, p, Lindex_offset;
@@ -281,18 +282,18 @@ static SEXP which_SVT_as_Lindex(SEXP SVT, const int *dim, int ndim,
 		ans = PROTECT(NEW_INTEGER(nzcount));
 	}
 	Lindex_offset = 0;
-	ret = REC_which_SVT_as_Lindex(SVT, dim, dimcumprod, ndim,
-				      0, ans, &Lindex_offset);
+	ret = REC_nzwhich_SVT_as_Lindex(SVT, dim, dimcumprod, ndim,
+					0, ans, &Lindex_offset);
 	UNPROTECT(1);
 	if (ret < 0)
 		error("SparseArray internal error in "
-		      "which_SVT_as_Lindex():\n"
+		      "nzwhich_SVT_as_Lindex():\n"
 		      "    invalid SVT_SparseArray object");
 
 	/* Sanity check (should never fail). */
 	if (Lindex_offset != nzcount) {
 		error("SparseArray internal error in "
-		      "which_SVT_as_Lindex():\n"
+		      "nzwhich_SVT_as_Lindex():\n"
 		      "    Lindex_offset != nzcount");
 	}
 	return ans;
@@ -390,7 +391,7 @@ static SEXP extract_nzcoo_and_nzdata_from_SVT(SEXP SVT,
 }
 
 /* --- .Call ENTRY POINT --- */
-SEXP C_which_SVT_SparseArray(SEXP x_dim, SEXP x_SVT, SEXP arr_ind)
+SEXP C_nzwhich_SVT_SparseArray(SEXP x_dim, SEXP x_SVT, SEXP arr_ind)
 {
 	int x_ndim;
 	R_xlen_t nzcount;
@@ -401,15 +402,15 @@ SEXP C_which_SVT_SparseArray(SEXP x_dim, SEXP x_SVT, SEXP arr_ind)
 	if (!LOGICAL(arr_ind)[0]) {
 		/* Return linear indices of nonzero array elements in an
 		   integer or numeric vector representing an L-index. */
-		return which_SVT_as_Lindex(x_SVT, INTEGER(x_dim), x_ndim,
-					   nzcount);
+		return nzwhich_SVT_as_Lindex(x_SVT, INTEGER(x_dim), x_ndim,
+					     nzcount);
 	}
 
 	/* Return coordinates of nonzero array elements in an integer matrix
 	   representing an M-index. */
 	if (nzcount > INT_MAX)
 		error("too many nonzero values in SVT_SparseArray "
-		      "object to return their \"array coordinates\" "
+		      "object to return their \"array\n  coordinates\" "
 		      "(n-tuples) in a matrix");
 	return extract_nzcoo_and_nzdata_from_SVT(x_SVT, (int) nzcount, x_ndim,
 						 R_NilValue);

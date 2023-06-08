@@ -29,7 +29,7 @@ SEXP C_nzcount_SVT_SparseArray(
 	SEXP x_SVT
 );
 
-SEXP C_which_SVT_SparseArray(
+SEXP C_nzwhich_SVT_SparseArray(
 	SEXP x_dim,
 	SEXP x_SVT,
 	SEXP arr_ind

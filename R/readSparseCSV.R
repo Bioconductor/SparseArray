@@ -12,7 +12,7 @@
     if (write.zeros) {
         line <- as.character(vals)
     } else {
-        nzidx <- which_is_nonzero(vals)
+        nzidx <- default_nzwhich(vals)
         line <- character(length(vals))
         line[nzidx] <- as.character(vals[nzidx])
     }
