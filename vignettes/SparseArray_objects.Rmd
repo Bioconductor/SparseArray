@@ -102,7 +102,7 @@ as.array(svt1)  # same as as.matrix(svt1)
 as.array(svt2)
 ```
 
-## Accesors
+## Accessors
 
 The standard array accessors are supported:
 ```{r}
@@ -127,14 +127,19 @@ is_sparse(svt1)
 
 Other accessors/extractors specific to sparse arrays:
 ```{r}
-nzcount(svt1)  # number of nonzero elements in 'svt1'
+## Get the number of nonzero array elements in 'svt1':
+nzcount(svt1)
 
-## "Linear indices" of the nonzero elements in 'svt1':
+## Extract the "linear indices" of the nonzero array elements in 'svt1':
 nzwhich(svt1)
 
-## "Array indices" (a.k.a. "array coordinates") of the nonzero elements
-## in 'svt1':
+## Extract the "array indices" (a.k.a. "array coordinates") of the
+## nonzero array elements in 'svt1':
 nzwhich(svt1, arr.ind=TRUE)
+
+## Extract the values of the nonzero array elements in 'svt1' and return
+## them in a vector "parallel" to 'nzwhich(svt1)':
+#nzvals(svt1)  # NOT READY YET!
 
 sparsity(svt1)
 ```
@@ -309,9 +314,9 @@ but with the following improvements:
   Whereas CsparseMatrix derivatives only support sparse data of
   type `"double"` or `"logical"` at the moment.
 
-- The "SVT layout" imposes no limit on the number of nonzero elements
-  that can be stored. With dgCMatrix/lgCMatrix objects, this number
-  must be < 2^31.
+- The "SVT layout" imposes no limit on the number of nonzero array
+  elements that can be stored. With dgCMatrix/lgCMatrix objects, this
+  number must be < 2^31.
 
 - Overall, the "SVT layout" allows more efficient operations on
   SVT\_SparseArray objects.

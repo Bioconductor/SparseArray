@@ -117,8 +117,8 @@ SEXP _make_leaf_vector_from_Rsubvec(
 	    vec_offset == 0 && XLENGTH(Rvector) == subvec_len)
 	{
 		/* The full 'Rvector' contains no zeros and can be reused
-		   as-is without the need to copy its nonzero values to a
-		   new SEXP. */
+		   as-is without the need to copy its nonzero elements to
+		   a new SEXP. */
 		ans = _new_leaf_vector(ans_offs, Rvector);
 		UNPROTECT(1);
 		return ans;

@@ -16,7 +16,7 @@
  * in terms of performance for the 2D case compared to C_transpose_2D_SVT().
  */
 
-static void count_nonzero_vals_per_row(SEXP SVT, int nrow, int ncol,
+static void count_nonzero_elts_per_row(SEXP SVT, int nrow, int ncol,
 		int *nzcounts)
 {
 	int j, lv_len, k;
@@ -32,7 +32,7 @@ static void count_nonzero_vals_per_row(SEXP SVT, int nrow, int ncol,
 		lv_len = _split_leaf_vector(subSVT, &lv_offs, &lv_vals);
 		if (lv_len < 0)
 			error("SparseArray internal error in "
-			      "count_nonzero_vals_per_row():\n"
+			      "count_nonzero_elts_per_row():\n"
 			      "    invalid SVT_SparseMatrix object");
 		for (k = 0, p = INTEGER(lv_offs); k < lv_len; k++, p++)
 			nzcounts[*p]++;
@@ -247,9 +247,9 @@ static SEXP transpose_2D_SVT(SEXP SVT, int nrow, int ncol, SEXPTYPE Rtype,
 	void **quick_out_vals_p;
 	int i, j, lv_len;
 
-	/* 1st pass: Count the number of nonzero values per row in the
+	/* 1st pass: Count the number of nonzero elements per row in the
 	   input object. */
-	count_nonzero_vals_per_row(SVT, nrow, ncol, nzcount_buf);
+	count_nonzero_elts_per_row(SVT, nrow, ncol, nzcount_buf);
 
 	/* 2nd pass: Build the transposed SVT. */
 	transpose_col_FUN = select_transpose_col_FUN(Rtype);

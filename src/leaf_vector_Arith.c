@@ -236,9 +236,9 @@ static int sparse_Arith_ints_ints(
 	int ans_len, k1, k2, off, v1, v2, v;
 
 	ans_len = k1 = k2 = 0;
-	while (next_nzvals_int_int(offs1, vals1, n1,
-				   offs2, vals2, n2,
-				   &k1, &k2, &off, &v1, &v2))
+	while (next_nzval_int_int(offs1, vals1, n1,
+				  offs2, vals2, n2,
+				  &k1, &k2, &off, &v1, &v2))
 	{
 		v = Arith_int(v1, v2, opcode, ovflow);
 		if (v != 0) {
@@ -282,9 +282,9 @@ static int sparse_Arith_ints_doubles(
 	double v2, v;
 
 	ans_len = k1 = k2 = 0;
-	while (next_nzvals_int_double(offs1, vals1, n1,
-				      offs2, vals2, n2,
-				      &k1, &k2, &off, &v1, &v2))
+	while (next_nzval_int_double(offs1, vals1, n1,
+				     offs2, vals2, n2,
+				     &k1, &k2, &off, &v1, &v2))
 	{
 		if (v1 == NA_INTEGER) {
 			v = NA_REAL;
@@ -309,9 +309,9 @@ static int sparse_Arith_doubles_ints(
 	double v1, v;
 
 	ans_len = k1 = k2 = 0;
-	while (next_nzvals_double_int(offs1, vals1, n1,
-				      offs2, vals2, n2,
-				      &k1, &k2, &off, &v1, &v2))
+	while (next_nzval_double_int(offs1, vals1, n1,
+				     offs2, vals2, n2,
+				     &k1, &k2, &off, &v1, &v2))
 	{
 		if (v2 == NA_INTEGER) {
 			v = NA_REAL;
@@ -354,9 +354,9 @@ static int sparse_Arith_doubles_doubles(
 	double v1, v2, v;
 
 	ans_len = k1 = k2 = 0;
-	while (next_nzvals_double_double(offs1, vals1, n1,
-					 offs2, vals2, n2,
-					 &k1, &k2, &off, &v1, &v2))
+	while (next_nzval_double_double(offs1, vals1, n1,
+					offs2, vals2, n2,
+					&k1, &k2, &off, &v1, &v2))
 	{
 		v = Arith_double(v1, v2, opcode);
 		if (v != 0.0) {

@@ -11,10 +11,10 @@
 ###    - Getters dim(), length(), dimnames(), type()
 ###    - Setters `dimnames<-`() and `type<-`()
 ###    - An is_sparse() method that returns TRUE
-###    - nzcount() and nzwhich() generics
+###    - nzcount(), nzwhich(), and nzvals() generics
 ###    - sparsity()
 ### 2) Implemented elsewhere:
-###    - nzcount() and nzwhich() methods
+###    - nzcount(), nzwhich(), and nzvals() methods
 ###    - as.array()
 ###    - extract_array() and extract_sparse_array()
 ###    - Subsetting (`[`) and subassignment (`[<-`)
@@ -116,31 +116,71 @@ coercion_can_introduce_zeros <- function(from_type, to_type)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### is_sparse(), nzcount(), nzwhich(), and sparsity()
+### is_sparse() method
 ###
 
 setMethod("is_sparse", "SparseArray", function(x) TRUE)
 
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### nzcount(), nzwhich(), and nzvals() generics + sparsity()
+###
+
+### Returns the number of nonzero array elements in 'x'.
 setGeneric("nzcount", function(x) standardGeneric("nzcount"))
 
 ### Not 100% reliable because [d|l]gCMatrix objects are allowed to have
-### zeros in their "x" slot! See src/SVT_SparseArray_class.c for an example.
+### zeros in their @x slot! See src/SVT_SparseArray_class.c for an example.
 setMethod("nzcount", "CsparseMatrix", function(x) length(x@i))
 setMethod("nzcount", "RsparseMatrix", function(x) length(x@j))
 
+### Returns the indices of the nonzero array elements in 'x', either as
+### an L-index (if 'arr.ind=FALSE') or as an M-index (if 'arr.ind=TRUE').
 setGeneric("nzwhich", signature="x",
     function(x, arr.ind=FALSE) standardGeneric("nzwhich")
 )
 
 default_nzwhich <- function(x, arr.ind=FALSE)
 {
+    if (!isTRUEorFALSE(arr.ind))
+        stop(wmsg("'arr.ind' must be TRUE or FALSE"))
     ## Make sure to use 'type()' and not 'typeof()'.
     zero <- vector(type(x), length=1L)
     is_nonzero <- x != zero
     which(is_nonzero | is.na(is_nonzero), arr.ind=arr.ind, useNames=FALSE)
 }
-
 setMethod("nzwhich", "ANY", default_nzwhich)
+
+### default_nzwhich() above works on a CsparseMatrix derivative but
+### nzwhich_CsparseMatrix() will typically be 50x or 100x faster, or more!
+### However, this is **NOT** 100% reliable because [d|l]gCMatrix objects are
+### allowed to have zeros in their @x slot! See src/SVT_SparseArray_class.c
+### for an example.
+nzwhich_CsparseMatrix <- function(x, arr.ind=FALSE)
+{
+    if (!isTRUEorFALSE(arr.ind))
+        stop(wmsg("'arr.ind' must be TRUE or FALSE"))
+    x_nrow <- nrow(x)
+    x_ncol <- ncol(x)
+    offsets <- rep.int(x_nrow * seq_len(x_ncol) - (x_nrow - 1L), diff(x@p))
+    ans <- x@i + offsets
+    if (!arr.ind)
+        return(ans)
+    Lindex2Mindex(ans, dim(x))
+}
+setMethod("nzwhich", "CsparseMatrix", nzwhich_CsparseMatrix)
+
+### Returns the values of the nonzero array elements in a vector of the
+### same type() as 'x' and parallel to nzwhich(x).
+### Equivalent to x[nzwhich(x)] (and that's what the default method below
+### does). However specialized methods can make this dramatically faster.
+setGeneric("nzvals", function(x) standardGeneric("nzvals"))
+
+setMethod("nzvals", "ANY", function(x) x[nzwhich(x)])
+
+### Not 100% reliable because [d|l]gCMatrix objects are allowed to have
+### zeros in their @x slot! See src/SVT_SparseArray_class.c for an example.
+setMethod("nzvals", "dgCMatrix", function(x) x@x)
+setMethod("nzvals", "lgCMatrix", function(x) x@x)
 
 sparsity <- function(x) { 1 - nzcount(x) / length(x) }
 

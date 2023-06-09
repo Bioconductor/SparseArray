@@ -50,7 +50,7 @@ double _dotprod_leaf_vectors(SEXP lv1, SEXP lv2)
 	lv2_len = _split_leaf_vector(lv2, &lv2_offs, &lv2_vals);
 	k1 = k2 = 0;
 	ans = 0.0;
-	while (next_nzvals_double_double(
+	while (next_nzval_double_double(
 			INTEGER(lv1_offs), REAL(lv1_vals), lv1_len,
 			INTEGER(lv2_offs), REAL(lv2_vals), lv2_len,
 			&k1, &k2, &off, &v1, &v2))

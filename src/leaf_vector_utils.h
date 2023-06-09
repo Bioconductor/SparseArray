@@ -20,7 +20,7 @@ static const int int0 = 0;
 static const double double0 = 0.0;
 static const Rcomplex Rcomplex0 = {{0.0, 0.0}};
 
-#define FUNDEF_next_nzvals(Ltype, Rtype)	\
+#define FUNDEF_next_nzval(Ltype, Rtype)				\
 	(const int *offs1, const Ltype *vals1, int n1,		\
 	 const int *offs2, const Rtype *vals2, int n2,		\
 	 int *k1, int *k2, int *off, Ltype *v1, Rtype *v2)	\
@@ -62,38 +62,38 @@ static const Rcomplex Rcomplex0 = {{0.0, 0.0}};
 	return 0;						\
 }
 
-static inline int next_nzvals_Rbyte_Rbyte
-	FUNDEF_next_nzvals(Rbyte, Rbyte)
+static inline int next_nzval_Rbyte_Rbyte
+	FUNDEF_next_nzval(Rbyte, Rbyte)
 
-static inline int next_nzvals_Rbyte_int
-	FUNDEF_next_nzvals(Rbyte, int)
+static inline int next_nzval_Rbyte_int
+	FUNDEF_next_nzval(Rbyte, int)
 
-static inline int next_nzvals_Rbyte_double
-	FUNDEF_next_nzvals(Rbyte, double)
+static inline int next_nzval_Rbyte_double
+	FUNDEF_next_nzval(Rbyte, double)
 
-static inline int next_nzvals_Rbyte_Rcomplex
-	FUNDEF_next_nzvals(Rbyte, Rcomplex)
+static inline int next_nzval_Rbyte_Rcomplex
+	FUNDEF_next_nzval(Rbyte, Rcomplex)
 
-static inline int next_nzvals_int_int
-	FUNDEF_next_nzvals(int, int)
+static inline int next_nzval_int_int
+	FUNDEF_next_nzval(int, int)
 
-static inline int next_nzvals_int_double
-	FUNDEF_next_nzvals(int, double)
+static inline int next_nzval_int_double
+	FUNDEF_next_nzval(int, double)
 
-static inline int next_nzvals_int_Rcomplex
-	FUNDEF_next_nzvals(int, Rcomplex)
+static inline int next_nzval_int_Rcomplex
+	FUNDEF_next_nzval(int, Rcomplex)
 
-static inline int next_nzvals_double_int
-	FUNDEF_next_nzvals(double, int)
+static inline int next_nzval_double_int
+	FUNDEF_next_nzval(double, int)
 
-static inline int next_nzvals_double_double
-	FUNDEF_next_nzvals(double, double)
+static inline int next_nzval_double_double
+	FUNDEF_next_nzval(double, double)
 
-static inline int next_nzvals_double_Rcomplex
-	FUNDEF_next_nzvals(double, Rcomplex)
+static inline int next_nzval_double_Rcomplex
+	FUNDEF_next_nzval(double, Rcomplex)
 
-static inline int next_nzvals_Rcomplex_Rcomplex
-	FUNDEF_next_nzvals(Rcomplex, Rcomplex)
+static inline int next_nzval_Rcomplex_Rcomplex
+	FUNDEF_next_nzval(Rcomplex, Rcomplex)
 
 SEXP _new_leaf_vector(
 	SEXP lv_offs,

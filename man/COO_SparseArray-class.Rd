@@ -14,8 +14,8 @@
 
 \alias{nzcoo}
 \alias{nzcoo,COO_SparseArray-method}
-\alias{nzvals}
-\alias{nzvals,COO_SparseArray-method}
+\alias{nzdata}
+\alias{nzdata,COO_SparseArray-method}
 
 \alias{type,COO_SparseArray-method}
 \alias{type<-,COO_SparseArray-method}
@@ -57,11 +57,11 @@
 
 \usage{
 ## Constructor function:
-COO_SparseArray(dim, nzcoo=NULL, nzvals=NULL, dimnames=NULL, check=TRUE)
+COO_SparseArray(dim, nzcoo=NULL, nzdata=NULL, dimnames=NULL, check=TRUE)
 
 ## Getters (in addition to dim(), length(), and dimnames()):
 nzcoo(x)
-nzvals(x)
+nzdata(x)
 }
 
 \arguments{
@@ -70,7 +70,7 @@ nzvals(x)
     COO_SparseArray or COO_SparseMatrix object to create.
   }
   \item{nzcoo}{
-    A matrix containing the array coordinates of the nonzero values.
+    A matrix containing the array coordinates of the nonzero elements.
 
     This must be an integer matrix of array coordinates like
     one returned by \code{base::\link[base]{arrayInd}} or
@@ -78,9 +78,9 @@ nzvals(x)
     with \code{length(dim)} columns and where each row is an n-tuple
     representing the coordinates of an array element.
   }
-  \item{nzvals}{
+  \item{nzdata}{
     A vector (atomic or list) of length \code{nrow(nzcoo)} containing
-    the nonzero values.
+    the nonzero elements.
   }
   \item{dimnames}{
     The \emph{dimnames} of the object to be created. Must be \code{NULL} or
@@ -100,10 +100,12 @@ nzvals(x)
     \item For \code{COO_SparseArray()}: A COO_SparseArray or COO_SparseMatrix
           object.
 
-    \item For \code{nzcoo()}: The matrix containing the array coordinates
-          of the nonzero values.
+    \item For \code{nzcoo()}: A matrix with one column per dimension
+          containing the \emph{array coordinates} of the nonzero elements.
 
-    \item For \code{nzvals()}: The vector of nonzero values.
+    \item For \code{nzdata()}: A vector \emph{parallel} to \code{nzcoo(x)}
+          (i.e. with one element per row in \code{nzcoo(x)}) containing
+          the nonzero elements.
   }
 }
 
@@ -135,12 +137,12 @@ nzvals(x)
 ## ---------------------------------------------------------------------
 dim1 <- 5:3
 nzcoo1 <- Lindex2Mindex(sample(60, 8), 5:3)
-nzvals1 <- 11.11 * seq_len(nrow(nzcoo1))
-coo1 <- COO_SparseArray(dim1, nzcoo1, nzvals1)
+nzdata1 <- 11.11 * seq_len(nrow(nzcoo1))
+coo1 <- COO_SparseArray(dim1, nzcoo1, nzdata1)
 coo1
 
 nzcoo(coo1)
-nzvals(coo1)
+nzdata(coo1)
 type(coo1)
 sparsity(coo1)
 
@@ -157,7 +159,7 @@ class(coo2)
 dim(coo2)
 length(coo2)
 nzcoo(coo2)
-nzvals(coo2)
+nzdata(coo2)
 type(coo2)
 sparsity(coo2)
 
@@ -178,11 +180,11 @@ M2C <- as(coo2, "dgCMatrix")
 stopifnot(identical(M2C, as(m2, "dgCMatrix")))
 
 coo2C <- as(M2C, "COO_SparseArray")
-## 'coo2C' is the same as 'coo2' except that 'nzvals(coo2C)' has
+## 'coo2C' is the same as 'coo2' except that 'nzdata(coo2C)' has
 ## type "double" instead of "integer":
 stopifnot(all.equal(coo2, coo2C))
-typeof(nzvals(coo2C))  # double
-typeof(nzvals(coo2))   # integer
+typeof(nzdata(coo2C))  # double
+typeof(nzdata(coo2))   # integer
 
 M2R <- as(coo2, "dgRMatrix")
 stopifnot(identical(M2R, as(m2, "dgRMatrix")))
@@ -211,8 +213,8 @@ identical(as.matrix(coo3), as.matrix(coo3R))
 ## ---------------------------------------------------------------------
 nzcoo4 <- cbind(sample(25000, 600000, replace=TRUE),
                 sample(195000, 600000, replace=TRUE))
-nzvals4 <- runif(600000)
-coo4 <- COO_SparseArray(c(25000, 195000), nzcoo4, nzvals4)
+nzdata4 <- runif(600000)
+coo4 <- COO_SparseArray(c(25000, 195000), nzcoo4, nzdata4)
 coo4
 sparsity(coo4)
 }
