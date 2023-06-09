@@ -28,8 +28,8 @@ for (.Generic in .UNARY_ISO_OPS) {
         function(x)
         {
             GENERIC <- match.fun(.Generic)
-            new_nzvals <- GENERIC(x@nzvals)
-            BiocGenerics:::replaceSlots(x, nzvals=new_nzvals, check=FALSE)
+            new_nzdata <- GENERIC(x@nzdata)
+            BiocGenerics:::replaceSlots(x, nzdata=new_nzdata, check=FALSE)
         }
     )
 }
@@ -37,8 +37,8 @@ for (.Generic in .UNARY_ISO_OPS) {
 setMethod("nchar", "COO_SparseArray",
     function(x, type="chars", allowNA=FALSE, keepNA=NA)
     {
-        new_nzvals <- nchar(x@nzvals, type=type, allowNA=allowNA, keepNA=keepNA)
-        BiocGenerics:::replaceSlots(x, nzvals=new_nzvals, check=FALSE)
+        new_nzdata <- nchar(x@nzdata, type=type, allowNA=allowNA, keepNA=keepNA)
+        BiocGenerics:::replaceSlots(x, nzdata=new_nzdata, check=FALSE)
     }
 )
 

@@ -78,7 +78,7 @@
 {
     .check_Arith_input_type(type(x))
     if (is(x, "COO_SparseArray")) {
-        ans <- BiocGenerics:::replaceSlots(x, nzvals=-x@nzvals, check=FALSE)
+        ans <- BiocGenerics:::replaceSlots(x, nzdata=-x@nzdata, check=FALSE)
     } else if (is(x, "SVT_SparseArray")) {
         if (type(x) == "complex")
             stop(wmsg("unary \"-\" is not implemented yet on an ",

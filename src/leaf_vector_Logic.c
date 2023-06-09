@@ -55,9 +55,9 @@ static int sparse_Logic_ints_ints(
 	int ans_len, k1, k2, off, x, y, v;
 
 	ans_len = k1 = k2 = 0;
-	while (next_nzvals_int_int(offs1, vals1, n1,
-				   offs2, vals2, n2,
-				   &k1, &k2, &off, &x, &y))
+	while (next_nzval_int_int(offs1, vals1, n1,
+				  offs2, vals2, n2,
+				  &k1, &k2, &off, &x, &y))
 	{
 		v = Logic_int_int(x, y, opcode);
 		if (v != 0) {

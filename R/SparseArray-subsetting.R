@@ -41,8 +41,8 @@
     ## only reason why we list matrixStats in the Imports field.
     keep_idx <- which(!matrixStats::rowAnyNAs(x_nzcoo))
     ans_nzcoo <- x_nzcoo[keep_idx, , drop=FALSE]
-    ans_nzvals <- x@nzvals[keep_idx]
-    COO_SparseArray(ans_dim, ans_nzcoo, ans_nzvals, check=FALSE)
+    ans_nzdata <- x@nzdata[keep_idx]
+    COO_SparseArray(ans_dim, ans_nzcoo, ans_nzdata, check=FALSE)
 }
 setMethod("extract_sparse_array", "COO_SparseArray",
     .extract_COO_SparseArray_subset

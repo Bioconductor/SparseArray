@@ -15,11 +15,11 @@
 ###   length <= the first dimension of the SVT_SparseArray object, which
 ###   itself is guaranteed to be <= INT_MAX (2^31 - 1).
 ### - The cumulated length of the "leaf vectors" in the SVT is the number
-###   of nonzero values (i.e. nzdata length) in the SVT_SparseArray object.
+###   of nonzero elements (i.e. nzcount) in the SVT_SparseArray object.
 ###   There is no upper limit to this number.
 ###   In other words, unlike dgCMatrix objects where this number is
 ###   limited to INT_MAX, an SVT_SparseArray can store an arbitrary number
-###   of nonzero values.
+###   of nonzero elements.
 ###
 
 setClassUnion("NULL_OR_list", c("NULL", "list"))
@@ -259,13 +259,13 @@ setAs("Matrix", "SVT_SparseArray", function(from) as(from, "SVT_SparseMatrix"))
 .from_SVT_SparseArray_to_COO_SparseArray <- function(from)
 {
     stopifnot(is(from, "SVT_SparseArray"))
-    ## Returns 'ans_nzcoo' and 'ans_nzvals' in a list of length 2.
+    ## Returns 'ans_nzcoo' and 'ans_nzdata' in a list of length 2.
     C_ans <- .Call2("C_from_SVT_SparseArray_to_COO_SparseArray",
                     from@dim, from@type, from@SVT, PACKAGE="SparseArray")
     ans_nzcoo <- C_ans[[1L]]
-    ans_nzvals <- C_ans[[2L]]
+    ans_nzdata <- C_ans[[2L]]
     new_COO_SparseArray(from@dim, from@dimnames,
-                        ans_nzcoo, ans_nzvals, check=FALSE)
+                        ans_nzcoo, ans_nzdata, check=FALSE)
 }
 
 setAs("SVT_SparseArray", "COO_SparseArray",
@@ -290,7 +290,7 @@ setAs("SVT_SparseMatrix", "COO_SparseMatrix",
     ## We start with an allzero SVT_SparseArray object and subassign
     ## the nonzero data to it.
     ans <- new_SVT_SparseArray(x@dim, x@dimnames, type, check=FALSE)
-    ans[x@nzcoo] <- x@nzvals
+    ans[x@nzcoo] <- x@nzdata
     ans
 }
 

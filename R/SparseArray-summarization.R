@@ -51,7 +51,7 @@
                   "does not support the 'recursive' argument"))
 
     if (is(x, "COO_SparseArray"))
-        return(anyNA(x@nzvals))
+        return(anyNA(x@nzdata))
 
     if (is(x, "SVT_SparseArray"))
         return(.summarize_SVT("anyNA", x))
@@ -70,7 +70,7 @@ setMethod("anyNA", "SparseArray", .anyNA_SparseArray)
                   "does not support the 'recursive' argument"))
 
     if (is(x, "COO_SparseArray"))
-        return(sum(is.na(x@nzvals)))  # or do 'countNAs(x@nzvals)' when it
+        return(sum(is.na(x@nzdata)))  # or do 'countNAs(x@nzdata)' when it
                                       # becomes available
 
     if (is(x, "SVT_SparseArray"))
@@ -92,17 +92,17 @@ setMethod("anyNA", "SparseArray", .anyNA_SparseArray)
     ## Whether 'x' contains zeros or not doesn't make a difference for
     ## sum() and any().
     if (op %in% c("sum", "any"))
-        return(GENERIC(x@nzvals, na.rm=na.rm))
+        return(GENERIC(x@nzdata, na.rm=na.rm))
     ## Of course a typical COO_SparseArray object "contains" zeros
     ## (i.e. it would contain zeros if we converted it to a dense
     ## representation with as.array()). However, this is not guaranteed
     ## so we need to make sure to properly handle the case where it
     ## doesn't (admittedly unusual and definitely an inefficient way
     ## to represent dense data!)
-    x_has_zeros <- length(x@nzvals) < length(x)
+    x_has_zeros <- length(x@nzdata) < length(x)
     if (!x_has_zeros)
-        return(GENERIC(x@nzvals, na.rm=na.rm))
-    x_type <- typeof(x@nzvals)
+        return(GENERIC(x@nzdata, na.rm=na.rm))
+    x_type <- typeof(x@nzdata)
     if (op == "all") {
         ## Mimic what 'all(as.array(x))' would do.
         if (x_type == "double")
@@ -110,7 +110,7 @@ setMethod("anyNA", "SparseArray", .anyNA_SparseArray)
         return(FALSE)
     }
     zero <- vector(x_type, length=1L)
-    GENERIC(zero, x@nzvals, na.rm=na.rm)
+    GENERIC(zero, x@nzdata, na.rm=na.rm)
 }
 
 setMethod("Summary", "COO_SparseArray",
@@ -153,11 +153,11 @@ range.COO_SparseArray <- function(..., na.rm=FALSE, finite=FALSE)
         stop(wmsg("the range() method for COO_SparseArray objects ",
                   "only accepts a single object"))
     x <- objects[[1L]]
-    x_has_zeros <- length(x@nzvals) < length(x)
+    x_has_zeros <- length(x@nzdata) < length(x)
     if (!x_has_zeros)
-        return(range(x@nzvals, na.rm=na.rm, finite=finite))
-    zero <- vector(typeof(x@nzvals), length=1L)
-    range(zero, x@nzvals, na.rm=na.rm, finite=finite)
+        return(range(x@nzdata, na.rm=na.rm, finite=finite))
+    zero <- vector(typeof(x@nzdata), length=1L)
+    range(zero, x@nzdata, na.rm=na.rm, finite=finite)
 }
 ### The signature of all the members in the 'Summary' group generic is
 ### 'x, ..., na.rm' (see getGeneric("range")) which means that methods

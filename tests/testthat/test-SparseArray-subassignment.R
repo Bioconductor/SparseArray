@@ -34,7 +34,7 @@ test_that("subassign an SVT_SparseArray object by an Mindex or Lindex", {
     .test_SparseArray_subassignment_by_Mindex_and_Lindex(x0, Mindex1, vals,
                                                          "SVT_SparseArray")
 
-    ## Add some nonzero values.
+    ## Add some nonzero elements.
     a0 <- make_3D_test_array()
     Mindex23 <- rbind(cbind(Mindex2, 1L), Mindex3)
     vals2 <- c(vals, vals)

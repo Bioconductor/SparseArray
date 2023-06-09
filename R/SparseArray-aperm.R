@@ -40,7 +40,7 @@ setMethod("t", "SVT_SparseMatrix", t.SVT_SparseMatrix)
     ans_nzcoo[ , is.na(perm)] <- 1L
     ans_dimnames <- x@dimnames[perm]
     new_COO_SparseArray(ans_dim, ans_dimnames,
-                        ans_nzcoo, x@nzvals, check=FALSE)
+                        ans_nzcoo, x@nzdata, check=FALSE)
 }
 
 .aperm_SVT <- function(x, perm, .NAME=c("C_aperm_SVT", "C_aperm0_SVT"))

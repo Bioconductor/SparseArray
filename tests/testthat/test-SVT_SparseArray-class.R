@@ -51,7 +51,7 @@ test_that("array <==> SVT_SparseArray coercions", {
     .test_coercion_to_SparseArray_with_various_types(x0, "SparseArray",
                                                          "SVT_SparseArray")
 
-    ## Add some nonzero values.
+    ## Add some nonzero elements.
     a0 <- make_3D_test_array()
     .test_coercion_to_SparseArray_with_various_types(a0, "SVT_SparseArray",
                                                          "SVT_SparseArray")
@@ -82,7 +82,7 @@ test_that("dgCMatrix <==> SVT_SparseMatrix coercions", {
     expect_identical(as(svt, "CsparseMatrix"), dgcm0)
     expect_identical(as(svt, "sparseMatrix"), dgcm0)
 
-    ## Add some nonzero values.
+    ## Add some nonzero elements.
     set.seed(456)
     m0[5*(1:14)] <- runif(7, min=-5, max=10)
     m0[2, c(1:4, 7:9)] <- c(NA, NaN, Inf, 3e9, 256, -0.999, -1)
@@ -131,7 +131,7 @@ test_that("dgCMatrix <==> SVT_SparseMatrix coercions", {
     expect_identical(as(m0, "SVT_SparseMatrix"), svt)
     expect_identical(as(svt, "dgCMatrix"), as(m0, "dgCMatrix"))
 
-    ## With no nonzero values in the 1st column.
+    ## With no nonzero elements in the 1st column.
     m0[cbind(1:3, 1)] <- dgcm0[cbind(1:3, 1)] <- 0
     svt <- as(dgcm0, "SVT_SparseMatrix")
     check_SparseArray_object(svt, "SVT_SparseMatrix", m0)
@@ -155,7 +155,7 @@ test_that("lgCMatrix <==> SVT_SparseMatrix coercions", {
     expect_identical(as(svt, "CsparseMatrix"), lgcm0)
     expect_identical(as(svt, "sparseMatrix"), lgcm0)
 
-    ## Add some nonzero values.
+    ## Add some nonzero elements.
     m0[5*(1:14)] <- TRUE
     m0[17*(1:4)] <- NA
     m0[3, 8] <- NA
@@ -218,9 +218,9 @@ test_that("lgCMatrix <==> SVT_SparseMatrix coercions", {
 {
     a0 <- make_3D_test_array()
     coo0 <- as(a0, "COO_SparseArray")
-    idx <- sample(length(coo0@nzvals))
+    idx <- sample(length(coo0@nzdata))
     coo0@nzcoo <- coo0@nzcoo[idx, , drop=FALSE]
-    coo0@nzvals <- coo0@nzvals[idx]
+    coo0@nzdata <- coo0@nzdata[idx]
     coo0
 }
 
@@ -228,7 +228,7 @@ test_that("lgCMatrix <==> SVT_SparseMatrix coercions", {
 {
     coo0 <- .make_test_3D_coo()
     coo <- extract_sparse_array(coo0, list(NULL, NULL, 1L))
-    COO_SparseArray(dim(coo)[1:2], nzcoo=nzcoo(coo)[ , 1:2], nzvals=nzvals(coo),
+    COO_SparseArray(dim(coo)[1:2], nzcoo=nzcoo(coo)[ , 1:2], nzdata=nzdata(coo),
                     dimnames=dimnames(coo0)[1:2])
 }
 
@@ -237,13 +237,13 @@ test_that("lgCMatrix <==> SVT_SparseMatrix coercions", {
     coo0 <- .make_test_2D_coo()
     coo <- extract_sparse_array(coo0, list(2L, NULL))
     COO_SparseArray(dim(coo)[2L],
-                    nzcoo=nzcoo(coo)[ , 2L, drop=FALSE], nzvals=nzvals(coo),
+                    nzcoo=nzcoo(coo)[ , 2L, drop=FALSE], nzdata=nzdata(coo),
                     dimnames=dimnames(coo0)[2L])
 }
 
 test_that("COO_SparseArray <==> SVT_SparseArray coercions", {
     ## Only zeros.
-    coo0 <- COO_SparseArray(c(7, 10, 3), nzvals=double(0),
+    coo0 <- COO_SparseArray(c(7, 10, 3), nzdata=double(0),
                             dimnames=list(NULL, letters[1:10], LETTERS[1:3]))
     a <- as.array(coo0)
     svt <- as(coo0, "SVT_SparseArray")
@@ -251,7 +251,7 @@ test_that("COO_SparseArray <==> SVT_SparseArray coercions", {
     coo <- as(a, "COO_SparseArray")
     expect_identical(as(svt, "COO_SparseArray"), coo)
 
-    coo0 <- COO_SparseArray(c(7, 10), nzvals=double(0))  # 2D
+    coo0 <- COO_SparseArray(c(7, 10), nzdata=double(0))  # 2D
     m <- as.matrix(coo0)
     svt <- as(coo0, "SVT_SparseMatrix")
     check_SparseArray_object(svt, "SVT_SparseMatrix", m)
@@ -260,14 +260,14 @@ test_that("COO_SparseArray <==> SVT_SparseArray coercions", {
     expect_identical(as(svt, "COO_SparseMatrix"), coo)
     expect_identical(as(svt, "COO_SparseArray"), coo)
 
-    coo0 <- COO_SparseArray(10, nzvals=double(0))  # 1D
+    coo0 <- COO_SparseArray(10, nzdata=double(0))  # 1D
     a <- as.array(coo0)
     svt <- as(coo0, "SVT_SparseArray")
     check_SparseArray_object(svt, "SVT_SparseArray", a)
     coo <- as(a, "COO_SparseArray")
     expect_identical(as(svt, "COO_SparseArray"), coo)
 
-    ## Add some nonzero values.
+    ## Add some nonzero elements.
     coo0 <- .make_test_3D_coo()
     a <- as.array(coo0)
     svt <- as(coo0, "SVT_SparseArray")
@@ -305,7 +305,7 @@ test_that("SVT_SparseMatrix transposition", {
     m0 <- matrix(0.0, nrow=7, ncol=10, dimnames=list(NULL, letters[1:10]))
     .test_SparseMatrix_transposition(m0, "SVT_SparseMatrix")
 
-    ## Add some nonzero values.
+    ## Add some nonzero elements.
     set.seed(789)
     m0[5*(1:14)] <- runif(7, min=-5, max=10)
     m0[2, c(1:4, 7:9)] <- c(NA, NaN, Inf, 3e9, 256, -0.999, -1)

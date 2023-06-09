@@ -44,10 +44,10 @@
     )
     ans_nzcoo <- do.call(rbind, nzcoo_list)
 
-    ## Combine the "nzvals" slots.
-    ans_nzvals <- unlist(lapply(objects, slot, "nzvals"), use.names=FALSE)
+    ## Combine the @nzdata slots.
+    ans_nzdata <- unlist(lapply(objects, slot, "nzdata"), use.names=FALSE)
 
-    COO_SparseArray(ans_dim, ans_nzcoo, ans_nzvals, ans_dimnames, check=FALSE)
+    COO_SparseArray(ans_dim, ans_nzcoo, ans_nzdata, ans_dimnames, check=FALSE)
 }
 
 setMethod("arbind", "COO_SparseArray",

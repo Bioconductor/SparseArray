@@ -300,10 +300,10 @@ static SEXP nzwhich_SVT_as_Lindex(SEXP SVT, const int *dim, int ndim,
 }
 
 /* Recursive. */
-static int REC_extract_nzcoo_and_nzdata_from_SVT(SEXP SVT,
+static int REC_extract_nzcoo_and_nzvals_from_SVT(SEXP SVT,
 		int *nzcoo, int nzcoo_nrow, int nzcoo_ncol,
 		int *rowbuf, int rowbuf_offset,
-		SEXP nzdata, int *nzdata_offset)
+		SEXP nzvals, int *nzvals_offset)
 {
 	int SVT_len, i, ret, lv_len, k, *p, j;
 	SEXP subSVT, lv_offs, lv_vals;
@@ -318,10 +318,10 @@ static int REC_extract_nzcoo_and_nzdata_from_SVT(SEXP SVT,
 		for (i = 0; i < SVT_len; i++) {
 			subSVT = VECTOR_ELT(SVT, i);
 			rowbuf[rowbuf_offset] = i + 1;
-			ret = REC_extract_nzcoo_and_nzdata_from_SVT(subSVT,
+			ret = REC_extract_nzcoo_and_nzvals_from_SVT(subSVT,
 					nzcoo, nzcoo_nrow, nzcoo_ncol,
 					rowbuf, rowbuf_offset - 1,
-					nzdata, nzdata_offset);
+					nzvals, nzvals_offset);
 			if (ret < 0)
 				return -1;
 		}
@@ -333,9 +333,9 @@ static int REC_extract_nzcoo_and_nzdata_from_SVT(SEXP SVT,
 	if (lv_len < 0)
 		return -1;
 
-	if (nzdata != R_NilValue) {
+	if (nzvals != R_NilValue) {
 		ret = copy_Rvector_elts(lv_vals, (R_xlen_t) 0,
-					nzdata, (R_xlen_t) *nzdata_offset,
+					nzvals, (R_xlen_t) *nzvals_offset,
 					XLENGTH(lv_vals));
 		if (ret < 0)
 			return -1;
@@ -345,45 +345,45 @@ static int REC_extract_nzcoo_and_nzdata_from_SVT(SEXP SVT,
 		rowbuf[0] = INTEGER(lv_offs)[k] + 1;
 
 		/* Copy 'rowbuf' to 'nzcoo'. */
-		p = nzcoo + *nzdata_offset;
+		p = nzcoo + *nzvals_offset;
 		for (j = 0; j < nzcoo_ncol; j++) {
 			*p = rowbuf[j];
 			p += nzcoo_nrow;
 		}
 
-		(*nzdata_offset)++;
+		(*nzvals_offset)++;
 	}
 	return 0;
 }
 
-static SEXP extract_nzcoo_and_nzdata_from_SVT(SEXP SVT,
+static SEXP extract_nzcoo_and_nzvals_from_SVT(SEXP SVT,
 		int nzcoo_nrow, int nzcoo_ncol,
-		SEXP nzdata)
+		SEXP nzvals)
 {
-	int *rowbuf, nzdata_offset, ret;
+	int *rowbuf, nzvals_offset, ret;
 	SEXP nzcoo;
 
 	rowbuf = (int *) R_alloc(nzcoo_ncol, sizeof(int));
 	nzcoo = PROTECT(allocMatrix(INTSXP, nzcoo_nrow, nzcoo_ncol));
 
-	nzdata_offset = 0;
-	ret = REC_extract_nzcoo_and_nzdata_from_SVT(SVT,
+	nzvals_offset = 0;
+	ret = REC_extract_nzcoo_and_nzvals_from_SVT(SVT,
 			INTEGER(nzcoo), nzcoo_nrow, nzcoo_ncol,
 			rowbuf, nzcoo_ncol - 1,
-			nzdata, &nzdata_offset);
+			nzvals, &nzvals_offset);
 	if (ret < 0) {
 		UNPROTECT(1);
 		error("SparseArray internal error in "
-		      "extract_nzcoo_and_nzdata_from_SVT():\n"
+		      "extract_nzcoo_and_nzvals_from_SVT():\n"
 		      "    invalid SVT_SparseArray object");
 	}
 
 	/* Sanity check (should never fail). */
-	if (nzdata_offset != nzcoo_nrow) {
+	if (nzvals_offset != nzcoo_nrow) {
 		UNPROTECT(1);
 		error("SparseArray internal error in "
-		      "extract_nzcoo_and_nzdata_from_SVT():\n"
-		      "    nzdata_offset != nzcoo_nrow");
+		      "extract_nzcoo_and_nzvals_from_SVT():\n"
+		      "    nzvals_offset != nzcoo_nrow");
 	}
 
 	UNPROTECT(1);
@@ -409,10 +409,10 @@ SEXP C_nzwhich_SVT_SparseArray(SEXP x_dim, SEXP x_SVT, SEXP arr_ind)
 	/* Return coordinates of nonzero array elements in an integer matrix
 	   representing an M-index. */
 	if (nzcount > INT_MAX)
-		error("too many nonzero values in SVT_SparseArray "
+		error("too many nonzero elements in SVT_SparseArray "
 		      "object to return their \"array\n  coordinates\" "
 		      "(n-tuples) in a matrix");
-	return extract_nzcoo_and_nzdata_from_SVT(x_SVT, (int) nzcount, x_ndim,
+	return extract_nzcoo_and_nzvals_from_SVT(x_SVT, (int) nzcount, x_ndim,
 						 R_NilValue);
 }
 
@@ -573,7 +573,7 @@ SEXP C_build_SVT_from_Rarray(SEXP x, SEXP ans_type)
  * Going from SVT_SparseMatrix to [d|l]gCMatrix
  */
 
-/* Returns nb of nonzero values in column. */
+/* Returns nb of nonzero elements in column. */
 static int dump_col_to_CsparseMatrix_slots(SEXP SVT, int col_idx,
 		SEXP ans_i, SEXP ans_x, int offset)
 {
@@ -812,7 +812,7 @@ SEXP C_from_SVT_SparseArray_to_COO_SparseArray(SEXP x_dim,
 		      "values to be turned into a COO_SparseArray object");
 
 	nzvals = PROTECT(alloc_nzvals(x_type, nzcount));
-	nzcoo = PROTECT(extract_nzcoo_and_nzdata_from_SVT(x_SVT,
+	nzcoo = PROTECT(extract_nzcoo_and_nzvals_from_SVT(x_SVT,
 					(int) nzcount, LENGTH(x_dim), nzvals));
 
 	ans = PROTECT(NEW_LIST(2));

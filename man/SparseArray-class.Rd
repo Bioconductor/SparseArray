@@ -12,12 +12,19 @@
 \alias{dim,SparseArray-method}
 \alias{dimnames,SparseArray-method}
 \alias{dimnames<-,SparseArray,ANY-method}
+
 \alias{is_sparse,SparseArray-method}
+
 \alias{nzcount}
 \alias{nzcount,CsparseMatrix-method}
 \alias{nzcount,RsparseMatrix-method}
 \alias{nzwhich}
 \alias{nzwhich,ANY-method}
+\alias{nzwhich,CsparseMatrix-method}
+\alias{nzvals}
+\alias{nzvals,ANY-method}
+\alias{nzvals,dgCMatrix-method}
+\alias{nzvals,lgCMatrix-method}
 \alias{sparsity}
 
 \alias{show,SparseArray-method}
@@ -100,8 +107,8 @@ SparseArray(x, type=NA)
   etc...
 
   SparseArray derivatives also support \code{type()}, \code{`type<-`()},
-  \code{is_sparse()}, \code{nzcount()}, \code{nzwhich()}, \code{sparsity()},
-  \code{arbind()}, and \code{acbind()}.
+  \code{is_sparse()}, \code{nzcount()}, \code{nzwhich()}, \code{nzvals()},
+  \code{sparsity()}, \code{arbind()}, and \code{acbind()}.
 
   \code{sparsity(x)} returns the ratio between the number of zero-valued
   elements in array-like object \code{x} and its total number of elements
@@ -213,32 +220,42 @@ class(dgr)
 SparseArray(dgr)  # a COO_SparseMatrix object
 
 ## ---------------------------------------------------------------------
-## nzcount() and nzwhich()
+## nzcount(), nzwhich(), nzvals()
 ## ---------------------------------------------------------------------
 x <- SparseArray(a)
 
-nzcount(x)  # number of nonzero elements in 'x'
+## Get the number of nonzero array elements in 'x':
+nzcount(x)
 
-## nzwhich() returns the indices of the nonzero elements in 'x'.
-## Either as "linear indices" (returned in an integer vector of
-## length 'nzcount(x)'):
+## nzwhich() returns the indices of the nonzero array elements in 'x'.
+## Either as an integer (or numeric) vector of length 'nzcount(x)'
+## containing "linear indices":
 nzidx <- nzwhich(x)
 length(nzidx)
 head(nzidx)
 
-## Or as "array indices" (a.k.a. "array coordinates") returned in an
-## integer matrix with 'nzcount(x)' rows and 1 column per dimension:
+## Or as an integer matrix with 'nzcount(x)' rows and one column per
+## dimension where the rows represent "array indices" (a.k.a. "array
+## coordinates"):
 Mnzidx <- nzwhich(x, arr.ind=TRUE)
 dim(Mnzidx)
 
 ## Each row in the matrix is an n-tuple representing the "array
-## coordinates" of a nonzero element:
+## coordinates" of a nonzero element in 'x':
 head(Mnzidx)
 tail(Mnzidx)
+
+## Extract the values of the nonzero array elements in 'x' and return
+## them in a vector "parallel" to 'nzwhich(x)':
+#nzvals <- nzvals(x)  # NOT READY YET!
+#length(nzvals)       # NOT READY YET!
+#head(nzvals)         # NOT READY YET!
 
 ## Sanity checks:
 stopifnot(identical(nzidx, which(a != 0)))
 stopifnot(identical(Mnzidx, which(a != 0, arr.ind=TRUE, useNames=FALSE)))
+#stopifnot(identical(nzvals, a[nzidx]))   # NOT READY YET!
+#stopifnot(identical(nzvals, a[Mnzidx]))  # NOT READY YET!
 }
 
 \keyword{methods}

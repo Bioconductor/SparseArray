@@ -12,7 +12,7 @@
 ###
 ### The COO_SparseArray API:
 ### - The SparseArray API (see SparseArray-class.R)
-### - Getters nzcoo() and nzvals()
+### - Getters nzcoo() and nzdata()
 ### - Coercion from array to COO_SparseArray
 ### - Back and forth coercion between COO_SparseArray and [d|l]g[C|R]Matrix
 ###   objects from the Matrix package
@@ -22,13 +22,13 @@ setClass("COO_SparseArray",
     contains="SparseArray",
     representation(
         nzcoo="matrix",  # M-index containing the coordinates of the
-                         # nonzero values.
-        nzvals="vector"  # A vector (atomic or list) of length
-                         # 'nrow(nzcoo)' containing the nonzero values.
+                         # nonzero elements.
+        nzdata="vector"  # A vector (atomic or list) of length 'nrow(nzcoo)'
+                         # containing the nonzero elements.
     ),
     prototype(
         nzcoo=matrix(integer(0), ncol=1L),
-        nzvals=logical(0)
+        nzdata=logical(0)
     )
 )
 
@@ -107,11 +107,11 @@ setMethod("coerce", c("COO_SparseMatrix", "SparseArray"),
     TRUE
 }
 
-.validate_nzvals_slot <- function(x)
+.validate_nzdata_slot <- function(x)
 {
-    x_nzvals <- x@nzvals
-    if (!(is.vector(x_nzvals) && length(x_nzvals) == nrow(x@nzcoo)))
-        return(paste0("'nzvals' slot must be a vector of length ",
+    x_nzdata <- x@nzdata
+    if (!(is.vector(x_nzdata) && length(x_nzdata) == nrow(x@nzcoo)))
+        return(paste0("'nzdata' slot must be a vector of length ",
                       "the number of rows in the 'nzcoo' slot"))
     TRUE
 }
@@ -121,7 +121,7 @@ setMethod("coerce", c("COO_SparseMatrix", "SparseArray"),
     msg <- .validate_nzcoo_slot(x)
     if (!isTRUE(msg))
         return(msg)
-    msg <- .validate_nzvals_slot(x)
+    msg <- .validate_nzdata_slot(x)
     if (!isTRUE(msg))
         return(msg)
     TRUE
@@ -133,13 +133,13 @@ setValidity2("COO_SparseArray", .validate_COO_SparseArray)
 ### Getters
 ###
 
-setMethod("type", "COO_SparseArray", function(x) type(x@nzvals))
+setMethod("type", "COO_SparseArray", function(x) type(x@nzdata))
 
 setGeneric("nzcoo", function(x) standardGeneric("nzcoo"))
 setMethod("nzcoo", "COO_SparseArray", function(x) x@nzcoo)
 
-setGeneric("nzvals", function(x) standardGeneric("nzvals"))
-setMethod("nzvals", "COO_SparseArray", function(x) x@nzvals)
+setGeneric("nzdata", function(x) standardGeneric("nzdata"))
+setMethod("nzdata", "COO_SparseArray", function(x) x@nzdata)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -155,13 +155,13 @@ setMethod("nzvals", "COO_SparseArray", function(x) x@nzvals)
     if (value == x_type)
         return(x)
 
-    new_nzvals <- x@nzvals
-    storage.mode(new_nzvals) <- value
-    nzidx <- default_nzwhich(new_nzvals)
+    new_nzdata <- x@nzdata
+    storage.mode(new_nzdata) <- value
+    nzidx <- default_nzwhich(new_nzdata)
     new_nzcoo <- x@nzcoo[nzidx, , drop=FALSE]
-    new_nzvals <- new_nzvals[nzidx]
+    new_nzdata <- new_nzdata[nzidx]
     BiocGenerics:::replaceSlots(x, nzcoo=new_nzcoo,
-                                   nzvals=new_nzvals,
+                                   nzdata=new_nzdata,
                                    check=FALSE)
 }
 
@@ -172,9 +172,9 @@ setReplaceMethod("type", "COO_SparseArray", .set_COO_SparseArray_type)
 ### nzcount() and nzwhich()
 ###
 
-### length(nzvals(x)) is the same as nrow(nzcoo(x)) but doing the former
+### length(nzdata(x)) is the same as nrow(nzcoo(x)) but doing the former
 ### should be slightly more efficient.
-setMethod("nzcount", "COO_SparseArray", function(x) length(nzvals(x)))
+setMethod("nzcount", "COO_SparseArray", function(x) length(nzdata(x)))
 
 .nzcoo_order <- function(nzcoo)
     do.call(order, lapply(ncol(nzcoo):1L, function(along) nzcoo[ , along]))
@@ -186,7 +186,7 @@ setMethod("nzcount", "COO_SparseArray", function(x) length(nzvals(x)))
     stopifnot(is(x, "COO_SparseArray"))
     if (!isTRUEorFALSE(arr.ind))
         stop(wmsg("'arr.ind' must be TRUE or FALSE"))
-    idx1 <- default_nzwhich(x@nzvals)
+    idx1 <- default_nzwhich(x@nzdata)
     nzcoo1 <- x@nzcoo[idx1, , drop=FALSE]
     oo <- .nzcoo_order(nzcoo1)
     ans <- nzcoo1[oo, , drop=FALSE]
@@ -203,7 +203,7 @@ setMethod("nzwhich", "COO_SparseArray", .nzwhich_COO_SparseArray)
 ###
 
 new_COO_SparseArray <- function(dim, dimnames=NULL,
-                                nzcoo=NULL, nzvals=NULL, check=TRUE)
+                                nzcoo=NULL, nzdata=NULL, check=TRUE)
 {
     stopifnot(is.integer(dim))
     if (length(dim) == 2L) {
@@ -213,7 +213,7 @@ new_COO_SparseArray <- function(dim, dimnames=NULL,
     }
     dimnames <- S4Arrays:::normarg_dimnames(dimnames, dim)
     new2(ans_class, dim=dim, dimnames=dimnames,
-                    nzcoo=nzcoo, nzvals=nzvals, check=check)
+                    nzcoo=nzcoo, nzdata=nzdata, check=check)
 }
 
 
@@ -221,26 +221,26 @@ new_COO_SparseArray <- function(dim, dimnames=NULL,
 ### Constructor
 ###
 
-.normarg_nzvals <- function(nzvals, length.out)
+.normarg_nzdata <- function(nzdata, length.out)
 {
-    if (is.null(nzvals))
-        stop(wmsg("'nzvals' cannot be NULL when 'nzcoo' is not NULL"))
-    if (!is.vector(nzvals))
-        stop(wmsg("'nzvals' must be a vector"))
+    if (is.null(nzdata))
+        stop(wmsg("'nzdata' cannot be NULL when 'nzcoo' is not NULL"))
+    if (!is.vector(nzdata))
+        stop(wmsg("'nzdata' must be a vector"))
     ## Same logic as S4Vectors:::V_recycle().
-    nzvals_len <- length(nzvals)
-    if (nzvals_len == length.out)
-        return(nzvals)
-    if (nzvals_len > length.out && nzvals_len != 1L)
-        stop(wmsg("'length(nzvals)' is greater than 'nrow(nzcoo)'"))
-    if (nzvals_len == 0L)
-        stop(wmsg("'length(nzvals)' is 0 but 'nrow(nzcoo)' is not"))
-    if (length.out %% nzvals_len != 0L)
-        warning(wmsg("'nrow(nzcoo)' is not a multiple of 'length(nzvals)'"))
-    rep(nzvals, length.out=length.out)
+    nzdata_len <- length(nzdata)
+    if (nzdata_len == length.out)
+        return(nzdata)
+    if (nzdata_len > length.out && nzdata_len != 1L)
+        stop(wmsg("'length(nzdata)' is greater than 'nrow(nzcoo)'"))
+    if (nzdata_len == 0L)
+        stop(wmsg("'length(nzdata)' is 0 but 'nrow(nzcoo)' is not"))
+    if (length.out %% nzdata_len != 0L)
+        warning(wmsg("'nrow(nzcoo)' is not a multiple of 'length(nzdata)'"))
+    rep(nzdata, length.out=length.out)
 }
 
-COO_SparseArray <- function(dim, nzcoo=NULL, nzvals=NULL, dimnames=NULL,
+COO_SparseArray <- function(dim, nzcoo=NULL, nzdata=NULL, dimnames=NULL,
                                  check=TRUE)
 {
     if (!is.numeric(dim))
@@ -248,10 +248,10 @@ COO_SparseArray <- function(dim, nzcoo=NULL, nzvals=NULL, dimnames=NULL,
     if (!is.integer(dim))
         dim <- as.integer(dim)
     if (is.null(nzcoo)) {
-        if (is.null(nzvals)) {
-            nzvals <- logical(0)  # vector()
-        } else if (!(is.vector(nzvals) && length(nzvals) == 0L)) {
-            stop(wmsg("'nzvals' must be NULL or a vector of length 0 ",
+        if (is.null(nzdata)) {
+            nzdata <- logical(0)  # vector()
+        } else if (!(is.vector(nzdata) && length(nzdata) == 0L)) {
+            stop(wmsg("'nzdata' must be NULL or a vector of length 0 ",
                       "when 'nzcoo' is NULL"))
         }
         nzcoo <- matrix(integer(0), ncol=length(dim))
@@ -262,9 +262,9 @@ COO_SparseArray <- function(dim, nzcoo=NULL, nzvals=NULL, dimnames=NULL,
             storage.mode(nzcoo) <- "integer"
         if (!is.null(dimnames(nzcoo)))
             dimnames(nzcoo) <- NULL
-        nzvals <- .normarg_nzvals(nzvals, nrow(nzcoo))
+        nzdata <- .normarg_nzdata(nzdata, nrow(nzcoo))
     }
-    new_COO_SparseArray(dim, dimnames, nzcoo, nzvals, check=check)
+    new_COO_SparseArray(dim, dimnames, nzcoo, nzdata, check=check)
 }
 
 
@@ -281,11 +281,11 @@ COO_SparseArray <- function(dim, nzcoo=NULL, nzvals=NULL, dimnames=NULL,
     if (is.null(x_dim))
         stop(wmsg("'x' must be an array-like object"))
     ans_nzcoo <- default_nzwhich(x, arr.ind=TRUE)  # M-index
-    ans_nzvals <- x[ans_nzcoo]
+    ans_nzdata <- x[ans_nzcoo]
     ## Work around bug in base::`[`
     if (length(x_dim) == 1L)
-        ans_nzvals <- as.vector(ans_nzvals)
-    COO_SparseArray(x_dim, ans_nzcoo, ans_nzvals, dimnames(x), check=FALSE)
+        ans_nzdata <- as.vector(ans_nzdata)
+    COO_SparseArray(x_dim, ans_nzcoo, ans_nzdata, dimnames(x), check=FALSE)
 }
 
 ### 'coo' must be a COO_SparseArray object.
@@ -294,10 +294,10 @@ COO_SparseArray <- function(dim, nzcoo=NULL, nzvals=NULL, dimnames=NULL,
 {
     if (!is(coo, "COO_SparseArray"))
         stop(wmsg("'coo' must be a COO_SparseArray object"))
-    coo_nzvals <- nzvals(coo)
-    zero <- vector(typeof(coo_nzvals), length=1L)
+    coo_nzdata <- nzdata(coo)
+    zero <- vector(typeof(coo_nzdata), length=1L)
     ans <- array(zero, dim=dim(coo))
-    ans[nzcoo(coo)] <- coo_nzvals
+    ans[nzcoo(coo)] <- coo_nzdata
     S4Arrays:::set_dimnames(ans, dimnames(coo))
 }
 
@@ -334,16 +334,16 @@ setAs("ANY", "COO_SparseMatrix",
 
     i <- from@nzcoo[ , 1L]
     j <- from@nzcoo[ , 2L]
-    nzvals <- from@nzvals
+    nzdata <- from@nzdata
 
     ## This type switching is safe only if it does not introduce zeros.
     if (!switch_type_early)
-        storage.mode(nzvals) <- to_type  # late type switching
+        storage.mode(nzdata) <- to_type  # late type switching
 
     if (orientation == "C") {
-        CsparseMatrix(dim(from), i, j, nzvals, dimnames=dimnames(from))
+        CsparseMatrix(dim(from), i, j, nzdata, dimnames=dimnames(from))
     } else {
-        RsparseMatrix(dim(from), i, j, nzvals, dimnames=dimnames(from))
+        RsparseMatrix(dim(from), i, j, nzdata, dimnames=dimnames(from))
     }
 }
 

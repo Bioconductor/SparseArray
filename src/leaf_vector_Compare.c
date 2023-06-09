@@ -74,7 +74,7 @@ static inline int flip_opcode(int opcode)
 	Rtype y;							\
 									\
 	ans_len = k1 = k2 = 0;						\
-	while (next_nzvals_ ## Ltype ## _ ## Rtype			\
+	while (next_nzval_ ## Ltype ## _ ## Rtype			\
 					(offs1, vals1, n1,		\
 					 offs2, vals2, n2,		\
 					 &k1, &k2, &off, &x, &y))	\
