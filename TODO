@@ -89,6 +89,51 @@
   to it. See https://github.com/Bioconductor/SparseArray/issues/5 for the
   details.
 
+- Rename sparsity -> sparseness?
+
+- Implement kronecker() method (Kronecker product) for SVT_SparseArray objects.
+  A quick scan of BioC 3.18 software packages reveals that 25+ packages call
+  the kronecker() function. Would be interesting to know how many of them need
+  to do this on sparse objects?
+
+  Good things to test (on SVT_SparseArray objects) once this is implemented:
+
+  1. First mixed-product property (mixing with element-wise array
+     multiplication a.k.a. "Hadamard product"):
+       With 4 arrays A, B, C, D, all with the same number of dimensions,
+       with A and C conformable, with B and D conformable, then:
+         kronecker(A, B) * kronecker(C, D)
+       must be the same as:
+         kronecker(A * C, B * D)
+       For example:
+         A <- array(1:60, dim=5:3)
+         C <- array(runif(60), dim=5:3)
+         B <- array(101:180, dim=c(2,10,4))
+         D <- array(runif(80), dim=c(2,10,4))
+         stopifnot(all.equal(kronecker(A, B) * kronecker(C, D),
+                             kronecker(A * C, B * D)))
+         stopifnot(all.equal(kronecker(B, A) * kronecker(D, C),
+                             kronecker(B * D, A * C)))
+
+  2. Second mixed-product property (mixing with matrix multiplication):
+       With 4 matrices A, B, C, D, with dimensions that allow one to do
+       A %*% C and B %*% D, then:
+         kronecker(A, B) %*% kronecker(C, D)
+       must be the same as:
+         kronecker(A %*% C, B %*% D)
+       For example:
+         A <- matrix(1:12, ncol=3)
+         C <- matrix(runif(18), nrow=3)
+         B <- matrix(101:120, ncol=5)
+         D <- matrix(runif(10), nrow=5)
+         stopifnot(all.equal(kronecker(A, B) %*% kronecker(C, D),
+                             kronecker(A %*% C, B %*% D)))
+         stopifnot(all.equal(kronecker(B, A) %*% kronecker(D, C),
+                             kronecker(B %*% D, A %*% C)))
+
+  See https://en.wikipedia.org/wiki/Kronecker_product for other properties
+  to test.
+
 - Define apply() and asplit() methods for SparseArray objects that fail with
   a friendly error message. Otherwise base::apply() or base::asplit() get
   called and they call as.array() on the object internally which is BAD!
