@@ -92,10 +92,10 @@
 - Rename sparsity -> sparseness?
 
 - To help implement the Kronecker product (see below): Introduce
-  arr_rep_times(x, times) and arr_rep_each(x, each) generics. The 'times'
+  arep_times(x, times) and arep_each(x, each) generics. The 'times'
   and 'each' args must be integer vectors with the same length as 'dim(x)'.
   They are multidimensional versions of 'rep(, times=t)' and 'rep(, each=e)'
-  that perform the repeats along each dimension of the array.
+  that perform the replications along each dimension of the array.
 
   For example, with x = matrix(1:6, ncol=2):
 
@@ -105,7 +105,7 @@
       [2,]    2    5
       [3,]    3    6
 
-   1. arr_rep_times(x, times=c(2, 4)) returns:
+   1. arep_times(x, times=c(2, 4)) returns:
 
       > do.call(cbind, rep(list(do.call(rbind, rep(list(x), 2))), 4))
            [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8]
@@ -116,7 +116,7 @@
       [5,]    2    5    2    5    2    5    2    5
       [6,]    3    6    3    6    3    6    3    6
 
-   2. arr_rep_each(x, each=c(2, 4)) returns:
+   2. arep_each(x, each=c(2, 4)) returns:
 
      > matrix(rep(t(matrix(rep(x, each=2), ncol=ncol(x))), each=4),
               byrow=TRUE, ncol=ncol(x)*4)
@@ -128,13 +128,13 @@
       [5,]    3    3    3    3    6    6    6    6
       [6,]    3    3    3    3    6    6    6    6
 
-  Note that the arr_rep_times() and arr_rep_each() generics really belong to
+  Note that the arep_times() and arep_each() generics really belong to
   the S4Arrays package (with the methods for ordinary arrays defined there
   too).
 
   Then kronecker(X, Y) (see below) can simply be obtained with:
 
-    arr_rep_each(X, each=dim(Y)) * arr_rep_times(Y, times=dim(X))
+    arep_each(X, each=dim(Y)) * arep_times(Y, times=dim(X))
 
   And this should be made the kronecker() method for Array objects.
 
@@ -143,10 +143,10 @@
   the kronecker() function. Would be interesting to know how many of them need
   to do this on sparse objects?
 
-  Note that one way to go is to simply implement arr_rep_times() and
-  arr_rep_each() methods for SVT_SparseArray objects. This will give us
-  kronecker() for free (via the kronecker() method for Array objects defined
-  in S4Arrays, see above).
+  Note that one way to go is to simply implement arep_times() and arep_each()
+  methods for SVT_SparseArray objects. This will give us kronecker() for
+  free (via the kronecker() method for Array objects defined in S4Arrays,
+  see above).
 
   Good things to test (on SVT_SparseArray objects) once this is implemented:
 
