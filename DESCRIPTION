@@ -13,7 +13,7 @@ Description: The SparseArray package is an infrastructure package that
 biocViews: Infrastructure, DataRepresentation
 URL: https://bioconductor.org/packages/SparseArray
 BugReports: https://github.com/Bioconductor/SparseArray/issues
-Version: 1.0.10
+Version: 1.0.11
 License: Artistic-2.0
 Encoding: UTF-8
 Authors@R: c(
@@ -24,7 +24,7 @@ Authors@R: c(
 	person("Rafael A.", "Irizarry", role="fnd",
 		email="rafa@ds.harvard.edu"))
 Depends: R (>= 4.3.0), methods, Matrix, BiocGenerics (>= 0.43.1),
-	MatrixGenerics (>= 1.11.1), S4Vectors, S4Arrays (>= 1.0.4)
+	MatrixGenerics (>= 1.11.1), S4Vectors, S4Arrays (>= 1.0.5)
 Imports: stats, matrixStats, IRanges, XVector
 LinkingTo: S4Vectors, IRanges, XVector
 Suggests: DelayedArray, testthat, knitr, rmarkdown, BiocStyle
@@ -39,7 +39,7 @@ Collate: sparseMatrix-utils.R
 	SparseArray-aperm.R
 	SparseArray-subsetting.R
 	SparseArray-subassignment.R
-	SparseArray-combine.R
+	SparseArray-abind.R
 	SparseArray-summarization.R
 	SparseArray-Ops-methods.R
 	SparseArray-Math-methods.R

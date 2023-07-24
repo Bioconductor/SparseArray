@@ -1,7 +1,7 @@
 /****************************************************************************
- *                      Combining SparseArray objects                       *
+ *              Combining multidimensional SparseArray objects              *
  ****************************************************************************/
-#include "SparseArray_combine.h"
+#include "SparseArray_abind.h"
 
 #include "Rvector_utils.h"
 #include "leaf_vector_utils.h"  /* for _split_leaf_vector() */
