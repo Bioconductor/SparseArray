@@ -7,7 +7,7 @@
 #include "SparseArray_aperm.h"
 #include "SparseArray_subsetting.h"
 #include "SparseArray_subassignment.h"
-#include "SparseArray_combine.h"
+#include "SparseArray_abind.h"
 #include "SparseArray_summarization.h"
 #include "SparseArray_Ops_methods.h"
 #include "SparseArray_Math_methods.h"
@@ -60,7 +60,7 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_subassign_SVT_with_Rarray, 5),
 	CALLMETHOD_DEF(C_subassign_SVT_with_SVT, 7),
 
-/* SparseArray_combine.c */
+/* SparseArray_abind.c */
 	CALLMETHOD_DEF(C_abind_SVT_SparseArray_objects, 3),
 
 /* SparseArray_summarization.c */

@@ -19,7 +19,7 @@
 ###    - extract_array() and extract_sparse_array()
 ###    - Subsetting (`[`) and subassignment (`[<-`)
 ###    - read_block_as_dense() and read_block_as_sparse()
-###    - arbind() and acbind()
+###    - abind(), arbind(), acbind()
 ###    - aperm()
 
 setClass("SparseArray",
