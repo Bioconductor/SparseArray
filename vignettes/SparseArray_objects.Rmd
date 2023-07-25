@@ -180,9 +180,9 @@ var(svt2, na.rm=TRUE)
 
 See `?SparseArray_summarization` for more information and additional examples.
 
-## Operations from the 'Ops', 'Math', and 'Complex' groups
+## Operations from the 'Ops', 'Math', 'Math2', and 'Complex' groups
 
-SVT\_SparseArray objects support operations from the 'Ops', 'Math',
+SVT\_SparseArray objects support operations from the 'Ops', 'Math', `Math2`,
 and 'Complex' groups, with some restrictions.
 See `?S4groupGeneric` in the `r Biocpkg("methods")` package for more
 information about these group generics.
@@ -224,6 +224,8 @@ Note that multidimensional transposition is supported via `aperm()`:
 aperm(svt2)
 ```
 
+See `?SparseArray_aperm` for more information and additional examples.
+
 ## Combine multidimensional objects along a given dimension
 
 Like ordinary matrices in base R, SVT\_SparseMatrix objects can be
@@ -234,12 +236,18 @@ svt3 <- poissonSparseMatrix(6, 2, density=0.5)
 cbind(svt1, svt3)
 ```
 
-Multidimensional objects can be combined along any dimension:
+Note that multidimensional objects can be combined along any dimension
+with `abind()`:
 ```{r}
 svt4a <- poissonSparseArray(c(5, 6, 2), density=0.4)
 svt4b <- poissonSparseArray(c(5, 6, 5), density=0.2)
 svt4c <- poissonSparseArray(c(5, 6, 4), density=0.2)
 abind(svt4a, svt4b, svt4c)
+
+svt5a <- aperm(svt4a, c(1, 3:2))
+svt5b <- aperm(svt4b, c(1, 3:2))
+svt5c <- aperm(svt4c, c(1, 3:2))
+abind(svt5a, svt5b, svt5c, along=2)
 ```
 
 See `?SparseArray_abind` for more information and additional examples.
@@ -249,11 +257,11 @@ See `?SparseArray_abind` for more information and additional examples.
 Like ordinary matrices in base R, SVT\_SparseMatrix objects can be
 multiplied with the `%*%` operator:
 ```{r}
-m5 <- matrix(0L, nrow=5, ncol=6, dimnames=list(letters[1:5], LETTERS[1:6]))
-m5[c(2, 6, 12:17, 22:30)] <- 101:117
-svt5 <- SparseArray(m5)
+m6 <- matrix(0L, nrow=5, ncol=6, dimnames=list(letters[1:5], LETTERS[1:6]))
+m6[c(2, 6, 12:17, 22:30)] <- 101:117
+svt6 <- SparseArray(m6)
 
-svt5 %*% svt3
+svt6 %*% svt3
 ```
 
 They also support `crossprod()` and `tcrossprod()`:
@@ -268,7 +276,7 @@ See `?SparseMatrix_mult` for more information and additional examples.
 The `r Biocpkg("SparseArray")` package provides memory-efficient col/row
 summarization methods for SVT\_SparseMatrix objects:
 ```{r}
-colVars(svt5)
+colVars(svt6)
 ```
 
 Note that multidimensional objects are supported:
@@ -285,7 +293,7 @@ See `?matrixStats_methods` for more information and additional examples.
 
 A `rowsum()` method is provided:
 ```{r}
-rowsum(svt5, group=c(1:3, 2:1))
+rowsum(svt6, group=c(1:3, 2:1))
 ```
 
 See `?rowsum_methods` for more information and additional examples.
@@ -295,7 +303,7 @@ See `?rowsum_methods` for more information and additional examples.
 Use `writeSparseCSV()` to write a sparse matrix to a CSV file:
 ```{r}
 csv_file <- tempfile()
-writeSparseCSV(m5, csv_file)
+writeSparseCSV(m6, csv_file)
 ```
 
 Use `readSparseCSV()` to read the file. This will import the data as
