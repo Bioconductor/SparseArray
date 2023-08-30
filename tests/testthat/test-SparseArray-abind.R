@@ -16,7 +16,7 @@
            dimnames=list(paste0("A3x", 1:5), NULL, paste0("A3z", 1:4)))
 )
 
-test_that("rbind_SVT_SparseMatrix_objects", {
+test_that("rbind() on SVT_SparseMatrix objects", {
     m1 <- .TEST_matrices[[1]]
     m2 <- .TEST_matrices[[2]]
     m3 <- .TEST_matrices[[3]]
@@ -54,7 +54,7 @@ test_that("rbind_SVT_SparseMatrix_objects", {
     expect_identical(svt, as(m, "SVT_SparseMatrix"))
 })
 
-test_that("cbind_SVT_SparseMatrix_objects", {
+test_that("cbind() on SVT_SparseMatrix objects", {
     m1 <- t(.TEST_matrices[[1]])
     m2 <- t(.TEST_matrices[[2]])
     m3 <- t(.TEST_matrices[[3]])
@@ -92,7 +92,7 @@ test_that("cbind_SVT_SparseMatrix_objects", {
     expect_identical(svt, as(m, "SVT_SparseMatrix"))
 })
 
-test_that("arbind_3D_SVT_SparseArray_objects", {
+test_that("arbind() on 3D SVT_SparseArray objects", {
     a1 <- .TEST_arrays[[1]]
     a2 <- .TEST_arrays[[2]]
     a3 <- .TEST_arrays[[3]]
@@ -128,7 +128,7 @@ test_that("arbind_3D_SVT_SparseArray_objects", {
     expect_identical(svt, as(a, "SVT_SparseArray"))
 })
 
-test_that("acbind_3D_SVT_SparseArray_objects", {
+test_that("acbind() on 3D SVT_SparseArray objects", {
     a1 <- aperm(.TEST_arrays[[1]], c(2:1, 3))
     a2 <- aperm(.TEST_arrays[[2]], c(2:1, 3))
     a3 <- aperm(.TEST_arrays[[3]], c(2:1, 3))
@@ -162,5 +162,59 @@ test_that("acbind_3D_SVT_SparseArray_objects", {
     svt <- acbind(a=svt1, b=svt1)
     check_SparseArray_object(svt, "SVT_SparseArray", a)
     expect_identical(svt, as(a, "SVT_SparseArray"))
+})
+
+test_that("abind() default method on SparseArray objects", {
+    a1 <- .TEST_arrays[[1]]
+    a2 <- .TEST_arrays[[2]]
+    a3 <- .TEST_arrays[[3]]
+    svt_objects <- lapply(.TEST_arrays, as, "SVT_SparseArray")
+    svt1 <- svt_objects[[1]]
+    svt2 <- svt_objects[[2]]
+    svt3 <- svt_objects[[3]]
+
+    ## The default abind() method is defined in the S4Arrays package. It will
+    ## be called if the input is a list object or if the supplied objects are
+    ## a mix of SparseArray objects and ordinary arrays.
+
+    ## --- Input is a list ---
+
+    a <- abind(.TEST_arrays, along=1)
+    svt <- abind(svt_objects, along=1)
+    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    expect_identical(svt, as(a, "SVT_SparseArray"))
+
+    expected_words <- c("all", "objects", "must", "be",
+                        "supplied", "via", "list")
+    regexp <- paste0("\\b", expected_words, "\\b", collapse=".*")
+    expect_error(abind(svt1, svt_objects), regexp, ignore.case=TRUE)
+    expect_error(abind(svt_objects, svt1), regexp, ignore.case=TRUE)
+
+    ## --- Input is a mix of SparseArray objects and ordinary arrays ---
+
+    expected <- abind(svt_objects, along=1)
+    current <- abind(a1, svt2, a3, along=1)
+    expect_identical(current, expected)
+
+    m2 <- .TEST_matrices[[2]]
+    a <- abind(m2, a2)
+    svt <- abind(m2, svt2)
+    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    expect_identical(svt, as(a, "SVT_SparseArray"))
+})
+
+test_that("abind(..., rev.along=0) on SparseArray objects", {
+    a1 <- .TEST_arrays[[1]]
+    a2 <- .TEST_arrays[[2]][1:3, , ]
+    a3 <- .TEST_arrays[[3]][1:3, , ]
+    svt1 <- as(a1, "SVT_SparseArray")
+    svt2 <- as(a2, "SVT_SparseArray")
+    svt3 <- as(a3, "SVT_SparseArray")
+
+    a <- abind(a1, a2, a3, rev.along=0)
+    svt <- abind(svt1, svt2, svt3, rev.along=0)
+    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    expect_identical(svt, as(a, "SVT_SparseArray"))
+    expect_identical(abind(svt1, svt2, svt3, along=4), svt)
 })
 
