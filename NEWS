@@ -1,3 +1,42 @@
+VERSION 1.2.0
+-------------
+
+NEW FEATURES
+
+    o Add aperm() method for SVT_SparseArray objects.
+
+    o Add abind() method for SparseArray objects.
+
+    o Add dim() setter for SVT_SparseArray objects.
+
+    o Introduce nzwhich() generic and method for SparseArray derivatives.
+      Also provide a default method for ordinary arrays and other array-like
+      objects.
+
+    o Implement 'Logic' ops on SVT_SparseArray objects.
+
+    o Implement 'Math'/'Math2' ops on SVT_SparseArray objects of type "double".
+
+    o 'Compare' ops now support SVT_SparseArray objects of type() "raw"
+      or "complex".
+
+    o All matrixStats methods (except row/colMedians()) now work on
+      multidimensional SVT_SparseArray objects and support the 'dims'
+      argument, like the row/colSums() and row/colMeans() functions in base R.
+
+    o Add row/colAnys() + row/colAlls() + row/colAnyNAs() + row/colProds()
+      methods for SVT_SparseArray objects.
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+    o Rename nzvals() slot getter (for COO_SparseArray objects) -> nzdata().
+      Also reintroduce nzvals() as a fast way to get 'x[nzwhich(x)]' on a
+      sparse array-like object 'x'.
+
+    o Re-implement all matrixStats methods (except row/colMedians()) for
+      SVT_SparseArray objects in C.
+
+
 VERSION 1.0.0
 -------------
 
