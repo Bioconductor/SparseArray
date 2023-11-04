@@ -73,6 +73,8 @@
        svt[ , , 1] <- svt[ , , 3, drop=FALSE]
        svt[ , , 1] <- svt[ , , 3]
 
+- Maybe implement svd() for SVT_SparseArray objects?
+
 - More SBT ("Sparse Buffer Tree") use cases:
 
   1. Implement C helper _push_vals_to_SBT_by_Mindex(), and modify coercion
