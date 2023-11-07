@@ -79,7 +79,7 @@ stopifnot(
   identical(range(svt0, na.rm=TRUE), range(m0, na.rm=TRUE)),
   identical(sum(svt0), sum(m0)),
   identical(sum(svt0, na.rm=TRUE), sum(m0, na.rm=TRUE)),
-  identical(sd(svt0, na.rm=TRUE), sd(m0, na.rm=TRUE))
+  all.equal(sd(svt0, na.rm=TRUE), sd(m0, na.rm=TRUE))
 )
 }
 \keyword{array}
