@@ -53,26 +53,7 @@ test_that("crossprod()/tcrossprod() on input objects of type \"double\"", {
     m0[3, 1] <- Inf
     m0[2, 3] <- -11.99
     svt0 <- as(m0, "SVT_SparseMatrix")
-    ## The test below fails on Mac arm64, with the following errors:
-    ##   ── Failure (test-SparseMatrix-mult.R:56:5): crossprod()/tcrossprod() on input objects of type "double" ──
-    ##   `cp` not equal to crossprod(svt, m).
-    ##   1/9 mismatches
-    ##   [3] NaN - Inf == NaN
-    ##   Backtrace:
-    ##       ▆
-    ##    1. └─SparseArray (local) .test_sym_crossprod_SparseMatrix(m0, svt0) at test-SparseMatrix-mult.R:56:4
-    ##    2.   └─testthat (local) EXPECT_FUN(cp, crossprod(svt, m)) at test-SparseMatrix-mult.R:36:4
-    ##   ── Failure (test-SparseMatrix-mult.R:56:5): crossprod()/tcrossprod() on input objects of type "double" ──
-    ##   `cp` not equal to crossprod(m, svt).
-    ##   1/9 mismatches
-    ##   [7] NaN - Inf == NaN
-    ##   Backtrace:
-    ##       ▆
-    ##    1. └─SparseArray (local) .test_sym_crossprod_SparseMatrix(m0, svt0) at test-SparseMatrix-mult.R:56:4
-    ##    2.   └─testthat (local) EXPECT_FUN(cp, crossprod(m, svt)) at test-SparseMatrix-mult.R:37:4
-    ## TODO: Troubleshoot this!
-    if (R.version$arch != "aarch64")
-        .test_sym_crossprod_SparseMatrix(m0, svt0)
+    .test_sym_crossprod_SparseMatrix(m0, svt0)
 
     m1 <- matrix(c(0, -4.5, 7, NA, 0, NaN, Inf, -Inf), nrow=1)
     svt1 <- as(m1, "SVT_SparseMatrix")
