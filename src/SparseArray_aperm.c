@@ -1,5 +1,5 @@
 /****************************************************************************
- *                  Transposition of a SparseArray object                   *
+ *                   Permutation of a SparseArray object                    *
  ****************************************************************************/
 #include "SparseArray_aperm.h"
 
@@ -7,11 +7,13 @@
 #include "leaf_vector_utils.h"
 #include "SBT_utils.h"
 
+#include <string.h>  /* for memset() */
+
 
 /****************************************************************************
  * C_transpose_2D_SVT()
  *
- * TODO: Do we still need this? C_aperm0_SVT() below reimplements this for
+ * TODO: Do we still need this? C_aperm_SVT() below reimplements this for
  * the multidimensional case and with no significant/measurable differences
  * in terms of performance for the 2D case compared to C_transpose_2D_SVT().
  */
@@ -320,45 +322,77 @@ SEXP C_transpose_2D_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT)
 
 
 /****************************************************************************
- * compute_aperm_ans_dim()
+ * check_perm() and compute_ans_dim_and_perm_margins()
+ *
+ * The permutation of dimensions is described by an integer vector 'perm' of
+ * length 'ndim' where 'ndim' is the number of dimensions of the array to
+ * permute. The inner and outer margins are the number of inner and outer
+ * dimensions that are not touched by the permutation. For example:
+ *
+ *     perm             inner_margin  outer_margin
+ *     -------------------------------------------
+ *     c(2,1)                      0             0
+ *     c(2,1,3)                    0             1
+ *     c(3,1,2)                    0             0
+ *     c(1,2,3,4)                  4             4
+ *     c(1,5,3,4,2,6,7)            1             2
+ *
+ * Note that normally 'inner_margin' + 'outer_margin' <= 'ndim' - 2, except
+ * when the permutation is the identity in which case both 'inner_margin'
+ * and 'outer_margin' are equal to 'ndim'.
  */
 
-/* Returns the "perm rank", that is, the number of leftmost dimensions that
-   actually get permuted. In other words, the "perm rank" is the smallest
-   number 'r' for which 'tail(perm, n=-r) ' is identical to '(r+1):ndim'.
-   A "perm rank" of 0 means that 'perm' is '1:ndim', which is the identity
-   permutation (no-op).
-   Note that 'r' is guaranteed to be 0 or 2 <= r <= ndim. It can never be 1! */
-static int compute_aperm_ans_dim(const int *dim, int ndim,
-				 const int *perm, int *ans_dim)
+static void check_perm(SEXP perm, int ndim)
 {
 	int *p_is_taken, along, p;
 
+	if (!IS_INTEGER(perm))
+		error("'perm' must be an integer vector");
+	if (LENGTH(perm) != ndim)
+		error("'length(perm)' not equal to number "
+		      "of dimensions of array to permute");
 	p_is_taken = (int *) R_alloc(ndim, sizeof(int));
 	memset(p_is_taken, 0, sizeof(int) * ndim);
 	for (along = 0; along < ndim; along++) {
-		p = perm[along];
+		p = INTEGER(perm)[along];
 		if (p == NA_INTEGER || p < 1 || p > ndim)
 			error("invalid 'perm' argument");
 		p--;
 		if (p_is_taken[p])
 			error("'perm' cannot contain duplicates");
-		ans_dim[along] = dim[p];
 		p_is_taken[p] = 1;
 	}
-	/* Compute the "perm rank". */
+	return;
+}
+
+static void compute_ans_dim_and_perm_margins(
+		const int *dim, int ndim, const int *perm,
+		int *ans_dim, int *inner_margin, int *outer_margin)
+{
+	int along, p;
+
+	*inner_margin = ndim;
+	for (along = 0; along < ndim; along++) {
+		p = perm[along] - 1;
+		ans_dim[along] = dim[p];
+		if (*inner_margin == ndim && p != along)
+			*inner_margin = along;
+	}
+	/* Compute the outer margin. */
 	for (along = ndim - 1; along >= 0; along--) {
-		p = perm[along];
-		if (p != along + 1)
+		p = perm[along] - 1;
+		if (p != along)
 			break;
 	}
-	//printf("perm_rank = %d\n", along + 1);
-	return along + 1;  /* "perm rank" */
+	*outer_margin = ndim - (along + 1);
+	//printf("inner_margin = %d -- outer_margin = %d\n",
+	//       *inner_margin, *outer_margin);
+	return;
 }
 
 
 /****************************************************************************
- * Basic manipulation of the aperm0_SVT() buffers
+ * Buffers used by aperm_with_new_SVT_leaves()
  */
 
 static void *alloc_quick_out_vals_p(unsigned long long int n, SEXPTYPE Rtype)
@@ -401,7 +435,7 @@ static inline void *inc_quick_out_vals_p(void *p, SEXPTYPE Rtype,
 }
 
 typedef struct aperm0_bufs_t {
-	int *nzcount_buf;     /* array of dims 'rev(head(dim(x), n=-1))' */
+	int *nzcount_buf;  // an array of dimensions tail(dim(x)[perm], n=-1)
 	unsigned long long int nzcount_buf_len;
 	unsigned long long int *nzcount_buf_incs;
 	unsigned long long int *outer_incs;
@@ -410,11 +444,9 @@ typedef struct aperm0_bufs_t {
 } Aperm0Bufs;
 
 /* Will always be called with 'ndim' >= 2. */
-static Aperm0Bufs new_A0Bufs(const int *dim, int ndim, const int *perm,
-			     SEXPTYPE Rtype)
+static void init_A0Bufs(Aperm0Bufs *A0Bufs, const int *dim, int ndim,
+			const int *perm, SEXPTYPE Rtype)
 {
-	Aperm0Bufs A0Bufs;
-
 	unsigned long long int *nzcount_buf_incs;
 	unsigned long long int *outer_incs;
 	unsigned long long int nzcount_buf_len;
@@ -433,6 +465,7 @@ static Aperm0Bufs new_A0Bufs(const int *dim, int ndim, const int *perm,
 		nzcount_buf_len *= dim[p];
 	}
 /*
+	printf("nzcount_buf_len = %llu\n", nzcount_buf_len);
 	for (along = 0; along < ndim - 1; along++)
 		printf("nzcount_buf_incs[%d] = %llu\n",
 			along, nzcount_buf_incs[along]);
@@ -440,21 +473,128 @@ static Aperm0Bufs new_A0Bufs(const int *dim, int ndim, const int *perm,
 		printf("outer_incs[%d] = %llu\n",
 			along, outer_incs[along]);
 */
-	A0Bufs.nzcount_buf = (int *)
+	A0Bufs->nzcount_buf = (int *)
 		R_alloc(nzcount_buf_len, sizeof(int));
-	A0Bufs.nzcount_buf_len = nzcount_buf_len;
-	A0Bufs.nzcount_buf_incs = nzcount_buf_incs;
-	A0Bufs.outer_incs = outer_incs;
-	A0Bufs.quick_out_offs_p = (int **)
+	A0Bufs->nzcount_buf_len = nzcount_buf_len;
+	A0Bufs->nzcount_buf_incs = nzcount_buf_incs;
+	A0Bufs->outer_incs = outer_incs;
+	A0Bufs->quick_out_offs_p = (int **)
 		R_alloc(nzcount_buf_len, sizeof(int *));
-	A0Bufs.quick_out_vals_p =
+	A0Bufs->quick_out_vals_p =
 		alloc_quick_out_vals_p(nzcount_buf_len, Rtype);
-	return A0Bufs;
+	return;
 }
 
 
 /****************************************************************************
- * Multidimensional transposition: C_aperm0_SVT()
+ * alloc_aperm0_SVT_bufs()
+ */
+
+/* Depending on whether the 'perm' vector has an inner margin or not,
+   we allocate the 'coords0_buf' buffer or the 'A0Bufs' buffers.
+   The former is used by aperm_with_same_SVT_leaves() and the latter
+   are used by aperm_with_new_SVT_leaves(). */
+static int *alloc_aperm0_SVT_bufs(const int *dim, int ndim, SEXPTYPE Rtype,
+		const int *perm, int inner_margin, Aperm0Bufs *A0Bufs)
+{
+	if (perm[0] == 1) {
+		/* 'ndim - inner_margin' is guaranteed to be >= 2. */
+		return (int *) R_alloc(ndim - inner_margin, sizeof(int));
+	}
+	/* 'ndim' is guaranteed to be >= 2. */
+	init_A0Bufs(A0Bufs, dim, ndim, perm, Rtype);
+	return NULL;
+}
+
+
+/****************************************************************************
+ * EASY CASE: aperm_with_same_SVT_leaves()
+ */
+
+static void graft_subSVT_onto_ans(SEXP subSVT, const int *perm,
+				  const int *ans_dim, int ans_ndim,
+				  int inner_margin, const int *coords0_buf,
+				  SEXP ans)
+{
+	int along, i;
+	SEXP ans_elt;
+
+	for (along = ans_ndim - 2; along >= inner_margin; along--) {
+		i = coords0_buf[perm[along + 1] - 1 - inner_margin];
+		ans_elt = VECTOR_ELT(ans, i);
+		if (ans_elt == R_NilValue) {
+			ans_elt = PROTECT(NEW_LIST(ans_dim[along]));
+			SET_VECTOR_ELT(ans, i, ans_elt);
+			UNPROTECT(1);
+		}
+		ans = ans_elt;
+	}
+	i = coords0_buf[perm[inner_margin] - 1 - inner_margin];
+	/* Sanity check. */
+	if (VECTOR_ELT(ans, i) != R_NilValue)
+		error("SparseArray internal error in "
+		      "graft_subSVT_onto_ans():\n"
+		      "    graft spot is already taken");
+	SET_VECTOR_ELT(ans, i, subSVT);
+	return;
+}
+
+/* Recursive.
+   'SVT' cannot be R_NilValue.
+   Length of 'perm' array is 'ans_ndim'.
+   Length of 'coords0_buf' array is 'ans_ndim' - 'inner_margin'. */
+static void REC_aperm_with_same_SVT_leaves(
+		SEXP SVT, const int *dim, int ndim, const int *perm,
+		const int *ans_dim, int ans_ndim,
+		int inner_margin, int *coords0_buf, SEXP ans)
+{
+	int SVT_len, i;
+	SEXP subSVT;
+
+	SVT_len = LENGTH(SVT);
+	for (i = 0; i < SVT_len; i++) {
+		subSVT = VECTOR_ELT(SVT, i);
+		if (subSVT == R_NilValue)
+			continue;
+		coords0_buf[ndim - inner_margin - 1] = i;
+		if (ndim > inner_margin + 1) {
+			REC_aperm_with_same_SVT_leaves(
+					subSVT, dim, ndim - 1, perm,
+					ans_dim, ans_ndim,
+					inner_margin, coords0_buf, ans);
+		} else {
+			graft_subSVT_onto_ans(
+					subSVT, perm,
+					ans_dim, ans_ndim,
+					inner_margin, coords0_buf, ans);
+		}
+	}
+	return;
+}
+
+static SEXP aperm_with_same_SVT_leaves(
+		SEXP SVT, const int *dim, int ndim,
+		const int *perm, const int *ans_dim,
+		int inner_margin, int *coords0_buf)
+{
+	int ans_len;
+	SEXP ans;
+
+	if (SVT == R_NilValue)
+		return R_NilValue;
+
+	ans_len = ans_dim[ndim - 1];
+	ans = PROTECT(NEW_LIST(ans_len));
+	REC_aperm_with_same_SVT_leaves(SVT, dim, ndim, perm,
+				       ans_dim, ndim,
+				       inner_margin, coords0_buf, ans);
+	UNPROTECT(1);
+	return ans;
+}
+
+
+/****************************************************************************
+ * HARD CASE: aperm_with_new_SVT_leaves()
  */
 
 static inline void count_lv_nzvals(SEXP lv,
@@ -509,7 +649,7 @@ static void REC_count_SVT_nzvals(SEXP SVT, int ndim,
 }
 
 /* Recursive. */
-static SEXP REC_grow_and_alloc_leaves(const int *dim, int ndim,
+static SEXP REC_grow_tree_and_alloc_leaves(const int *dim, int ndim,
 		SEXPTYPE Rtype,
 		const unsigned long long int *nzcount_buf_incs,
 		const int *nzcount_buf,
@@ -536,7 +676,7 @@ static SEXP REC_grow_and_alloc_leaves(const int *dim, int ndim,
 	ans = PROTECT(NEW_LIST(ans_len));
 	is_empty = 1;
 	for (i = 0; i < ans_len; i++) {
-		ans_elt = REC_grow_and_alloc_leaves(dim, ndim - 1, Rtype,
+		ans_elt = REC_grow_tree_and_alloc_leaves(dim, ndim - 1, Rtype,
 					nzcount_buf_incs, nzcount_buf,
 					quick_out_offs_p, quick_out_vals_p);
 		if (ans_elt != R_NilValue) {
@@ -673,7 +813,7 @@ static void spray_ans_with_lv(SEXP lv, SEXPTYPE Rtype,
 }
 
 /* Recursive. */
-static void REC_spray_ans_with_SVT(SEXP SVT, int ndim, SEXPTYPE Rtype,
+static void REC_fill_leaves(SEXP SVT, int ndim, SEXPTYPE Rtype,
 		const unsigned long long int *outer_incs,
 		unsigned long long int outer_offset0,
 		int *nzcount_buf,
@@ -703,7 +843,7 @@ static void REC_spray_ans_with_SVT(SEXP SVT, int ndim, SEXPTYPE Rtype,
 		if (outer_inc == 0)
 			inner_idx = i;
 		subSVT = VECTOR_ELT(SVT, i);
-		REC_spray_ans_with_SVT(subSVT, ndim - 1, Rtype,
+		REC_fill_leaves(subSVT, ndim - 1, Rtype,
 				outer_incs, outer_offset0,
 				nzcount_buf,
 				quick_out_offs_p, quick_out_vals_p);
@@ -711,7 +851,8 @@ static void REC_spray_ans_with_SVT(SEXP SVT, int ndim, SEXPTYPE Rtype,
 	return;
 }
 
-static SEXP aperm0_SVT(SEXP SVT, const int *dim, int ndim, SEXPTYPE Rtype,
+static SEXP aperm_with_new_SVT_leaves(
+		SEXP SVT, const int *dim, int ndim, SEXPTYPE Rtype,
 		const int *ans_dim, Aperm0Bufs *A0Bufs)
 {
 	SEXP ans;
@@ -721,27 +862,65 @@ static SEXP aperm0_SVT(SEXP SVT, const int *dim, int ndim, SEXPTYPE Rtype,
 	REC_count_SVT_nzvals(SVT, ndim, A0Bufs->outer_incs, 0,
 			     A0Bufs->nzcount_buf);
 	/* 2nd pass */
-	ans = PROTECT(REC_grow_and_alloc_leaves(ans_dim, ndim, Rtype,
+	ans = PROTECT(REC_grow_tree_and_alloc_leaves(ans_dim, ndim, Rtype,
 						A0Bufs->nzcount_buf_incs,
 						A0Bufs->nzcount_buf,
 						A0Bufs->quick_out_offs_p,
 						A0Bufs->quick_out_vals_p));
 	/* 3rd pass */
 	memset(A0Bufs->nzcount_buf, 0, sizeof(int) * A0Bufs->nzcount_buf_len);
-	REC_spray_ans_with_SVT(SVT, ndim, Rtype,
-			       A0Bufs->outer_incs, 0,
-			       A0Bufs->nzcount_buf,
-			       A0Bufs->quick_out_offs_p,
-			       A0Bufs->quick_out_vals_p);
+	REC_fill_leaves(SVT, ndim, Rtype,
+			A0Bufs->outer_incs, 0,
+			A0Bufs->nzcount_buf,
+			A0Bufs->quick_out_offs_p,
+			A0Bufs->quick_out_vals_p);
 	UNPROTECT(1);
 	return ans;
 }
 
-/* --- .Call ENTRY POINT --- */
+
+/****************************************************************************
+ * C_aperm0_SVT()
+ */
+
+/* Can handle any array permutation. However, it is optimized for the "no
+   outer margin" case, that is, when the permutation vector has no outer
+   margin. When the permutation vector has a nonzero outer margin,
+   aperm0_SVT() won't be as efficient as C_aperm_SVT().
+   In other words, C_aperm_SVT() should always be used instead of
+   aperm0_SVT() as it will always handle the general case optimally.
+   C_aperm_SVT() is based on aperm0_SVT().
+   Note that the bigger the outer margin, the more efficient C_aperm_SVT()
+   will be compared to aperm0_SVT(). */
+static SEXP aperm0_SVT(SEXP SVT, const int *dim, int ndim, SEXPTYPE Rtype,
+		const int *perm, const int *ans_dim,
+		int inner_margin, int *coords0_buf, Aperm0Bufs *A0Bufs)
+{
+	if (perm[0] == 1) {
+		/* EASY CASE: Leaves will be preserved i.e. the permuted
+		   array will reuse the leaves of the original array.
+		   It is very memory efficient because the original leaves
+		   can be reused as-is without even the need to copy them! */
+		return aperm_with_same_SVT_leaves(SVT, dim, ndim,
+						  perm, ans_dim,
+						  inner_margin, coords0_buf);
+	}
+
+	/* HARD CASE: Leaves won't be preserved i.e. the permuted array will
+	   use entirely new leaves. It is much less efficient than the EASY
+	   CASE because memory needs to be allocated for the new leaves. */
+	return aperm_with_new_SVT_leaves(SVT, dim, ndim, Rtype,
+					 ans_dim, A0Bufs);
+}
+
+/* --- .Call ENTRY POINT ---
+ * Just a wrapper for aperm0_SVT(). Only provided for convenience testing of
+ * aperm0_SVT() from the R command line.
+ */
 SEXP C_aperm0_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP perm)
 {
 	SEXPTYPE Rtype;
-	int ndim, *ans_dim, perm_rank;
+	int ndim, *ans_dim, inner_margin, outer_margin, *coords0_buf;
 	const int *dim;
 	Aperm0Bufs A0Bufs;
 
@@ -752,34 +931,44 @@ SEXP C_aperm0_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP perm)
 
 	ndim = LENGTH(x_dim);
 	dim = INTEGER(x_dim);
+	check_perm(perm, ndim);
 	ans_dim = (int *) R_alloc(ndim, sizeof(int));
-	perm_rank = compute_aperm_ans_dim(dim, ndim, INTEGER(perm), ans_dim);
-	if (perm_rank == 0 || x_SVT == R_NilValue)
+	compute_ans_dim_and_perm_margins(dim, ndim, INTEGER(perm),
+					 ans_dim, &inner_margin, &outer_margin);
+	if (outer_margin == ndim || x_SVT == R_NilValue)
 		return x_SVT;
 
-	/* 'ndim' is guaranteed to be >= 2. */
-	A0Bufs = new_A0Bufs(dim, ndim, INTEGER(perm), Rtype);
-	return aperm0_SVT(x_SVT, dim, ndim, Rtype, ans_dim, &A0Bufs);
+	/* Will allocate either the 'coords0_buf' buffer or the 'A0Bufs'
+	   buffers. 'ndim' is guaranteed to be >= 2. */
+	coords0_buf = alloc_aperm0_SVT_bufs(dim, ndim,
+					    Rtype, INTEGER(perm),
+					    inner_margin, &A0Bufs);
+	return aperm0_SVT(x_SVT, dim, ndim, Rtype,
+			  INTEGER(perm), ans_dim,
+			  inner_margin, coords0_buf, &A0Bufs);
 }
 
 
 /****************************************************************************
- * Permutation of the dimensions (most general case)
+ * C_aperm_SVT()
  */
 
-/* Recursive. 'ndim' is guaranteed to be >= "perm rank". */
+/* Recursive. */
 static SEXP REC_aperm_SVT(SEXP SVT, const int *dim, int ndim, SEXPTYPE Rtype,
-		const int *perm, const int *ans_dim, Aperm0Bufs *A0Bufs)
+		const int *perm, const int *ans_dim,
+		int inner_margin, int *coords0_buf, Aperm0Bufs *A0Bufs)
 {
 	int ans_len, i;
 	SEXP ans, subSVT, ans_elt;
 
 	if (perm[ndim - 1] != ndim) {
-		/* 'ndim' is equal to the "perm rank". */
-		return aperm0_SVT(SVT, dim, ndim, Rtype, ans_dim, A0Bufs);
+		/* Outer margin is 0. */
+		return aperm0_SVT(SVT, dim, ndim, Rtype,
+				  perm, ans_dim,
+				  inner_margin, coords0_buf, A0Bufs);
 	}
 
-	/* 'ndim' > "perm rank". */
+	/* Outer margin is > 0. */
 	ans_len = LENGTH(SVT);
 	ans = PROTECT(NEW_LIST(ans_len));
 	for (i = 0; i < ans_len; i++) {
@@ -787,8 +976,9 @@ static SEXP REC_aperm_SVT(SEXP SVT, const int *dim, int ndim, SEXPTYPE Rtype,
 		if (subSVT == R_NilValue)
 			continue;
 		ans_elt = PROTECT(
-			REC_aperm_SVT(subSVT, dim, ndim - 1, Rtype, perm,
-				      ans_dim, A0Bufs)
+			REC_aperm_SVT(subSVT, dim, ndim - 1, Rtype,
+				      perm, ans_dim,
+				      inner_margin, coords0_buf, A0Bufs)
 		);
 		SET_VECTOR_ELT(ans, i, ans_elt);
 		UNPROTECT(1);
@@ -797,11 +987,14 @@ static SEXP REC_aperm_SVT(SEXP SVT, const int *dim, int ndim, SEXPTYPE Rtype,
 	return ans;
 }
 
-/* --- .Call ENTRY POINT --- */
+/* --- .Call ENTRY POINT ---
+ * Handles any array permutation optimally, regardless of the outer margin
+ * of the permutation vector.
+ */
 SEXP C_aperm_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP perm)
 {
 	SEXPTYPE Rtype;
-	int ndim, *ans_dim, perm_rank;
+	int ndim, *ans_dim, inner_margin, outer_margin, *coords0_buf;
 	const int *dim;
 	Aperm0Bufs A0Bufs;
 
@@ -812,20 +1005,20 @@ SEXP C_aperm_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP perm)
 
 	ndim = LENGTH(x_dim);
 	dim = INTEGER(x_dim);
-	if (!IS_INTEGER(perm))
-		error("'perm' must be an integer vector");
-	if (LENGTH(perm) != ndim)
-		error("'length(perm)' not equal to number "
-		      "of dimensions of object to transpose");
+	check_perm(perm, ndim);
 	ans_dim = (int *) R_alloc(ndim, sizeof(int));
-	perm_rank = compute_aperm_ans_dim(dim, ndim,
-					  INTEGER(perm), ans_dim);
-	if (perm_rank == 0 || x_SVT == R_NilValue)
+	compute_ans_dim_and_perm_margins(dim, ndim, INTEGER(perm),
+					 ans_dim, &inner_margin, &outer_margin);
+	if (outer_margin == ndim || x_SVT == R_NilValue)
 		return x_SVT;
 
-	/* 'perm_rank' is guaranteed to be >= 2. */
-	A0Bufs = new_A0Bufs(dim, perm_rank, INTEGER(perm), Rtype);
-	return REC_aperm_SVT(x_SVT, dim, ndim, Rtype, INTEGER(perm),
-			     ans_dim, &A0Bufs);
+	/* Will allocate either the 'coords0_buf' buffer or the 'A0Bufs'
+	   buffers. 'ndim - outer_margin' is guaranteed to be >= 2. */
+	coords0_buf = alloc_aperm0_SVT_bufs(dim, ndim - outer_margin,
+					    Rtype, INTEGER(perm),
+					    inner_margin, &A0Bufs);
+	return REC_aperm_SVT(x_SVT, dim, ndim, Rtype,
+			     INTEGER(perm), ans_dim,
+			     inner_margin, coords0_buf, &A0Bufs);
 }
 
