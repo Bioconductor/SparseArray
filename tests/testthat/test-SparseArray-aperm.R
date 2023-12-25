@@ -15,6 +15,9 @@ test_that(".aperm_SVT()", {
     ## --- with 3 dimensions ---
 
     a0 <- array(1:360, c(8, 3, 15))
+    a0[ , , c(11,15)] <- 0L
+    a0[ , 1:2, 14] <- 0L
+    a0[c(1:4, 6), 3, 13] <- 0L
     svt0 <- SparseArray(a0)
 
     expect_identical(aperm(svt0, 1:3), svt0)
