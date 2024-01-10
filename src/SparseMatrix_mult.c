@@ -1,5 +1,5 @@
 /****************************************************************************
- *        crossprod(), tcrossprod(), and %*% of SparseArray objects         *
+ *        crossprod(), tcrossprod(), and %*% of SparseMatrix objects        *
  ****************************************************************************/
 #include "SparseMatrix_mult.h"
 

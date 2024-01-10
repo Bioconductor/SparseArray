@@ -1,3 +1,7 @@
+- Use OpenMP to Parallelize crossprod(), tcrossprod(), and %*% of
+  SVT_SparseMatrix objects at the C level.
+  See https://en.wikipedia.org/wiki/OpenMP#Work-sharing_constructs
+
 - Add nzvals() methods for COO_SparseArray and SVT_SparseArray objects.
   Uncomment nzvals() examples in vignette and SparseArray-class.Rd
 
