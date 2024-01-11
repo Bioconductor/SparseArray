@@ -106,12 +106,12 @@ static SEXP concatenate_SVTs(SEXP *SVTs, int nb_objects,
 		}
 		/* Sanity check (should never fail). */
 		if (!isVectorList(SVT))
-			error("input object %s is an invalid SVT_SparseArray",
+			error("input object %d is an invalid SVT_SparseArray",
 			      n + 1);
 		SVT_len = LENGTH(SVT);
 		/* Sanity check (should never fail). */
 		if (SVT_len != dims_along[n])
-			error("input object %s is an invalid SVT_SparseArray",
+			error("input object %d is an invalid SVT_SparseArray",
 			      n + 1);
 		for (i2 = 0; i2 < SVT_len; i2++, i1++)
 			SET_VECTOR_ELT(ans, i1, VECTOR_ELT(SVT, i2));
@@ -143,7 +143,7 @@ static SEXP concatenate_leaf_vectors(SEXP *SVTs, int nb_objects,
 			continue;
 		/* Sanity check (should never fail). */
 		if (!isVectorList(SVT) || LENGTH(SVT) != 2)
-			error("input object %s is an invalid SVT_SparseArray",
+			error("input object %d is an invalid SVT_SparseArray",
 			      n + 1);
 		ans_len += LENGTH(VECTOR_ELT(SVT, 0));
 	}

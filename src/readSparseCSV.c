@@ -49,7 +49,7 @@ static int filexp_gets2(SEXP filexp, char *buf, int buf_size, int *EOL_in_buf)
 	if (TYPEOF(filexp) == EXTPTRSXP)
 		//return filexp_gets(filexp, buf, buf_size, EOL_in_buf);
 		error("SparseArray internal error in "
-		      "filexp_gets2():\n",
+		      "filexp_gets2():\n"
 		      "    reading from a \"file external pointer\" "
 		      "is temporarily disabled");
 	/* Handle the case where 'filexp' is a connection identifier. */
@@ -388,7 +388,7 @@ SEXP C_readSparseCSV_as_SVT_SparseMatrix(SEXP filexp, SEXP sep,
 		if (TYPEOF(filexp) != INTSXP || LENGTH(filexp) != 1 ||
 		    !inherits(filexp, "connection"))
 			error("SparseArray internal error in "
-			      "C_readSparseCSV_as_SVT_SparseMatrix():\n",
+			      "C_readSparseCSV_as_SVT_SparseMatrix():\n"
 			      "    invalid 'filexp'");
 	}
 	transpose0 = LOGICAL(transpose)[0];
