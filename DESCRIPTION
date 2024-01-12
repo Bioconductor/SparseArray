@@ -22,7 +22,8 @@ Authors@R: c(
 	person("Vince", "Carey", role="fnd",
 		email="stvjc@channing.harvard.edu"),
 	person("Rafael A.", "Irizarry", role="fnd",
-		email="rafa@ds.harvard.edu"))
+		email="rafa@ds.harvard.edu"),
+	person("Jacques", "Serizay", role="ctb"))
 Depends: R (>= 4.3.0), methods, Matrix, BiocGenerics (>= 0.43.1),
 	MatrixGenerics (>= 1.11.1), S4Vectors, S4Arrays (>= 1.1.6)
 Imports: stats, matrixStats, IRanges, XVector
