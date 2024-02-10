@@ -3,7 +3,7 @@ title: "SparseArray objects"
 author:
 - name: Hervé Pagès
   affiliation: Fred Hutchinson Cancer Research Center, Seattle, WA
-date: "Compiled `r doc_date()`;  Modified 24 July 2023"
+date: "Compiled `r BiocStyle::doc_date()`;  Modified 24 July 2023"
 package: SparseArray
 vignette: |
   %\VignetteIndexEntry{SparseArray objects}
@@ -13,6 +13,10 @@ output:
   BiocStyle::html_document
 ---
 
+
+```{r setup, include=FALSE}
+library(BiocStyle)
+```
 
 # Introduction
 
