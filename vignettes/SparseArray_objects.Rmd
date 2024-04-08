@@ -3,7 +3,7 @@ title: "SparseArray objects"
 author:
 - name: Hervé Pagès
   affiliation: Fred Hutchinson Cancer Research Center, Seattle, WA
-date: "Compiled `r BiocStyle::doc_date()`;  Modified 24 July 2023"
+date: "Compiled `r BiocStyle::doc_date()`; Modified 8 April 2024"
 package: SparseArray
 vignette: |
   %\VignetteIndexEntry{SparseArray objects}
@@ -38,7 +38,7 @@ This vignette focuses on the SVT\_SparseArray container.
 # Install and load the package
 
 ```{r, eval=FALSE}
-if (!requireNamespace("BiocManager", quietly=TRUE))
+if (!require("BiocManager", quietly=TRUE))
     install.packages("BiocManager")
 BiocManager::install("SparseArray")
 ```

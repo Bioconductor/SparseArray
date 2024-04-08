@@ -168,7 +168,7 @@ SparseArray(x, type=NA)
     \item \link{matrixStats_methods} for SparseArray col/row summarization
           methods.
 
-    \item \link{rowsum_methods} for \code{rowsum()}  methods for sparse
+    \item \link{rowsum_methods} for \code{rowsum()} methods for sparse
           matrices.
 
     \item \code{\link{randomSparseArray}} to generate a random SparseArray

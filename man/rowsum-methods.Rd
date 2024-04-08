@@ -50,14 +50,16 @@
 
 \seealso{
   \itemize{
-    \item \link{SVT_SparseMatrix} objects.
-
-    \item \linkS4class{dgCMatrix} objects implemented in the \pkg{Matrix}
-          package.
+    \item \code{\link[base]{rowsum}} in base R.
 
     \item \code{S4Arrays::\link[S4Arrays]{rowsum}} in the \pkg{S4Arrays}
           package for the \code{rowsum()} and \code{colsum()} S4 generic
           functions.
+
+    \item \link{SVT_SparseMatrix} objects.
+
+    \item \linkS4class{dgCMatrix} objects implemented in the \pkg{Matrix}
+          package.
   }
 }
 
