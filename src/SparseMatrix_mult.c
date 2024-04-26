@@ -9,7 +9,9 @@
 #include "SVT_SparseArray_class.h"  /* for _REC_nzcount_SVT() */
 
 #include <string.h>  /* for memset() */
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 
 /* TODO: Maybe move this to Rvector_summarization.c */
 static int has_no_NaN_or_Inf(const double *x, int x_len)
@@ -108,6 +110,7 @@ static void expand_int_lv(SEXP lv, int *x, int x_len)
    and (3) omp_get_num_procs() / 3. */
 static int set_gentle_num_threads(int num_threads)
 {
+#ifdef _OPENMP
 	int n;
 
 	n = omp_get_max_threads();
@@ -121,6 +124,9 @@ static int set_gentle_num_threads(int num_threads)
 	//Rprintf("setting number of threads to %d\n", num_threads);
 	omp_set_num_threads(num_threads);
 	return num_threads;
+#else
+	return 0;
+#endif
 }
 
 static void compute_dotprods2_with_finite_Lcol(const double *col, SEXP SVT,
