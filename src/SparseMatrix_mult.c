@@ -9,6 +9,7 @@
 #include "SVT_SparseArray_class.h"  /* for _REC_nzcount_SVT() */
 
 #include <string.h>  /* for memset() */
+#include <omp.h>
 
 /* TODO: Maybe move this to Rvector_summarization.c */
 static int has_no_NaN_or_Inf(const double *x, int x_len)
@@ -102,17 +103,40 @@ static void expand_int_lv(SEXP lv, int *x, int x_len)
  * Core multithreaded routines
  */
 
+/* Number of threads that will be effectively used is the min of the 3
+   following values: (1) supplied 'num_threads', (2) omp_get_max_threads(),
+   and (3) omp_get_num_procs() / 3. */
+static int set_gentle_num_threads(int num_threads)
+{
+	int n;
+
+	n = omp_get_max_threads();
+	if (num_threads > n)
+		num_threads = n;
+	n = omp_get_num_procs() / 3;
+	if (num_threads > n)
+		num_threads = n;
+	if (num_threads == 0)
+		num_threads = 1;
+	//Rprintf("setting number of threads to %d\n", num_threads);
+	omp_set_num_threads(num_threads);
+	return num_threads;
+}
+
 static void compute_dotprods2_with_finite_Lcol(const double *col, SEXP SVT,
 		double *out, int out_nrow, int out_ncol)
 {
 	int j;
 	SEXP subSVT;
 
-	for (j = 0; j < out_ncol; j++, out += out_nrow) {
+	#pragma omp parallel for shared(col,SVT,out) private(j,subSVT)\
+	 schedule(static)
+	for (j = 0; j < out_ncol; j++) {
 		subSVT = VECTOR_ELT(SVT, j);
 		if (subSVT == R_NilValue)
 			continue;
-		*out = _dotprod_leaf_vector_and_finite_col(subSVT, col);
+		out[j * out_nrow] =
+		    _dotprod_leaf_vector_and_finite_col(subSVT, col);
 	}
 	return;
 }
@@ -123,11 +147,13 @@ static void compute_dotprods2_with_finite_Rcol(SEXP SVT, const double *col,
 	int i;
 	SEXP subSVT;
 
-	for (i = 0; i < out_nrow; i++, out++) {
+	#pragma omp parallel for shared(SVT,col,out) private(i,subSVT)\
+	 schedule(static)
+	for (i = 0; i < out_nrow; i++) {
 		subSVT = VECTOR_ELT(SVT, i);
 		if (subSVT == R_NilValue)
 			continue;
-		*out = _dotprod_leaf_vector_and_finite_col(subSVT, col);
+		out[i] = _dotprod_leaf_vector_and_finite_col(subSVT, col);
 	}
 	return;
 }
@@ -144,14 +170,13 @@ static void compute_dotprods2_with_double_Lcol(const double *col, SEXP SVT,
 						   out, out_nrow, out_ncol);
 		return;
 	}
-	for (j = 0; j < out_ncol; j++, out += out_nrow) {
+	#pragma omp parallel for shared(col,SVT,out) private(j,subSVT)\
+	 schedule(static)
+	for (j = 0; j < out_ncol; j++) {
 		subSVT = VECTOR_ELT(SVT, j);
-		if (subSVT == R_NilValue) {
-			*out = _dotprod0_double_col(col, in_nrow);
-			continue;
-		}
-		*out = _dotprod_leaf_vector_and_double_col(subSVT,
-							   col, in_nrow);
+		out[j * out_nrow] = subSVT == R_NilValue ?
+		    _dotprod0_double_col(col, in_nrow) :
+		    _dotprod_leaf_vector_and_double_col(subSVT, col, in_nrow);
 	}
 	return;
 }
@@ -167,14 +192,13 @@ static void compute_dotprods2_with_double_Rcol(SEXP SVT, const double *col,
 		compute_dotprods2_with_finite_Rcol(SVT, col, out, out_nrow);
 		return;
 	}
-	for (i = 0; i < out_nrow; i++, out++) {
+	#pragma omp parallel for shared(SVT,col,out) private(i,subSVT)\
+	 schedule(static)
+	for (i = 0; i < out_nrow; i++) {
 		subSVT = VECTOR_ELT(SVT, i);
-		if (subSVT == R_NilValue) {
-			*out = _dotprod0_double_col(col, in_nrow);
-			continue;
-		}
-		*out = _dotprod_leaf_vector_and_double_col(subSVT,
-							   col, in_nrow);
+		out[i] = subSVT == R_NilValue ?
+		    _dotprod0_double_col(col, in_nrow) :
+		    _dotprod_leaf_vector_and_double_col(subSVT, col, in_nrow);
 	}
 	return;
 }
@@ -185,11 +209,14 @@ static void compute_dotprods2_with_noNA_int_Lcol(const int *col, SEXP SVT,
 	int j;
 	SEXP subSVT;
 
-	for (j = 0; j < out_ncol; j++, out += out_nrow) {
+	#pragma omp parallel for shared(col,SVT,out) private(j,subSVT)\
+	 schedule(static)
+	for (j = 0; j < out_ncol; j++) {
 		subSVT = VECTOR_ELT(SVT, j);
 		if (subSVT == R_NilValue)
 			continue;
-		*out = _dotprod_leaf_vector_and_noNA_int_col(subSVT, col);
+		out[j * out_nrow] =
+			_dotprod_leaf_vector_and_noNA_int_col(subSVT, col);
 	}
 	return;
 }
@@ -200,11 +227,13 @@ static void compute_dotprods2_with_noNA_int_Rcol(SEXP SVT, const int *col,
 	int i;
 	SEXP subSVT;
 
-	for (i = 0; i < out_nrow; i++, out++) {
+	#pragma omp parallel for shared(SVT,col,out) private(i,subSVT)\
+	 schedule(static)
+	for (i = 0; i < out_nrow; i++) {
 		subSVT = VECTOR_ELT(SVT, i);
 		if (subSVT == R_NilValue)
 			continue;
-		*out = _dotprod_leaf_vector_and_noNA_int_col(subSVT, col);
+		out[i] = _dotprod_leaf_vector_and_noNA_int_col(subSVT, col);
 	}
 	return;
 }
@@ -221,14 +250,13 @@ static void compute_dotprods2_with_int_Lcol(const int *col, SEXP SVT,
 					out, out_nrow, out_ncol);
 		return;
 	}
-	for (j = 0; j < out_ncol; j++, out += out_nrow) {
+	#pragma omp parallel for shared(col,SVT,out) private(j,subSVT)\
+	 schedule(static)
+	for (j = 0; j < out_ncol; j++) {
 		subSVT = VECTOR_ELT(SVT, j);
-		if (subSVT == R_NilValue) {
-			*out = _dotprod0_int_col(col, in_nrow);
-			continue;
-		}
-		*out = _dotprod_leaf_vector_and_int_col(subSVT,
-							col, in_nrow);
+		out[j * out_nrow] = subSVT == R_NilValue ?
+		    _dotprod0_int_col(col, in_nrow) :
+		    _dotprod_leaf_vector_and_int_col(subSVT, col, in_nrow);
 	}
 	return;
 }
@@ -244,14 +272,13 @@ static void compute_dotprods2_with_int_Rcol(SEXP SVT, const int *col,
 		compute_dotprods2_with_noNA_int_Rcol(SVT, col, out, out_nrow);
 		return;
 	}
-	for (i = 0; i < out_nrow; i++, out++) {
+	#pragma omp parallel for shared(SVT,col,out) private(i,subSVT)\
+	 schedule(static)
+	for (i = 0; i < out_nrow; i++) {
 		subSVT = VECTOR_ELT(SVT, i);
-		if (subSVT == R_NilValue) {
-			*out = _dotprod0_int_col(col, in_nrow);
-			continue;
-		}
-		*out = _dotprod_leaf_vector_and_int_col(subSVT,
-							col, in_nrow);
+		out[i] = subSVT == R_NilValue ?
+		    _dotprod0_int_col(col, in_nrow) :
+		    _dotprod_leaf_vector_and_int_col(subSVT, col, in_nrow);
 	}
 	return;
 }
@@ -262,13 +289,13 @@ static void compute_dotprods2_with_Llv(SEXP lv1, SEXP SVT,
 	int j;
 	SEXP subSVT;
 
-	for (j = 0; j < out_ncol; j++, out += out_nrow) {
+	#pragma omp parallel for shared(lv1,SVT,out) private(j,subSVT)\
+	 schedule(static)
+	for (j = 0; j < out_ncol; j++) {
 		subSVT = VECTOR_ELT(SVT, j);
-		if (subSVT == R_NilValue) {
-			*out = _dotprod0_leaf_vector(lv1);
-		} else {
-			*out = _dotprod_leaf_vectors(lv1, subSVT);
-		}
+		out[j * out_nrow] = subSVT == R_NilValue ?
+		    _dotprod0_leaf_vector(lv1) :
+		    _dotprod_leaf_vectors(lv1, subSVT);
 	}
 	return;
 }
@@ -279,13 +306,13 @@ static void compute_dotprods2_with_Rlv(SEXP SVT, SEXP lv2,
 	int i;
 	SEXP subSVT;
 
-	for (i = 0; i < out_nrow; i++, out++) {
+	#pragma omp parallel for shared(SVT,lv2,out) private(i,subSVT)\
+	 schedule(static)
+	for (i = 0; i < out_nrow; i++) {
 		subSVT = VECTOR_ELT(SVT, i);
-		if (subSVT == R_NilValue) {
-			*out = _dotprod0_leaf_vector(lv2);
-		} else {
-			*out = _dotprod_leaf_vectors(subSVT, lv2);
-		}
+		out[i] = subSVT == R_NilValue ?
+		    _dotprod0_leaf_vector(lv2) :
+		    _dotprod_leaf_vectors(subSVT, lv2);
 	}
 	return;
 }
@@ -293,18 +320,17 @@ static void compute_dotprods2_with_Rlv(SEXP SVT, SEXP lv2,
 static void compute_sym_dotprods_with_finite_col(SEXP SVT, const double *col,
 		double *out, int out_nrow, int j)
 {
-	double *out1, *out2;
-	int i;
+	int k;
 	SEXP subSVT;
 
-	out1 = out + 1;
-	out2 = out + out_nrow;
-	for (i = j + 1; i < out_nrow; i++, out1++, out2 += out_nrow) {
-		subSVT = VECTOR_ELT(SVT, i);
+	#pragma omp parallel for shared(SVT,col,out) private(k,subSVT)\
+	 schedule(static)
+	for (k = out_nrow - 1 - j; k >= 1; k--) {
+		subSVT = VECTOR_ELT(SVT, j + k);
 		if (subSVT == R_NilValue)
 			continue;
-		*out1 = *out2 =
-			_dotprod_leaf_vector_and_finite_col(subSVT, col);
+		out[k] = out[k * out_nrow] =
+		    _dotprod_leaf_vector_and_finite_col(subSVT, col);
 	}
 	return;
 }
@@ -312,18 +338,17 @@ static void compute_sym_dotprods_with_finite_col(SEXP SVT, const double *col,
 static void compute_sym_dotprods_with_noNA_int_col(SEXP SVT, const int *col,
 		double *out, int out_nrow, int j)
 {
-	double *out1, *out2;
-	int i;
+	int k;
 	SEXP subSVT;
 
-	out1 = out + 1;
-	out2 = out + out_nrow;
-	for (i = j + 1; i < out_nrow; i++, out1++, out2 += out_nrow) {
-		subSVT = VECTOR_ELT(SVT, i);
+	#pragma omp parallel for shared(SVT,col,out) private(k,subSVT)\
+	 schedule(static)
+	for (k = out_nrow - 1 - j; k >= 1; k--) {
+		subSVT = VECTOR_ELT(SVT, j + k);
 		if (subSVT == R_NilValue)
 			continue;
-		*out1 = *out2 =
-			_dotprod_leaf_vector_and_noNA_int_col(subSVT, col);
+		out[k] = out[k * out_nrow] =
+		    _dotprod_leaf_vector_and_noNA_int_col(subSVT, col);
 	}
 	return;
 }
@@ -331,20 +356,16 @@ static void compute_sym_dotprods_with_noNA_int_col(SEXP SVT, const int *col,
 static void compute_sym_dotprods_with_lv(SEXP SVT, SEXP lv2,
 		double *out, int out_nrow, int j)
 {
-	double *out1, *out2, dp;
-	int i;
+	int k;
 	SEXP subSVT;
 
-	out1 = out + 1;
-	out2 = out + out_nrow;
-	for (i = j + 1; i < out_nrow; i++, out1++, out2 += out_nrow) {
-		subSVT = VECTOR_ELT(SVT, i);
-		if (subSVT == R_NilValue) {
-			dp = _dotprod0_leaf_vector(lv2);
-		} else {
-			dp = _dotprod_leaf_vectors(subSVT, lv2);
-		}
-		*out1 = *out2 = dp;
+	#pragma omp parallel for shared(SVT,lv2,out) private(k,subSVT)\
+	 schedule(static)
+	for (k = out_nrow - 1 - j; k >= 1; k--) {
+		subSVT = VECTOR_ELT(SVT, j + k);
+		out[k] = out[k * out_nrow] = subSVT == R_NilValue ?
+		    _dotprod0_leaf_vector(lv2) :
+		    _dotprod_leaf_vectors(subSVT, lv2);
 	}
 	return;
 }
@@ -989,6 +1010,8 @@ SEXP C_crossprod2_SVT_mat(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP y,
 	ans_ncol = tr_y ? y_nrow : y_ncol;
 	ans = PROTECT(_new_Rmatrix0(ans_Rtype, x_ncol, ans_ncol, ans_dimnames));
 
+	set_gentle_num_threads(10);
+
 	if (x_Rtype == REALSXP) {
 		crossprod2_SVT_mat_double(x_SVT, REAL(y), tr_y, x_nrow,
 				REAL(ans), x_ncol, ans_ncol);
@@ -1044,6 +1067,8 @@ SEXP C_crossprod2_mat_SVT(SEXP x, SEXP y_dim, SEXP y_type, SEXP y_SVT,
 	ans_nrow = tr_x ? x_nrow : x_ncol;
 	ans = PROTECT(_new_Rmatrix0(ans_Rtype, ans_nrow, y_ncol, ans_dimnames));
 
+	set_gentle_num_threads(10);
+
 	if (y_Rtype == REALSXP) {
 		crossprod2_mat_SVT_double(REAL(x), y_SVT, tr_x, y_nrow,
 				REAL(ans), ans_nrow, y_ncol);
@@ -1097,6 +1122,8 @@ SEXP C_crossprod2_SVT_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 
 	/* Allocate 'ans' and fill with zeros. */
 	ans = PROTECT(_new_Rmatrix0(ans_Rtype, x_ncol, y_ncol, ans_dimnames));
+
+	set_gentle_num_threads(10);
 
 	/* Calculate the nb of ops if doing right preprocessing vs
 	   doing left preprocessing. */
@@ -1157,6 +1184,8 @@ SEXP C_crossprod1_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 
 	/* Allocate 'ans' and fill with zeros. */
 	ans = PROTECT(_new_Rmatrix0(ans_Rtype, x_ncol, x_ncol, ans_dimnames));
+
+	set_gentle_num_threads(10);
 
 	if (x_Rtype == REALSXP) {
 		crossprod1_double(x_SVT, x_nrow, REAL(ans), x_ncol);

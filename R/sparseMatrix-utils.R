@@ -100,11 +100,11 @@ setAs("matrix", "dgRMatrix",
         as(as(as(from, "dMatrix"), "generalMatrix"), "RsparseMatrix")
 )
 
-### Not deprecated yet. Cold feet maybe?
-#setAs("matrix", "lgCMatrix",
-#    function(from)
-#        as(as(as(from, "lMatrix"), "generalMatrix"), "CsparseMatrix")
-#)
+### Deprecated in Matrix 1.7-0
+setAs("matrix", "lgCMatrix",
+    function(from)
+        as(as(as(from, "lMatrix"), "generalMatrix"), "CsparseMatrix")
+)
 
 ### Never worked?
 setAs("matrix", "lgRMatrix",

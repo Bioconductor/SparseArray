@@ -4,6 +4,7 @@
 \alias{sparseMatrix_utils}
 
 \alias{coerce,matrix,dgRMatrix-method}
+\alias{coerce,matrix,lgCMatrix-method}
 \alias{coerce,matrix,lgRMatrix-method}
 
 \alias{coerce,Array,dgCMatrix-method}
