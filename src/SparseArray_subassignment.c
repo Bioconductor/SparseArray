@@ -74,16 +74,16 @@ static inline R_xlen_t get_Lidx(SEXP Lindex, long long atid_lloff)
  * the first column of the sparse matrix! A very atypical situation.
  */
 
-typedef SEXP (*NewIDS_FUNType)();
+typedef SEXP (*NewIDS_FUNType)(void);
 
-static SEXP new_IDS()
+static SEXP new_IDS(void)
 {
 	IntAE *atid_offs_buf;
 
 	atid_offs_buf = new_IntAE(1, 0, 0);
 	return R_MakeExternalPtr(atid_offs_buf, R_NilValue, R_NilValue);
 }
-static SEXP new_llIDS()
+static SEXP new_llIDS(void)
 {
 	LLongAE *atid_lloffs_buf;
 

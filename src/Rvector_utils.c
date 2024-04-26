@@ -9,14 +9,14 @@
 
 /* The 7 types of R vectors (6 types of atomic vectors + the "list" type). */
 static const SEXPTYPE Rvector_types[] = {
-        LGLSXP,   // "logical"
-        INTSXP,   // "integer"
-        REALSXP,  // "double"
-        CPLXSXP,  // "complex"
-        RAWSXP,   // "raw"
-        STRSXP,   // "character"
+	LGLSXP,   // "logical"
+	INTSXP,   // "integer"
+	REALSXP,  // "double"
+	CPLXSXP,  // "complex"
+	RAWSXP,   // "raw"
+	STRSXP,   // "character"
 
-        VECSXP    // "list"
+	VECSXP    // "list"
 };
 
 /* Returns 0 if supplied 'type' is invalid string. */
@@ -341,27 +341,28 @@ void _reset_selected_Rvector_elts(SEXP Rvector, const int *selection, int n)
 	Rtype = TYPEOF(Rvector);
 	switch (Rtype) {
 	    case LGLSXP: case INTSXP:
-		return reset_selected_int_elts(INTEGER(Rvector),
-				selection, n);
+		reset_selected_int_elts(INTEGER(Rvector), selection, n);
+		break;
 	    case REALSXP:
-		return reset_selected_double_elts(REAL(Rvector),
-				selection, n);
+		reset_selected_double_elts(REAL(Rvector), selection, n);
+		break;
 	    case CPLXSXP:
-		return reset_selected_Rcomplex_elts(COMPLEX(Rvector),
-				selection, n);
+		reset_selected_Rcomplex_elts(COMPLEX(Rvector), selection, n);
+		break;
 	    case RAWSXP:
-		return reset_selected_Rbyte_elts(RAW(Rvector),
-				selection, n);
+		reset_selected_Rbyte_elts(RAW(Rvector), selection, n);
+		break;
 	    case STRSXP:
-		return reset_selected_character_elts(Rvector,
-				selection, n);
+		reset_selected_character_elts(Rvector, selection, n);
+		break;
 	    case VECSXP:
-		return reset_selected_list_elts(Rvector,
-				selection, n);
+		reset_selected_list_elts(Rvector, selection, n);
+		break;
+	    default:
+		error("SparseArray internal error in "
+		      "_reset_selected_Rvector_elts():\n"
+		      "    type \"%s\" is not supported", type2char(Rtype));
 	}
-	error("SparseArray internal error in "
-	      "_reset_selected_Rvector_elts():\n"
-	      "    type \"%s\" is not supported", type2char(Rtype));
 	return;
 }
 

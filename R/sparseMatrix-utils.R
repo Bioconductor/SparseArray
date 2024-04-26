@@ -81,6 +81,39 @@ RsparseMatrix <- function(dim, i, j, nzdata, dimnames=NULL)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Coercion from ordinary matrix to sparseMatrix derivative
+###
+### This simply restores some of the basic coercion methods that used to be
+### defined in the Matrix package but that the lazy Matrix maintainers
+### decided to deprecate in Matrix 1.7-0
+###
+
+### Not deprecated yet. Cold feet maybe?
+#setAs("matrix", "dgCMatrix",
+#    function(from)
+#        as(as(as(from, "dMatrix"), "generalMatrix"), "CsparseMatrix")
+#)
+
+### Deprecated in Matrix 1.7-0
+setAs("matrix", "dgRMatrix",
+    function(from)
+        as(as(as(from, "dMatrix"), "generalMatrix"), "RsparseMatrix")
+)
+
+### Not deprecated yet. Cold feet maybe?
+#setAs("matrix", "lgCMatrix",
+#    function(from)
+#        as(as(as(from, "lMatrix"), "generalMatrix"), "CsparseMatrix")
+#)
+
+### Never worked?
+setAs("matrix", "lgRMatrix",
+    function(from)
+        as(as(as(from, "lMatrix"), "generalMatrix"), "RsparseMatrix")
+)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### Coercion from Array derivative to sparseMatrix derivative
 ###
 

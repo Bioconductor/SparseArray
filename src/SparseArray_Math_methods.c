@@ -19,7 +19,7 @@ static inline void set_NaNs_produced_flag(int flag)
 	return;
 }
 
-static inline int get_NaNs_produced_flag()
+static inline int get_NaNs_produced_flag(void)
 {
 	return NaNs_produced_flag;
 }

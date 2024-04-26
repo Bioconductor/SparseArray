@@ -3,7 +3,7 @@
 
 #include <Rdefines.h>
 
-SEXP C_test();
+SEXP C_test(void);
 
 #endif  /* _TEST_H_ */
 

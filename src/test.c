@@ -84,7 +84,7 @@ static void write_to_buf(char *buf, int buf_size)
    readSparseCSV() was fixed in 0.99.4 by declaring 'buf' as static in
    read_sparse_csv() (see src/readSparseCSV.c).
 */
-SEXP C_test()
+SEXP C_test(void)
 {
 	/* Not using the 'static' keyword will produce the memory corruption
 	   described above. */

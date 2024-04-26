@@ -25,7 +25,7 @@
 static char con_buf[250000];
 static int con_buf_len, con_buf_offset;
 
-static void init_con_buf()
+static void init_con_buf(void)
 {
 	con_buf_len = con_buf_offset = 0;
 	return;
