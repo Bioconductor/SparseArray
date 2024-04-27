@@ -3,6 +3,7 @@
 \alias{SparseMatrix-mult}
 \alias{SparseMatrix_mult}
 
+\alias{crossprod}
 \alias{crossprod,SVT_SparseMatrix,matrix-method}
 \alias{crossprod,matrix,SVT_SparseMatrix-method}
 \alias{crossprod,SVT_SparseMatrix,SVT_SparseMatrix-method}
@@ -10,6 +11,7 @@
 \alias{crossprod,ANY,SVT_SparseMatrix-method}
 \alias{crossprod,SVT_SparseMatrix,missing-method}
 
+\alias{tcrossprod}
 \alias{tcrossprod,SVT_SparseMatrix,matrix-method}
 \alias{tcrossprod,matrix,SVT_SparseMatrix-method}
 \alias{tcrossprod,SVT_SparseMatrix,SVT_SparseMatrix-method}
@@ -17,6 +19,7 @@
 \alias{tcrossprod,ANY,SVT_SparseMatrix-method}
 \alias{tcrossprod,SVT_SparseMatrix,missing-method}
 
+\alias{\%*\%}
 \alias{\%*\%,SVT_SparseMatrix,matrix-method}
 \alias{\%*\%,matrix,SVT_SparseMatrix-method}
 \alias{\%*\%,SVT_SparseMatrix,SVT_SparseMatrix-method}
@@ -35,6 +38,12 @@
   The \code{\%*\%}, \code{crossprod()} and \code{tcrossprod()} methods
   for \link{SparseMatrix} objects always return an \emph{ordinary} matrix
   of \code{type()} \code{"double"}.
+}
+
+\note{
+  Matrix multiplication and cross-product of \link{SVT_SparseMatrix}
+  objects are multithreaded. See \code{\link{set_SparseArray_nthread}}
+  for how to control the number of threads.
 }
 
 \seealso{
