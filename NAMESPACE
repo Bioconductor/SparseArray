@@ -119,6 +119,9 @@ exportMethods(
 ###
 
 export(
+    ## thread-control.R:
+    get_SparseArray_nthread, set_SparseArray_nthread,
+
     ## SparseArray-class.R:
     sparsity,
 

@@ -41,8 +41,8 @@
     objects <- lapply(objects, `type<-`, ans_type)
 
     ## Returns 'ans_dim' and 'ans_SVT' in a list of length 2.
-    C_ans <- .Call2("C_abind_SVT_SparseArray_objects",
-                    objects, along, ans_type, PACKAGE="SparseArray")
+    C_ans <- SparseArray.Call("C_abind_SVT_SparseArray_objects",
+                              objects, along, ans_type)
     ans_dim <- C_ans[[1L]]
     ans_SVT <- C_ans[[2L]]
 

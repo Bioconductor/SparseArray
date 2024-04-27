@@ -11,8 +11,7 @@
 ### S3/S4 combo for t.SVT_SparseMatrix
 t.SVT_SparseMatrix <- function(x)
 {
-    new_SVT <- .Call2("C_transpose_2D_SVT",
-                      x@dim, x@type, x@SVT, PACKAGE="SparseArray")
+    new_SVT <- SparseArray.Call("C_transpose_2D_SVT", x@dim, x@type, x@SVT)
     BiocGenerics:::replaceSlots(x, dim=rev(x@dim),
                                    dimnames=rev(x@dimnames),
                                    SVT=new_SVT,
@@ -48,7 +47,7 @@ setMethod("t", "SVT_SparseMatrix", t.SVT_SparseMatrix)
     stopifnot(is(x, "SVT_SparseArray"))
     .NAME <- match.arg(.NAME)
     perm <- S4Arrays:::normarg_perm(perm, x@dim)
-    new_SVT <- .Call2(.NAME, x@dim, x@type, x@SVT, perm, PACKAGE="SparseArray")
+    new_SVT <- SparseArray.Call(.NAME, x@dim, x@type, x@SVT, perm)
     BiocGenerics:::replaceSlots(x, dim=x@dim[perm],
                                    dimnames=x@dimnames[perm],
                                    SVT=new_SVT,

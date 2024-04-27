@@ -176,9 +176,8 @@ writeSparseCSV <- function(x, filepath, sep=",", transpose=FALSE,
                                                transpose=FALSE)
 {
     tmpenv <- new.env(parent=emptyenv())
-    C_ans <- .Call2("C_readSparseCSV_as_SVT_SparseMatrix",
-                    con, sep, transpose, length(csv_colnames), tmpenv,
-                    PACKAGE="SparseArray")
+    C_ans <- SparseArray.Call("C_readSparseCSV_as_SVT_SparseMatrix",
+                              con, sep, transpose, length(csv_colnames), tmpenv)
     rm(tmpenv)
 
     ## Construct SVT_SparseMatrix object.

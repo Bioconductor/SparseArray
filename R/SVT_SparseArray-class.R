@@ -105,9 +105,8 @@ setMethod("type", "SVT_SparseArray", function(x) x@type)
     if (value == x_type)
         return(x)
 
-    new_SVT <- .Call2("C_set_SVT_SparseArray_type",
-                      x@dim, x@type, x@SVT, value,
-                      PACKAGE="SparseArray")
+    new_SVT <- SparseArray.Call("C_set_SVT_SparseArray_type",
+                                x@dim, x@type, x@SVT, value)
     BiocGenerics:::replaceSlots(x, type=value, SVT=new_SVT, check=FALSE)
 }
 
@@ -123,7 +122,7 @@ setReplaceMethod("type", "SVT_SparseArray", .set_SVT_SparseArray_type)
 .get_SVT_SparseArray_nzcount <- function(x)
 {
     stopifnot(is(x, "SVT_SparseArray"))
-    .Call2("C_nzcount_SVT_SparseArray", x@dim, x@SVT, PACKAGE="SparseArray")
+    SparseArray.Call("C_nzcount_SVT_SparseArray", x@dim, x@SVT)
 }
 
 setMethod("nzcount", "SVT_SparseArray", .get_SVT_SparseArray_nzcount)
@@ -135,8 +134,7 @@ setMethod("nzcount", "SVT_SparseArray", .get_SVT_SparseArray_nzcount)
     stopifnot(is(x, "SVT_SparseArray"))
     if (!isTRUEorFALSE(arr.ind))
         stop(wmsg("'arr.ind' must be TRUE or FALSE"))
-    .Call2("C_nzwhich_SVT_SparseArray",
-           x@dim, x@SVT, arr.ind, PACKAGE="SparseArray")
+    SparseArray.Call("C_nzwhich_SVT_SparseArray", x@dim, x@SVT, arr.ind)
 }
 
 setMethod("nzwhich", "SVT_SparseArray", .nzwhich_SVT_SparseArray)
@@ -168,9 +166,8 @@ new_SVT_SparseArray <- function(dim, dimnames=NULL,
 .from_SVT_SparseArray_to_array <- function(from)
 {
     stopifnot(is(from, "SVT_SparseArray"))
-    .Call2("C_from_SVT_SparseArray_to_Rarray",
-           from@dim, dimnames(from), from@type, from@SVT,
-           PACKAGE="SparseArray")
+    SparseArray.Call("C_from_SVT_SparseArray_to_Rarray",
+                     from@dim, dimnames(from), from@type, from@SVT)
 }
 
 ### S3/S4 combo for as.array.SVT_SparseArray
@@ -182,8 +179,7 @@ setMethod("as.array", "SVT_SparseArray", as.array.SVT_SparseArray)
     stopifnot(is.array(x))
     if (identical(type, NA))
         type <- type(x)
-    ans_SVT <- .Call2("C_build_SVT_from_Rarray",
-                      x, type, PACKAGE="SparseArray")
+    ans_SVT <- SparseArray.Call("C_build_SVT_from_Rarray", x, type)
     new_SVT_SparseArray(dim(x), dimnames(x), type, ans_SVT, check=FALSE)
 }
 
@@ -213,8 +209,8 @@ setAs("matrix", "SVT_SparseMatrix",
         type(from) <- to_type  # early type switching
 
     ## Returns 'ans_p', 'ans_i', and 'ans_x', in a list of length 3.
-    C_ans <- .Call2("C_from_SVT_SparseMatrix_to_CsparseMatrix",
-                    from@dim, from@type, from@SVT, PACKAGE="SparseArray")
+    C_ans <- SparseArray.Call("C_from_SVT_SparseMatrix_to_CsparseMatrix",
+                              from@dim, from@type, from@SVT)
     ans_p <- C_ans[[1L]]
     ans_i <- C_ans[[2L]]
     ans_x <- C_ans[[3L]]  # same type as 'from'
@@ -240,8 +236,7 @@ setAs("SVT_SparseMatrix", "lgCMatrix", .from_SVT_SparseMatrix_to_lgCMatrix)
     stopifnot(is(x, "CsparseMatrix"))
     if (identical(type, NA))
         type <- type(x)
-    ans_SVT <- .Call2("C_build_SVT_from_CsparseMatrix",
-                      x, type, PACKAGE="SparseArray")
+    ans_SVT <- SparseArray.Call("C_build_SVT_from_CsparseMatrix", x, type)
     new_SVT_SparseArray(dim(x), dimnames(x), type, ans_SVT, check=FALSE)
 }
 
@@ -260,8 +255,8 @@ setAs("Matrix", "SVT_SparseArray", function(from) as(from, "SVT_SparseMatrix"))
 {
     stopifnot(is(from, "SVT_SparseArray"))
     ## Returns 'ans_nzcoo' and 'ans_nzdata' in a list of length 2.
-    C_ans <- .Call2("C_from_SVT_SparseArray_to_COO_SparseArray",
-                    from@dim, from@type, from@SVT, PACKAGE="SparseArray")
+    C_ans <- SparseArray.Call("C_from_SVT_SparseArray_to_COO_SparseArray",
+                              from@dim, from@type, from@SVT)
     ans_nzcoo <- C_ans[[1L]]
     ans_nzdata <- C_ans[[2L]]
     new_COO_SparseArray(from@dim, from@dimnames,

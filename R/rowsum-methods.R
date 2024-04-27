@@ -12,13 +12,11 @@
         stop(wmsg("'na.rm' must be TRUE or FALSE"))
     group <- match(group, ugroup)
     if (is(x, "SVT_SparseMatrix")) {
-        ans <- .Call2("C_rowsum_SVT", x@dim, x@type, x@SVT,
-                      group, length(ugroup), na.rm,
-                      PACKAGE="SparseArray")
+        ans <- SparseArray.Call("C_rowsum_SVT", x@dim, x@type, x@SVT,
+                                group, length(ugroup), na.rm)
     } else {
-        ans <- .Call2("C_rowsum_dgCMatrix", x,
-                      group, length(ugroup), na.rm,
-                      PACKAGE="SparseArray")
+        ans <- SparseArray.Call("C_rowsum_dgCMatrix", x,
+                                group, length(ugroup), na.rm)
     }
     dimnames(ans) <- list(as.character(ugroup), colnames(x))
     ans

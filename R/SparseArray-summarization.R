@@ -35,8 +35,8 @@
             center <- as.double(center)
     }
 
-    .Call2("C_summarize_SVT",
-           x@dim, x@type, x@SVT, op, na.rm, center, PACKAGE="SparseArray")
+    SparseArray.Call("C_summarize_SVT",
+                     x@dim, x@type, x@SVT, op, na.rm, center)
 }
 
 

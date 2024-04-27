@@ -105,30 +105,6 @@ static void expand_int_lv(SEXP lv, int *x, int x_len)
  * Core multithreaded routines
  */
 
-/* Number of threads that will be effectively used is the min of the 3
-   following values: (1) supplied 'num_threads', (2) omp_get_max_threads(),
-   and (3) omp_get_num_procs() / 3. */
-static int set_gentle_num_threads(int num_threads)
-{
-#ifdef _OPENMP
-	int n;
-
-	n = omp_get_max_threads();
-	if (num_threads > n)
-		num_threads = n;
-	n = omp_get_num_procs() / 3;
-	if (num_threads > n)
-		num_threads = n;
-	if (num_threads == 0)
-		num_threads = 1;
-	//Rprintf("setting number of threads to %d\n", num_threads);
-	omp_set_num_threads(num_threads);
-	return num_threads;
-#else
-	return 0;
-#endif
-}
-
 static void compute_dotprods2_with_finite_Lcol(const double *col, SEXP SVT,
 		double *out, int out_nrow, int out_ncol)
 {
@@ -1016,8 +992,6 @@ SEXP C_crossprod2_SVT_mat(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP y,
 	ans_ncol = tr_y ? y_nrow : y_ncol;
 	ans = PROTECT(_new_Rmatrix0(ans_Rtype, x_ncol, ans_ncol, ans_dimnames));
 
-	set_gentle_num_threads(10);
-
 	if (x_Rtype == REALSXP) {
 		crossprod2_SVT_mat_double(x_SVT, REAL(y), tr_y, x_nrow,
 				REAL(ans), x_ncol, ans_ncol);
@@ -1073,8 +1047,6 @@ SEXP C_crossprod2_mat_SVT(SEXP x, SEXP y_dim, SEXP y_type, SEXP y_SVT,
 	ans_nrow = tr_x ? x_nrow : x_ncol;
 	ans = PROTECT(_new_Rmatrix0(ans_Rtype, ans_nrow, y_ncol, ans_dimnames));
 
-	set_gentle_num_threads(10);
-
 	if (y_Rtype == REALSXP) {
 		crossprod2_mat_SVT_double(REAL(x), y_SVT, tr_x, y_nrow,
 				REAL(ans), ans_nrow, y_ncol);
@@ -1128,8 +1100,6 @@ SEXP C_crossprod2_SVT_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 
 	/* Allocate 'ans' and fill with zeros. */
 	ans = PROTECT(_new_Rmatrix0(ans_Rtype, x_ncol, y_ncol, ans_dimnames));
-
-	set_gentle_num_threads(10);
 
 	/* Calculate the nb of ops if doing right preprocessing vs
 	   doing left preprocessing. */
@@ -1190,8 +1160,6 @@ SEXP C_crossprod1_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 
 	/* Allocate 'ans' and fill with zeros. */
 	ans = PROTECT(_new_Rmatrix0(ans_Rtype, x_ncol, x_ncol, ans_dimnames));
-
-	set_gentle_num_threads(10);
 
 	if (x_Rtype == REALSXP) {
 		crossprod1_double(x_SVT, x_nrow, REAL(ans), x_ncol);

@@ -98,8 +98,8 @@ subset_SVT_SparseArray <- function(x, index, ignore.dimnames=FALSE)
               isTRUEorFALSE(ignore.dimnames))
 
     ## Returns 'new_dim' and 'new_SVT' in a list of length 2.
-    C_ans <- .Call2("C_subset_SVT_SparseArray",
-                    x@dim, x@type, x@SVT, index, PACKAGE="SparseArray")
+    C_ans <- SparseArray.Call("C_subset_SVT_SparseArray",
+                              x@dim, x@type, x@SVT, index)
     new_dim <- C_ans[[1L]]
     new_SVT <- C_ans[[2L]]
 

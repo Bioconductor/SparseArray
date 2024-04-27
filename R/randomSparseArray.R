@@ -52,7 +52,7 @@ randomSparseMatrix <- function(nrow=1L, ncol=1L, density=0.05)
 ### Like stats::rpois() but slightly faster and implementation is much
 ### simpler. Only for 0 <= 'lambda' <= 4.
 simple_rpois <- function(n, lambda)
-    .Call2("C_simple_rpois", n, lambda, PACKAGE="SparseArray")
+    SparseArray.Call("C_simple_rpois", n, lambda)
 
 ### Returns an SVT_SparseArray object of type "integer".
 ### Density of the returned object is expected to be about '1 - exp(-lambda)'.
@@ -73,8 +73,7 @@ poissonSparseArray <- function(dim, lambda=-log(0.95), density=NA)
         lambda <- -log(1 - density)
     }
 
-    ans_SVT <- .Call2("C_poissonSparseArray", dim, lambda,
-                      PACKAGE="SparseArray")
+    ans_SVT <- SparseArray.Call("C_poissonSparseArray", dim, lambda)
     new_SVT_SparseArray(dim, type="integer", SVT=ans_SVT, check=FALSE)
 }
 

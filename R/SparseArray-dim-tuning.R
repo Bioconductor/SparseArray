@@ -21,9 +21,8 @@
     stopifnot(is(x, "SVT_SparseArray"),
               is.integer(dim_tuner))
 
-    ans_SVT <- .Call2("C_tune_SVT_dims",
-                      x@dim, x@type, x@SVT, dim_tuner,
-                      PACKAGE="SparseArray")
+    ans_SVT <- SparseArray.Call("C_tune_SVT_dims",
+                                x@dim, x@type, x@SVT, dim_tuner)
     ans_dim <- S4Arrays:::tune_dims(x@dim, dim_tuner)
     ans_dimnames <- S4Arrays:::tune_dimnames(x@dimnames, dim_tuner)
 

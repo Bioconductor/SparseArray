@@ -44,9 +44,9 @@
     }
     ans_type <- "double"
     ans_dimnames <- S4Arrays:::simplify_NULL_dimnames(ans_dimnames)
-    .Call2("C_crossprod2_SVT_mat", x@dim, x@type, x@SVT, y, transpose.y,
-           ans_type, ans_dimnames,
-           PACKAGE="SparseArray")
+    SparseArray.Call("C_crossprod2_SVT_mat",
+                     x@dim, x@type, x@SVT, y, transpose.y,
+                     ans_type, ans_dimnames)
 }
 
 .crossprod2_mat_SVT <- function(x, y, transpose.x=FALSE)
@@ -74,9 +74,9 @@
     }
     ans_type <- "double"
     ans_dimnames <- S4Arrays:::simplify_NULL_dimnames(ans_dimnames)
-    .Call2("C_crossprod2_mat_SVT", x, y@dim, y@type, y@SVT, transpose.x,
-           ans_type, ans_dimnames,
-           PACKAGE="SparseArray")
+    SparseArray.Call("C_crossprod2_mat_SVT",
+                     x, y@dim, y@type, y@SVT, transpose.x,
+                     ans_type, ans_dimnames)
 }
 
 .crossprod2_SVT_SVT <- function(x, y=NULL)
@@ -95,9 +95,9 @@
     ans_type <- "double"
     ans_dimnames <- list(colnames(x), colnames(y))
     ans_dimnames <- S4Arrays:::simplify_NULL_dimnames(ans_dimnames)
-    .Call2("C_crossprod2_SVT_SVT", x@dim, x@type, x@SVT, y@dim, y@type, y@SVT,
-           ans_type, ans_dimnames,
-           PACKAGE="SparseArray")
+    SparseArray.Call("C_crossprod2_SVT_SVT",
+                     x@dim, x@type, x@SVT, y@dim, y@type, y@SVT,
+                     ans_type, ans_dimnames)
 }
 
 .crossprod1_SVT <- function(x, y=NULL)
@@ -108,8 +108,9 @@
     ans_type <- "double"
     ans_dimnames <- list(colnames(x), colnames(x))
     ans_dimnames <- S4Arrays:::simplify_NULL_dimnames(ans_dimnames)
-    .Call2("C_crossprod1_SVT", x@dim, x@type, x@SVT, ans_type, ans_dimnames,
-           PACKAGE="SparseArray")
+    SparseArray.Call("C_crossprod1_SVT",
+                     x@dim, x@type, x@SVT,
+                     ans_type, ans_dimnames)
 }
 
 setMethod("crossprod", c("SVT_SparseMatrix", "matrix"),

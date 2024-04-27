@@ -1,5 +1,6 @@
 #include <R_ext/Rdynload.h>
 
+#include "thread_control.h"
 #include "sparseMatrix_utils.h"
 #include "SparseArray_class.h"
 #include "SVT_SparseArray_class.h"
@@ -22,6 +23,11 @@
 #define CALLMETHOD_DEF(fun, numArgs) {#fun, (DL_FUNC) &fun, numArgs}
 
 static const R_CallMethodDef callMethods[] = {
+
+/* thread_control.c */
+	CALLMETHOD_DEF(C_get_num_procs, 0),
+	CALLMETHOD_DEF(C_get_max_threads, 0),
+	CALLMETHOD_DEF(C_set_max_threads, 1),
 
 /* sparseMatrix_utils.c */
 	CALLMETHOD_DEF(C_colMins_dgCMatrix, 2),

@@ -31,9 +31,8 @@
 
     if (storage.mode(Mindex) != "integer")
         storage.mode(Mindex) <- "integer"
-    new_SVT <- .Call2("C_subassign_SVT_by_Mindex",
-                      x@dim, x@type, x@SVT, Mindex, value,
-                      PACKAGE="SparseArray")
+    new_SVT <- SparseArray.Call("C_subassign_SVT_by_Mindex",
+                                x@dim, x@type, x@SVT, Mindex, value)
     BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
 }
 
@@ -59,9 +58,8 @@
     storage.mode(value) <- new_type
     value <- S4Vectors:::recycleVector(value, length(Lindex))
 
-    new_SVT <- .Call2("C_subassign_SVT_by_Lindex",
-                      x@dim, x@type, x@SVT, Lindex, value,
-                      PACKAGE="SparseArray")
+    new_SVT <- SparseArray.Call("C_subassign_SVT_by_Lindex",
+                                x@dim, x@type, x@SVT, Lindex, value)
     BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
 }
 
@@ -69,23 +67,22 @@
 .subassign_SVT_with_short_Rvector <- function(x, index, Rvector)
 {
     stopifnot(is.vector(Rvector))
-    .Call2("C_subassign_SVT_with_short_Rvector",
-           x@dim, x@type, x@SVT, index, Rvector, PACKAGE="SparseArray")
+    SparseArray.Call("C_subassign_SVT_with_short_Rvector",
+                     x@dim, x@type, x@SVT, index, Rvector)
 }
 
 .subassign_SVT_with_Rarray <- function(x, index, Rarray)
 {
     stopifnot(is.array(Rarray))
-    .Call2("C_subassign_SVT_with_Rarray", x@dim, x@type, x@SVT,
-           index, Rarray, PACKAGE="SparseArray")
+    SparseArray.Call("C_subassign_SVT_with_Rarray",
+                     x@dim, x@type, x@SVT, index, Rarray)
 }
 
 .subassign_SVT_with_SVT <- function(x, index, v)
 {
     stopifnot(is(v, "SVT_SparseArray"))
-    .Call2("C_subassign_SVT_with_SVT",
-           x@dim, x@type, x@SVT, index, v@dim, v@type, v@SVT,
-           PACKAGE="SparseArray")
+    SparseArray.Call("C_subassign_SVT_with_SVT",
+                     x@dim, x@type, x@SVT, index, v@dim, v@type, v@SVT)
 }
 
 ### Like for 'extract_array()', the supplied 'index' must be a list with

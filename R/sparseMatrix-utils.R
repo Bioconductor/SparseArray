@@ -187,7 +187,7 @@ colMins_dgCMatrix <- function (x, na.rm=FALSE)
     stopifnot(is(x, "dgCMatrix"))
     if (!isTRUEorFALSE(na.rm))
         stop(wmsg("'na.rm' must be TRUE or FALSE"))
-    .Call2("C_colMins_dgCMatrix", x, na.rm, PACKAGE="SparseArray")
+    SparseArray.Call("C_colMins_dgCMatrix", x, na.rm)
 }
 
 colMaxs_dgCMatrix <- function (x, na.rm=FALSE)
@@ -195,7 +195,7 @@ colMaxs_dgCMatrix <- function (x, na.rm=FALSE)
     stopifnot(is(x, "dgCMatrix"))
     if (!isTRUEorFALSE(na.rm))
         stop(wmsg("'na.rm' must be TRUE or FALSE"))
-    .Call2("C_colMaxs_dgCMatrix", x, na.rm, PACKAGE="SparseArray")
+    SparseArray.Call("C_colMaxs_dgCMatrix", x, na.rm)
 }
 
 ### About 2x faster than the method for dgCMatrix objects defined
@@ -205,7 +205,7 @@ colRanges_dgCMatrix <- function (x, na.rm=FALSE)
     stopifnot(is(x, "dgCMatrix"))
     if (!isTRUEorFALSE(na.rm))
         stop(wmsg("'na.rm' must be TRUE or FALSE"))
-    .Call2("C_colRanges_dgCMatrix", x, na.rm, PACKAGE="SparseArray")
+    SparseArray.Call("C_colRanges_dgCMatrix", x, na.rm)
 }
 
 ### About 2.5x faster than the method for dgCMatrix objects defined
@@ -215,6 +215,6 @@ colVars_dgCMatrix <- function(x, na.rm=FALSE)
     stopifnot(is(x, "dgCMatrix"))
     if (!isTRUEorFALSE(na.rm))
         stop(wmsg("'na.rm' must be TRUE or FALSE"))
-    .Call2("C_colVars_dgCMatrix", x, na.rm, PACKAGE="SparseArray")
+    SparseArray.Call("C_colVars_dgCMatrix", x, na.rm)
 }
 

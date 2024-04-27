@@ -110,8 +110,7 @@ coercion_can_introduce_zeros <- function(from_type, to_type)
         stop(wmsg("'to_type' must be a single string"))
     if (!(to_type %in% c("double", "logical")))
         stop(wmsg("'to_type' must be \"double\" or \"logical\""))
-    .Call2("C_coercion_can_introduce_zeros", from_type, to_type,
-           PACKAGE="SparseArray")
+    SparseArray.Call("C_coercion_can_introduce_zeros", from_type, to_type)
 }
 
 

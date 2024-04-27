@@ -83,8 +83,7 @@
         if (type(x) == "complex")
             stop(wmsg("unary \"-\" is not implemented yet on an ",
                       "SVT_SparseArray object of type \"", type(x), "\""))
-        new_SVT <- .Call2("C_unary_minus_SVT", x@dim, x@type, x@SVT,
-                          PACKAGE="SparseArray")
+        new_SVT <- SparseArray.Call("C_unary_minus_SVT", x@dim, x@type, x@SVT)
         ans <- BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
     } else {
         stop(wmsg("unary \"-\" is not supported on ", class(x), " objects"))
@@ -148,9 +147,8 @@ setMethod("-", c("SparseArray", "missing"),
             stop(wmsg("unimplemented complex operation"))
     }
 
-    new_SVT <- .Call2("C_Arith_SVT1_v2",
-                      x@dim, x@type, x@SVT, y, op, ans_type,
-                      PACKAGE="SparseArray")
+    new_SVT <- SparseArray.Call("C_Arith_SVT1_v2",
+                                x@dim, x@type, x@SVT, y, op, ans_type)
     BiocGenerics:::replaceSlots(x, type=ans_type, SVT=new_SVT, check=FALSE)
 }
 
@@ -200,10 +198,9 @@ setMethod("Arith", c("vector", "SVT_SparseArray"),
         stop(wmsg("\"", op, "\" is not implemented yet between ",
                   "SVT_SparseArray objects of type() \"", ans_type, "\""))
 
-    ans_SVT <- .Call2("C_Arith_SVT1_SVT2",
-                      x_dim, x@type, x@SVT, y_dim, y@type, y@SVT,
-                      op, ans_type,
-                      PACKAGE="SparseArray")
+    ans_SVT <- SparseArray.Call("C_Arith_SVT1_SVT2",
+                                x_dim, x@type, x@SVT, y_dim, y@type, y@SVT,
+                                op, ans_type)
 
     new_SVT_SparseArray(x_dim, ans_dimnames, ans_type, ans_SVT, check=FALSE)
 }
@@ -328,9 +325,8 @@ setMethod("Arith", c("array", "SVT_SparseArray"),
 
     ## 'type(y)' is guaranteed to be the same as 'type(x)' or a "bigger" type,
     ## considering raw < logical < integer < double < complex < character.
-    new_SVT <- .Call2("C_Compare_SVT1_v2",
-                      x@dim, x@type, x@SVT, y, op,
-                      PACKAGE="SparseArray")
+    new_SVT <- SparseArray.Call("C_Compare_SVT1_v2",
+                                x@dim, x@type, x@SVT, y, op)
     BiocGenerics:::replaceSlots(x, type="logical", SVT=new_SVT, check=FALSE)
 }
 
@@ -377,9 +373,8 @@ setMethod("Compare", c("vector", "SVT_SparseArray"),
     if (.must_homogenize_for_Compare(type(x), type(y)))
         type(x) <- type(y) <- type(c(vector(type(x)), vector(type(y))))
 
-    ans_SVT <- .Call2("C_Compare_SVT1_SVT2",
-                      x_dim, x@type, x@SVT, y_dim, y@type, y@SVT, op,
-                      PACKAGE="SparseArray")
+    ans_SVT <- SparseArray.Call("C_Compare_SVT1_SVT2",
+                                x_dim, x@type, x@SVT, y_dim, y@type, y@SVT, op)
 
     new_SVT_SparseArray(x_dim, ans_dimnames, "logical", ans_SVT, check=FALSE)
 }
@@ -466,9 +461,9 @@ setMethod("Logic", c("vector", "SVT_SparseArray"),
     ## Compute 'ans_dimnames'.
     ans_dimnames <- S4Arrays:::get_first_non_NULL_dimnames(list(x, y))
 
-    ans_SVT <- .Call2("C_Logic_SVT1_SVT2",
-                      x_dim, x@type, x@SVT, y_dim, y@type, y@SVT, op,
-                      PACKAGE="SparseArray")
+    ans_SVT <- SparseArray.Call("C_Logic_SVT1_SVT2",
+                                x_dim, x@type, x@SVT,
+                                y_dim, y@type, y@SVT, op)
 
     new_SVT_SparseArray(x_dim, ans_dimnames, "logical", ans_SVT, check=FALSE)
 }

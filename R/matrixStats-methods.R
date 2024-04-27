@@ -104,9 +104,9 @@
     useNames <- .normarg_useNames(useNames)
 
     x_dimnames <- if (useNames) x@dimnames else NULL
-    .Call2("C_colStats_SVT", x@dim, x_dimnames, x@type, x@SVT,
-                             op, na.rm, center, dims,
-                             PACKAGE="SparseArray")
+    SparseArray.Call("C_colStats_SVT",
+                     x@dim, x_dimnames, x@type, x@SVT,
+                     op, na.rm, center, dims)
 }
 
 ### WORK-IN-PROGRESS!

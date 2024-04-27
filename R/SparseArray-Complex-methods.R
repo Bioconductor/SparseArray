@@ -25,8 +25,7 @@
                   "only supports input of type \"complex\" at the moment"))
 
     ## Returns 'ans_type' and 'ans_SVT' in a list of length 2.
-    C_ans <- .Call2("C_Complex_SVT", z@dim, z@type, z@SVT, op,
-                    PACKAGE="SparseArray")
+    C_ans <- SparseArray.Call("C_Complex_SVT", z@dim, z@type, z@SVT, op)
     ans_type <- C_ans[[1L]]
     ans_SVT <- C_ans[[2L]]
 
