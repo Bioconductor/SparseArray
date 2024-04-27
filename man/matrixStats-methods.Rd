@@ -67,9 +67,9 @@
 
 \description{
   The \pkg{SparseArray} package provides memory-efficient col/row
-  summarization methods for \link{SparseArray} objects, like
-  \code{colSums()}, \code{rowSums()}, \code{colMedians()}, \code{rowMedians()},
-  \code{colVars()}, \code{rowVars()}, etc...
+  summarization methods (a.k.a. matrixStats methods) for \link{SparseArray}
+  objects, like \code{colSums()}, \code{rowSums()}, \code{colMedians()},
+  \code{rowMedians()}, \code{colVars()}, \code{rowVars()}, etc...
 
   Note that these are \emph{S4 generic functions} defined in the
   \pkg{MatrixGenerics} package, with methods for ordinary matrices
@@ -150,6 +150,12 @@
   See man pages for the corresponding generics in the \pkg{MatrixGenerics}
   package (e.g. \code{?MatrixGenerics::\link[MatrixGenerics]{colRanges}})
   for the value returned by these methods.
+}
+
+\note{
+  The matrixStats method for \link{SVT_SparseMatrix} objects are multithreaded.
+  See \code{\link{set_SparseArray_nthread}} for how to control the number
+  of threads.
 }
 
 \seealso{

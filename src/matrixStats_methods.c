@@ -38,6 +38,20 @@ static SEXP compute_ans_dim(SEXP x_dim, SEXP dims)
 	return ans_dim;
 }
 
+/* Returns 0-based index of max value in 'x' (greatest index if max is found
+   in more than one element in 'x'). */
+static int which_max(const int *x, int x_len)
+{
+	if (x_len == 0)
+		return -1;
+	int max_idx = x_len - 1;
+	for (int i = max_idx - 1; i >= 0; i--) {
+		if (x[i] > x[max_idx])
+			max_idx = i;
+	}
+	return max_idx;
+}
+
 /* Returns 'S4Arrays:::simplify_NULL_dimnames(tail(dimnames(x), n=-dims))'. */
 static SEXP compute_ans_dimnames(SEXP x_dimnames, int dims)
 {
@@ -113,14 +127,14 @@ static void propagate_dimnames(SEXP ans, SEXP x_dimnames, int dims)
 	return;
 }
 
-static inline void *increment_out(const void *out, SEXPTYPE out_Rtype,
-				  long long int inc)
+static inline void *shift_out(const void *out, SEXPTYPE out_Rtype,
+			      long long int by)
 {
 	switch (out_Rtype) {
-	    case LGLSXP: case INTSXP: return ((int    *) out) + inc;
-	    case REALSXP:             return ((double *) out) + inc;
+	    case LGLSXP: case INTSXP: return ((int    *) out) + by;
+	    case REALSXP:             return ((double *) out) + by;
 	}
-	error("SparseArray internal error in increment_out():\n"
+	error("SparseArray internal error in shift_out():\n"
 	      "    output type \"%s\" is not supported", type2char(out_Rtype));
 	return NULL;  /* will never reach this */
 }
@@ -155,13 +169,12 @@ static inline void copy_result_to_out(const SummarizeResult *res,
 static void REC_colStats_SVT(SEXP SVT, const int *dims, int ndim,
 		const SummarizeOp *summarize_op,
 		void *out, SEXPTYPE out_Rtype,
-		const long long int *out_incs, int out_ndim,
+		const long long int *out_incs, int out_ndim, int out_pdim,
 		int *warn)
 {
 	SummarizeResult res;
-	int SVT_len, i;
+	int SVT_len;
 	long long int out_inc;
-	SEXP subSVT;
 
 	if (out_ndim == 0) {
 		res = _summarize_SVT(SVT, dims, ndim, summarize_op);
@@ -172,15 +185,17 @@ static void REC_colStats_SVT(SEXP SVT, const int *dims, int ndim,
 	}
 	SVT_len = dims[ndim - 1];
 	out_inc = out_incs[out_ndim - 1];
-	subSVT = R_NilValue;
-	for (i = 0; i < SVT_len; i++) {
-		if (SVT != R_NilValue)
-			subSVT = VECTOR_ELT(SVT, i);
+	/* Parallel execution along the biggest dimension only. */
+	#pragma omp parallel for schedule(static) if(out_ndim == out_pdim)
+	for (int i = 0; i < SVT_len; i++) {
+		SEXP subSVT = SVT == R_NilValue ? R_NilValue
+						: VECTOR_ELT(SVT, i);
+		void *subout = shift_out(out, out_Rtype, out_inc * i);
 		REC_colStats_SVT(subSVT, dims, ndim - 1,
 				 summarize_op,
-				 out, out_Rtype, out_incs, out_ndim - 1,
+				 subout, out_Rtype,
+				 out_incs, out_ndim - 1, out_pdim,
 				 warn);
-		out = increment_out(out, out_Rtype, out_inc);
 	}
 	return;
 }
@@ -191,7 +206,7 @@ SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
 		    SEXP op, SEXP na_rm, SEXP center, SEXP dims)
 {
 	SEXPTYPE x_Rtype, ans_Rtype;
-	int opcode, narm, ans_ndim, warn;
+	int opcode, narm, ans_ndim, ans_pdim, warn;
 	SummarizeOp summarize_op;
 	SEXP ans_dim, ans;
 	long long int *out_incs;
@@ -219,6 +234,10 @@ SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
 
 	ans_dim = PROTECT(compute_ans_dim(x_dim, dims));
 	ans_ndim = LENGTH(ans_dim);  /* x_ndim - dims */
+	/* Get 1-based index of biggest dimension. Parallel execution will
+	   be along that dimension. */
+	ans_pdim = which_max(INTEGER(ans_dim), ans_ndim) + 1;
+
 	out_incs = (long long int *) R_alloc(ans_ndim, sizeof(long long int));
 
 	ans = PROTECT(alloc_ans(ans_Rtype, ans_dim, out_incs));
@@ -227,7 +246,8 @@ SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
 	warn = 0;
 	REC_colStats_SVT(x_SVT, INTEGER(x_dim), LENGTH(x_dim),
 			 &summarize_op,
-			 DATAPTR(ans), ans_Rtype, out_incs, ans_ndim,
+			 DATAPTR(ans), ans_Rtype,
+			 out_incs, ans_ndim, ans_pdim,
 			 &warn);
 	if (warn)
 		warning("NAs introduced by coercion of "

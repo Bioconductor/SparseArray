@@ -42,8 +42,9 @@
 
 \note{
   Matrix multiplication and cross-product of \link{SVT_SparseMatrix}
-  objects are multithreaded. See \code{\link{set_SparseArray_nthread}}
-  for how to control the number of threads.
+  objects are multithreaded.
+  See \code{\link{set_SparseArray_nthread}} for how to control the number
+  of threads.
 }
 
 \seealso{

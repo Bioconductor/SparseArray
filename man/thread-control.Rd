@@ -64,6 +64,9 @@ set_SparseArray_nthread(nthread=NULL)
     \item \link{SparseMatrix_mult} for SparseMatrix multiplication and
           cross-product.
 
+    \item \link{matrixStats_methods} for SparseArray col/row summarization
+          methods.
+
     \item \link{SparseArray} objects.
   }
 }
@@ -72,15 +75,18 @@ set_SparseArray_nthread(nthread=NULL)
 get_SparseArray_nthread()
 
 if (get_SparseArray_nthread() != 0) {  # multithreading is available
-    svt1 <- poissonSparseMatrix(29000L, 1800L, density=0.3) * 0.77
-    svt2 <- poissonSparseMatrix(29000L, 3900L, density=0.01)
+    svt1 <- poissonSparseMatrix(77000L, 15000L, density=0.01)
 
-    ## 'user' time is typically N x 'elapsed' time where N is the
+    ## 'user' time is typically N x 'elapsed' time where N is roughly the
     ## number of threads that was effectively used:
-    system.time(cp <- crossprod(svt1, svt2))
+    system.time(cv1 <- colVars(svt1))
+
+    svt2 <- poissonSparseMatrix(77000L, 300L, density=0.3) * 0.77
+    system.time(cp12 <- crossprod(svt1, svt2))
 
     prev_nthread <- set_SparseArray_nthread(1)  # disable multithreading
-    system.time(cp <- crossprod(svt1, svt2))
+    system.time(cv1 <- colVars(svt1))
+    system.time(cp12 <- crossprod(svt1, svt2))
 
     ## Restore previous 'nthread' value:
     set_SparseArray_nthread(prev_nthread)
