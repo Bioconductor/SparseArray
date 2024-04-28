@@ -3,6 +3,32 @@
 
 #include <Rdefines.h>
 
+struct sparse_vec {
+	//int len;
+	SEXPTYPE Rtype;
+	const void *nzvals;
+	const int *nzoffs;
+	int nzcount;
+};
+
+static inline const double *_get_double_nzvals(const struct sparse_vec *sv)
+{
+        if (sv->Rtype != REALSXP)
+		error("SparseArray internal error in "
+		      "_get_double_nzvals():\n"
+		      "    sv->Rtype != REALSXP");
+	return sv->nzvals;
+}
+
+static inline const int *_get_int_nzvals(const struct sparse_vec *sv)
+{
+        if (sv->Rtype != INTSXP)
+		error("SparseArray internal error in "
+		      "_get_double_nzvals():\n"
+		      "    sv->Rtype != INTSXP");
+	return sv->nzvals;
+}
+
 /* A "leaf vector" is a vector of offset/value pairs sorted by strictly
    ascending offset. It is represented by a list of 2 parallel vectors:
    an integer vector of offsets (i.e. 0-based positions) and a vector
@@ -23,7 +49,7 @@ static const Rcomplex Rcomplex0 = {{0.0, 0.0}};
 #define FUNDEF_next_nzval(Ltype, Rtype)				\
 	(const int *offs1, const Ltype *vals1, int n1,		\
 	 const int *offs2, const Rtype *vals2, int n2,		\
-	 int *k1, int *k2, int *off, Ltype *v1, Rtype *v2)	\
+	 int *k1, int *k2, int *off, Ltype *val1, Rtype *val2)	\
 {								\
 	int off1, off2;						\
 								\
@@ -32,31 +58,31 @@ static const Rcomplex Rcomplex0 = {{0.0, 0.0}};
 		off2 = offs2[*k2];				\
 		if (off1 < off2) {				\
 			*off = off1;				\
-			*v1 = vals1[(*k1)++];			\
-			*v2 = Rtype ## 0;			\
+			*val1 = vals1[(*k1)++];			\
+			*val2 = Rtype ## 0;			\
 			return 1;				\
 		}						\
 		if (off1 > off2) {				\
 			*off = off2;				\
-			*v1 = Ltype ## 0;			\
-			*v2 = vals2[(*k2)++];			\
+			*val1 = Ltype ## 0;			\
+			*val2 = vals2[(*k2)++];			\
 			return 2;				\
 		}						\
 		*off = off1;					\
-		*v1 = vals1[(*k1)++];				\
-		*v2 = vals2[(*k2)++];				\
+		*val1 = vals1[(*k1)++];				\
+		*val2 = vals2[(*k2)++];				\
 		return 3;					\
 	}							\
 	if (*k1 < n1) {						\
 		*off = offs1[*k1];				\
-		*v1 = vals1[(*k1)++];				\
-		*v2 = Rtype ## 0;				\
+		*val1 = vals1[(*k1)++];				\
+		*val2 = Rtype ## 0;				\
 		return 1;					\
 	}							\
 	if (*k2 < n2) {						\
 		*off = offs2[*k2];				\
-		*v1 = Ltype ## 0;				\
-		*v2 = vals2[(*k2)++];				\
+		*val1 = Ltype ## 0;				\
+		*val2 = vals2[(*k2)++];				\
 		return 2;					\
 	}							\
 	return 0;						\
@@ -99,6 +125,38 @@ SEXP _new_leaf_vector(
 	SEXP lv_offs,
 	SEXP lv_vals
 );
+
+static inline struct sparse_vec _leaf2sv(SEXP leaf)
+{
+	SEXP nzoffs, nzvals;
+	R_xlen_t nzcount;
+	struct sparse_vec sv;
+
+	/* Sanity checks (should never fail). */
+	if (!isVectorList(leaf))  // IS_LIST() is broken
+		goto on_error;
+	if (LENGTH(leaf) != 2)
+		goto on_error;
+	nzoffs = VECTOR_ELT(leaf, 0);
+	if (!IS_INTEGER(nzoffs))
+		goto on_error;
+	nzcount = XLENGTH(nzoffs);
+	if (nzcount == 0 || nzcount > INT_MAX)
+		goto on_error;
+	nzvals = VECTOR_ELT(leaf, 1);
+	if (XLENGTH(nzvals) != nzcount)
+		goto on_error;
+	sv.Rtype = TYPEOF(nzvals);
+	sv.nzvals = DATAPTR(nzvals);
+	sv.nzoffs = INTEGER(nzoffs);
+	sv.nzcount = nzcount;
+	return sv;
+
+    on_error:
+	error("SparseArray internal error in "
+	      "_make_sparse_vec_from_SEXP():\n"
+	      "    invalid tree leaf");
+}
 
 static inline int _split_leaf_vector(SEXP lv, SEXP *lv_offs, SEXP *lv_vals)
 {
