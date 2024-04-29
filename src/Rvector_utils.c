@@ -157,86 +157,86 @@ CopyRVectorElts_FUNType _select_copy_Rvector_elts_FUN(SEXPTYPE Rtype)
  */
 
 static int collect_offsets_of_nonzero_int_elts(
-		const int *in, int in_len, int *offs_buf)
+		const int *in, int in_len, int *out_nzoffs)
 {
-	int *off_p = offs_buf;
+	int *off_p = out_nzoffs;
 	for (int offset = 0; offset < in_len; offset++, in++)
 		if (*in != 0)
 			*(off_p++) = offset;
-	return (int) (off_p - offs_buf);
+	return (int) (off_p - out_nzoffs);
 }
 
 static int collect_offsets_of_nonzero_double_elts(
-		const double *in, int in_len, int *offs_buf)
+		const double *in, int in_len, int *out_nzoffs)
 {
-	int *off_p = offs_buf;
+	int *off_p = out_nzoffs;
 	for (int offset = 0; offset < in_len; offset++, in++)
 		if (*in != 0.0)
 			*(off_p++) = offset;
-	return (int) (off_p - offs_buf);
+	return (int) (off_p - out_nzoffs);
 }
 
 #define	IS_NONZERO_RCOMPLEX(x) ((x)->r != 0.0 || (x)->i != 0.0)
 static int collect_offsets_of_nonzero_Rcomplex_elts(
-		const Rcomplex *in, int in_len, int *offs_buf)
+		const Rcomplex *in, int in_len, int *out_nzoffs)
 {
-	int *off_p = offs_buf;
+	int *off_p = out_nzoffs;
 	for (int offset = 0; offset < in_len; offset++, in++)
 		if (IS_NONZERO_RCOMPLEX(in))
 			*(off_p++) = offset;
-	return (int) (off_p - offs_buf);
+	return (int) (off_p - out_nzoffs);
 }
 
 static int collect_offsets_of_nonzero_Rbyte_elts(
-		const Rbyte *in, int in_len, int *offs_buf)
+		const Rbyte *in, int in_len, int *out_nzoffs)
 {
-	int *off_p = offs_buf;
+	int *off_p = out_nzoffs;
 	for (int offset = 0; offset < in_len; offset++, in++)
 		if (*in != 0)
 			*(off_p++) = offset;
-	return (int) (off_p - offs_buf);
+	return (int) (off_p - out_nzoffs);
 }
 
 #define	IS_NONEMPTY_CHARSXP(x) ((x) == NA_STRING || XLENGTH(x) != 0)
 static int collect_offsets_of_nonempty_character_elts(
 		SEXP Rvector, R_xlen_t subvec_offset, int subvec_len,
-		int *offs_buf)
+		int *out_nzoffs)
 {
-	int *off_p = offs_buf;
+	int *off_p = out_nzoffs;
 	for (int offset = 0; offset < subvec_len; offset++, subvec_offset++) {
 		SEXP Rvector_elt = STRING_ELT(Rvector, subvec_offset);
 		if (IS_NONEMPTY_CHARSXP(Rvector_elt))
 			*(off_p++) = offset;
 	}
-	return (int) (off_p - offs_buf);
+	return (int) (off_p - out_nzoffs);
 }
 
 static int collect_offsets_of_nonnull_list_elts(
 		SEXP Rvector, R_xlen_t subvec_offset, int subvec_len,
-		int *offs_buf)
+		int *out_nzoffs)
 {
-	int *off_p = offs_buf;
+	int *off_p = out_nzoffs;
 	for (int offset = 0; offset < subvec_len; offset++, subvec_offset++) {
 		SEXP Rvector_elt = VECTOR_ELT(Rvector, subvec_offset);
 		if (Rvector_elt != R_NilValue)
 			*(off_p++) = offset;
 	}
-	return (int) (off_p - offs_buf);
+	return (int) (off_p - out_nzoffs);
 }
 
 /* Only looks at the subvector of 'Rvector' made of the range of elements
    defined by 'subvec_offset' and 'subvec_len'.
    Offsets of nonzero elements are collected with respect to this subvector.
-   Caller must make sure to supply an 'offs_buf' buffer that is big enough
-   to store all the collected offsets. Safe choice is to make the buffer of
-   length 'subvec_len'.
+   Caller must make sure that 'out_nzoffs' is an array big enough to store all
+   the collected offsets. Safe choice is to allocate an array of 'subvec_len'
+   integers.
    Note that even though 'Rvector' can be a long vector, the subvector
    defined by 'subvec_offset/subvec_len' cannot i.e. 'subvec_len' must be
    supplied as an int.
    Returns the number of collected offsets. */
 int _collect_offsets_of_nonzero_Rsubvec_elts(
 		SEXP Rvector, R_xlen_t subvec_offset, int subvec_len,
-		int *offs_buf)
+		int *out_nzoffs)
 {
 	SEXPTYPE Rtype;
 
@@ -245,27 +245,27 @@ int _collect_offsets_of_nonzero_Rsubvec_elts(
 	    case LGLSXP: case INTSXP:
 		return collect_offsets_of_nonzero_int_elts(
 				INTEGER(Rvector) + subvec_offset,
-				subvec_len, offs_buf);
+				subvec_len, out_nzoffs);
 	    case REALSXP:
 		return collect_offsets_of_nonzero_double_elts(
 				REAL(Rvector) + subvec_offset,
-				subvec_len, offs_buf);
+				subvec_len, out_nzoffs);
 	    case CPLXSXP:
 		return collect_offsets_of_nonzero_Rcomplex_elts(
 				COMPLEX(Rvector) + subvec_offset,
-				subvec_len, offs_buf);
+				subvec_len, out_nzoffs);
 	    case RAWSXP:
 		return collect_offsets_of_nonzero_Rbyte_elts(
 				RAW(Rvector) + subvec_offset,
-				subvec_len, offs_buf);
+				subvec_len, out_nzoffs);
 	    case STRSXP:
 		return collect_offsets_of_nonempty_character_elts(
 				Rvector, subvec_offset,
-				subvec_len, offs_buf);
+				subvec_len, out_nzoffs);
 	    case VECSXP:
 		return collect_offsets_of_nonnull_list_elts(
 				Rvector, subvec_offset,
-				subvec_len, offs_buf);
+				subvec_len, out_nzoffs);
 	}
 	error("SparseArray internal error in "
 	      "_collect_offsets_of_nonzero_Rsubvec_elts():\n"

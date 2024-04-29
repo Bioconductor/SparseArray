@@ -5,7 +5,35 @@
 
 #include "Rvector_utils.h"
 #include "Rvector_summarization.h"
-#include "leaf_vector_summarization.h"
+
+
+static inline SEXP get_leaf_nzvals(SEXP leaf)
+{
+	/* Sanity checks (should never fail). */
+	if (!isVectorList(leaf))  // IS_LIST() is broken
+		goto on_error;
+	if (LENGTH(leaf) != 2)
+		goto on_error;
+	return VECTOR_ELT(leaf, 1);
+
+    on_error:
+	error("SparseArray internal error in "
+	      "get_leaf_nzvals():\n"
+	      "    invalid tree leaf");
+}
+
+static void summarize_leaf(SEXP leaf, int d,
+		const SummarizeOp *summarize_op, SummarizeResult *res)
+{
+	SEXP nzvals = get_leaf_nzvals(leaf);
+	int nzcount = LENGTH(nzvals);
+        /* We add 'd - nzcount' instead of 'd' because _summarize_Rvector()
+           will add 'nzcount'. */
+	res->in_length += d - nzcount;
+	res->in_nzcount += nzcount; /* assuming 'nzvals' contains no zeros! */
+        _summarize_Rvector(nzvals, summarize_op, res);
+        return;
+}
 
 
 /****************************************************************************
@@ -30,7 +58,7 @@ static void REC_summarize_SVT(SEXP SVT, const int *dim, int ndim,
 
 	if (ndim == 1) {
 		/* 'SVT' is a "leaf vector". */
-		_summarize_leaf_vector(SVT, dim[0], summarize_op, res);
+		summarize_leaf(SVT, dim[0], summarize_op, res);
 		return;
 	}
 

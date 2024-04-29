@@ -3,9 +3,9 @@
  ****************************************************************************/
 #include "SparseMatrix_mult.h"
 
-#include "Rvector_utils.h"
 #include "sparse_vec.h"
 #include "sparse_vec_dotprod.h"
+#include "Rvector_utils.h"
 #include "SVT_SparseArray_class.h"  /* for _REC_nzcount_SVT() */
 
 #include <string.h>  /* for memset() */

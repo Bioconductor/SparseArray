@@ -182,7 +182,7 @@ int _collect_offsets_of_nonzero_Rsubvec_elts(
 	SEXP Rvector,
 	R_xlen_t subvec_offset,
 	int subvec_len,
-	int *offs_buf
+	int *out_nzoffs
 );
 
 void _reset_selected_Rvector_elts(
