@@ -15,8 +15,7 @@ double _dotprod_sparse_vec_and_finite_col(
 
 double _dotprod_sparse_vec_and_double_col(
 	const struct sparse_vec *sv1,
-	const double *x2,
-	int x2_len
+	const double *x2
 );
 
 double _dotprod_sparse_vec_and_noNA_int_col(
@@ -26,8 +25,7 @@ double _dotprod_sparse_vec_and_noNA_int_col(
 
 double _dotprod_sparse_vec_and_int_col(
 	const struct sparse_vec *sv1,
-	const int *x2,
-	int x2_len
+	const int *x2
 );
 
 double _dotprod0_int_col(

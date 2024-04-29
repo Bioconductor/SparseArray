@@ -1,4 +1,5 @@
 
+
 ### When called on an ordinary matrix 'm' that contains a mix of NAs and NaNs,
 ### 'crossprod(m)' can return a square matrix 'cp' where the NA/NaN pattern
 ### is not symetric with respect to the diagonal. More precisely, there might
@@ -43,10 +44,77 @@
     tcp <- tcrossprod(svt)
     EXPECT_FUN(tcp, expected)
     EXPECT_FUN(tcp, t(tcp))
-    EXPECT_FUN(tcp, tcrossprod(svt, svt))
-    EXPECT_FUN(tcp, tcrossprod(svt, m))
-    EXPECT_FUN(tcp, tcrossprod(m, svt))
+    EXPECT_FUN(tcrossprod(svt, svt), expected)
+    EXPECT_FUN(tcrossprod(svt, m), expected)
+    EXPECT_FUN(tcrossprod(m, svt), expected)
 }
+
+.test_crossprod_int_SVT_SparseMatrix <- function(m1, m2=NULL)
+{
+    stopifnot(is.matrix(m1))
+    svt1 <- as(m1, "SVT_SparseMatrix")
+    stopifnot(type(svt1) == "integer")
+
+    expected <- crossprod(m1)
+    cp <- crossprod(svt1)
+    expect_identical(cp, expected)
+    expect_identical(cp, t(cp))
+    expect_identical(crossprod(svt1, svt1), expected)
+    expect_identical(crossprod(svt1, m1), expected)
+    expect_identical(crossprod(m1, svt1), expected)
+    svt1d <- `type<-`(svt1, "double")
+    expect_identical(crossprod(svt1d), expected)
+    expect_identical(crossprod(svt1d, svt1d), expected)
+    expect_identical(crossprod(svt1d, m1), expected)
+    expect_identical(crossprod(m1, svt1d), expected)
+
+    if (is.null(m2))
+        return()
+
+    stopifnot(is.matrix(m2))
+    svt2 <- as(m2, "SVT_SparseMatrix")
+    stopifnot(type(svt2) == "integer")
+
+    expected <- crossprod(m2)
+    cp <- crossprod(svt2)
+    expect_identical(cp, expected)
+    expect_identical(cp, t(cp))
+    expect_identical(crossprod(svt2 , svt2 ), expected)
+    expect_identical(crossprod(svt2 , m2   ), expected)
+    expect_identical(crossprod(m2   , svt2 ), expected)
+    svt2d <- `type<-`(svt2, "double")
+    expect_identical(crossprod(svt2d),        expected)
+    expect_identical(crossprod(svt2d, svt2d), expected)
+    expect_identical(crossprod(svt2d, svt2 ), expected)
+    expect_identical(crossprod(svt2 , svt2d), expected)
+    expect_identical(crossprod(svt2d, m2   ), expected)
+    expect_identical(crossprod(m2   , svt2d), expected)
+
+    expected <- crossprod(m1, m2)
+    expect_identical(crossprod(svt1 , svt2 ), expected)
+    expect_identical(crossprod(svt1d, svt2 ), expected)
+    expect_identical(crossprod(svt1 , svt2d), expected)
+    expect_identical(crossprod(svt1d, svt2d), expected)
+    expect_identical(crossprod(svt1 , m2   ), expected)
+    expect_identical(crossprod(svt1d, m2   ), expected)
+    expect_identical(crossprod(m1   , svt2 ), expected)
+    expect_identical(crossprod(m1   , svt2d), expected)
+
+    expected <- t(expected)
+    expect_identical(crossprod(svt2 , svt1 ), expected)
+    expect_identical(crossprod(svt2d, svt1 ), expected)
+    expect_identical(crossprod(svt2 , svt1d), expected)
+    expect_identical(crossprod(svt2d, svt1d), expected)
+    expect_identical(crossprod(svt2 , m1   ), expected)
+    expect_identical(crossprod(svt2d, m1   ), expected)
+    expect_identical(crossprod(m2   , svt1 ), expected)
+    expect_identical(crossprod(m2   , svt1d), expected)
+}
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Input of type "double"
+###
 
 test_that("crossprod()/tcrossprod() on input objects of type \"double\"", {
     m0 <- matrix(0, nrow=5, ncol=3)
@@ -116,40 +184,10 @@ test_that("crossprod()/tcrossprod() on input objects of type \"double\"", {
     expect_identical(tcrossprod(tsvt5, tsvt3), t(expected))
 })
 
-.test_crossprod_int_SVT_SparseMatrix <- function(m1, m2=NULL)
-{
-    stopifnot(is.matrix(m1))
-    svt1 <- as(m1, "SVT_SparseMatrix")
-    stopifnot(type(svt1) == "integer")
-    expected <- crossprod(m1)
-    cp <- crossprod(svt1)
-    expect_identical(cp, expected)
-    expect_identical(cp, t(cp))
-    expect_identical(cp, crossprod(svt1, svt1))
-    svt <- `type<-`(svt1, "double")
-    expect_identical(cp, crossprod(svt))
-    expect_identical(cp, crossprod(svt, svt))
 
-    if (is.null(m2))
-        return()
-
-    stopifnot(is.matrix(m2))
-    svt2 <- as(m2, "SVT_SparseMatrix")
-    stopifnot(type(svt2) == "integer")
-    expected <- crossprod(m2)
-    cp <- crossprod(svt2)
-    expect_identical(cp, expected)
-    expect_identical(cp, t(cp))
-    expect_identical(cp, crossprod(svt2, svt2))
-    svt <- `type<-`(svt2, "double")
-    expect_identical(cp, crossprod(svt))
-    expect_identical(cp, crossprod(svt, svt))
-
-    expected <- crossprod(m1, m2)
-    cp <- crossprod(svt1, svt2)
-    expect_identical(cp, expected)
-    expect_identical(crossprod(svt2, svt1), t(expected))
-}
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Input of type "integer"
+###
 
 test_that("crossprod() on input objects of type \"integer\"", {
     m1 <- matrix(c(0L, -4L, 7L, NA_integer_, 0L, NA_integer_), nrow=1)

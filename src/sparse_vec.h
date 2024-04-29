@@ -4,59 +4,49 @@
 #include <Rdefines.h>
 
 struct sparse_vec {
-	//int len;
 	SEXPTYPE Rtype;      /* type of values */
 	const void *nzvals;  /* nonzero values */
 	const int *nzoffs;   /* offsets of nonzero values */
 	int nzcount;         /* number of nonzero values */
+	int len;             /* vector length (-1 if unknown) */
 };
 
-static inline struct sparse_vec new_Rbyte_sparse_vec(
-		const Rbyte *nzvals, const int *nzoffs, int nzcount)
+static inline struct sparse_vec new_sparse_vec(
+		SEXPTYPE Rtype, const void *nzvals,
+		const int *nzoffs, int nzcount, int len)
 {
 	struct sparse_vec sv;
 
-	sv.Rtype = RAWSXP;
+	sv.Rtype = Rtype;
 	sv.nzvals = nzvals;
 	sv.nzoffs = nzoffs;
 	sv.nzcount = nzcount;
+	sv.len = len;
 	return sv;
 }
 
-static inline struct sparse_vec new_int_sparse_vec(
-		const int *nzvals, const int *nzoffs, int nzcount)
+static inline struct sparse_vec new_Rbyte_sparse_vec(const Rbyte *nzvals,
+		const int *nzoffs, int nzcount, int len)
 {
-	struct sparse_vec sv;
-
-	sv.Rtype = INTSXP;
-	sv.nzvals = nzvals;
-	sv.nzoffs = nzoffs;
-	sv.nzcount = nzcount;
-	return sv;
+	return new_sparse_vec(RAWSXP, nzvals, nzoffs, nzcount, len);
 }
 
-static inline struct sparse_vec new_double_sparse_vec(
-		const double *nzvals, const int *nzoffs, int nzcount)
+static inline struct sparse_vec new_int_sparse_vec(const int *nzvals,
+		const int *nzoffs, int nzcount, int len)
 {
-	struct sparse_vec sv;
-
-	sv.Rtype = REALSXP;
-	sv.nzvals = nzvals;
-	sv.nzoffs = nzoffs;
-	sv.nzcount = nzcount;
-	return sv;
+	return new_sparse_vec(INTSXP, nzvals, nzoffs, nzcount, len);
 }
 
-static inline struct sparse_vec new_Rcomplex_sparse_vec(
-		const Rcomplex *nzvals, const int *nzoffs, int nzcount)
+static inline struct sparse_vec new_double_sparse_vec(const double *nzvals,
+		const int *nzoffs, int nzcount, int len)
 {
-	struct sparse_vec sv;
+	return new_sparse_vec(REALSXP, nzvals, nzoffs, nzcount, len);
+}
 
-	sv.Rtype = CPLXSXP;
-	sv.nzvals = nzvals;
-	sv.nzoffs = nzoffs;
-	sv.nzcount = nzcount;
-	return sv;
+static inline struct sparse_vec new_Rcomplex_sparse_vec(const Rcomplex *nzvals,
+		const int *nzoffs, int nzcount, int len)
+{
+	return new_sparse_vec(CPLXSXP, nzvals, nzoffs, nzcount, len);
 }
 
 static inline const Rbyte *get_Rbyte_nzvals(const struct sparse_vec *sv)
@@ -105,13 +95,13 @@ static const Rcomplex Rcomplex0 = {{0.0, 0.0}};
 	 const struct sparse_vec *sv2,				\
 	 int *k1, int *k2, int *off, Ltype *val1, Rtype *val2)	\
 {								\
-	int n1 = sv1->nzcount;					\
-	int n2 = sv2->nzcount;					\
+	int nzcount1 = sv1->nzcount;				\
+	int nzcount2 = sv2->nzcount;				\
 	const int *nzoffs1 = sv1->nzoffs;			\
 	const int *nzoffs2 = sv2->nzoffs;			\
 	const Ltype *nzvals1 = get_ ## Ltype  ## _nzvals(sv1);	\
 	const Rtype *nzvals2 = get_ ## Rtype  ## _nzvals(sv2);	\
-	if (*k1 < n1 && *k2 < n2) {				\
+	if (*k1 < nzcount1 && *k2 < nzcount2) {			\
 		int nzoff1 = nzoffs1[*k1];			\
 		int nzoff2 = nzoffs2[*k2];			\
 		if (nzoff1 < nzoff2) {				\
@@ -131,13 +121,13 @@ static const Rcomplex Rcomplex0 = {{0.0, 0.0}};
 		*val2 = nzvals2[(*k2)++];			\
 		return 3;					\
 	}							\
-	if (*k1 < n1) {						\
+	if (*k1 < nzcount1) {					\
 		*off = nzoffs1[*k1];				\
 		*val1 = nzvals1[(*k1)++];			\
 		*val2 = Rtype ## 0;				\
 		return 1;					\
 	}							\
-	if (*k2 < n2) {						\
+	if (*k2 < nzcount2) {					\
 		*off = nzoffs2[*k2];				\
 		*val1 = Ltype ## 0;				\
 		*val2 = nzvals2[(*k2)++];			\
@@ -179,11 +169,10 @@ static inline int next_nzvals_double_Rcomplex
 static inline int next_nzvals_Rcomplex_Rcomplex
 	FUNDEF_next_nzvals(Rcomplex, Rcomplex)
 
-static inline struct sparse_vec leaf2sv(SEXP leaf)
+static inline struct sparse_vec leaf2sv(SEXP leaf, int len)
 {
 	SEXP nzoffs, nzvals;
 	R_xlen_t nzcount;
-	struct sparse_vec sv;
 
 	/* Sanity checks (should never fail). */
 	if (!isVectorList(leaf))  // IS_LIST() is broken
@@ -199,11 +188,8 @@ static inline struct sparse_vec leaf2sv(SEXP leaf)
 	nzvals = VECTOR_ELT(leaf, 1);
 	if (XLENGTH(nzvals) != nzcount)
 		goto on_error;
-	sv.Rtype = TYPEOF(nzvals);
-	sv.nzvals = DATAPTR(nzvals);
-	sv.nzoffs = INTEGER(nzoffs);
-	sv.nzcount = (int) nzcount;
-	return sv;
+	return new_sparse_vec(TYPEOF(nzvals), DATAPTR(nzvals),
+			      INTEGER(nzoffs), (int) nzcount, len);
 
     on_error:
 	error("SparseArray internal error in "

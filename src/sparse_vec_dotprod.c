@@ -44,12 +44,12 @@ double _dotprod_sparse_vec_and_finite_col(const struct sparse_vec *sv1,
    assumptions about the content of 'x2'.
    Significantly slower than _dotprod_sparse_vec_and_finite_col(). */
 double _dotprod_sparse_vec_and_double_col(const struct sparse_vec *sv1,
-		const double *x2, int x2_len)
+		const double *x2)
 {
 	const double *nzvals1 = get_double_nzvals(sv1);
 	double ans = 0.0;
 	int k1 = 0;
-	for (int i2 = 0; i2 < x2_len; i2++) {
+	for (int i2 = 0; i2 < sv1->len; i2++) {
 		double v1, v2 = x2[i2];
 		if (R_IsNA(v2))
 			return NA_REAL;
@@ -91,12 +91,12 @@ double _dotprod_sparse_vec_and_noNA_int_col(const struct sparse_vec *sv1,
    assumptions about the content of 'x2'.
    Significantly slower than _dotprod_sparse_vec_and_noNA_int_col(). */
 double _dotprod_sparse_vec_and_int_col(const struct sparse_vec *sv1,
-		const int *x2, int x2_len)
+		const int *x2)
 {
 	const int *nzvals1 = get_int_nzvals(sv1);
 	double ans = 0.0;
 	int k1 = 0;
-	for (int i2 = 0; i2 < x2_len; i2++) {
+	for (int i2 = 0; i2 < sv1->len; i2++) {
 		int v1, v2 = x2[i2];
 		if (v2 == NA_INTEGER)
 			return NA_REAL;
