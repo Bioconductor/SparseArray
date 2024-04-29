@@ -275,5 +275,10 @@ void _copy_Rvector_elts_from_selected_lloffsets(
 	SEXP out_Rvector
 );
 
+const char *_unary_minus_Rvector(
+	SEXP in_Rvector,
+	SEXP out_Rvector
+);
+
 #endif  /* _RVECTOR_UTILS_H_ */
 

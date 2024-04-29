@@ -1,8 +1,7 @@
 #ifndef _SPARSE_VEC_DOTPROD_H_
 #define _SPARSE_VEC_DOTPROD_H_
 
-#include <Rdefines.h>
-#include "leaf_vector_utils.h"
+#include "sparse_vec.h"
 
 double _dotprod_sparse_vecs(
 	const struct sparse_vec *sv1,

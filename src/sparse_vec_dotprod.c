@@ -3,7 +3,7 @@
  ****************************************************************************/
 #include "sparse_vec_dotprod.h"
 
-#include "leaf_vector_utils.h"
+#include "sparse_vec.h"
 
 
 double _dotprod_sparse_vecs(const struct sparse_vec *sv1,
@@ -12,14 +12,10 @@ double _dotprod_sparse_vecs(const struct sparse_vec *sv1,
 	int k1, k2, off;
 	double val1, val2;
 
-	const double *nzvals1 = _get_double_nzvals(sv1);
-	const double *nzvals2 = _get_double_nzvals(sv2);
 	double ans = 0.0;
 	k1 = k2 = 0;
-	while (next_nzval_double_double(
-		sv1->nzoffs, nzvals1, sv1->nzcount,
-		sv2->nzoffs, nzvals2, sv2->nzcount,
-		&k1, &k2, &off, &val1, &val2))
+	while (next_nzvals_double_double(sv1, sv2,
+					 &k1, &k2, &off, &val1, &val2))
 	{
 		if (R_IsNA(val1) || R_IsNA(val2))
 			return NA_REAL;
@@ -37,7 +33,7 @@ double _dotprod_sparse_vecs(const struct sparse_vec *sv1,
 double _dotprod_sparse_vec_and_finite_col(const struct sparse_vec *sv1,
 					  const double *x2)
 {
-	const double *nzvals1 = _get_double_nzvals(sv1);
+	const double *nzvals1 = get_double_nzvals(sv1);
 	double ans = 0.0;
 	for (int k1 = 0; k1 < sv1->nzcount; k1++)
 		ans += nzvals1[k1] * x2[sv1->nzoffs[k1]];
@@ -50,7 +46,7 @@ double _dotprod_sparse_vec_and_finite_col(const struct sparse_vec *sv1,
 double _dotprod_sparse_vec_and_double_col(const struct sparse_vec *sv1,
 		const double *x2, int x2_len)
 {
-	const double *nzvals1 = _get_double_nzvals(sv1);
+	const double *nzvals1 = get_double_nzvals(sv1);
 	double ans = 0.0;
 	int k1 = 0;
 	for (int i2 = 0; i2 < x2_len; i2++) {
@@ -79,7 +75,7 @@ double _dotprod_sparse_vec_and_double_col(const struct sparse_vec *sv1,
 double _dotprod_sparse_vec_and_noNA_int_col(const struct sparse_vec *sv1,
 					    const int *x2)
 {
-	const int *nzvals1 = _get_int_nzvals(sv1);
+	const int *nzvals1 = get_int_nzvals(sv1);
 	double ans = 0.0;
 	for (int k1 = 0; k1 < sv1->nzcount; k1++) {
 		int v1 = nzvals1[k1];
@@ -97,7 +93,7 @@ double _dotprod_sparse_vec_and_noNA_int_col(const struct sparse_vec *sv1,
 double _dotprod_sparse_vec_and_int_col(const struct sparse_vec *sv1,
 		const int *x2, int x2_len)
 {
-	const int *nzvals1 = _get_int_nzvals(sv1);
+	const int *nzvals1 = get_int_nzvals(sv1);
 	double ans = 0.0;
 	int k1 = 0;
 	for (int i2 = 0; i2 < x2_len; i2++) {
@@ -149,6 +145,6 @@ double _dotprod0_double_col(const double *x, int x_len)
 
 double _dotprod0_sparse_vec(const struct sparse_vec *sv)
 {
-	return _dotprod0_double_col(_get_double_nzvals(sv), sv->nzcount);
+	return _dotprod0_double_col(get_double_nzvals(sv), sv->nzcount);
 }
 

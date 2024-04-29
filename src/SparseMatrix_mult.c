@@ -4,7 +4,7 @@
 #include "SparseMatrix_mult.h"
 
 #include "Rvector_utils.h"
-#include "leaf_vector_utils.h"
+#include "sparse_vec.h"
 #include "sparse_vec_dotprod.h"
 #include "SVT_SparseArray_class.h"  /* for _REC_nzcount_SVT() */
 
@@ -28,12 +28,12 @@ static int has_no_NA(const int *x, int x_len)
 
 static int sv_has_no_NaN_or_Inf(const struct sparse_vec *sv)
 {
-	return has_no_NaN_or_Inf(_get_double_nzvals(sv), sv->nzcount);
+	return has_no_NaN_or_Inf(get_double_nzvals(sv), sv->nzcount);
 }
 
 static int sv_has_no_NA(const struct sparse_vec *sv)
 {
-	return has_no_NA(_get_int_nzvals(sv), sv->nzcount);
+	return has_no_NA(get_int_nzvals(sv), sv->nzcount);
 }
 
 static void fill_col(double *out, int out_nrow, double v)
@@ -71,7 +71,7 @@ static void expand_double_sv(const struct sparse_vec *sv,
 		double *out, int out_len)
 {
 	memset(out, 0, sizeof(double) * out_len);
-	_copy_doubles_to_offsets(_get_double_nzvals(sv),
+	_copy_doubles_to_offsets(get_double_nzvals(sv),
 				 sv->nzoffs, sv->nzcount, out);
 	return;
 }
@@ -80,9 +80,25 @@ static void expand_int_sv(const struct sparse_vec *sv,
 		int *out, int out_len)
 {
 	memset(out, 0, sizeof(int) * out_len);
-	_copy_ints_to_offsets(_get_int_nzvals(sv),
+	_copy_ints_to_offsets(get_int_nzvals(sv),
 			      sv->nzoffs, sv->nzcount, out);
 	return;
+}
+
+static double dotprod_leaf_and_finite_col(SEXP leaf, const double *col)
+{
+	if (leaf == R_NilValue)
+		return 0.0;
+	struct sparse_vec sv = leaf2sv(leaf);
+	return _dotprod_sparse_vec_and_finite_col(&sv, col);
+}
+
+static double dotprod_leaf_and_noNA_int_col(SEXP leaf, const int *col)
+{
+	if (leaf == R_NilValue)
+		return 0.0;
+	struct sparse_vec sv = leaf2sv(leaf);
+	return _dotprod_sparse_vec_and_noNA_int_col(&sv, col);
 }
 
 static double dotprod_leaf_and_double_col(SEXP leaf,
@@ -90,7 +106,7 @@ static double dotprod_leaf_and_double_col(SEXP leaf,
 {
 	if (leaf == R_NilValue)
 		return _dotprod0_double_col(col, in_nrow);
-	struct sparse_vec sv = _leaf2sv(leaf);
+	struct sparse_vec sv = leaf2sv(leaf);
 	return _dotprod_sparse_vec_and_double_col(&sv, col, in_nrow);
 }
 
@@ -99,7 +115,7 @@ static double dotprod_leaf_and_int_col(SEXP leaf,
 {
 	if (leaf == R_NilValue)
 		return _dotprod0_int_col(col, in_nrow);
-	struct sparse_vec sv = _leaf2sv(leaf);
+	struct sparse_vec sv = leaf2sv(leaf);
 	return _dotprod_sparse_vec_and_int_col(&sv, col, in_nrow);
 }
 
@@ -108,7 +124,7 @@ static double dotprod_leaf_and_sparse_vec(SEXP leaf,
 {
 	if (leaf == R_NilValue)
 		return _dotprod0_sparse_vec(sv);
-	struct sparse_vec sv1 = _leaf2sv(leaf);
+	struct sparse_vec sv1 = leaf2sv(leaf);
 	return _dotprod_sparse_vecs(&sv1, sv);
 }
 
@@ -127,11 +143,7 @@ static void compute_dotprods2_with_finite_Lcol(const double *col, SEXP SVT,
 	#pragma omp parallel for schedule(static)
 	for (int j = 0; j < out_ncol; j++) {
 		SEXP leaf = VECTOR_ELT(SVT, j);
-		if (leaf == R_NilValue)
-			continue;
-		struct sparse_vec sv = _leaf2sv(leaf);
-		out[j * out_nrow] =
-			_dotprod_sparse_vec_and_finite_col(&sv, col);
+		out[j * out_nrow] = dotprod_leaf_and_finite_col(leaf, col);
 	}
 	return;
 }
@@ -142,10 +154,29 @@ static void compute_dotprods2_with_finite_Rcol(SEXP SVT, const double *col,
 	#pragma omp parallel for schedule(static)
 	for (int i = 0; i < out_nrow; i++) {
 		SEXP leaf = VECTOR_ELT(SVT, i);
-		if (leaf == R_NilValue)
-			continue;
-		struct sparse_vec sv = _leaf2sv(leaf);
-		out[i] = _dotprod_sparse_vec_and_finite_col(&sv, col);
+		out[i] = dotprod_leaf_and_finite_col(leaf, col);
+	}
+	return;
+}
+
+static void compute_dotprods2_with_noNA_int_Lcol(const int *col, SEXP SVT,
+		double *out, int out_nrow, int out_ncol)
+{
+	#pragma omp parallel for schedule(static)
+	for (int j = 0; j < out_ncol; j++) {
+		SEXP leaf = VECTOR_ELT(SVT, j);
+		out[j * out_nrow] = dotprod_leaf_and_noNA_int_col(leaf, col);
+	}
+	return;
+}
+
+static void compute_dotprods2_with_noNA_int_Rcol(SEXP SVT, const int *col,
+		double *out, int out_nrow)
+{
+	#pragma omp parallel for schedule(static)
+	for (int i = 0; i < out_nrow; i++) {
+		SEXP leaf = VECTOR_ELT(SVT, i);
+		out[i] = dotprod_leaf_and_noNA_int_col(leaf, col);
 	}
 	return;
 }
@@ -173,7 +204,8 @@ static void compute_dotprods2_with_double_Rcol(SEXP SVT, const double *col,
 		double *out, int out_nrow)
 {
 	if (has_no_NaN_or_Inf(col, in_nrow)) {
-		compute_dotprods2_with_finite_Rcol(SVT, col, out, out_nrow);
+		compute_dotprods2_with_finite_Rcol(SVT, col,
+						   out, out_nrow);
 		return;
 	}
 	#pragma omp parallel for schedule(static)
@@ -184,42 +216,13 @@ static void compute_dotprods2_with_double_Rcol(SEXP SVT, const double *col,
 	return;
 }
 
-static void compute_dotprods2_with_noNA_int_Lcol(const int *col, SEXP SVT,
-		double *out, int out_nrow, int out_ncol)
-{
-	#pragma omp parallel for schedule(static)
-	for (int j = 0; j < out_ncol; j++) {
-		SEXP leaf = VECTOR_ELT(SVT, j);
-		if (leaf == R_NilValue)
-			continue;
-		struct sparse_vec sv = _leaf2sv(leaf);
-		out[j * out_nrow] =
-			_dotprod_sparse_vec_and_noNA_int_col(&sv, col);
-	}
-	return;
-}
-
-static void compute_dotprods2_with_noNA_int_Rcol(SEXP SVT, const int *col,
-		double *out, int out_nrow)
-{
-	#pragma omp parallel for schedule(static)
-	for (int i = 0; i < out_nrow; i++) {
-		SEXP leaf = VECTOR_ELT(SVT, i);
-		if (leaf == R_NilValue)
-			continue;
-		struct sparse_vec sv = _leaf2sv(leaf);
-		out[i] = _dotprod_sparse_vec_and_noNA_int_col(&sv, col);
-	}
-	return;
-}
-
 static void compute_dotprods2_with_int_Lcol(const int *col, SEXP SVT,
 		int in_nrow,
 		double *out, int out_nrow, int out_ncol)
 {
 	if (has_no_NA(col, in_nrow)) {
 		compute_dotprods2_with_noNA_int_Lcol(col, SVT,
-					out, out_nrow, out_ncol);
+						     out, out_nrow, out_ncol);
 		return;
 	}
 	#pragma omp parallel for schedule(static)
@@ -236,7 +239,8 @@ static void compute_dotprods2_with_int_Rcol(SEXP SVT, const int *col,
 		double *out, int out_nrow)
 {
 	if (has_no_NA(col, in_nrow)) {
-		compute_dotprods2_with_noNA_int_Rcol(SVT, col, out, out_nrow);
+		compute_dotprods2_with_noNA_int_Rcol(SVT, col,
+						     out, out_nrow);
 		return;
 	}
 	#pragma omp parallel for schedule(static)
@@ -269,38 +273,32 @@ static void compute_dotprods2_with_Rsv(SEXP SVT, const struct sparse_vec *sv2,
 	return;
 }
 
-static void compute_sym_dotprods_with_finite_col(SEXP SVT, const double *col,
-		double *out, int out_nrow, int j)
+static void compute_sym_dotprods_with_finite_col(SEXP SVT, int j,
+		const double *col, double *out, int out_nrow)
 {
 	#pragma omp parallel for schedule(static)
 	for (int k = out_nrow - 1 - j; k >= 1; k--) {
 		SEXP leaf = VECTOR_ELT(SVT, j + k);
-		if (leaf == R_NilValue)
-			continue;
-		struct sparse_vec sv = _leaf2sv(leaf);
 		out[k] = out[k * out_nrow] =
-			_dotprod_sparse_vec_and_finite_col(&sv, col);
+			dotprod_leaf_and_finite_col(leaf, col);
 	}
 	return;
 }
 
-static void compute_sym_dotprods_with_noNA_int_col(SEXP SVT, const int *col,
-		double *out, int out_nrow, int j)
+static void compute_sym_dotprods_with_noNA_int_col(SEXP SVT, int j,
+		const int *col, double *out, int out_nrow)
 {
 	#pragma omp parallel for schedule(static)
 	for (int k = out_nrow - 1 - j; k >= 1; k--) {
 		SEXP leaf = VECTOR_ELT(SVT, j + k);
-		if (leaf == R_NilValue)
-			continue;
-		struct sparse_vec sv = _leaf2sv(leaf);
 		out[k] = out[k * out_nrow] =
-			_dotprod_sparse_vec_and_noNA_int_col(&sv, col);
+			dotprod_leaf_and_noNA_int_col(leaf, col);
 	}
 	return;
 }
 
-static void compute_sym_dotprods_with_sv(SEXP SVT, const struct sparse_vec *sv2,
-		double *out, int out_nrow, int j)
+static void compute_sym_dotprods_with_sv(SEXP SVT, int j,
+		const struct sparse_vec *sv2, double *out, int out_nrow)
 {
 	#pragma omp parallel for schedule(static)
 	for (int k = out_nrow - 1 - j; k >= 1; k--) {
@@ -413,7 +411,7 @@ static void crossprod2_SVT_mat_double(SEXP SVT1, const double *mat2,
 		SEXP leaf = VECTOR_ELT(SVT1, i);
 		if (leaf == R_NilValue)
 			continue;
-		struct sparse_vec sv1 = _leaf2sv(leaf);
+		struct sparse_vec sv1 = leaf2sv(leaf);
 		crossprod2_sv_mat_double(&sv1, REAL(mat2), in_nrow,
 					 out, out_nrow, out_ncol);
 	}
@@ -464,7 +462,7 @@ static void crossprod2_mat_SVT_double(const double *mat1, SEXP SVT2,
 		SEXP leaf = VECTOR_ELT(SVT2, j);
 		if (leaf == R_NilValue)
 			continue;
-		const struct sparse_vec sv2 = _leaf2sv(leaf);
+		const struct sparse_vec sv2 = leaf2sv(leaf);
 		crossprod2_mat_sv_double(mat1, &sv2, in_nrow,
 					 out, out_nrow);
 	}
@@ -588,7 +586,7 @@ static void crossprod2_mat0_SVT_double(SEXP SVT2,
 		SEXP leaf = VECTOR_ELT(SVT2, j);
 		if (leaf == R_NilValue)
 			continue;
-		struct sparse_vec sv = _leaf2sv(leaf);
+		struct sparse_vec sv = leaf2sv(leaf);
 		fill_col(out, out_nrow, _dotprod0_sparse_vec(&sv));
 	}
 	return;
@@ -607,7 +605,7 @@ static void crossprod2_SVT_mat0_double(SEXP SVT1,
 		SEXP leaf = VECTOR_ELT(SVT1, i);
 		if (leaf == R_NilValue)
 			continue;
-		struct sparse_vec sv = _leaf2sv(leaf);
+		struct sparse_vec sv = leaf2sv(leaf);
 		fill_row(out, out_nrow, out_ncol, _dotprod0_sparse_vec(&sv));
 	}
 	return;
@@ -625,7 +623,7 @@ static void crossprod2_mat0_SVT_int(SEXP SVT2,
 		SEXP leaf = VECTOR_ELT(SVT2, j);
 		if (leaf == R_NilValue)
 			continue;
-		struct sparse_vec sv = _leaf2sv(leaf);
+		struct sparse_vec sv = leaf2sv(leaf);
 		if (sv_has_no_NA(&sv))
 			continue;
 		fill_col(out, out_nrow, NA_REAL);
@@ -645,7 +643,7 @@ static void crossprod2_SVT_mat0_int(SEXP SVT1,
 		SEXP leaf = VECTOR_ELT(SVT1, i);
 		if (leaf == R_NilValue)
 			continue;
-		struct sparse_vec sv = _leaf2sv(leaf);
+		struct sparse_vec sv = leaf2sv(leaf);
 		if (sv_has_no_NA(&sv))
 			continue;
 		fill_row(out, out_nrow, out_ncol, NA_REAL);
@@ -676,7 +674,7 @@ static void crossprod2_Lpp_double(SEXP SVT1, SEXP SVT2, int in_nrow,
 						out, out_nrow, out_ncol);
 			continue;
 		}
-		struct sparse_vec sv1 = _leaf2sv(leaf);
+		struct sparse_vec sv1 = leaf2sv(leaf);
 		if (sv_has_no_NaN_or_Inf(&sv1)) {
 			/* Turn 'sv1' into dense vector. */
 			expand_double_sv(&sv1, colbuf, in_nrow);
@@ -713,7 +711,7 @@ static void crossprod2_Rpp_double(SEXP SVT1, SEXP SVT2, int in_nrow,
 						out, out_nrow);
 			continue;
 		}
-		struct sparse_vec sv2 = _leaf2sv(leaf);
+		struct sparse_vec sv2 = leaf2sv(leaf);
 		if (sv_has_no_NaN_or_Inf(&sv2)) {
 			/* Turn 'sv2' into dense vector. */
 			expand_double_sv(&sv2, colbuf, in_nrow);
@@ -758,7 +756,7 @@ static void crossprod2_Lpp_int(SEXP SVT1, SEXP SVT2, int in_nrow,
 						out, out_nrow, out_ncol);
 			continue;
 		}
-		struct sparse_vec sv1 = _leaf2sv(leaf);
+		struct sparse_vec sv1 = leaf2sv(leaf);
 		if (sv_has_no_NA(&sv1)) {
 			/* Turn 'sv1' into dense vector. */
 			expand_int_sv(&sv1, colbuf, in_nrow);
@@ -790,7 +788,7 @@ static void crossprod2_Rpp_int(SEXP SVT1, SEXP SVT2, int in_nrow,
 						out, out_nrow);
 			continue;
 		}
-		struct sparse_vec sv2 = _leaf2sv(leaf);
+		struct sparse_vec sv2 = leaf2sv(leaf);
 		if (sv_has_no_NA(&sv2)) {
 			/* Turn 'sv2' into dense vector. */
 			expand_int_sv(&sv2, colbuf, in_nrow);
@@ -808,35 +806,61 @@ static void crossprod2_Rpp_int(SEXP SVT1, SEXP SVT2, int in_nrow,
  * Workhorses behind C_crossprod1_SVT()
  */
 
+static void compute_sym_dotprods_double(SEXP SVT, int j,
+		double *colbuf, int in_nrow, double *out, int out_ncol)
+{
+	SEXP leaf = VECTOR_ELT(SVT, j);
+	if (leaf == R_NilValue) {
+		memset(colbuf, 0, sizeof(double) * in_nrow);
+		compute_sym_dotprods_with_finite_col(SVT, j,
+						     colbuf, out, out_ncol);
+		return;
+	}
+	struct sparse_vec sv = leaf2sv(leaf);
+	if (sv_has_no_NaN_or_Inf(&sv)) {
+		/* Turn 'sv' into dense vector. */
+		expand_double_sv(&sv, colbuf, in_nrow);
+		*out = _dotprod_sparse_vec_and_finite_col(&sv, colbuf);
+		compute_sym_dotprods_with_finite_col(SVT, j,
+						     colbuf, out, out_ncol);
+	} else {
+		*out = _dotprod_sparse_vecs(&sv, &sv);
+		compute_sym_dotprods_with_sv(SVT, j, &sv, out, out_ncol);
+	}
+	return;
+}
+
+static void compute_sym_dotprods_int(SEXP SVT, int j,
+		int *colbuf, int in_nrow, double *out, int out_ncol)
+{
+	SEXP leaf = VECTOR_ELT(SVT, j);
+	if (leaf == R_NilValue) {
+		memset(colbuf, 0, sizeof(int) * in_nrow);
+		compute_sym_dotprods_with_noNA_int_col(SVT, j,
+						       colbuf, out, out_ncol);
+		return;
+	}
+	struct sparse_vec sv = leaf2sv(leaf);
+	if (sv_has_no_NA(&sv)) {
+		/* Turn 'sv' into dense vector. */
+		expand_int_sv(&sv, colbuf, in_nrow);
+		*out = _dotprod_sparse_vec_and_noNA_int_col(&sv, colbuf);
+		compute_sym_dotprods_with_noNA_int_col(SVT, j,
+						       colbuf, out, out_ncol);
+	} else {
+		sym_fill_with_NAs(out, out_ncol, j);
+	}
+	return;
+}
+
 static void crossprod1_double(SEXP SVT, int in_nrow, double *out, int out_ncol)
 {
-	double *colbuf;
-
 	if (SVT == R_NilValue)
 		return;
-	colbuf = (double *) R_alloc(in_nrow, sizeof(double));
-	for (int j = 0; j < out_ncol; j++, out += out_ncol + 1) {
-		SEXP leaf = VECTOR_ELT(SVT, j);
-		if (leaf == R_NilValue) {
-			memset(colbuf, 0, sizeof(double) * in_nrow);
-			compute_sym_dotprods_with_finite_col(SVT, colbuf,
-						out, out_ncol, j);
-			continue;
-		}
-		struct sparse_vec sv = _leaf2sv(leaf);
-		if (sv_has_no_NaN_or_Inf(&sv)) {
-			/* Turn 'sv' into dense vector. */
-			expand_double_sv(&sv, colbuf, in_nrow);
-			*out =
-			    _dotprod_sparse_vec_and_finite_col(&sv, colbuf);
-			compute_sym_dotprods_with_finite_col(SVT, colbuf,
-						out, out_ncol, j);
-		} else {
-			*out = _dotprod_sparse_vecs(&sv, &sv);
-			compute_sym_dotprods_with_sv(SVT, &sv,
-						out, out_ncol, j);
-		}
-	}
+	double *colbuf = (double *) R_alloc(in_nrow, sizeof(double));
+	for (int j = 0; j < out_ncol; j++, out += out_ncol + 1)
+		compute_sym_dotprods_double(SVT, j,
+					    colbuf, in_nrow, out, out_ncol);
 	return;
 }
 
@@ -852,31 +876,12 @@ static void crossprod1_double(SEXP SVT, int in_nrow, double *out, int out_ncol)
    footprint as small as possible. */
 static void crossprod1_int(SEXP SVT, int in_nrow, double *out, int out_ncol)
 {
-	int *colbuf;
-
 	if (SVT == R_NilValue)
 		return;
-	colbuf = (int *) R_alloc(in_nrow, sizeof(int));
-	for (int j = 0; j < out_ncol; j++, out += out_ncol + 1) {
-		SEXP leaf = VECTOR_ELT(SVT, j);
-		if (leaf == R_NilValue) {
-			memset(colbuf, 0, sizeof(int) * in_nrow);
-			compute_sym_dotprods_with_noNA_int_col(SVT, colbuf,
-						out, out_ncol, j);
-			continue;
-		}
-		struct sparse_vec sv = _leaf2sv(leaf);
-		if (sv_has_no_NA(&sv)) {
-			/* Turn 'sv' into dense vector. */
-			expand_int_sv(&sv, colbuf, in_nrow);
-			*out = _dotprod_sparse_vec_and_noNA_int_col(&sv,
-								    colbuf);
-			compute_sym_dotprods_with_noNA_int_col(SVT, colbuf,
-						out, out_ncol, j);
-		} else {
-			sym_fill_with_NAs(out, out_ncol, j);
-		}
-	}
+	int *colbuf = (int *) R_alloc(in_nrow, sizeof(int));
+	for (int j = 0; j < out_ncol; j++, out += out_ncol + 1)
+		compute_sym_dotprods_int(SVT, j,
+					 colbuf, in_nrow, out, out_ncol);
 	return;
 }
 

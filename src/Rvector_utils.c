@@ -718,3 +718,62 @@ void _copy_Rvector_elts_from_selected_lloffsets(SEXP in_Rvector,
 	return;
 }
 
+
+/****************************************************************************
+ * _unary_minus_Rvector()
+ */
+
+/* 'out_Rvector' must be already allocated to the length of 'in_Rvector'.
+   Types of 'in_Rvector' and 'out_Rvector' are expected to be the same but
+   some exceptions are supported (e.g. if input type is "integer" then output
+   type can be "double"). More exceptions could be added if needed.
+   Do '_unary_minus_Rvector(x, x)' for **in-place** replacement. */
+const char *_unary_minus_Rvector(SEXP in_Rvector, SEXP out_Rvector)
+{
+	R_xlen_t in_len = XLENGTH(in_Rvector);
+	if (XLENGTH(out_Rvector) != in_len)
+		error("SparseArray internal error in "
+		      "_unary_minus_Rvector():\n"
+		      "    XLENGTH(out_Rvector) != in_len");
+	SEXPTYPE in_Rtype = TYPEOF(in_Rvector);
+	SEXPTYPE out_Rtype = TYPEOF(out_Rvector);
+	int supported = 0;
+	if (in_Rtype == INTSXP) {
+		const int *in = INTEGER(in_Rvector);
+		if (out_Rtype == INTSXP) {
+			int *out = INTEGER(out_Rvector);
+			for (R_xlen_t i = 0; i < in_len; i++) {
+				int v = in[i];
+				if (v != NA_INTEGER)
+					v = -v;
+				out[i] = v;
+			}
+			supported = 1;
+		} else if (out_Rtype == REALSXP) {
+			double *out = REAL(out_Rvector);
+			for (R_xlen_t i = 0; i < in_len; i++) {
+				int v = in[i];
+				if (v == NA_INTEGER) {
+					out[i] = NA_REAL;
+				} else {
+					v = -v;
+					out[i] = (double) v;
+				}
+			}
+			supported = 1;
+		}
+	} else if (in_Rtype == REALSXP) {
+		const double *in = REAL(in_Rvector);
+		if (out_Rtype == REALSXP) {
+			double *out = REAL(out_Rvector);
+			for (R_xlen_t i = 0; i < in_len; i++)
+				out[i] = - in[i];
+			supported = 1;
+		}
+	}
+	if (!supported)
+		return "_unary_minus_Rvector() only supports input "
+		       "of type \"integer\" or \"double\" at the moment";
+        return NULL;
+}
+

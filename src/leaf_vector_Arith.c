@@ -3,6 +3,7 @@
  ****************************************************************************/
 #include "leaf_vector_Arith.h"
 
+#include "Rvector_utils.h"
 #include "leaf_vector_utils.h"
 
 #include <limits.h>  /* for INT_MAX */
@@ -50,7 +51,7 @@ int _get_Arith_opcode(SEXP op)
    more efficient. */
 SEXP _unary_minus_leaf_vector(SEXP lv, SEXPTYPE ans_Rtype)
 {
-	int lv_len, supported, k;
+	int lv_len;
 	SEXP lv_offs, lv_vals, ans_vals, ans;
 
 	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
@@ -60,49 +61,11 @@ SEXP _unary_minus_leaf_vector(SEXP lv, SEXPTYPE ans_Rtype)
 	} else {
 		ans_vals = PROTECT(allocVector(ans_Rtype, lv_len));
 	}
-	supported = 0;
-	if (TYPEOF(lv_vals) == INTSXP) {
-		if (ans_Rtype == INTSXP || ans_Rtype == 0) {
-			const int *lv_vals_p = INTEGER(lv_vals);
-			int *ans_vals_p = INTEGER(ans_vals);
-			int v;
-			for (k = 0; k < lv_len; k++) {
-				v = lv_vals_p[k];
-				if (v != NA_INTEGER)
-					v = -v;
-				ans_vals_p[k] = v;
-			}
-			supported = 1;
-		} else if (ans_Rtype == REALSXP) {
-			const int *lv_vals_p = INTEGER(lv_vals);
-			double *ans_vals_p = REAL(ans_vals);
-			int v;
-			for (k = 0; k < lv_len; k++) {
-				v = lv_vals_p[k];
-				if (v == NA_INTEGER) {
-					ans_vals_p[k] = NA_REAL;
-				} else {
-					v = -v;
-					ans_vals_p[k] = (double) v;
-				}
-			}
-			supported = 1;
-		}
-	} else if (TYPEOF(lv_vals) == REALSXP) {
-		if (ans_Rtype == REALSXP || ans_Rtype == 0) {
-			const double *lv_vals_p = REAL(lv_vals);
-			double *ans_vals_p = REAL(ans_vals);
-			for (k = 0; k < lv_len; k++) {
-				ans_vals_p[k] = - lv_vals_p[k];
-			}
-			supported = 1;
-		}
-	}
-	if (!supported) {
+	const char *errmsg = _unary_minus_Rvector(lv_vals, ans_vals);
+	if (errmsg != NULL) {
 		if (ans_Rtype != 0)
 			UNPROTECT(1);
-		error("_unary_minus_leaf_vector() only supports input "
-		      "of type \"integer\" or \"double\" at the moment");
+		error("%s", errmsg);
 	}
 	if (ans_Rtype == 0)
 		return lv;

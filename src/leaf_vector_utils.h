@@ -3,31 +3,7 @@
 
 #include <Rdefines.h>
 
-struct sparse_vec {
-	//int len;
-	SEXPTYPE Rtype;
-	const void *nzvals;
-	const int *nzoffs;
-	int nzcount;
-};
-
-static inline const double *_get_double_nzvals(const struct sparse_vec *sv)
-{
-        if (sv->Rtype != REALSXP)
-		error("SparseArray internal error in "
-		      "_get_double_nzvals():\n"
-		      "    sv->Rtype != REALSXP");
-	return sv->nzvals;
-}
-
-static inline const int *_get_int_nzvals(const struct sparse_vec *sv)
-{
-        if (sv->Rtype != INTSXP)
-		error("SparseArray internal error in "
-		      "_get_double_nzvals():\n"
-		      "    sv->Rtype != INTSXP");
-	return sv->nzvals;
-}
+#include "sparse_vec.h"
 
 /* A "leaf vector" is a vector of offset/value pairs sorted by strictly
    ascending offset. It is represented by a list of 2 parallel vectors:
@@ -41,51 +17,17 @@ static inline const int *_get_int_nzvals(const struct sparse_vec *sv)
    an empty "leaf vector". Furthermore, the length of a "leaf vector" is
    **always** >= 1 and <= INT_MAX. */
 
-static const Rbyte Rbyte0 = 0;
-static const int int0 = 0;
-static const double double0 = 0.0;
-static const Rcomplex Rcomplex0 = {{0.0, 0.0}};
-
 #define FUNDEF_next_nzval(Ltype, Rtype)				\
 	(const int *offs1, const Ltype *vals1, int n1,		\
 	 const int *offs2, const Rtype *vals2, int n2,		\
 	 int *k1, int *k2, int *off, Ltype *val1, Rtype *val2)	\
 {								\
-	int off1, off2;						\
-								\
-	if (*k1 < n1 && *k2 < n2) {				\
-		off1 = offs1[*k1];				\
-		off2 = offs2[*k2];				\
-		if (off1 < off2) {				\
-			*off = off1;				\
-			*val1 = vals1[(*k1)++];			\
-			*val2 = Rtype ## 0;			\
-			return 1;				\
-		}						\
-		if (off1 > off2) {				\
-			*off = off2;				\
-			*val1 = Ltype ## 0;			\
-			*val2 = vals2[(*k2)++];			\
-			return 2;				\
-		}						\
-		*off = off1;					\
-		*val1 = vals1[(*k1)++];				\
-		*val2 = vals2[(*k2)++];				\
-		return 3;					\
-	}							\
-	if (*k1 < n1) {						\
-		*off = offs1[*k1];				\
-		*val1 = vals1[(*k1)++];				\
-		*val2 = Rtype ## 0;				\
-		return 1;					\
-	}							\
-	if (*k2 < n2) {						\
-		*off = offs2[*k2];				\
-		*val1 = Ltype ## 0;				\
-		*val2 = vals2[(*k2)++];				\
-		return 2;					\
-	}							\
-	return 0;						\
+	struct sparse_vec sv1 =					\
+		new_ ## Ltype ## _sparse_vec(vals1, offs1, n1);	\
+	struct sparse_vec sv2 =					\
+		new_ ## Rtype ## _sparse_vec(vals2, offs2, n2);	\
+	return next_nzvals_ ## Ltype ## _ ## Rtype		\
+			(&sv1, &sv2, k1, k2, off, val1, val2);	\
 }
 
 static inline int next_nzval_Rbyte_Rbyte
@@ -126,57 +68,30 @@ SEXP _new_leaf_vector(
 	SEXP lv_vals
 );
 
-static inline struct sparse_vec _leaf2sv(SEXP leaf)
-{
-	SEXP nzoffs, nzvals;
-	R_xlen_t nzcount;
-	struct sparse_vec sv;
-
-	/* Sanity checks (should never fail). */
-	if (!isVectorList(leaf))  // IS_LIST() is broken
-		goto on_error;
-	if (LENGTH(leaf) != 2)
-		goto on_error;
-	nzoffs = VECTOR_ELT(leaf, 0);
-	if (!IS_INTEGER(nzoffs))
-		goto on_error;
-	nzcount = XLENGTH(nzoffs);
-	if (nzcount == 0 || nzcount > INT_MAX)
-		goto on_error;
-	nzvals = VECTOR_ELT(leaf, 1);
-	if (XLENGTH(nzvals) != nzcount)
-		goto on_error;
-	sv.Rtype = TYPEOF(nzvals);
-	sv.nzvals = DATAPTR(nzvals);
-	sv.nzoffs = INTEGER(nzoffs);
-	sv.nzcount = nzcount;
-	return sv;
-
-    on_error:
-	error("SparseArray internal error in "
-	      "_make_sparse_vec_from_SEXP():\n"
-	      "    invalid tree leaf");
-}
-
 static inline int _split_leaf_vector(SEXP lv, SEXP *lv_offs, SEXP *lv_vals)
 {
 	R_xlen_t lv_offs_len;
 
 	/* Sanity checks (should never fail). */
 	if (!isVectorList(lv))  // IS_LIST() is broken
-		return -1;
+		goto on_error;
 	if (LENGTH(lv) != 2)
-		return -1;
+		goto on_error;
 	*lv_offs = VECTOR_ELT(lv, 0);
-	*lv_vals = VECTOR_ELT(lv, 1);
 	if (!IS_INTEGER(*lv_offs))
-		return -1;
+		goto on_error;
 	lv_offs_len = XLENGTH(*lv_offs);
 	if (lv_offs_len == 0 || lv_offs_len > INT_MAX)
-		return -1;
+		goto on_error;
+	*lv_vals = VECTOR_ELT(lv, 1);
 	if (XLENGTH(*lv_vals) != lv_offs_len)
-		return -1;
+		goto on_error;
 	return (int) lv_offs_len;
+
+    on_error:
+	error("SparseArray internal error in "
+              "_split_leaf_vector():\n"
+	      "    invalid leaf vector");
 }
 
 typedef struct apply_2double_funs_t {
