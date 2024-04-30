@@ -1,9 +1,9 @@
-#ifndef _SPARSE_VEC_COMPARE_H_
-#define _SPARSE_VEC_COMPARE_H_
+#ifndef _SPARSEVEC_COMPARE_H_
+#define _SPARSEVEC_COMPARE_H_
 
 #include <Rdefines.h>
 
-#include "sparse_vec.h"
+#include "SparseVec.h"
 
 /* Operations from 'Compare' group */
 #define	EQ_OPCODE	1  /* "==" */
@@ -27,28 +27,28 @@ static inline int flip_opcode(int opcode)
 
 int _get_Compare_opcode(SEXP op);
 
-int _sparse_vec_Compare_sv1_zero(
+int _Compare_sv1_zero(
 	int opcode,
-	const struct sparse_vec *sv1,
+	const SparseVec *sv1,
 	int *out_nzoffs,
 	int *out_nzvals
 );
 
-int _sparse_vec_Compare_sv1_scalar(
+int _Compare_sv1_scalar(
 	int opcode,
-	const struct sparse_vec *sv1,
+	const SparseVec *sv1,
 	SEXP scalar,
 	int *out_nzoffs,
 	int *out_nzvals
 );
 
-int _sparse_vec_Compare_sv1_sv2(
+int _Compare_sv1_sv2(
 	int opcode,
-	const struct sparse_vec *sv1,
-	const struct sparse_vec *sv2,
+	const SparseVec *sv1,
+	const SparseVec *sv2,
 	int *out_nzoffs,
 	int *out_nzvals
 );
 
-#endif  /* _SPARSE_VEC_COMPARE_H_ */
+#endif  /* _SPARSEVEC_COMPARE_H_ */
 

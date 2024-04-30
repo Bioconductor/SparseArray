@@ -3,10 +3,10 @@
  ****************************************************************************/
 #include "SparseArray_Ops_methods.h"
 
-#include "sparse_vec.h"
+#include "SparseVec.h"
 #include "leaf_vector_Arith.h"
-#include "sparse_vec_Compare.h"
-#include "sparse_vec_Logic.h"
+#include "SparseVec_Compare.h"
+#include "SparseVec_Logic.h"
 #include "Rvector_utils.h"          /* _get_Rtype_from_Rstring() */
 #include "leaf_vector_utils.h"      /* for _make_leaf_vector_from_bufs() */
 #include "SVT_SparseArray_class.h"  /* for _coerce_SVT() */
@@ -21,8 +21,8 @@
 static SEXP Compare_leaf1_zero(int opcode, SEXP leaf1,
 		int *nzoffs_buf, int *nzvals_buf, int dim0)
 {
-	struct sparse_vec sv1 = leaf2sv(leaf1, dim0);
-	int nzcount = _sparse_vec_Compare_sv1_zero(opcode, &sv1,
+	const SparseVec sv1 = leaf2SV(leaf1, dim0);
+	int nzcount = _Compare_sv1_zero(opcode, &sv1,
 					nzoffs_buf, nzvals_buf);
 	return _make_leaf_vector_from_bufs(LGLSXP, nzoffs_buf, nzvals_buf,
 						   nzcount);
@@ -31,9 +31,9 @@ static SEXP Compare_leaf1_zero(int opcode, SEXP leaf1,
 static SEXP Compare_leaf1_scalar(int opcode, SEXP leaf1, SEXP scalar,
 		int *nzoffs_buf, int *nzvals_buf, int dim0)
 {
-	struct sparse_vec sv1 = leaf2sv(leaf1, dim0);
-	int nzcount = _sparse_vec_Compare_sv1_scalar(opcode, &sv1, scalar,
-					nzoffs_buf, nzvals_buf);
+	const SparseVec sv1 = leaf2SV(leaf1, dim0);
+	int nzcount = _Compare_sv1_scalar(opcode, &sv1, scalar,
+					  nzoffs_buf, nzvals_buf);
 	return _make_leaf_vector_from_bufs(LGLSXP, nzoffs_buf, nzvals_buf,
 						   nzcount);
 }
@@ -50,10 +50,10 @@ static SEXP Compare_leaf1_leaf2(int opcode, SEXP leaf1, SEXP leaf2,
 	if (leaf2 == R_NilValue)
 		return Compare_leaf1_zero(opcode, leaf1,
 					  nzoffs_buf, nzvals_buf, dim0);
-	struct sparse_vec sv1 = leaf2sv(leaf1, dim0);
-	struct sparse_vec sv2 = leaf2sv(leaf2, dim0);
-	int nzcount = _sparse_vec_Compare_sv1_sv2(opcode, &sv1, &sv2,
-					nzoffs_buf, nzvals_buf);
+	const SparseVec sv1 = leaf2SV(leaf1, dim0);
+	const SparseVec sv2 = leaf2SV(leaf2, dim0);
+	int nzcount = _Compare_sv1_sv2(opcode, &sv1, &sv2,
+				       nzoffs_buf, nzvals_buf);
 	return _make_leaf_vector_from_bufs(LGLSXP, nzoffs_buf, nzvals_buf,
 						   nzcount);
 }
@@ -66,10 +66,10 @@ static SEXP Logic_leaf1_leaf2(int opcode, SEXP leaf1, SEXP leaf2,
 			return R_NilValue;
 		return leaf1 == R_NilValue ? leaf2 : leaf1;
 	}
-	struct sparse_vec sv1 = leaf2sv(leaf1, dim0);
-	struct sparse_vec sv2 = leaf2sv(leaf2, dim0);
-	int nzcount = _sparse_vec_Logic_ints_ints(opcode, &sv1, &sv2,
-						  nzoffs_buf, nzvals_buf);
+	const SparseVec sv1 = leaf2SV(leaf1, dim0);
+	const SparseVec sv2 = leaf2SV(leaf2, dim0);
+	int nzcount = _Logic_intSV_intSV(opcode, &sv1, &sv2,
+					 nzoffs_buf, nzvals_buf);
 	return _make_leaf_vector_from_bufs(LGLSXP, nzoffs_buf, nzvals_buf,
 						   nzcount);
 }

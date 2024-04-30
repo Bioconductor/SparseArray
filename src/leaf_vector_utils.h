@@ -3,7 +3,7 @@
 
 #include <Rdefines.h>
 
-#include "sparse_vec.h"
+#include "SparseVec.h"
 
 /* A "leaf vector" is a vector of offset/value pairs sorted by strictly
    ascending offset. It is represented by a list of 2 parallel vectors:
@@ -17,17 +17,15 @@
    an empty "leaf vector". Furthermore, the length of a "leaf vector" is
    **always** >= 1 and <= INT_MAX. */
 
-#define FUNDEF_next_nzval(Ltype, Rtype)					\
-	(const int *offs1, const Ltype *vals1, int n1,			\
-	 const int *offs2, const Rtype *vals2, int n2,			\
-	 int *k1, int *k2, int *off, Ltype *val1, Rtype *val2)		\
-{									\
-	struct sparse_vec sv1 =						\
-		new_ ## Ltype ## _sparse_vec(vals1, offs1, n1, -1);	\
-	struct sparse_vec sv2 =						\
-		new_ ## Rtype ## _sparse_vec(vals2, offs2, n2, -1);	\
-	return next_nzvals_ ## Ltype ## _ ## Rtype			\
-			(&sv1, &sv2, k1, k2, off, val1, val2);		\
+#define FUNDEF_next_nzval(Ltype, Rtype)					  \
+	(const int *offs1, const Ltype *vals1, int n1,			  \
+	 const int *offs2, const Rtype *vals2, int n2,			  \
+	 int *k1, int *k2, int *off, Ltype *val1, Rtype *val2)		  \
+{									  \
+	const SparseVec sv1 = make_ ## Ltype ## SV(vals1, offs1, n1, -1); \
+	const SparseVec sv2 = make_ ## Rtype ## SV(vals2, offs2, n2, -1); \
+	return next_nzvals_ ## Ltype ## _ ## Rtype			  \
+			(&sv1, &sv2, k1, k2, off, val1, val2);		  \
 }
 
 static inline int next_nzval_Rbyte_Rbyte
