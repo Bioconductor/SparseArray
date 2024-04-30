@@ -53,19 +53,19 @@ int _sparse_vec_Logic_ints_ints(int opcode,
 		const struct sparse_vec *sv2,
 		int *out_nzoffs, int *out_nzvals)
 {
-	int out_nzcount, k1, k2, off, x, y, v;
+	int nzcount, k1, k2, off, x, y, v;
 
-	out_nzcount = k1 = k2 = 0;
+	nzcount = k1 = k2 = 0;
 	while (next_nzvals_int_int(sv1, sv2,
 				   &k1, &k2, &off, &x, &y))
 	{
 		v = Logic_int_int(x, y, opcode);
 		if (v != 0) {
-			out_nzoffs[out_nzcount] = off;
-			out_nzvals[out_nzcount] = v;
-			out_nzcount++;
+			out_nzoffs[nzcount] = off;
+			out_nzvals[nzcount] = v;
+			nzcount++;
 		}
 	}
-	return out_nzcount;
+	return nzcount;
 }
 

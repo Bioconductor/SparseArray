@@ -60,10 +60,10 @@ static inline const Rbyte *get_Rbyte_nzvals(const struct sparse_vec *sv)
 
 static inline const int *get_int_nzvals(const struct sparse_vec *sv)
 {
-        if (sv->Rtype != INTSXP)
+        if (sv->Rtype != INTSXP && sv->Rtype != LGLSXP)
 		error("SparseArray internal error in "
 		      "get_int_nzvals():\n"
-		      "    sv->Rtype != INTSXP");
+		      "    sv->Rtype != INTSXP && sv->Rtype != LGLSXP");
 	return sv->nzvals;
 }
 
