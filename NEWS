@@ -1,3 +1,31 @@
+VERSION 1.4.0
+-------------
+
+NEW FEATURES
+
+    o The following operation are now multithreaded (via OpenMP):
+        - SparseMatrix multiplication and crossprod()
+        - the matrixStats methods for SparseMatrix objects
+      See ?set_SparseArray_nthread for more information.
+
+    o Define some of the basic coercion methods that used to be defined in
+      the Matrix package but that the lazy Matrix maintainers have decided
+      to deprecate in Matrix 1.7-0 (e.g. coercion from matrix to dgRMatrix).
+
+BUG FIXES
+
+    o Fix aperm(<SVT_SparseArray>) when inner dimensions are not permuted
+      See https://github.com/Bioconductor/SparseArray/issues/6
+
+    o Fix long-standing bug in C function _dotprod_leaf_vector_and_double_col().
+      In some circumstances the function was reading beyond a C array.
+      Observed effects varied from no observed effects (on Linux) to breaking
+      crossprod() unit tests on arm64 Mac (consistently), on Windows
+      (sporadically), and also probably on PowerPC (or possibly a crash
+      sometimes on this platform.
+      See https://github.com/Bioconductor/SparseArray/issues/2
+
+
 VERSION 1.2.0
 -------------
 
