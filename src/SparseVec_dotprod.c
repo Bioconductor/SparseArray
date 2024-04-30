@@ -1,13 +1,12 @@
 /****************************************************************************
  *                      Dot product of sparse vectors                       *
  ****************************************************************************/
-#include "sparse_vec_dotprod.h"
+#include "SparseVec_dotprod.h"
 
-#include "sparse_vec.h"
+#include "SparseVec.h"
 
 
-double _dotprod_sparse_vecs(const struct sparse_vec *sv1,
-			    const struct sparse_vec *sv2)
+double _dotprod_doubleSV_doubleSV(const SparseVec *sv1, const SparseVec *sv2)
 {
 	int k1, k2, off;
 	double val1, val2;
@@ -27,26 +26,24 @@ double _dotprod_sparse_vecs(const struct sparse_vec *sv1,
 /* Safe to use only if 'x2' is finite i.e. contains no NA, NaN, Inf, or -Inf,
    or if 'sv1' and 'x2' represent the same numeric vector (in sparse and
    dense form, respectively).
-   If not sure, use _dotprod_sparse_vec_and_double_col() below.
+   If not sure, use _dotprod_doubleSV_doubles() below.
    IMPORTANT: 'sv1->nzoffs' is assumed to contain valid offsets in 'x2'.
    This is NOT checked! */
-double _dotprod_sparse_vec_and_finite_col(const struct sparse_vec *sv1,
-					  const double *x2)
+double _dotprod_doubleSV_finite_doubles(const SparseVec *sv1, const double *x2)
 {
-	const double *nzvals1 = get_double_nzvals(sv1);
+	const double *nzvals1 = get_doubleSV_nzvals(sv1);
 	double ans = 0.0;
 	for (int k1 = 0; k1 < sv1->nzcount; k1++)
 		ans += nzvals1[k1] * x2[sv1->nzoffs[k1]];
 	return ans;
 }
 
-/* Like _dotprod_sparse_vec_and_finite_col() above but makes no
-   assumptions about the content of 'x2'.
-   Significantly slower than _dotprod_sparse_vec_and_finite_col(). */
-double _dotprod_sparse_vec_and_double_col(const struct sparse_vec *sv1,
-		const double *x2)
+/* Like _dotprod_doubleSV_finite_doubles() above but makes no assumptions
+   about the content of 'x2'.
+   Significantly slower than _dotprod_doubleSV_finite_doubles(). */
+double _dotprod_doubleSV_doubles(const SparseVec *sv1, const double *x2)
 {
-	const double *nzvals1 = get_double_nzvals(sv1);
+	const double *nzvals1 = get_doubleSV_nzvals(sv1);
 	double ans = 0.0;
 	int k1 = 0;
 	for (int i2 = 0; i2 < sv1->len; i2++) {
@@ -69,13 +66,12 @@ double _dotprod_sparse_vec_and_double_col(const struct sparse_vec *sv1,
 /* 'sv1' must contain ints.
    Safe to use only if 'x2' contains no NA, or if 'sv1' and 'x2' represent
    the same integer vector (in sparse and dense form, respectively).
-   If not sure, use _dotprod_sparse_vec_and_int_col() below.
+   If not sure, use _dotprod_intSV_ints() below.
    IMPORTANT: 'sv1->nzoffs' is assumed to contain valid offsets in 'x2'.
    This is NOT checked! */
-double _dotprod_sparse_vec_and_noNA_int_col(const struct sparse_vec *sv1,
-					    const int *x2)
+double _dotprod_intSV_noNA_ints(const SparseVec *sv1, const int *x2)
 {
-	const int *nzvals1 = get_int_nzvals(sv1);
+	const int *nzvals1 = get_intSV_nzvals(sv1);
 	double ans = 0.0;
 	for (int k1 = 0; k1 < sv1->nzcount; k1++) {
 		int v1 = nzvals1[k1];
@@ -87,13 +83,11 @@ double _dotprod_sparse_vec_and_noNA_int_col(const struct sparse_vec *sv1,
 }
 
 /* 'sv1' must contain ints.
-   Like _dotprod_sparse_vec_and_noNA_int_col() above but makes no
-   assumptions about the content of 'x2'.
-   Significantly slower than _dotprod_sparse_vec_and_noNA_int_col(). */
-double _dotprod_sparse_vec_and_int_col(const struct sparse_vec *sv1,
-		const int *x2)
+   Like _dotprod_intSV_noNA_ints() above but makes no assumptions about the
+   content of 'x2'. Significantly slower than _dotprod_intSV_noNA_ints(). */
+double _dotprod_intSV_ints(const SparseVec *sv1, const int *x2)
 {
-	const int *nzvals1 = get_int_nzvals(sv1);
+	const int *nzvals1 = get_intSV_nzvals(sv1);
 	double ans = 0.0;
 	int k1 = 0;
 	for (int i2 = 0; i2 < sv1->len; i2++) {
@@ -113,29 +107,11 @@ double _dotprod_sparse_vec_and_int_col(const struct sparse_vec *sv1,
 	return ans;
 }
 
-double _dotprod0_int_col(const int *x, int x_len)
+double _dotprod_doubles_zero(const double *x, int x_len)
 {
-	double ans;
-	int i, v;
-
-	ans = 0.0;
-	for (i = 0; i < x_len; i++) {
-		v = x[i];
-		if (v == NA_INTEGER)
-			return NA_REAL;
-		ans += (double) v * 0.0;
-	}
-	return ans;
-}
-
-double _dotprod0_double_col(const double *x, int x_len)
-{
-	double ans, v;
-	int i;
-
-	ans = 0.0;
-	for (i = 0; i < x_len; i++) {
-		v = x[i];
+	double ans = 0.0;
+	for (int i = 0; i < x_len; i++) {
+		double v = x[i];
 		if (R_IsNA(v))
 			return NA_REAL;
 		ans += v * 0.0;  /* 'v' could be Inf or NaN */
@@ -143,8 +119,25 @@ double _dotprod0_double_col(const double *x, int x_len)
 	return ans;
 }
 
-double _dotprod0_sparse_vec(const struct sparse_vec *sv)
+double _dotprod_ints_zero(const int *x, int x_len)
 {
-	return _dotprod0_double_col(get_double_nzvals(sv), sv->nzcount);
+	double ans = 0.0;
+	for (int i = 0; i < x_len; i++) {
+		int v = x[i];
+		if (v == NA_INTEGER)
+			return NA_REAL;
+		ans += (double) v * 0.0;
+	}
+	return ans;
+}
+
+double _dotprod_doubleSV_zero(const SparseVec *sv)
+{
+	return _dotprod_doubles_zero(get_doubleSV_nzvals(sv), sv->nzcount);
+}
+
+double _dotprod_intSV_zero(const SparseVec *sv)
+{
+	return _dotprod_ints_zero(get_intSV_nzvals(sv), sv->nzcount);
 }
 

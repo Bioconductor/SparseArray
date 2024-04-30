@@ -1,9 +1,9 @@
 /****************************************************************************
  *                   'Logic' operations on sparse vectors                   *
  ****************************************************************************/
-#include "sparse_vec_Logic.h"
+#include "SparseVec_Logic.h"
 
-#include "sparse_vec.h"
+#include "SparseVec.h"
 
 
 int _get_Logic_opcode(SEXP op)
@@ -48,9 +48,9 @@ static inline int Logic_int_int(int x, int y, int opcode)
 	return 0;  /* will never reach this */
 }
 
-int _sparse_vec_Logic_ints_ints(int opcode,
-		const struct sparse_vec *sv1,
-		const struct sparse_vec *sv2,
+int _Logic_intSV_intSV(int opcode,
+		const SparseVec *sv1,
+		const SparseVec *sv2,
 		int *out_nzoffs, int *out_nzvals)
 {
 	int nzcount, k1, k2, off, x, y, v;
