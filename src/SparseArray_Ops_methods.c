@@ -3,63 +3,154 @@
  ****************************************************************************/
 #include "SparseArray_Ops_methods.h"
 
+#include "Rvector_utils.h"          /* _get_Rtype_from_Rstring() */
 #include "SparseVec.h"
-#include "leaf_vector_Arith.h"
+#include "SparseVec_Arith.h"
 #include "SparseVec_Compare.h"
 #include "SparseVec_Logic.h"
-#include "Rvector_utils.h"          /* _get_Rtype_from_Rstring() */
-#include "leaf_vector_utils.h"      /* for _make_leaf_vector_from_bufs() */
+#include "leaf_utils.h"             /* for _make_leaf_from_bufs() */
 #include "SVT_SparseArray_class.h"  /* for _coerce_SVT() */
 
 #include <string.h>  /* for memcmp() */
 
 
 /****************************************************************************
- * Leaf 'Ops'
+ * 'Arith' operations on the tree leaves
  */
 
-static SEXP Compare_leaf1_zero(int opcode, SEXP leaf1,
-		int *nzoffs_buf, int *nzvals_buf, int dim0)
+/* Assumes that 'ans_Rtype' is equal or bigger than the type of the nonzero
+   values in 'leaf'. Performs **in-place** replacement if 'ans_Rtype' is 0!
+   Note that this could also have been achieved by calling:
+
+     Arith_leaf1_scalar(MULT_OPCODE, leaf, -1, ...)
+
+   but unary_minus_leaf() takes a lot of shortcuts so is A LOT more
+   efficient. */
+static SEXP unary_minus_leaf(SEXP leaf, SEXPTYPE ans_Rtype)
+{
+	SEXP nzoffs, leaf_nzvals, ans_nzvals;
+
+	int nzcount = unzip_leaf(leaf, &nzoffs, &leaf_nzvals);
+	if (ans_Rtype == 0) {
+		/* In-place replacement! */
+		ans_nzvals = leaf_nzvals;
+	} else {
+		ans_nzvals = PROTECT(allocVector(ans_Rtype, nzcount));
+        }
+	const char *errmsg = _unary_minus_Rvector(leaf_nzvals, ans_nzvals);
+	if (errmsg != NULL) {
+		if (ans_Rtype != 0)
+			UNPROTECT(1);
+		error("%s", errmsg);
+	}
+	if (ans_Rtype == 0)
+		return leaf;
+	SEXP ans = zip_leaf(nzoffs, ans_nzvals);
+	UNPROTECT(1);
+	return ans;
+}
+
+static SEXP Arith_leaf1_scalar(int opcode, SEXP leaf1, SEXP scalar, int dim0,
+		SEXPTYPE ans_Rtype,
+		int *nzoffs_buf, void *nzvals_buf, int *ovflow)
+{
+	const SparseVec sv1 = leaf2SV(leaf1, dim0);
+	int nzcount = _Arith_sv1_scalar(opcode, &sv1, scalar, ans_Rtype,
+					nzoffs_buf, nzvals_buf, ovflow);
+	return _make_leaf_from_bufs(ans_Rtype, nzoffs_buf, nzvals_buf, nzcount);
+}
+
+static SEXP Arith_leaf1_leaf2(int opcode, SEXP leaf1, SEXP leaf2, int dim0,
+		SEXPTYPE ans_Rtype,
+		int *nzoffs_buf, void *nzvals_buf, int *ovflow)
+{
+	int nzcount;
+
+	if (leaf1 == R_NilValue) {
+		if (leaf2 == R_NilValue)
+			error("SparseArray internal error in "
+			      "Arith_leaf1_leaf2():\n"
+			      "    'leaf1' and 'leaf2' cannot both be NULL");
+		if (opcode == SUB_OPCODE)
+			return unary_minus_leaf(leaf2, ans_Rtype);
+		if (opcode == MULT_OPCODE) {
+			const SparseVec sv2 = leaf2SV(leaf2, dim0);
+			nzcount = _mult_SV_zero(&sv2, ans_Rtype,
+						nzoffs_buf, nzvals_buf);
+		} else {
+			error("SparseArray internal error in "
+			      "Arith_leaf1_leaf2():\n"
+			      "    'op' must be \"-\" or \"*\" "
+			      "when 'leaf1' is NULL");
+		}
+	} else if (leaf2 == R_NilValue) {
+		if (opcode == MULT_OPCODE) {
+			const SparseVec sv1 = leaf2SV(leaf1, dim0);
+			nzcount = _mult_SV_zero(&sv1, ans_Rtype,
+						nzoffs_buf, nzvals_buf);
+		} else {
+			error("SparseArray internal error in "
+			      "_Arith_leaf1_leaf2():\n"
+			      "    'op' must be \"*\" when 'leaf2' is NULL");
+		}
+	} else {
+		const SparseVec sv1 = leaf2SV(leaf1, dim0);
+		const SparseVec sv2 = leaf2SV(leaf2, dim0);
+		nzcount = _Arith_sv1_sv2(opcode, &sv1, &sv2, ans_Rtype,
+					 nzoffs_buf, nzvals_buf, ovflow);
+	}
+	return _make_leaf_from_bufs(ans_Rtype, nzoffs_buf, nzvals_buf, nzcount);
+}
+
+
+/****************************************************************************
+ * 'Compare' operations on the tree leaves
+ */
+
+static SEXP Compare_leaf1_zero(int opcode, SEXP leaf1, int dim0,
+		int *nzoffs_buf, int *nzvals_buf)
 {
 	const SparseVec sv1 = leaf2SV(leaf1, dim0);
 	int nzcount = _Compare_sv1_zero(opcode, &sv1,
 					nzoffs_buf, nzvals_buf);
-	return _make_leaf_vector_from_bufs(LGLSXP, nzoffs_buf, nzvals_buf,
-						   nzcount);
+	return _make_leaf_from_bufs(LGLSXP, nzoffs_buf, nzvals_buf, nzcount);
 }
 
-static SEXP Compare_leaf1_scalar(int opcode, SEXP leaf1, SEXP scalar,
-		int *nzoffs_buf, int *nzvals_buf, int dim0)
+static SEXP Compare_leaf1_scalar(int opcode, SEXP leaf1, SEXP scalar, int dim0,
+		int *nzoffs_buf, int *nzvals_buf)
 {
 	const SparseVec sv1 = leaf2SV(leaf1, dim0);
 	int nzcount = _Compare_sv1_scalar(opcode, &sv1, scalar,
 					  nzoffs_buf, nzvals_buf);
-	return _make_leaf_vector_from_bufs(LGLSXP, nzoffs_buf, nzvals_buf,
-						   nzcount);
+	return _make_leaf_from_bufs(LGLSXP, nzoffs_buf, nzvals_buf, nzcount);
 }
 
-static SEXP Compare_leaf1_leaf2(int opcode, SEXP leaf1, SEXP leaf2,
-		int *nzoffs_buf, int *nzvals_buf, int dim0)
+static SEXP Compare_leaf1_leaf2(int opcode, SEXP leaf1, SEXP leaf2, int dim0,
+		int *nzoffs_buf, int *nzvals_buf)
 {
 	if (leaf1 == R_NilValue) {
 		if (leaf2 == R_NilValue)
 			return R_NilValue;
-		return Compare_leaf1_zero(flip_opcode(opcode), leaf2,
-					  nzoffs_buf, nzvals_buf, dim0);
+		return Compare_leaf1_zero(flip_opcode(opcode), leaf2, dim0,
+					  nzoffs_buf, nzvals_buf);
 	}
 	if (leaf2 == R_NilValue)
-		return Compare_leaf1_zero(opcode, leaf1,
-					  nzoffs_buf, nzvals_buf, dim0);
+		return Compare_leaf1_zero(opcode, leaf1, dim0,
+					  nzoffs_buf, nzvals_buf);
 	const SparseVec sv1 = leaf2SV(leaf1, dim0);
 	const SparseVec sv2 = leaf2SV(leaf2, dim0);
 	int nzcount = _Compare_sv1_sv2(opcode, &sv1, &sv2,
 				       nzoffs_buf, nzvals_buf);
-	return _make_leaf_vector_from_bufs(LGLSXP, nzoffs_buf, nzvals_buf,
-						   nzcount);
+	return _make_leaf_from_bufs(LGLSXP, nzoffs_buf, nzvals_buf, nzcount);
 }
 
-static SEXP Logic_leaf1_leaf2(int opcode, SEXP leaf1, SEXP leaf2,
-		int *nzoffs_buf, int *nzvals_buf, int dim0)
+
+/****************************************************************************
+ * 'Logic' operations on the tree leaves
+ */
+
+static SEXP Logic_leaf1_leaf2(int opcode, SEXP leaf1, SEXP leaf2, int dim0,
+		int *nzoffs_buf, int *nzvals_buf)
 {
 	if (leaf1 == R_NilValue || leaf2 == R_NilValue) {
 		if (opcode == AND_OPCODE)
@@ -70,8 +161,7 @@ static SEXP Logic_leaf1_leaf2(int opcode, SEXP leaf1, SEXP leaf2,
 	const SparseVec sv2 = leaf2SV(leaf2, dim0);
 	int nzcount = _Logic_intSV_intSV(opcode, &sv1, &sv2,
 					 nzoffs_buf, nzvals_buf);
-	return _make_leaf_vector_from_bufs(LGLSXP, nzoffs_buf, nzvals_buf,
-						   nzcount);
+	return _make_leaf_from_bufs(LGLSXP, nzoffs_buf, nzvals_buf, nzcount);
 }
 
 
@@ -85,7 +175,7 @@ static void REC_unary_minus_SVT(SEXP SVT, const int *dim, int ndim)
 		return;
 	if (ndim == 1) {
 		/* 'SVT' is a "leaf vector". */
-		_unary_minus_leaf_vector(SVT, 0);
+		unary_minus_leaf(SVT, 0);
 		return;
 	}
 	int SVT_len = dim[ndim - 1];
@@ -104,8 +194,9 @@ static SEXP REC_Arith_SVT1_v2(int opcode, SEXP SVT1, SEXP v2,
 
 	if (ndim == 1) {
 		/* 'SVT1' is a "leaf vector". */
-		return _Arith_lv1_v2(SVT1, v2, opcode, ans_Rtype,
-				     nzoffs_buf, nzvals_buf, ovflow);
+		return Arith_leaf1_scalar(opcode, SVT1, v2, dim[0],
+					  ans_Rtype,
+					  nzoffs_buf, nzvals_buf, ovflow);
 	}
 
 	/* 'SVT1' is a list. */
@@ -138,8 +229,8 @@ static SEXP REC_Compare_SVT1_v2(int opcode, SEXP SVT1, SEXP v2,
 
 	if (ndim == 1) {
 		/* 'SVT1' is a "leaf vector". */
-		return Compare_leaf1_scalar(opcode, SVT1, v2,
-				nzoffs_buf, nzvals_buf, dim[0]);
+		return Compare_leaf1_scalar(opcode, SVT1, v2, dim[0],
+				nzoffs_buf, nzvals_buf);
 	}
 
 	/* 'SVT1' is a list. */
@@ -186,8 +277,9 @@ static SEXP REC_Arith_SVT1_SVT2(int opcode,
 		   - 'SVT1' can be NULL if 'opcode' is SUB_OPCODE;
 		   - either 'SVT1' or 'SVT2' (but not both) can be NULL
 		     if 'opcode' is MULT_OPCODE. */
-		return _Arith_lv1_lv2(SVT1, SVT2, opcode, ans_Rtype,
-				      nzoffs_buf, nzvals_buf, ovflow);
+		return Arith_leaf1_leaf2(opcode, SVT1, SVT2, dim[0],
+					 ans_Rtype,
+					 nzoffs_buf, nzvals_buf, ovflow);
 	}
 
 	/* Each of 'SVT1' and 'SVT2' is either a list or NULL, but they
@@ -229,8 +321,8 @@ static SEXP REC_Compare_SVT1_SVT2(int opcode, SEXP SVT1, SEXP SVT2,
 	if (ndim == 1) {
 		/* Each of 'SVT1' and 'SVT2' is either a "leaf vector" or NULL,
 		   but they cannot both be NULL. */
-		return Compare_leaf1_leaf2(opcode, SVT1, SVT2,
-					   nzoffs_buf, nzvals_buf, dim[0]);
+		return Compare_leaf1_leaf2(opcode, SVT1, SVT2, dim[0],
+					   nzoffs_buf, nzvals_buf);
 	}
 
 	/* Each of 'SVT1' and 'SVT2' is either a list or NULL, but they
@@ -270,8 +362,8 @@ static SEXP REC_Logic_SVT1_SVT2(int opcode, SEXP SVT1, SEXP SVT2,
 	}
 
 	if (ndim == 1)
-		return Logic_leaf1_leaf2(opcode, SVT1, SVT2,
-					 nzoffs_buf, nzvals_buf, dim[0]);
+		return Logic_leaf1_leaf2(opcode, SVT1, SVT2, dim[0],
+					 nzoffs_buf, nzvals_buf);
 
 	/* Each of 'SVT1' and 'SVT2' is a list. */
 	int ans_len = dim[ndim - 1];

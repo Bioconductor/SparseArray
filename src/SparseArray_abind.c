@@ -4,7 +4,7 @@
 #include "SparseArray_abind.h"
 
 #include "Rvector_utils.h"
-#include "leaf_vector_utils.h"  /* for _split_leaf_vector() */
+#include "leaf_utils.h"  /* for unzip_leaf() */
 
 
 static SEXP check_and_combine_object_dims(SEXP objects, int along0,
@@ -153,7 +153,7 @@ static SEXP concatenate_leaf_vectors(SEXP *SVTs, int nb_objects,
 	k1 = offset = 0;
 	for (n = 0; n < nb_objects; n++) {
 		if ((SVT = SVTs[n]) != R_NilValue) {
-			lv_len = _split_leaf_vector(SVT, &lv_offs, &lv_vals);
+			lv_len = unzip_leaf(SVT, &lv_offs, &lv_vals);
 			copy_Rvector_elts_FUN(lv_vals, 0, ans_vals, k1, lv_len);
 			for (k2 = 0; k2 < lv_len; k2++, k1++)
 				INTEGER(ans_offs)[k1] = INTEGER(lv_offs)[k2] +
@@ -161,7 +161,7 @@ static SEXP concatenate_leaf_vectors(SEXP *SVTs, int nb_objects,
 		}
 		offset += dims_along[n];
 	}
-	ans = _new_leaf_vector(ans_offs, ans_vals);
+	ans = zip_leaf(ans_offs, ans_vals);
 	UNPROTECT(2);
 	/* Sanity checks (should never fail). */
 	if (k1 != ans_len)

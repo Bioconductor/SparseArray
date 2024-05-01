@@ -4,7 +4,7 @@
 #include "SparseArray_dim_tuning.h"
 
 #include "Rvector_utils.h"
-#include "leaf_vector_utils.h"  /* for _split_leaf_vector() */
+#include "leaf_utils.h"  /* for unzip_leaf() */
 
 #include <string.h>  /* for memset() */
 
@@ -148,7 +148,7 @@ static SEXP wrap_Rvector_elt_in_lv1(SEXP in_Rvector, int k,
 	ans_vals = PROTECT(allocVector(TYPEOF(in_Rvector), 1));
 	INTEGER(ans_offs)[0] = 0;
 	copy_Rvector_elt_FUN(in_Rvector, k, ans_vals, 0);
-	ans = _new_leaf_vector(ans_offs, ans_vals);
+	ans = zip_leaf(ans_offs, ans_vals);
 	UNPROTECT(2);
 	return ans;
 }
@@ -160,7 +160,7 @@ static void copy_lv1_val_to_Rvector(SEXP lv, SEXP out_Rvector, int k,
 	int lv_len;
 	SEXP lv_offs, lv_vals;
 
-	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
+	lv_len = unzip_leaf(lv, &lv_offs, &lv_vals);
 	/* Sanity checks. */
 	if (lv_len != 1 || INTEGER(lv_offs)[0] != 0)
 		error("SparseArray internal error in "
@@ -182,7 +182,7 @@ static SEXP unroll_lv_as_SVT(SEXP lv, int N, int ans_ndim,
 	int lv_len, k, i;
 	SEXP lv_offs, lv_vals, ans, ans_elt;
 
-	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
+	lv_len = unzip_leaf(lv, &lv_offs, &lv_vals);
 	ans = PROTECT(NEW_LIST(N));
 	for (k = 0; k < lv_len; k++) {
 		i = INTEGER(lv_offs)[k];
@@ -237,7 +237,7 @@ static SEXP roll_SVT_into_lv(SEXP SVT, int ndim, SEXPTYPE Rtype,
 		INTEGER(ans_offs)[ans_len] = i;
 		ans_len++;
 	}
-	ans = _new_leaf_vector(ans_offs, ans_vals);
+	ans = zip_leaf(ans_offs, ans_vals);
 	UNPROTECT(2);
 	return ans;
 }
@@ -257,7 +257,7 @@ static SEXP REC_tune_SVT(SEXP SVT, const int *dim, int ndim,
 	int op, ans_len, i;
 	SEXP ans_elt, ans, subSVT;
 
-	if (SVT == R_NilValue || nops == ndim && cumallKEEP[ndim - 1])
+	if (SVT == R_NilValue || (nops == ndim && cumallKEEP[ndim - 1]))
 		return SVT;
 
 	op = ops[nops - 1];

@@ -224,18 +224,19 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 		int *out_nzoffs, int *out_nzvals)			\
 {									\
 	const Ltype *nzvals1 = get_ ## Ltype ## SV_nzvals(sv1);		\
-	int nzcount = 0;						\
-	for (int k = 0; k < sv1->nzcount; k++) {			\
+	int nzcount1 = get_SV_nzcount(sv1);				\
+	int out_nzcount = 0;						\
+	for (int k = 0; k < nzcount1; k++) {				\
 		Ltype x = nzvals1[k];					\
 		int v = Compare_ ## Ltype ## _ ## Rtype			\
 					(opcode, x, y);			\
 		if (v != 0) {						\
-			out_nzoffs[nzcount] = sv1->nzoffs[k];		\
-			out_nzvals[nzcount] = v;			\
-			nzcount++;					\
+			out_nzoffs[out_nzcount] = sv1->nzoffs[k];	\
+			out_nzvals[out_nzcount] = v;			\
+			out_nzcount++;					\
 		}							\
 	}								\
-	return nzcount;							\
+	return out_nzcount;						\
 }
 
 /* Generate def of Compare_<Ltype>SV_<Rtype>SV() functions. */
@@ -247,7 +248,7 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 	Ltype x;							\
 	Rtype y;							\
 									\
-	int nzcount = 0;						\
+	int out_nzcount = 0;						\
 	k1 = k2 = 0;							\
 	while (next_nzvals_ ## Ltype ## _ ## Rtype			\
 		(sv1, sv2, &k1, &k2, &off, &x, &y))			\
@@ -255,12 +256,12 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 		int v = Compare_ ## Ltype ## _ ## Rtype			\
 					(opcode, x, y);			\
 		if (v != 0) {						\
-			out_nzoffs[nzcount] = off;			\
-			out_nzvals[nzcount] = v;			\
-			nzcount++;					\
+			out_nzoffs[out_nzcount] = off;			\
+			out_nzvals[out_nzcount] = v;			\
+			out_nzcount++;					\
 		}							\
 	}								\
-	return nzcount;							\
+	return out_nzcount;						\
 }
 
 static int Compare_RbyteSV_Rbyte
@@ -429,11 +430,11 @@ static int Compare_RcomplexSV_scalar(int opcode,
  */
 
 static int Compare_RbyteSV_SV(int opcode,
-		const SparseVec *sv1,
-		const SparseVec *sv2,
+		const SparseVec *sv1, const SparseVec *sv2,
 		int *out_nzoffs, int *out_nzvals)
 {
-	switch (sv2->Rtype) {
+	SEXPTYPE Rtype2 = get_SV_Rtype(sv2);
+	switch (Rtype2) {
 	    case RAWSXP:
 		return Compare_RbyteSV_RbyteSV(opcode,
 				sv1, sv2, out_nzoffs, out_nzvals);
@@ -449,16 +450,16 @@ static int Compare_RbyteSV_SV(int opcode,
 	}
 	error("SparseArray internal error in "
 	      "Compare_RbyteSV_SV():\n"
-	      "    unsupported 'sv2->Rtype': \"%s\"", type2char(sv2->Rtype));
+	      "    unsupported 'Rtype2': \"%s\"", type2char(Rtype2));
 	return 0;  /* will never reach this */
 }
 
 static int Compare_intSV_SV(int opcode,
-		const SparseVec *sv1,
-		const SparseVec *sv2,
+		const SparseVec *sv1, const SparseVec *sv2,
 		int *out_nzoffs, int *out_nzvals)
 {
-	switch (sv2->Rtype) {
+	SEXPTYPE Rtype2 = get_SV_Rtype(sv2);
+	switch (Rtype2) {
 	    case RAWSXP:
 		return Compare_RbyteSV_intSV(flip_opcode(opcode),
 				sv2, sv1, out_nzoffs, out_nzvals);
@@ -474,16 +475,16 @@ static int Compare_intSV_SV(int opcode,
 	}
 	error("SparseArray internal error in "
 	      "Compare_intSV_SV():\n"
-	      "    unsupported 'sv2->Rtype': \"%s\"", type2char(sv2->Rtype));
+	      "    unsupported 'Rtype2': \"%s\"", type2char(Rtype2));
 	return 0;  /* will never reach this */
 }
 
 static int Compare_doubleSV_SV(int opcode,
-		const SparseVec *sv1,
-		const SparseVec *sv2,
+		const SparseVec *sv1, const SparseVec *sv2,
 		int *out_nzoffs, int *out_nzvals)
 {
-	switch (sv2->Rtype) {
+	SEXPTYPE Rtype2 = get_SV_Rtype(sv2);
+	switch (Rtype2) {
 	    case RAWSXP:
 		return Compare_RbytesSV_doubleSV(flip_opcode(opcode),
 				sv2, sv1, out_nzoffs, out_nzvals);
@@ -499,16 +500,16 @@ static int Compare_doubleSV_SV(int opcode,
 	}
 	error("SparseArray internal error in "
 	      "Compare_doubleSV_SV():\n"
-	      "    unsupported 'sv2->Rtype': \"%s\"", type2char(sv2->Rtype));
+	      "    unsupported 'Rtype2': \"%s\"", type2char(Rtype2));
 	return 0;  /* will never reach this */
 }
 
 static int Compare_RcomplexSV_SV(int opcode,
-		const SparseVec *sv1,
-		const SparseVec *sv2,
+		const SparseVec *sv1, const SparseVec *sv2,
 		int *out_nzoffs, int *out_nzvals)
 {
-	switch (sv2->Rtype) {
+	SEXPTYPE Rtype2 = get_SV_Rtype(sv2);
+	switch (Rtype2) {
 	    case RAWSXP:
 		return Compare_RbyteSV_RcomplexSV(flip_opcode(opcode),
 				sv2, sv1, out_nzoffs, out_nzvals);
@@ -524,7 +525,7 @@ static int Compare_RcomplexSV_SV(int opcode,
 	}
 	error("SparseArray internal error in "
 	      "Compare_RcomplexSV_SV():\n"
-	      "    unsupported 'sv2->Rtype': \"%s\"", type2char(sv2->Rtype));
+	      "    unsupported 'Rtype2': \"%s\"", type2char(Rtype2));
 	return 0;  /* will never reach this */
 }
 
@@ -535,11 +536,11 @@ static int Compare_RcomplexSV_SV(int opcode,
  * _Compare_sv1_sv2()
  */
 
-int _Compare_sv1_zero(int opcode,
-		const SparseVec *sv1,
+int _Compare_sv1_zero(int opcode, const SparseVec *sv1,
 		int *out_nzoffs, int *out_nzvals)
 {
-	switch (sv1->Rtype) {
+	SEXPTYPE Rtype1 = get_SV_Rtype(sv1);
+	switch (Rtype1) {
 	    case RAWSXP:
 		return Compare_RbyteSV_Rbyte(opcode,
 				sv1, Rbyte0, out_nzoffs, out_nzvals);
@@ -555,18 +556,17 @@ int _Compare_sv1_zero(int opcode,
 	}
 	error("SparseArray internal error in "
 	      "_Compare_sv1_zero():\n"
-	      "    unsupported 'sv1->Rtype': \"%s\"", type2char(sv1->Rtype));
+	      "    unsupported 'Rtype1': \"%s\"", type2char(Rtype1));
 	return 0;  /* will never reach this */
 }
 
 /* 'scalar' is assumed to be an atomic vector of length 1. This is NOT checked!
    Also its type is expected to be the same size as sv1's type or bigger. */
-int _Compare_sv1_scalar(int opcode,
-		const SparseVec *sv1,
-		SEXP scalar,
+int _Compare_sv1_scalar(int opcode, const SparseVec *sv1, SEXP scalar,
 		int *out_nzoffs, int *out_nzvals)
 {
-	switch (sv1->Rtype) {
+	SEXPTYPE Rtype1 = get_SV_Rtype(sv1);
+	switch (Rtype1) {
 	    case RAWSXP:
 		return Compare_RbyteSV_scalar(opcode,
 				sv1, scalar, out_nzoffs, out_nzvals);
@@ -582,16 +582,15 @@ int _Compare_sv1_scalar(int opcode,
 	}
 	error("SparseArray internal error in "
 	      "_Compare_sv1_scalar():\n"
-	      "    unsupported 'sv1->Rtype': \"%s\"", type2char(sv1->Rtype));
+	      "    unsupported 'Rtype1': \"%s\"", type2char(Rtype1));
 	return 0;  /* will never reach this */
 }
 
-int _Compare_sv1_sv2(int opcode,
-		const SparseVec *sv1,
-		const SparseVec *sv2,
+int _Compare_sv1_sv2(int opcode, const SparseVec *sv1, const SparseVec *sv2,
 		int *out_nzoffs, int *out_nzvals)
 {
-	switch (sv1->Rtype) {
+	SEXPTYPE Rtype1 = get_SV_Rtype(sv1);
+	switch (Rtype1) {
 	    case RAWSXP:
 		return Compare_RbyteSV_SV(opcode,
 				sv1, sv2, out_nzoffs, out_nzvals);
@@ -607,7 +606,7 @@ int _Compare_sv1_sv2(int opcode,
 	}
 	error("SparseArray internal error in "
 	      "_Compare_sv1_sv2():\n"
-	      "    unsupported 'sv1->Rtype': \"%s\"", type2char(sv1->Rtype));
+	      "    unsupported 'Rtype1': \"%s\"", type2char(Rtype1));
 	return 0;  /* will never reach this */
 }
 

@@ -7,6 +7,7 @@
 #include "Rvector_summarization.h"
 
 
+/* TODO: Put in leaf_utils.h */
 static inline SEXP get_leaf_nzvals(SEXP leaf)
 {
 	/* Sanity checks (should never fail). */

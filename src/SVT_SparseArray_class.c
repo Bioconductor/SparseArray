@@ -7,7 +7,7 @@
 
 #include "Rvector_utils.h"
 #include "coerceVector2.h"  /* for _CoercionWarning() */
-#include "leaf_vector_utils.h"
+#include "leaf_utils.h"
 
 #include <limits.h>  /* for INT_MAX */
 #include <string.h>  /* for memset() */
@@ -226,7 +226,7 @@ static int REC_nzwhich_SVT_as_Lindex(SEXP SVT,
 
 	if (ndim == 1) {
 		/* 'SVT' is a "leaf vector". */
-		lv_len = _split_leaf_vector(SVT, &lv_offs, &lv_vals);
+		lv_len = unzip_leaf(SVT, &lv_offs, &lv_vals);
 		if (lv_len < 0)
 			return -1;
 		if (IS_INTEGER(Lindex)) {
@@ -329,7 +329,7 @@ static int REC_extract_nzcoo_and_nzvals_from_SVT(SEXP SVT,
 	}
 
 	/* 'SVT' is a "leaf vector". */
-	lv_len = _split_leaf_vector(SVT, &lv_offs, &lv_vals);
+	lv_len = unzip_leaf(SVT, &lv_offs, &lv_vals);
 	if (lv_len < 0)
 		return -1;
 
@@ -503,9 +503,8 @@ static SEXP REC_build_SVT_from_Rsubarray(
 			error("SparseArray internal error in "
 			      "REC_build_SVT_from_Rsubarray():\n"
 			      "    dim[0] != subarr_len");
-		ans = _make_leaf_vector_from_Rsubvec(
-					Rarray, arr_offset, dim[0],
-					offs_buf, 1);
+		ans = _make_leaf_from_Rsubvec(Rarray, arr_offset, dim[0],
+					      offs_buf, 1);
 		if (ans_Rtype == TYPEOF(Rarray) || ans == R_NilValue)
 			return ans;
 		PROTECT(ans);
@@ -585,7 +584,7 @@ static int dump_col_to_CsparseMatrix_slots(SEXP SVT, int col_idx,
 		return 0;
 
 	/* 'subSVT' is a "leaf vector". */
-	lv_len = _split_leaf_vector(subSVT, &lv_offs, &lv_vals);
+	lv_len = unzip_leaf(subSVT, &lv_offs, &lv_vals);
 	if (lv_len < 0)
 		return -1;
 
@@ -720,8 +719,8 @@ static SEXP build_leaf_vector_from_CsparseMatrix_col(SEXP x_i, SEXP x_x,
 	int ans_len;
 
 	/* Will skip zeros from 'x_x' if any. */
-	ans = _make_leaf_vector_from_Rsubvec(x_x, (R_xlen_t) offset, nzcount,
-					     offs_buf, 1);
+	ans = _make_leaf_from_Rsubvec(x_x, (R_xlen_t) offset, nzcount,
+				      offs_buf, 1);
 	if (ans == R_NilValue)
 		return ans;
 	PROTECT(ans);

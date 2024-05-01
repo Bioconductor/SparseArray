@@ -7,7 +7,7 @@
 #include "S4Vectors_interface.h"
 #include "XVector_interface.h"
 
-#include "leaf_vector_utils.h"
+#include "leaf_utils.h"
 #include "ExtendableJaggedArray.h"
 
 #include <R_ext/Connections.h>
@@ -183,7 +183,7 @@ static SEXP make_leaf_vector_from_AEbufs(const IntAE *offs_buf,
 
 	ans_offs = PROTECT(new_INTEGER_from_IntAE(offs_buf));
 	ans_vals = PROTECT(new_INTEGER_from_IntAE(vals_buf));
-	ans = _new_leaf_vector(ans_offs, ans_vals);  // unprotected!
+	ans = zip_leaf(ans_offs, ans_vals);  // unprotected!
 	UNPROTECT(2);
 	return ans;
 }

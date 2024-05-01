@@ -4,7 +4,7 @@
 #include "SparseArray_subsetting.h"
 
 #include "Rvector_utils.h"
-#include "leaf_vector_utils.h"  /* for _split_leaf_vector() */
+#include "leaf_utils.h"  /* for unzip_leaf() */
 
 #include <limits.h>  /* for INT_MAX */
 #include <string.h>  /* for memcpy() */
@@ -135,7 +135,7 @@ static SEXP subset_leaf_vector(SEXP lv, SEXP idx, int i2max,
 	if (idx_len == 0)
 		return R_NilValue;
 
-	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
+	lv_len = unzip_leaf(lv, &lv_offs, &lv_vals);
 	build_lookup_table(lookup_table, INTEGER(lv_offs), lv_len);
 	ans_len = 0;
 	for (i1 = 0; i1 < idx_len; i1++) {
@@ -157,7 +157,7 @@ static SEXP subset_leaf_vector(SEXP lv, SEXP idx, int i2max,
 	ans_vals = PROTECT(allocVector(TYPEOF(lv_vals), ans_len));
 	memcpy(INTEGER(ans_offs), i1_buf, sizeof(int) * ans_len);
 	_copy_selected_Rsubvec_elts(lv_vals, 0, k2_buf, ans_vals);
-	ans = _new_leaf_vector(ans_offs, ans_vals);
+	ans = zip_leaf(ans_offs, ans_vals);
 	UNPROTECT(2);
 	return ans;
 }

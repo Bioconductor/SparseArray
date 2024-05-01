@@ -4,8 +4,7 @@
 #include "SparseArray_aperm.h"
 
 #include "Rvector_utils.h"
-#include "leaf_vector_utils.h"
-#include "SBT_utils.h"
+#include "leaf_utils.h"
 
 #include <string.h>  /* for memset() */
 
@@ -31,7 +30,7 @@ static void count_nonzero_elts_per_row(SEXP SVT, int nrow, int ncol,
 		if (subSVT == R_NilValue)
 			continue;
 		/* 'subSVT' is a "leaf vector". */
-		lv_len = _split_leaf_vector(subSVT, &lv_offs, &lv_vals);
+		lv_len = unzip_leaf(subSVT, &lv_offs, &lv_vals);
 		if (lv_len < 0)
 			error("SparseArray internal error in "
 			      "count_nonzero_elts_per_row():\n"
@@ -279,7 +278,7 @@ static SEXP transpose_2D_SVT(SEXP SVT, int nrow, int ncol, SEXPTYPE Rtype,
 		if (subSVT == R_NilValue)
 			continue;
 		/* 'subSVT' is a "leaf vector". */
-		lv_len = _split_leaf_vector(subSVT, &lv_offs, &lv_vals);
+		lv_len = unzip_leaf(subSVT, &lv_offs, &lv_vals);
 		if (lv_len < 0) {
 			UNPROTECT(1);
 			error("SparseArray internal error in "
@@ -607,7 +606,7 @@ static inline void count_lv_nzvals(SEXP lv,
 	const int *lv_offs_p;
 	unsigned long long int outer_idx;
 
-	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
+	lv_len = unzip_leaf(lv, &lv_offs, &lv_vals);
 	if (lv_len < 0)
 		error("SparseArray internal error in "
 		      "count_lv_nzvals():\n"
@@ -663,8 +662,8 @@ static SEXP REC_grow_tree_and_alloc_leaves(const int *dim, int ndim,
 		if (*nzcount_buf == 0)
 			return R_NilValue;
 		ans = PROTECT(
-			_alloc_and_split_leaf_vector(*nzcount_buf,
-						     Rtype, &lv_offs, &lv_vals)
+			_alloc_and_unzip_leaf(*nzcount_buf,
+					      Rtype, &lv_offs, &lv_vals)
 		);
 		*quick_out_offs_p = INTEGER(lv_offs);
 		init_quick_out_vals_p(quick_out_vals_p, Rtype, lv_vals);
@@ -790,7 +789,7 @@ static void spray_ans_with_lv(SEXP lv, SEXPTYPE Rtype,
 			  int **quick_out_offs_p, void *quick_out_vals_p,
 			  int inner_idx);
 
-	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
+	lv_len = unzip_leaf(lv, &lv_offs, &lv_vals);
 	if (lv_len < 0)	
 		error("SparseArray internal error in spray_ans_with_lv():\n"
 		      "    invalid leaf vector");

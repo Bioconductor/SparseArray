@@ -3,12 +3,14 @@
  ****************************************************************************/
 #include "SparseMatrix_mult.h"
 
+#include "Rvector_utils.h"
 #include "SparseVec.h"
 #include "SparseVec_dotprod.h"
-#include "Rvector_utils.h"
+#include "leaf_utils.h"             /* for leaf2SV() */
 #include "SVT_SparseArray_class.h"  /* for _REC_nzcount_SVT() */
 
 #include <string.h>  /* for memset() */
+
 
 /* TODO: Maybe move this to Rvector_summarization.c */
 static int has_no_NaN_or_Inf(const double *x, int x_len)
@@ -26,14 +28,16 @@ static int has_no_NA(const int *x, int x_len)
 	return 1;
 }
 
-static int SV_has_no_NaN_or_Inf(const SparseVec *sv)
+static int doubleSV_has_no_NaN_or_Inf(const SparseVec *sv)
 {
-	return has_no_NaN_or_Inf(get_doubleSV_nzvals(sv), sv->nzcount);
+	return has_no_NaN_or_Inf(get_doubleSV_nzvals(sv),
+				 get_SV_nzcount(sv));
 }
 
-static int SV_has_no_NA(const SparseVec *sv)
+static int intSV_has_no_NA(const SparseVec *sv)
 {
-	return has_no_NA(get_intSV_nzvals(sv), sv->nzcount);
+	return has_no_NA(get_intSV_nzvals(sv),
+			 get_SV_nzcount(sv));
 }
 
 static void fill_col(double *out, int out_nrow, double v)
@@ -71,7 +75,7 @@ static void expand_doubleSV(const SparseVec *sv, double *out)
 {
 	memset(out, 0, sizeof(double) * sv->len);
 	_copy_doubles_to_offsets(get_doubleSV_nzvals(sv),
-				 sv->nzoffs, sv->nzcount, out);
+				 sv->nzoffs, get_SV_nzcount(sv), out);
 	return;
 }
 
@@ -79,7 +83,7 @@ static void expand_intSV(const SparseVec *sv, int *out)
 {
 	memset(out, 0, sizeof(int) * sv->len);
 	_copy_ints_to_offsets(get_intSV_nzvals(sv),
-			      sv->nzoffs, sv->nzcount, out);
+			      sv->nzoffs, get_SV_nzcount(sv), out);
 	return;
 }
 
@@ -323,7 +327,7 @@ static void crossprod2_doubleSV_doublemat(
 	const double *vals1_p, *v2_p;
 	double v1;
 
-	lv1_len = _split_leaf_vector(lv1, &lv1_offs, &lv1_vals);
+	lv1_len = unzip_leaf(lv1, &lv1_offs, &lv1_vals);
 	offs1_p = INTEGER(lv1_offs);
 	vals1_p = REAL(lv1_vals);
 	for (k1 = 0; k1 < lv1_len; k1++) {
@@ -363,7 +367,7 @@ static void crossprod2_doublemat_doubleSV(
 	const double *vals2_p, *v1_p;
 	double v2;
 
-	lv2_len = _split_leaf_vector(lv2, &lv2_offs, &lv2_vals);
+	lv2_len = unzip_leaf(lv2, &lv2_offs, &lv2_vals);
 	offs2_p = INTEGER(lv2_offs);
 	vals2_p = REAL(lv2_vals);
 	for (k2 = 0; k2 < lv2_len; k2++) {
@@ -612,7 +616,7 @@ static void crossprod2_mat0_SVT_int(SEXP SVT2, int in_nrow,
 		if (leaf == R_NilValue)
 			continue;
 		const SparseVec sv = leaf2SV(leaf, in_nrow);
-		if (SV_has_no_NA(&sv))
+		if (intSV_has_no_NA(&sv))
 			continue;
 		fill_col(out, out_nrow, NA_REAL);
 	}
@@ -632,7 +636,7 @@ static void crossprod2_SVT_mat0_int(SEXP SVT1, int in_nrow,
 		if (leaf == R_NilValue)
 			continue;
 		const SparseVec sv = leaf2SV(leaf, in_nrow);
-		if (SV_has_no_NA(&sv))
+		if (intSV_has_no_NA(&sv))
 			continue;
 		fill_row(out, out_nrow, out_ncol, NA_REAL);
 	}
@@ -652,7 +656,7 @@ static void compute_dotprods2_with_left_double_leaf(SEXP leaf1, SEXP SVT2,
 		return;
 	}
 	const SparseVec sv1 = leaf2SV(leaf1, dense_len);
-	if (SV_has_no_NaN_or_Inf(&sv1)) {
+	if (doubleSV_has_no_NaN_or_Inf(&sv1)) {
 		/* Turn 'sv1' into dense vector. */
 		expand_doubleSV(&sv1, densebuf);
 		compute_dotprods2_with_finite_Lcol(densebuf, dense_len, SVT2,
@@ -676,7 +680,7 @@ static void compute_dotprods2_with_right_double_leaf(SEXP SVT1, SEXP leaf2,
 		return;
 	}
 	const SparseVec sv2 = leaf2SV(leaf2, dense_len);
-	if (SV_has_no_NaN_or_Inf(&sv2)) {
+	if (doubleSV_has_no_NaN_or_Inf(&sv2)) {
 		/* Turn 'sv2' into dense vector. */
 		expand_doubleSV(&sv2, densebuf);
 		compute_dotprods2_with_finite_Rcol(SVT1, densebuf, dense_len,
@@ -700,7 +704,7 @@ static void compute_dotprods2_with_left_int_leaf(SEXP leaf1, SEXP SVT2,
 		return;
 	}
 	const SparseVec sv1 = leaf2SV(leaf1, dense_len);
-	if (SV_has_no_NA(&sv1)) {
+	if (intSV_has_no_NA(&sv1)) {
 		/* Turn 'sv1' into dense vector. */
 		expand_intSV(&sv1, densebuf);
 		compute_dotprods2_with_noNA_int_Lcol(densebuf, dense_len, SVT2,
@@ -724,7 +728,7 @@ static void compute_dotprods2_with_right_int_leaf(SEXP SVT1, SEXP leaf2,
 		return;
 	}
 	const SparseVec sv2 = leaf2SV(leaf2, dense_len);
-	if (SV_has_no_NA(&sv2)) {
+	if (intSV_has_no_NA(&sv2)) {
 		/* Turn 'sv2' into dense vector. */
 		expand_intSV(&sv2, densebuf);
 		compute_dotprods2_with_noNA_int_Rcol(SVT1, densebuf, dense_len,
@@ -848,7 +852,7 @@ static void compute_sym_dotprods_double(SEXP SVT, int j,
 		return;
 	}
 	const SparseVec sv = leaf2SV(leaf, dense_len);
-	if (SV_has_no_NaN_or_Inf(&sv)) {
+	if (doubleSV_has_no_NaN_or_Inf(&sv)) {
 		/* Turn 'sv' into dense vector. */
 		expand_doubleSV(&sv, densebuf);
 		*out = _dotprod_doubleSV_finite_doubles(&sv, densebuf);
@@ -874,7 +878,7 @@ static void compute_sym_dotprods_int(SEXP SVT, int j,
 		return;
 	}
 	const SparseVec sv = leaf2SV(leaf, dense_len);
-	if (SV_has_no_NA(&sv)) {
+	if (intSV_has_no_NA(&sv)) {
 		/* Turn 'sv' into dense vector. */
 		expand_intSV(&sv, densebuf);
 		*out = _dotprod_intSV_noNA_ints(&sv, densebuf);

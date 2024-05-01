@@ -1,7 +1,7 @@
 /****************************************************************************
  *                   Basic manipulation of "leaf vectors"                   *
  ****************************************************************************/
-#include "leaf_vector_utils.h"
+#include "leaf_utils.h"
 
 #include "S4Vectors_interface.h"
 
@@ -14,34 +14,10 @@
 
 
 /****************************************************************************
- * _new_leaf_vector()
  * _alloc_leaf_vector()
- * _alloc_and_split_leaf_vector()
- * _make_leaf_vector_from_bufs()
+ * _alloc_and_unzip_leaf()
+ * _make_leaf_from_bufs()
  */
-
-SEXP _new_leaf_vector(SEXP lv_offs, SEXP lv_vals)
-{
-	const char *msg;
-	R_xlen_t lv_offs_len;
-	SEXP ans;
-
-	/* Sanity checks (should never fail). */
-	msg = "SparseArray internal error in _new_leaf_vector():\n"
-	      "    invalid 'lv_offs' and/or 'lv_vals' arguments";
-	if (!IS_INTEGER(lv_offs))
-		error("%s", msg);
-	lv_offs_len = XLENGTH(lv_offs);
-	if (lv_offs_len != XLENGTH(lv_vals) ||
-	    lv_offs_len < 1 || lv_offs_len > INT_MAX)
-		error("%s", msg);
-
-	ans = PROTECT(NEW_LIST(2));
-	SET_VECTOR_ELT(ans, 0, lv_offs);
-	SET_VECTOR_ELT(ans, 1, lv_vals);
-	UNPROTECT(1);
-	return ans;
-}
 
 SEXP _alloc_leaf_vector(int lv_len, SEXPTYPE Rtype)
 {
@@ -49,28 +25,28 @@ SEXP _alloc_leaf_vector(int lv_len, SEXPTYPE Rtype)
 
 	lv_offs = PROTECT(NEW_INTEGER(lv_len));
 	lv_vals = PROTECT(allocVector(Rtype, lv_len));
-	ans = _new_leaf_vector(lv_offs, lv_vals);
+	ans = zip_leaf(lv_offs, lv_vals);
 	UNPROTECT(2);
 	return ans;
 }
 
 /* Do NOT use when 'lv_len' is 0. Leaf vectors of length 0 are ILLEGAL! Always
-   use a R_NilValue instead. See leaf_vector_utils.h */
-SEXP _alloc_and_split_leaf_vector(int lv_len, SEXPTYPE Rtype,
+   use a R_NilValue instead. See leaf_utils.h */
+SEXP _alloc_and_unzip_leaf(int lv_len, SEXPTYPE Rtype,
 		SEXP *lv_offs, SEXP *lv_vals)
 {
 	SEXP ans;
 
 	ans = PROTECT(_alloc_leaf_vector(lv_len, Rtype));
-	_split_leaf_vector(ans, lv_offs, lv_vals);
+	unzip_leaf(ans, lv_offs, lv_vals);
 	UNPROTECT(1);
 	return ans;
 }
 
 /* Returns R_NilValue (if 'buf_len' is 0) or a "leaf vector".
    Does NOT work for 'Rtype' == STRSXP or VECSXP. */
-SEXP _make_leaf_vector_from_bufs(SEXPTYPE Rtype,
-		const int *offs_buf, const void *vals_buf, int buf_len)
+SEXP _make_leaf_from_bufs(SEXPTYPE Rtype,
+		const int *nzoffs_buf, const void *nzvals_buf, int buf_len)
 {
 	size_t Rtype_size;
 	SEXP ans, ans_offs, ans_vals;
@@ -80,24 +56,24 @@ SEXP _make_leaf_vector_from_bufs(SEXPTYPE Rtype,
 	Rtype_size = _get_Rtype_size(Rtype);
 	if (Rtype_size == 0)
 		error("SparseArray internal error in "
-		      "_make_leaf_vector_from_bufs():\n"
+		      "_make_leaf_from_bufs():\n"
 		      "    type \"%s\" is not supported", type2char(Rtype));
-	ans = PROTECT(_alloc_and_split_leaf_vector(buf_len, Rtype,
-						   &ans_offs, &ans_vals));
-	memcpy(INTEGER(ans_offs), offs_buf, sizeof(int) * buf_len);
-	memcpy(DATAPTR(ans_vals), vals_buf, Rtype_size * buf_len);
+	ans = PROTECT(_alloc_and_unzip_leaf(buf_len, Rtype,
+					    &ans_offs, &ans_vals));
+	memcpy(INTEGER(ans_offs), nzoffs_buf, sizeof(int) * buf_len);
+	memcpy(DATAPTR(ans_vals), nzvals_buf, Rtype_size * buf_len);
 	UNPROTECT(1);
 	return ans;
 }
 
 
 /****************************************************************************
- * _make_leaf_vector_from_Rsubvec()
+ * _make_leaf_from_Rsubvec()
  */
 
 /* 'offs_buf' must be of length 'subvec_len' (or more).
    Returns R_NilValue or a "leaf vector". */
-SEXP _make_leaf_vector_from_Rsubvec(
+SEXP _make_leaf_from_Rsubvec(
 		SEXP Rvector, R_xlen_t vec_offset, int subvec_len,
 		int *offs_buf, int avoid_copy_if_all_nonzeros)
 {
@@ -119,14 +95,14 @@ SEXP _make_leaf_vector_from_Rsubvec(
 		/* The full 'Rvector' contains no zeros and can be reused
 		   as-is without the need to copy its nonzero elements to
 		   a new SEXP. */
-		ans = _new_leaf_vector(ans_offs, Rvector);
+		ans = zip_leaf(ans_offs, Rvector);
 		UNPROTECT(1);
 		return ans;
 	}
 
 	ans_vals = PROTECT(allocVector(TYPEOF(Rvector), ans_len));
 	_copy_selected_Rsubvec_elts(Rvector, vec_offset, offs_buf, ans_vals);
-	ans = _new_leaf_vector(ans_offs, ans_vals);
+	ans = zip_leaf(ans_offs, ans_vals);
 	UNPROTECT(2);
 	return ans;
 }
@@ -144,7 +120,7 @@ int _expand_leaf_vector(SEXP lv, SEXP out_Rvector, R_xlen_t out_offset)
 	SEXP lv_offs, lv_vals;
 	int ret;
 
-	ret = _split_leaf_vector(lv, &lv_offs, &lv_vals);
+	ret = unzip_leaf(lv, &lv_offs, &lv_vals);
 	if (ret < 0)
 		return -1;
 	_copy_Rvector_elts_to_offsets(lv_vals, INTEGER(lv_offs),
@@ -165,7 +141,7 @@ SEXP _remove_zeros_from_leaf_vector(SEXP lv, int *offs_buf)
 	SEXP lv_offs, lv_vals, ans_offs, ans_vals, ans;
 	int lv_len, ans_len;
 
-	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
+	lv_len = unzip_leaf(lv, &lv_offs, &lv_vals);
 	ans_len = _collect_offsets_of_nonzero_Rsubvec_elts(
 				lv_vals, 0, lv_len,
 				offs_buf);
@@ -179,7 +155,7 @@ SEXP _remove_zeros_from_leaf_vector(SEXP lv, int *offs_buf)
 			    INTEGER(ans_offs));
 	ans_vals = PROTECT(allocVector(TYPEOF(lv_vals), ans_len));
 	_copy_selected_Rsubvec_elts(lv_vals, 0, offs_buf, ans_vals);
-	ans = _new_leaf_vector(ans_offs, ans_vals);
+	ans = zip_leaf(ans_offs, ans_vals);
 	UNPROTECT(2);
 	return ans;
 }
@@ -199,9 +175,9 @@ SEXP _coerce_leaf_vector(SEXP lv, SEXPTYPE new_Rtype, int *warn, int *offs_buf)
 {
 	SEXP lv_offs, lv_vals, ans_vals, ans;
 
-	_split_leaf_vector(lv, &lv_offs, &lv_vals);
+	unzip_leaf(lv, &lv_offs, &lv_vals);
 	ans_vals = PROTECT(_coerceVector2(lv_vals, new_Rtype, warn));
-	ans = PROTECT(_new_leaf_vector(lv_offs, ans_vals));
+	ans = PROTECT(zip_leaf(lv_offs, ans_vals));
 	/* The above coercion can introduce zeros in 'ans_vals' e.g. when
 	   going from double/complex to int/raw. We need to remove them. */
 	if (_coercion_can_introduce_zeros(TYPEOF(lv_vals), new_Rtype))
@@ -235,7 +211,7 @@ SEXP _subassign_leaf_vector_with_Rvector(SEXP lv, SEXP index, SEXP Rvector)
 	const int *offs1_p, *offs2_p;
 	int *ans_offs_p;
 
-	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
+	lv_len = unzip_leaf(lv, &lv_offs, &lv_vals);
 	Rtype = TYPEOF(lv_vals);
 
 	copy_Rvector_elt_FUN = _select_copy_Rvector_elt_FUN(Rtype);
@@ -256,7 +232,7 @@ SEXP _subassign_leaf_vector_with_Rvector(SEXP lv, SEXP index, SEXP Rvector)
 		      "_subassign_leaf_vector_with_Rvector():\n"
 		      "    'index' and 'Rvector' have different lengths");
 	if (index_len == 0)
-		return _new_leaf_vector(lv_offs, lv_vals);
+		return zip_leaf(lv_offs, lv_vals);
 
 	offs1_p = INTEGER(lv_offs);
 	offs2_p = INTEGER(index);
@@ -282,8 +258,8 @@ SEXP _subassign_leaf_vector_with_Rvector(SEXP lv, SEXP index, SEXP Rvector)
 	} else if (k2 < index_len) {
 		ans_len += index_len - k2;
 	}
-	ans = PROTECT(_alloc_and_split_leaf_vector(ans_len, Rtype,
-						   &ans_offs, &ans_vals));
+	ans = PROTECT(_alloc_and_unzip_leaf(ans_len, Rtype,
+					    &ans_offs, &ans_vals));
 	offs1_p = INTEGER(lv_offs);
 	offs2_p = INTEGER(index);
 	ans_offs_p = INTEGER(ans_offs);
@@ -333,7 +309,7 @@ SEXP _subassign_leaf_vector_with_Rvector(SEXP lv, SEXP index, SEXP Rvector)
 
 
 /****************************************************************************
- * _lv_apply_to_REALSXP()
+ * _leaf_apply_to_REALSXP()
  */
 
 #define FUNDEF_sparse_apply(in_type, out_type)			\
@@ -360,57 +336,55 @@ static int sparse_int2double_apply	FUNDEF_sparse_apply(int, double)
 static int sparse_double2double_apply	FUNDEF_sparse_apply(double, double)
 static int sparse_Rcomplex2double_apply	FUNDEF_sparse_apply(Rcomplex, double)
 
-/* 'lv' must be a "leaf vector" (cannot be R_NilValue). */
-SEXP _lv_apply_to_REALSXP(SEXP lv, apply_2double_FUNS *funs,
-			  int *offs_buf, double *vals_buf)
+/* 'leaf' cannot be R_NilValue. */
+SEXP _leaf_apply_to_REALSXP(SEXP leaf, apply_2double_FUNS *funs,
+			    int *nzoffs_buf, double *nzvals_buf)
 {
-	int lv_len, ans_len;
-	SEXP lv_offs, lv_vals;
-	const int *offs;
-	SEXPTYPE in_Rtype;
+	SEXP nzoffs, nzvals;
+	int buf_len;
 
-	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
-	offs = INTEGER(lv_offs);
-	in_Rtype = TYPEOF(lv_vals);
+	int nzcount = unzip_leaf(leaf, &nzoffs, &nzvals);
+	const int *nzoffs_p = INTEGER(nzoffs);
+	SEXPTYPE in_Rtype = TYPEOF(nzvals);
 	switch (in_Rtype) {
 	    case RAWSXP:
 		if (funs->Rbyte2double_FUN == NULL)
 			error("operation not supported on SVT_SparseArray "
 			      "objects of type \"%s\"", type2char(in_Rtype));
-		ans_len = sparse_Rbyte2double_apply(
-				offs, RAW(lv_vals), lv_len,
-				funs->Rbyte2double_FUN, offs_buf, vals_buf);
+		buf_len = sparse_Rbyte2double_apply(
+			    nzoffs_p, RAW(nzvals), nzcount,
+			    funs->Rbyte2double_FUN, nzoffs_buf, nzvals_buf);
 		break;
 	    case LGLSXP: case INTSXP:
 		if (funs->int2double_FUN == NULL)
 			error("operation not supported on SVT_SparseArray "
 			      "objects of type \"%s\"", type2char(in_Rtype));
-		ans_len = sparse_int2double_apply(
-				offs, INTEGER(lv_vals), lv_len,
-				funs->int2double_FUN, offs_buf, vals_buf);
+		buf_len = sparse_int2double_apply(
+			    nzoffs_p, INTEGER(nzvals), nzcount,
+			    funs->int2double_FUN, nzoffs_buf, nzvals_buf);
 		break;
 	    case REALSXP:
 		if (funs->double2double_FUN == NULL)
 			error("operation not supported on SVT_SparseArray "
 			      "objects of type \"%s\"", type2char(in_Rtype));
-		ans_len = sparse_double2double_apply(
-				offs, REAL(lv_vals), lv_len,
-				funs->double2double_FUN, offs_buf, vals_buf);
+		buf_len = sparse_double2double_apply(
+			    nzoffs_p, REAL(nzvals), nzcount,
+			    funs->double2double_FUN, nzoffs_buf, nzvals_buf);
 		break;
 	    case CPLXSXP:
 		if (funs->Rcomplex2double_FUN == NULL)
 			error("operation not supported on SVT_SparseArray "
 			      "objects of type \"%s\"", type2char(in_Rtype));
-		ans_len = sparse_Rcomplex2double_apply(
-				offs, COMPLEX(lv_vals), lv_len,
-				funs->Rcomplex2double_FUN, offs_buf, vals_buf);
+		buf_len = sparse_Rcomplex2double_apply(
+			    nzoffs_p, COMPLEX(nzvals), nzcount,
+			    funs->Rcomplex2double_FUN, nzoffs_buf, nzvals_buf);
 		break;
 	    default:
-		error("SparseArray internal error in _lv_apply_to_REALSXP():\n"
+		error("SparseArray internal error in "
+		      "_leaf_apply_to_REALSXP():\n"
 		      "    unsupported 'in_Rtype': \"%s\"",
 		      type2char(in_Rtype));
 	}
-	return _make_leaf_vector_from_bufs(REALSXP,
-					   offs_buf, vals_buf, ans_len);
+	return _make_leaf_from_bufs(REALSXP, nzoffs_buf, nzvals_buf, buf_len);
 }
 
