@@ -32,8 +32,9 @@ double _dotprod_doubleSV_doubleSV(const SparseVec *sv1, const SparseVec *sv2)
 double _dotprod_doubleSV_finite_doubles(const SparseVec *sv1, const double *x2)
 {
 	const double *nzvals1 = get_doubleSV_nzvals(sv1);
+	int nzcount1 = get_SV_nzcount(sv1);
 	double ans = 0.0;
-	for (int k1 = 0; k1 < sv1->nzcount; k1++)
+	for (int k1 = 0; k1 < nzcount1; k1++)
 		ans += nzvals1[k1] * x2[sv1->nzoffs[k1]];
 	return ans;
 }
@@ -44,13 +45,14 @@ double _dotprod_doubleSV_finite_doubles(const SparseVec *sv1, const double *x2)
 double _dotprod_doubleSV_doubles(const SparseVec *sv1, const double *x2)
 {
 	const double *nzvals1 = get_doubleSV_nzvals(sv1);
+	int nzcount1 = get_SV_nzcount(sv1);
 	double ans = 0.0;
 	int k1 = 0;
 	for (int i2 = 0; i2 < sv1->len; i2++) {
 		double v1, v2 = x2[i2];
 		if (R_IsNA(v2))
 			return NA_REAL;
-		if (k1 < sv1->nzcount && sv1->nzoffs[k1] == i2) {
+		if (k1 < nzcount1 && sv1->nzoffs[k1] == i2) {
 			v1 = nzvals1[k1];
 			if (R_IsNA(v1))
 				return NA_REAL;
@@ -72,8 +74,9 @@ double _dotprod_doubleSV_doubles(const SparseVec *sv1, const double *x2)
 double _dotprod_intSV_noNA_ints(const SparseVec *sv1, const int *x2)
 {
 	const int *nzvals1 = get_intSV_nzvals(sv1);
+	int nzcount1 = get_SV_nzcount(sv1);
 	double ans = 0.0;
-	for (int k1 = 0; k1 < sv1->nzcount; k1++) {
+	for (int k1 = 0; k1 < nzcount1; k1++) {
 		int v1 = nzvals1[k1];
 		if (v1 == NA_INTEGER)
 			return NA_REAL;
@@ -88,13 +91,14 @@ double _dotprod_intSV_noNA_ints(const SparseVec *sv1, const int *x2)
 double _dotprod_intSV_ints(const SparseVec *sv1, const int *x2)
 {
 	const int *nzvals1 = get_intSV_nzvals(sv1);
+	int nzcount1 = get_SV_nzcount(sv1);
 	double ans = 0.0;
 	int k1 = 0;
 	for (int i2 = 0; i2 < sv1->len; i2++) {
 		int v1, v2 = x2[i2];
 		if (v2 == NA_INTEGER)
 			return NA_REAL;
-		if (k1 < sv1->nzcount && sv1->nzoffs[k1] == i2) {
+		if (k1 < nzcount1 && sv1->nzoffs[k1] == i2) {
 			v1 = nzvals1[k1];
 			if (v1 == NA_INTEGER)
 				return NA_REAL;
@@ -133,11 +137,12 @@ double _dotprod_ints_zero(const int *x, int x_len)
 
 double _dotprod_doubleSV_zero(const SparseVec *sv)
 {
-	return _dotprod_doubles_zero(get_doubleSV_nzvals(sv), sv->nzcount);
+	return _dotprod_doubles_zero(get_doubleSV_nzvals(sv),
+				     get_SV_nzcount(sv));
 }
 
 double _dotprod_intSV_zero(const SparseVec *sv)
 {
-	return _dotprod_ints_zero(get_intSV_nzvals(sv), sv->nzcount);
+	return _dotprod_ints_zero(get_intSV_nzvals(sv), get_SV_nzcount(sv));
 }
 

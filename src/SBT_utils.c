@@ -4,7 +4,7 @@
 #include "SBT_utils.h"
 
 #include "Rvector_utils.h"
-#include "leaf_vector_utils.h"
+#include "leaf_utils.h"
 
 #include <stdlib.h>  /* for malloc(), free(), realloc() */
 #include <limits.h>  /* for INT_MAX */
@@ -218,7 +218,7 @@ static SEXP make_leaf_vector_from_SparseBuf(SEXPTYPE Rtype,
 	memcpy(INTEGER(ans_offs), buf->offs, sizeof(int) * ans_len);
 	ans_vals = PROTECT(allocVector(Rtype, ans_len));
 	copy_vals_FUN(buf->vals, ans_vals, ans_len);
-	ans = _new_leaf_vector(ans_offs, ans_vals);
+	ans = zip_leaf(ans_offs, ans_vals);
 	UNPROTECT(2);
 	return ans;
 }

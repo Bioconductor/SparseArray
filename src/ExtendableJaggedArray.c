@@ -5,7 +5,7 @@
 
 #include "S4Vectors_interface.h"
 
-#include "leaf_vector_utils.h"
+#include "leaf_utils.h"
 
 #include <stdlib.h>  /* for malloc(), free(), realloc() */
 #include <string.h>  /* for memcpy() */
@@ -101,7 +101,7 @@ static SEXP make_leaf_vector(const int *offs, const int *vals, int lv_len)
 	memcpy(INTEGER(ans_offs), offs, sizeof(int) * lv_len);
 	ans_vals = PROTECT(NEW_INTEGER(lv_len));
 	memcpy(INTEGER(ans_vals), vals, sizeof(int) * lv_len);
-	ans = _new_leaf_vector(ans_offs, ans_vals);  // unprotected!
+	ans = zip_leaf(ans_offs, ans_vals);  // unprotected!
 	UNPROTECT(2);
 	return ans;
 }

@@ -6,7 +6,7 @@
 #include "S4Vectors_interface.h"
 
 #include "Rvector_utils.h"
-#include "leaf_vector_utils.h"
+#include "leaf_utils.h"
 
 static void check_group(SEXP group, int x_nrow, int ngroup)
 {
@@ -83,7 +83,7 @@ static void rowsum_SVT_double(int x_nrow, int x_ncol, SEXP x_SVT,
 		subSVT = VECTOR_ELT(x_SVT, j);
 		if (subSVT == R_NilValue)
 			continue;
-		lv_len = _split_leaf_vector(subSVT, &lv_offs, &lv_vals);
+		lv_len = unzip_leaf(subSVT, &lv_offs, &lv_vals);
 		compute_rowsum_doubles(
 			REAL(lv_vals), INTEGER(lv_offs), lv_len,
 			groups, out, ngroup, narm);
@@ -104,7 +104,7 @@ static void rowsum_SVT_int(int x_nrow, int x_ncol, SEXP x_SVT,
 		subSVT = VECTOR_ELT(x_SVT, j);
 		if (subSVT == R_NilValue)
 			continue;
-		lv_len = _split_leaf_vector(subSVT, &lv_offs, &lv_vals);
+		lv_len = unzip_leaf(subSVT, &lv_offs, &lv_vals);
 		compute_rowsum_ints(
 			INTEGER(lv_vals), INTEGER(lv_offs), lv_len,
 			groups, out, ngroup, narm);

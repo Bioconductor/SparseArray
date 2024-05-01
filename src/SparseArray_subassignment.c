@@ -6,7 +6,7 @@
 #include "S4Vectors_interface.h"
 
 #include "Rvector_utils.h"
-#include "leaf_vector_utils.h"
+#include "leaf_utils.h"
 
 #include <limits.h>  /* for INT_MAX */
 //#include <time.h>
@@ -96,7 +96,7 @@ static SEXP new_extended_leaf_vector(SEXP lv, NewIDS_FUNType new_IDS_FUN)
 	SEXP lv_offs, lv_vals, IDS, ans;
 	int lv_len;
 
-	lv_len = _split_leaf_vector(lv, &lv_offs, &lv_vals);
+	lv_len = unzip_leaf(lv, &lv_offs, &lv_vals);
 	if (lv_len < 0)
 		error("SparseArray internal error in "
 		      "new_extended_leaf_vector():\n"
@@ -581,7 +581,7 @@ static SEXP subassign_leaf_vector_and_remove_zeros(SEXP xlv,
 
 	xlv_offs = VECTOR_ELT(xlv, 0);
 	xlv_vals = VECTOR_ELT(xlv, 1);
-	lv = PROTECT(_new_leaf_vector(xlv_offs, xlv_vals));
+	lv = PROTECT(zip_leaf(xlv_offs, xlv_vals));
 
 	offs = VECTOR_ELT(offval_pairs, 0);
 	vals = VECTOR_ELT(offval_pairs, 1);
@@ -1085,9 +1085,9 @@ static SEXP precompute_bottom_leaf_from_short_Rvector(
 		}
 	}
 	//printf("full_replacement=%d\n", left_bufs->full_replacement);
-	return _make_leaf_vector_from_Rsubvec(left_Rvector, 0, d1,
-					      left_bufs->offs,
-					      left_bufs->full_replacement);
+	return _make_leaf_from_Rsubvec(left_Rvector, 0, d1,
+				       left_bufs->offs,
+				       left_bufs->full_replacement);
 }
 
 /* 'short_Rvector' must have a length >= 1.
@@ -1157,8 +1157,8 @@ static SEXP subassign_bottom_leaf_with_short_Rvector(SEXP SVT, int d1,
 				left_Rvector, i1);
 	}
 	ans = PROTECT(
-		_make_leaf_vector_from_Rsubvec(left_Rvector,
-				0, d1, left_bufs->offs, 0)
+		_make_leaf_from_Rsubvec(left_Rvector,
+					0, d1, left_bufs->offs, 0)
 	);
 	if (ans != R_NilValue) {
 		/* Remove nonzeros introduced in 'left_bufs->Rvector'. */

@@ -3,7 +3,7 @@
  ****************************************************************************/
 #include "SparseArray_Complex_methods.h"
 
-#include "leaf_vector_utils.h"
+#include "leaf_utils.h"
 
 
 /* --- .Call ENTRY POINT --- */

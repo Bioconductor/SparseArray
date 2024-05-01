@@ -4,7 +4,7 @@
 #include "SparseArray_Math_methods.h"
 
 #include "Rvector_utils.h"
-#include "leaf_vector_utils.h"
+#include "leaf_utils.h"
 
 #include <math.h>   /* for fabs(), sqrt(), floor(), ceil(), trunc(),
 		       log1p(), expm1(), sin(), asin(), tan(), atan(),
@@ -130,7 +130,7 @@ static SEXP REC_Math_SVT(SEXP SVT, const int *dim, int ndim,
 
 	if (ndim == 1) {
 		/* 'SVT' is a "leaf vector". */
-		return _lv_apply_to_REALSXP(SVT, funs, offs_buf, vals_buf);
+		return _leaf_apply_to_REALSXP(SVT, funs, offs_buf, vals_buf);
 	}
 
 	/* 'SVT' is a list. */

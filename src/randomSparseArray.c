@@ -3,7 +3,7 @@
  ****************************************************************************/
 #include "randomSparseArray.h"
 
-#include "leaf_vector_utils.h"
+#include "leaf_utils.h"
 
 #include <R_ext/Random.h>
 #include <math.h>  /* for exp() */
@@ -165,7 +165,7 @@ static SEXP build_poisson_leaf_vector(int d1, double lambda,
 	memcpy(INTEGER(ans_offs), offs_buf, sizeof(int) * ans_len);
 	ans_vals = PROTECT(NEW_INTEGER(ans_len));
 	memcpy(INTEGER(ans_vals), vals_buf, sizeof(int) * ans_len);
-	ans = _new_leaf_vector(ans_offs, ans_vals);
+	ans = zip_leaf(ans_offs, ans_vals);
 	UNPROTECT(2);
 	return ans;
 }
