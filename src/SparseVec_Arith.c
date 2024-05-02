@@ -195,7 +195,7 @@ static int Arith_intSV_double(int opcode,
 		} else {
 			v = Arith_double(opcode, (double) x, y);
 		}
-		if (v != 0) {
+		if (v != 0.0) {
 			out_nzoffs[out_nzcount] = sv1->nzoffs[k];
 			out_nzvals[out_nzcount] = v;
 			out_nzcount++;

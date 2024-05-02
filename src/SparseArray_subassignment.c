@@ -91,7 +91,7 @@ static SEXP new_llIDS(void)
 	return R_MakeExternalPtr(atid_lloffs_buf, R_NilValue, R_NilValue);
 }
 
-static SEXP new_extended_leaf_vector(SEXP lv, NewIDS_FUNType new_IDS_FUN)
+static SEXP new_extended_leaf(SEXP lv, NewIDS_FUNType new_IDS_FUN)
 {
 	SEXP lv_offs, lv_vals, IDS, ans;
 	int lv_len;
@@ -99,7 +99,7 @@ static SEXP new_extended_leaf_vector(SEXP lv, NewIDS_FUNType new_IDS_FUN)
 	lv_len = unzip_leaf(lv, &lv_offs, &lv_vals);
 	if (lv_len < 0)
 		error("SparseArray internal error in "
-		      "new_extended_leaf_vector():\n"
+		      "new_extended_leaf():\n"
 		      "    unexpected error");
 	IDS = PROTECT(new_IDS_FUN());
 	ans = PROTECT(NEW_LIST(3));
@@ -138,7 +138,7 @@ static inline int get_IDS(SEXP bottom_leaf_parent, int i, SEXP bottom_leaf,
 	if (LENGTH(bottom_leaf) == 2) {
 		/* 'bottom_leaf' is a "leaf vector". */
 		bottom_leaf = PROTECT(
-			new_extended_leaf_vector(bottom_leaf, new_IDS_FUN)
+			new_extended_leaf(bottom_leaf, new_IDS_FUN)
 		);
 		SET_VECTOR_ELT(bottom_leaf_parent, i, bottom_leaf);
 		UNPROTECT(1);
@@ -409,8 +409,8 @@ typedef struct sort_bufs_t {
 
 /* All buffers are made of length 'max_IDS_len' except 'sort_bufs.offs'
    which we must make of length 'max(max_IDS_len, max_postsubassign_lv_len)'
-   so that we can use it in the call to _remove_zeros_from_leaf_vector()
-   in the subassign_leaf_vector_and_remove_zeros() function below. */
+   so that we can use it in the call to _remove_zeros_from_leaf()
+   in the subassign_leaf_and_remove_zeros() function below. */
 static SortBufs alloc_sort_bufs(int max_IDS_len, int max_postsubassign_lv_len)
 {
 	SortBufs sort_bufs;
@@ -574,7 +574,7 @@ static SEXP get_offval_pairs_from_IDS_Lindex_vals(SEXP IDS,
 
 /* Takes an "extended leaf vector".
    Returns R_NilValue or a "leaf vector". */
-static SEXP subassign_leaf_vector_and_remove_zeros(SEXP xlv,
+static SEXP subassign_leaf_and_remove_zeros(SEXP xlv,
 		SEXP offval_pairs, int *offs_buf)
 {
 	SEXP xlv_offs, xlv_vals, lv, offs, vals, ans;
@@ -585,17 +585,17 @@ static SEXP subassign_leaf_vector_and_remove_zeros(SEXP xlv,
 
 	offs = VECTOR_ELT(offval_pairs, 0);
 	vals = VECTOR_ELT(offval_pairs, 1);
-	ans = PROTECT(_subassign_leaf_vector_with_Rvector(lv, offs, vals));
+	ans = PROTECT(_subassign_leaf_with_Rvector(lv, offs, vals));
 
 	/* We've made sure that 'offs_buf' is big enough (its length is at
 	   least 'max_postsubassign_lv_len'). */
-	ans = _remove_zeros_from_leaf_vector(ans, offs_buf);
+	ans = _remove_zeros_from_leaf(ans, offs_buf);
 	UNPROTECT(2);
 	return ans;
 }
 
 /* Returns R_NilValue or a "leaf vector". */
-static SEXP subassign_extended_leaf_vector_with_IDS_Mindex_vals(SEXP xlv,
+static SEXP subassign_extended_leaf_with_IDS_Mindex_vals(SEXP xlv,
 		SEXP Mindex, SEXP vals, int d1, SortBufs *sort_bufs)
 {
 	SEXP xlv_IDS, offval_pairs, ans;
@@ -605,12 +605,12 @@ static SEXP subassign_extended_leaf_vector_with_IDS_Mindex_vals(SEXP xlv,
 		get_offval_pairs_from_IDS_Mindex_vals(xlv_IDS,
 					Mindex, vals, d1, sort_bufs)
 	);
-	ans = subassign_leaf_vector_and_remove_zeros(xlv,
+	ans = subassign_leaf_and_remove_zeros(xlv,
 			offval_pairs, sort_bufs->offs);
 	UNPROTECT(1);
 	return ans;
 }
-static SEXP subassign_extended_leaf_vector_with_IDS_Lindex_vals(SEXP xlv,
+static SEXP subassign_extended_leaf_with_IDS_Lindex_vals(SEXP xlv,
 		SEXP Lindex, SEXP vals, int d1, SortBufs *sort_bufs)
 {
 	SEXP xlv_IDS, offval_pairs, ans;
@@ -620,7 +620,7 @@ static SEXP subassign_extended_leaf_vector_with_IDS_Lindex_vals(SEXP xlv,
 		get_offval_pairs_from_IDS_Lindex_vals(xlv_IDS,
 					Lindex, vals, d1, sort_bufs)
 	);
-	ans = subassign_leaf_vector_and_remove_zeros(xlv,
+	ans = subassign_leaf_and_remove_zeros(xlv,
 			offval_pairs, sort_bufs->offs);
 	UNPROTECT(1);
 	return ans;
@@ -646,8 +646,7 @@ static SEXP REC_absorb_vals_dispatched_by_Mindex(SEXP SVT,
 				get_offval_pairs_from_IDS_Mindex_vals(SVT,
 					Mindex, vals, dim[0], sort_bufs)
 			);
-			ans = _remove_zeros_from_leaf_vector(ans,
-							     sort_bufs->offs);
+			ans = _remove_zeros_from_leaf(ans, sort_bufs->offs);
 			UNPROTECT(1);
 			return ans;
 		}
@@ -659,7 +658,7 @@ static SEXP REC_absorb_vals_dispatched_by_Mindex(SEXP SVT,
 		if (SVT_len == 3) {
 			/* 'SVT' is an "extended leaf vector". */
 			return
-			  subassign_extended_leaf_vector_with_IDS_Mindex_vals(
+			  subassign_extended_leaf_with_IDS_Mindex_vals(
 					SVT, Mindex, vals, dim[0], sort_bufs);
 		}
 		error("SparseArray internal error in "
@@ -708,8 +707,7 @@ static SEXP REC_absorb_vals_dispatched_by_Lindex(SEXP SVT,
 					Lindex, vals, (int) dimcumprod[0],
 					sort_bufs)
 			);
-			ans = _remove_zeros_from_leaf_vector(ans,
-							     sort_bufs->offs);
+			ans = _remove_zeros_from_leaf(ans, sort_bufs->offs);
 			UNPROTECT(1);
 			return ans;
 		}
@@ -721,7 +719,7 @@ static SEXP REC_absorb_vals_dispatched_by_Lindex(SEXP SVT,
 		if (SVT_len == 3) {
 			/* 'SVT' is an "extended leaf vector". */
 			return
-			  subassign_extended_leaf_vector_with_IDS_Lindex_vals(
+			  subassign_extended_leaf_with_IDS_Lindex_vals(
 					SVT, Lindex, vals, (int) dimcumprod[0],
 					sort_bufs);
 		}
@@ -828,14 +826,14 @@ static SEXP subassign_1D_SVT_by_Lindex(SEXP SVT, int d1,
 	);
 	if (SVT != R_NilValue) {
 		offval_pairs = PROTECT(
-			_subassign_leaf_vector_with_Rvector(SVT,
+			_subassign_leaf_with_Rvector(SVT,
 					VECTOR_ELT(offval_pairs, 0),
 					VECTOR_ELT(offval_pairs, 1))
 		);
 	}
 	/* We've made sure that 'sort_bufs.offs' is big enough (its length
 	   is at least 'worst_len'). */
-	ans = _remove_zeros_from_leaf_vector(offval_pairs, sort_bufs.offs);
+	ans = _remove_zeros_from_leaf(offval_pairs, sort_bufs.offs);
 	UNPROTECT(SVT != R_NilValue ? 2 : 1);
 	return ans;
 }
@@ -1136,12 +1134,11 @@ static SEXP subassign_bottom_leaf_with_short_Rvector(SEXP SVT, int d1,
 		return left_bufs->precomputed_bottom_leaf;
 
 	left_Rvector = left_bufs->Rvector;
-	ret = _expand_leaf_vector(SVT, left_Rvector, 0);
+	ret = _expand_leaf(SVT, left_Rvector, 0);
 	if (ret < 0)
 		error("SparseArray internal error in "
 		      "subassign_bottom_leaf_with_short_Rvector:\n"
-		      "    _expand_leaf_vector() returned "
-		      "an error");
+		      "    _expand_leaf() returned an error");
 
 	short_len = LENGTH(short_Rvector);
 	d2 = LENGTH(index1);
@@ -1458,7 +1455,7 @@ static inline int next_coords0(NindexIterator *Nindex_iter)
 
 /* 'Nindex_iter' declared and initialized with init_NindexIterator()
    in the caller (must be called with 'margin' set to 1). */
-static int subassign_SVT_with_leaf_vector(SEXP SVT, SEXP SVT0,
+static int subassign_SVT_with_leaf(SEXP SVT, SEXP SVT0,
 		NindexIterator *Nindex_iter, SEXP right_lv)
 {
 	int ret, i;

@@ -37,25 +37,26 @@ static int compute_cumsum_dpois(double *cumsum_dpois, double lambda)
 	return -1;
 }
 
-/* Returns a value >= 0 and <= 'cumsum_dpois_len'. */
-static inline int bsearch_cumsum_dpois(double u,
-		const double *cumsum_dpois, int cumsum_dpois_len)
+/* 'ticks' must contain positive values in strictly ascending order.
+   Returns an integer >= 0 and <= 'nticks'. */
+static inline int binary_find_interval(double u,
+		const double *ticks, int nticks)
 {
 	int k1, k2, k;
 	double csdp;
 
-	if (cumsum_dpois_len == 0)
+	if (nticks == 0)
 		return 0;
 
 	/* Compare with 'cumsum_dpois[0]'. */
-	if (u < cumsum_dpois[0])
+	if (u < ticks[0])
 		return 0;
 
 	/* Compare with 'cumsum_dpois[cumsum_dpois_len-1]'. */
-	k2 = cumsum_dpois_len - 1;
-	csdp = cumsum_dpois[k2];
+	k2 = nticks - 1;
+	csdp = ticks[k2];
 	if (u >= csdp)
-		return cumsum_dpois_len;
+		return nticks;
 
 	/* Binary search.
 	   Seems that using >> 1 instead of / 2 is faster, even when compiling
@@ -63,13 +64,28 @@ static inline int bsearch_cumsum_dpois(double u,
 	   kind of optimization). */
 	k1 = 0;
 	while ((k = (k1 + k2) >> 1) != k1) {
-		csdp = cumsum_dpois[k];
+		csdp = ticks[k];
 		if (u < csdp)
 			k2 = k;
 		else
 			k1 = k;
 	}
 	return k2;
+}
+
+/* A linear search is more efficient than a binary search for our use case
+   (Poisson distribution with small lambda value) so do not try to replace
+   this with a binary search.
+   'ticks' must contain positive values in strictly ascending order.
+   Returns an integer >= 0 and <= 'nticks'. */
+static inline int find_interval(double u, const double *ticks, int nticks)
+{
+	int k;
+
+	for (k = 0; k < nticks; k++)
+		if (u < ticks[k])
+			break;
+	return k;
 }
 
 static int simple_rpois(double lambda)
@@ -87,25 +103,9 @@ static int simple_rpois(double lambda)
 			error("'lambda' too big?");
 		last_lambda = lambda;
 	}
-/*
-	u = 0.0;
-	int k = bsearch_cumsum_dpois(u, cumsum_dpois, cumsum_dpois_len);
-	printf("u = %2.12f --> k = %d\n", u, k);
-	for (int n = 0; n < cumsum_dpois_len; n++) {
-		printf("cumsum_dpois[%d] = %2.12f\n", n, cumsum_dpois[n]);
-		u = cumsum_dpois[n] - 0.001;
-		k = bsearch_cumsum_dpois(u, cumsum_dpois, cumsum_dpois_len);
-		printf("u = %2.12f --> k = %d\n", u, k);
-		u = cumsum_dpois[n];
-		k = bsearch_cumsum_dpois(u, cumsum_dpois, cumsum_dpois_len);
-		printf("u = %2.12f --> k = %d\n", u, k);
-		u = cumsum_dpois[n] + 0.001;
-		k = bsearch_cumsum_dpois(u, cumsum_dpois, cumsum_dpois_len);
-		printf("u = %2.12f --> k = %d\n", u, k);
-	}
-*/
 	u = unif_rand();
-	return bsearch_cumsum_dpois(u, cumsum_dpois, cumsum_dpois_len);
+	//return binary_find_interval(u, cumsum_dpois, cumsum_dpois_len);
+	return find_interval(u, cumsum_dpois, cumsum_dpois_len);
 }
 
 /* --- .Call ENTRY POINT --- */
@@ -142,8 +142,8 @@ SEXP C_simple_rpois(SEXP n, SEXP lambda)
  */
 
 /* Returns R_NilValue or a "leaf vector". */
-static SEXP build_poisson_leaf_vector(int d1, double lambda,
-				      int *offs_buf, int *vals_buf)
+static SEXP build_poisson_leaf(int d1, double lambda,
+			       int *offs_buf, int *vals_buf)
 {
 	int ans_len, i, val;
 	SEXP ans_offs, ans_vals, ans;
@@ -178,8 +178,8 @@ static SEXP REC_build_poisson_SVT(const int *dim, int ndim, double lambda,
 	SEXP ans, ans_elt;
 
 	if (ndim == 1)
-		return build_poisson_leaf_vector(dim[0], lambda,
-						 offs_buf, vals_buf);
+		return build_poisson_leaf(dim[0], lambda,
+					  offs_buf, vals_buf);
 
 	SVT_len = dim[ndim - 1];  /* cannot be 0 */
 	ans = PROTECT(NEW_LIST(SVT_len));

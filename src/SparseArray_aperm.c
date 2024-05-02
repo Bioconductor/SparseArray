@@ -264,7 +264,7 @@ static SEXP transpose_2D_SVT(SEXP SVT, int nrow, int ncol, SEXPTYPE Rtype,
 	for (i = 0; i < nrow; i++) {
 		lv_len = nzcount_buf[i];
 		if (lv_len != 0) {
-			ans_elt = PROTECT(_alloc_leaf_vector(lv_len, Rtype));
+			ans_elt = PROTECT(_alloc_leaf(lv_len, Rtype));
 			SET_VECTOR_ELT(ans, i, ans_elt);
 			UNPROTECT(1);
 			quick_out_offs_p[i] = INTEGER(VECTOR_ELT(ans_elt, 0));

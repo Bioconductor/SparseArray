@@ -51,6 +51,7 @@ randomSparseMatrix <- function(nrow=1L, ncol=1L, density=0.05)
 
 ### Like stats::rpois() but slightly faster and implementation is much
 ### simpler. Only for 0 <= 'lambda' <= 4.
+### NOT exported.
 simple_rpois <- function(n, lambda)
     SparseArray.Call("C_simple_rpois", n, lambda)
 
