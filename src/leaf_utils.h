@@ -7,17 +7,20 @@
 
 #include <limits.h>  /* for INT_MAX */
 
-/* A "leaf vector" is a vector of offset/value pairs sorted by strictly
-   ascending offset. It is represented by a list of 2 parallel vectors:
-   an integer vector of offsets (i.e. 0-based positions) and a vector
-   (atomic or list) of values that are typically but not necessarily nonzeros.
-   The length of a "leaf vector" is the number of offset/value pairs in it.
-
-   IMPORTANT: Empty leaf vectors are ILLEGAL! A "leaf vector" should **never**
-   be empty i.e. it must **always** contain at least one offset/value pair.
-   That's because you should always use a R_NilValue if you need to represent
-   an empty "leaf vector". Furthermore, the length of a "leaf vector" is
-   **always** >= 1 and <= INT_MAX. */
+/* SVT leaves
+   ----------
+   The leaves of a Sparse Vector Tree (SVT) represent sparse vectors along
+   the first dimension (a.k.a. innermost or fastest moving dimension) of the
+   sparse array. They contain a collection of offset/value pairs sorted by
+   strictly ascending offset.
+   A leaf is represented by an R_NilValue if it's empty, or by a list of 2
+   parallel dense vectors:
+     - nzoffs: an integer vector of offsets (i.e. 0-based positions);
+     - nzvals: a vector (atomic or list) of nonzero values (zeroes are
+               not allowed).
+   The common length of 'nzoffs' and 'nzvals' is called the "nonzero count"
+   (nzcount) and is guaranteed to be >= 1. Also we don't support "long leaves"
+   so 'nzcount' must always be <= INT_MAX. */
 
 static inline SEXP zip_leaf(SEXP nzoffs, SEXP nzvals)
 {
@@ -69,14 +72,7 @@ static inline SparseVec leaf2SV(SEXP leaf, int len)
 	return make_SparseVec(nzvals, INTEGER(nzoffs), len);
 }
 
-typedef struct apply_2double_funs_t {
-	double (*Rbyte2double_FUN)(Rbyte);
-	double (*int2double_FUN)(int);
-	double (*double2double_FUN)(double);
-	double (*Rcomplex2double_FUN)(Rcomplex);
-} apply_2double_FUNS;
-
-SEXP _alloc_leaf_vector(
+SEXP _alloc_leaf(
 	int lv_len,
 	SEXPTYPE Rtype
 );
@@ -103,35 +99,28 @@ SEXP _make_leaf_from_Rsubvec(
 	int avoid_copy_if_all_nonzeros
 );
 
-int _expand_leaf_vector(
+int _expand_leaf(
 	SEXP lv,
 	SEXP out_Rvector,
 	R_xlen_t out_offset
 );
 
-SEXP _remove_zeros_from_leaf_vector(
+SEXP _remove_zeros_from_leaf(
 	SEXP lv,
 	int *offs_buf
 );
 
-SEXP _coerce_leaf_vector(
+SEXP _coerce_leaf(
 	SEXP lv,
 	SEXPTYPE new_Rtype,
 	int *warn,
 	int *offs_buf
 );
 
-SEXP _subassign_leaf_vector_with_Rvector(
+SEXP _subassign_leaf_with_Rvector(
 	SEXP lv,
 	SEXP index,
 	SEXP Rvector
-);
-
-SEXP _leaf_apply_to_REALSXP(
-	SEXP leaf,
-	apply_2double_FUNS *funs,
-	int *nzoffs_buf,
-	double *nzvals_buf
 );
 
 #endif  /* _LEAF_UTILS_H_ */

@@ -23,14 +23,14 @@ static inline SEXP get_leaf_nzvals(SEXP leaf)
 	      "    invalid tree leaf");
 }
 
-static void summarize_leaf(SEXP leaf, int d,
+static void summarize_leaf(SEXP leaf, int dim0,
 		const SummarizeOp *summarize_op, SummarizeResult *res)
 {
 	SEXP nzvals = get_leaf_nzvals(leaf);
 	int nzcount = LENGTH(nzvals);
-        /* We add 'd - nzcount' instead of 'd' because _summarize_Rvector()
-           will add 'nzcount'. */
-	res->in_length += d - nzcount;
+        /* We add 'dim0 - nzcount' rather than 'dim0' because
+	   _summarize_Rvector()  will add 'nzcount'. */
+	res->in_length += dim0 - nzcount;
 	res->in_nzcount += nzcount; /* assuming 'nzvals' contains no zeros! */
         _summarize_Rvector(nzvals, summarize_op, res);
         return;

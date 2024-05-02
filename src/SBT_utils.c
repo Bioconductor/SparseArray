@@ -207,7 +207,7 @@ static copy_vals_FUNType _select_copy_vals_FUN(SEXPTYPE Rtype)
 }
 
 /* 'buf' can NOT be empty! Returns a "leaf vector". */
-static SEXP make_leaf_vector_from_SparseBuf(SEXPTYPE Rtype,
+static SEXP make_leaf_from_SparseBuf(SEXPTYPE Rtype,
 		const SparseBuf *buf, copy_vals_FUNType copy_vals_FUN)
 {
 	int ans_len;
@@ -309,8 +309,8 @@ static inline int push_SEXP_to_leaf_buffer
 /* Returns a "leaf vector". */
 static SEXP lb2lv(SEXP lb, SEXPTYPE Rtype, copy_vals_FUNType copy_vals_FUN)
 {
-	return make_leaf_vector_from_SparseBuf(Rtype, R_ExternalPtrAddr(lb),
-					       copy_vals_FUN);
+	return make_leaf_from_SparseBuf(Rtype, R_ExternalPtrAddr(lb),
+					copy_vals_FUN);
 }
 
 

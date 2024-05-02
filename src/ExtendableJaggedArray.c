@@ -93,7 +93,7 @@ void _add_ExtendableJaggedArray_elt(ExtendableJaggedArray *x,
 	return;
 }
 
-static SEXP make_leaf_vector(const int *offs, const int *vals, int lv_len)
+static SEXP make_leaf(const int *offs, const int *vals, int lv_len)
 {
 	SEXP ans_offs, ans_vals, ans;
 
@@ -128,7 +128,7 @@ SEXP _move_ExtendableJaggedArrays_to_SVT(ExtendableJaggedArray *offss,
 		if (lv_len != 0) {
 			offs = offss->_cols[i];
 			vals = valss->_cols[i];
-			ans_elt = make_leaf_vector(offs, vals, lv_len);
+			ans_elt = make_leaf(offs, vals, lv_len);
 			PROTECT(ans_elt);
 			SET_VECTOR_ELT(ans, i, ans_elt);
 			UNPROTECT(1);

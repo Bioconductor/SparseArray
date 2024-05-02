@@ -7,13 +7,6 @@ SEXP C_Math_SVT(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT,
-	SEXP op
-);
-
-SEXP C_Math2_SVT(
-	SEXP x_dim,
-	SEXP x_type,
-	SEXP x_SVT,
 	SEXP op,
 	SEXP digits
 );

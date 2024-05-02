@@ -122,7 +122,7 @@ static inline int map_i2_to_k2_with_bsearch(int i2,
 	return -1;
 }
 
-static SEXP subset_leaf_vector(SEXP lv, SEXP idx, int i2max,
+static SEXP subset_leaf(SEXP lv, SEXP idx, int i2max,
 		int *i1_buf, int *k2_buf, int *lookup_table)
 {
 	int idx_len, lv_len, ans_len, i1, i2, k2;
@@ -178,8 +178,8 @@ static SEXP REC_subset_SVT(SEXP SVT, SEXP index,
 
 	if (ndim == 1) {
 		/* 'SVT' is a "leaf vector". */
-		return subset_leaf_vector(SVT, idx, x_dim[ndim - 1],
-					  i1_buf, k2_buf, lookup_table);
+		return subset_leaf(SVT, idx, x_dim[ndim - 1],
+				   i1_buf, k2_buf, lookup_table);
 	}
 
 	/* 'SVT' is a regular node (list). */

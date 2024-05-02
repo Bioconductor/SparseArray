@@ -176,8 +176,7 @@ static void load_csv_rowname(const char *data, int data_len,
 
 /* 'offs_buf' and 'vals_buf' are **asumed** to have the same length and this
    length is **assumed** to be != 0. This is NOT checked! */
-static SEXP make_leaf_vector_from_AEbufs(const IntAE *offs_buf,
-					 const IntAE *vals_buf)
+static SEXP make_leaf_from_AEbufs(const IntAE *offs_buf, const IntAE *vals_buf)
 {
 	SEXP ans_offs, ans_vals, ans;
 
@@ -188,7 +187,7 @@ static SEXP make_leaf_vector_from_AEbufs(const IntAE *offs_buf,
 	return ans;
 }
 
-static void store_AEbufs_in_env_as_leaf_vector(
+static void store_AEbufs_in_env_as_leaf(
 		const IntAE *offs_buf, const IntAE *vals_buf,
 		int idx0, SEXP env)
 {
@@ -198,7 +197,7 @@ static void store_AEbufs_in_env_as_leaf_vector(
 	lv_len = IntAE_get_nelt(offs_buf);
 	if (lv_len == 0)
 		return;
-	lv = PROTECT(make_leaf_vector_from_AEbufs(offs_buf, vals_buf));
+	lv = PROTECT(make_leaf_from_AEbufs(offs_buf, vals_buf));
 	set_env_elt(env, idx0, lv);
 	UNPROTECT(1);
 	return;
@@ -342,7 +341,7 @@ static const char *read_sparse_csv(
 			load_csv_row_to_AEbufs(buf, sep,
 					       csv_rownames_buf,
 					       offs_buf, vals_buf);
-			store_AEbufs_in_env_as_leaf_vector(
+			store_AEbufs_in_env_as_leaf(
 					       offs_buf, vals_buf,
 					       row_idx0, tmpenv);
 		} else {

@@ -53,7 +53,7 @@ static int REC_set_SVT_type(SEXP SVT, const int *dim, int ndim,
 
 	if (ndim == 1) {
 		/* 'SVT' is a "leaf vector". */
-		new_lv = _coerce_leaf_vector(SVT, new_Rtype, warn, offs_buf);
+		new_lv = _coerce_leaf(SVT, new_Rtype, warn, offs_buf);
 		if (new_lv == R_NilValue)
 			return 1;
 		PROTECT(new_lv);
@@ -434,7 +434,7 @@ static int REC_dump_SVT_to_Rsubarray(SEXP SVT,
 
 	if (ndim == 1) {
 		/* 'SVT' is a "leaf vector". */
-		return _expand_leaf_vector(SVT, Rarray, arr_offset);
+		return _expand_leaf(SVT, Rarray, arr_offset);
 	}
 
 	/* 'SVT' is a regular node (list). */
@@ -508,7 +508,7 @@ static SEXP REC_build_SVT_from_Rsubarray(
 		if (ans_Rtype == TYPEOF(Rarray) || ans == R_NilValue)
 			return ans;
 		PROTECT(ans);
-		ans = _coerce_leaf_vector(ans, ans_Rtype, warn, offs_buf);
+		ans = _coerce_leaf(ans, ans_Rtype, warn, offs_buf);
 		UNPROTECT(1);
 		return ans;
 	}
@@ -707,11 +707,11 @@ SEXP C_from_SVT_SparseMatrix_to_CsparseMatrix(SEXP x_dim,
        # [1] 13 21 22 25
 
    We want to make sure that these zeros don't end up in the "leaf vector"
-   returned by build_leaf_vector_from_CsparseMatrix_col(). Unfortunately,
+   returned by build_leaf_from_CsparseMatrix_col(). Unfortunately,
    this introduces an additional cost to coercion from [d|l]gCMatrix to
    SVT_SparseMatrix. This cost is a slowdown that is (approx.) between 1.3x
    and 1.5x. */
-static SEXP build_leaf_vector_from_CsparseMatrix_col(SEXP x_i, SEXP x_x,
+static SEXP build_leaf_from_CsparseMatrix_col(SEXP x_i, SEXP x_x,
 		int offset, int nzcount,
 		SEXPTYPE ans_Rtype, int *warn, int *offs_buf)
 {
@@ -729,7 +729,7 @@ static SEXP build_leaf_vector_from_CsparseMatrix_col(SEXP x_i, SEXP x_x,
 	_copy_selected_ints(INTEGER(x_i) + offset, INTEGER(ans_offs), ans_len,
 			    INTEGER(ans_offs));
 	if (ans_Rtype != TYPEOF(x_x))
-		ans = _coerce_leaf_vector(ans, ans_Rtype, warn, offs_buf);
+		ans = _coerce_leaf(ans, ans_Rtype, warn, offs_buf);
 	UNPROTECT(1);
 	return ans;
 }
@@ -764,7 +764,7 @@ SEXP C_build_SVT_from_CsparseMatrix(SEXP x, SEXP ans_type)
 		offset = INTEGER(x_p)[j];
 		nzcount = INTEGER(x_p)[j + 1] - offset;
 		if (nzcount != 0) {
-			ans_elt = build_leaf_vector_from_CsparseMatrix_col(
+			ans_elt = build_leaf_from_CsparseMatrix_col(
 						x_i, x_x,
 						offset, nzcount,
 						ans_Rtype, &warn, offs_buf);

@@ -8,7 +8,7 @@
 #include "SparseVec_Arith.h"
 #include "SparseVec_Compare.h"
 #include "SparseVec_Logic.h"
-#include "leaf_utils.h"             /* for _make_leaf_from_bufs() */
+#include "leaf_utils.h"
 #include "SVT_SparseArray_class.h"  /* for _coerce_SVT() */
 
 #include <string.h>  /* for memcmp() */
@@ -430,12 +430,11 @@ SEXP C_Arith_SVT1_v2(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP v2,
 				     INTEGER(x_dim), LENGTH(x_dim),
 				     ans_Rtype,
 				     nzoffs_buf, nzvals_buf, &ovflow);
-	if (ans != R_NilValue)
+	if (ovflow) {
 		PROTECT(ans);
-	if (ovflow)
 		warning("NAs produced by integer overflow");
-	if (ans != R_NilValue)
 		UNPROTECT(1);
+	}
 	return ans;
 }
 

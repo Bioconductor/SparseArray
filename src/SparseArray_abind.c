@@ -128,7 +128,7 @@ static SEXP concatenate_SVTs(SEXP *SVTs, int nb_objects,
 /* Each SVT is expected to be either NULL or a "leaf vector".
    They should never be all NULLs.
    'sum_dims_along' is used for a sanity check only so is not strictly needed */
-static SEXP concatenate_leaf_vectors(SEXP *SVTs, int nb_objects,
+static SEXP concatenate_leaves(SEXP *SVTs, int nb_objects,
 		const int *dims_along, int sum_dims_along,
 		SEXPTYPE ans_Rtype,
 		CopyRVectorElts_FUNType copy_Rvector_elts_FUN)
@@ -166,11 +166,11 @@ static SEXP concatenate_leaf_vectors(SEXP *SVTs, int nb_objects,
 	/* Sanity checks (should never fail). */
 	if (k1 != ans_len)
 		error("SparseArray internal error in "
-		      "concatenate_leaf_vectors():\n"
+		      "concatenate_leaves():\n"
 		      "    k1 != ans_len");
 	if (offset != sum_dims_along)
 		error("SparseArray internal error in "
-		      "concatenate_leaf_vectors():\n"
+		      "concatenate_leaves():\n"
 		      "    offset != sum_dims_along");
 	return ans;
 }
@@ -192,7 +192,7 @@ static SEXP REC_abind_SVTs(SEXP *SVTs, int nb_objects,
 	if (ndim == 1) {
 		/* This is the case where we are binding SVT_SparseArray
 		   objects along their first dimension. */
-		return concatenate_leaf_vectors(SVTs, nb_objects,
+		return concatenate_leaves(SVTs, nb_objects,
 					dims_along, ans_dim[along0],
 					ans_Rtype,
 					copy_Rvector_elts_FUN);

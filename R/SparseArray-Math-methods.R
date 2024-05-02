@@ -37,15 +37,11 @@
 .Math_SVT <- function(op, x)
 {
     stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
-
     .check_Math_op(op)
-
     if (type(x) != "double")
         stop(wmsg("the ", op, "() method for SVT_SparseArray objects ",
                   "only supports input of type \"double\" at the moment"))
-
-    ans_SVT <- SparseArray.Call("C_Math_SVT", x@dim, x@type, x@SVT, op)
-
+    ans_SVT <- SparseArray.Call("C_Math_SVT", x@dim, x@type, x@SVT, op, 0.0)
     new_SVT_SparseArray(x@dim, x@dimnames, "double", ans_SVT, check=FALSE)
 }
 
@@ -62,14 +58,11 @@ setMethod("Math", "SVT_SparseArray", function(x) .Math_SVT(.Generic, x))
     if (type(x) != "double")
         stop(wmsg("the ", op, "() method for SVT_SparseArray objects ",
                   "only supports input of type \"double\""))
-
     if (!isSingleNumber(digits))
         stop(wmsg("'digits' must be a single number"))
     if (!is.double(digits))
         digits <- as.double(digits)
-
-    ans_SVT <- SparseArray.Call("C_Math2_SVT", x@dim, x@type, x@SVT, op, digits)
-
+    ans_SVT <- SparseArray.Call("C_Math_SVT", x@dim, x@type, x@SVT, op, digits)
     new_SVT_SparseArray(x@dim, x@dimnames, "double", ans_SVT, check=FALSE)
 }
 
