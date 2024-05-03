@@ -141,7 +141,6 @@ SEXP C_simple_rpois(SEXP n, SEXP lambda)
  * C_poissonSparseArray()
  */
 
-/* Returns R_NilValue or a "leaf vector". */
 static SEXP build_poisson_leaf(int d1, double lambda,
 			       int *offs_buf, int *vals_buf)
 {

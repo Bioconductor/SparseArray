@@ -390,9 +390,8 @@ static void crossprod2_doublemat_doubleSV(
 	return;
 }
 
-/* Cross-product between 'SVT1' (on the left) and a dense matrix
-   of doubles (on the right).
-   'SVT1' must contain leaf vectors of type "double". */
+/* Cross-product between 'SVT1' (on the left) and a dense matrix of doubles
+   (on the right). 'SVT1' must contain leaves of type "double". */
 static void crossprod2_SVT_mat_double(SEXP SVT1, const double *mat2,
 		int tr_mat2, int in_nrow,
 		double *out, int out_nrow, int out_ncol)
@@ -441,9 +440,8 @@ static void crossprod2_SVT_mat_double(SEXP SVT1, const double *mat2,
 	return;
 }
 
-/* Cross-product between a dense matrix of doubles (on the left)
-   and 'SVT2' (on the right).
-   'SVT2' must contain leaf vectors of type "double". */
+/* Cross-product between a dense matrix of doubles (on the left) and 'SVT2'
+   (on the right). 'SVT2' must contain leaves of type "double". */
 static void crossprod2_mat_SVT_double(const double *mat1, SEXP SVT2,
 		int tr_mat1, int in_nrow,
 		double *out, int out_nrow, int out_ncol)
@@ -490,9 +488,8 @@ static void crossprod2_mat_SVT_double(const double *mat1, SEXP SVT2,
 	return;
 }
 
-/* Cross-product between 'SVT1' (on the left) and a dense matrix
-   of ints (on the right).
-   'SVT1' must contain leaf vectors of type "integer". */
+/* Cross-product between 'SVT1' (on the left) and a dense matrix of ints
+   (on the right). 'SVT1' must contain leaves of type "integer". */
 static void crossprod2_SVT_mat_int(SEXP SVT1, const int *mat2,
 		int tr_mat2, int in_nrow,
 		double *out, int out_nrow, int out_ncol)
@@ -526,9 +523,8 @@ static void crossprod2_SVT_mat_int(SEXP SVT1, const int *mat2,
 	return;
 }
 
-/* Cross-product between a dense matrix of ints (on the left)
-   and 'SVT2' (on the right).
-   'SVT2' must contain leaf vectors of type "integer". */
+/* Cross-product between a dense matrix of ints (on the left) and 'SVT2'
+   (on the right). 'SVT2' must contain leaves of type "integer". */
 static void crossprod2_mat_SVT_int(const int *mat1, SEXP SVT2,
 		int tr_mat1, int in_nrow,
 		double *out, int out_nrow, int out_ncol)
@@ -603,9 +599,8 @@ static void crossprod2_SVT_mat0_double(SEXP SVT1, int in_nrow,
 	return;
 }
 
-/* Cross-product between a fictive matrix of zeros (on the left)
-   and 'SVT2' (on the right).
-   'SVT2' must contain leaf vectors of type "integer". */
+/* Cross-product between a fictive matrix of zeros (on the left) and 'SVT2'
+   (on the right). 'SVT2' must contain leaves of type "integer". */
 static void crossprod2_mat0_SVT_int(SEXP SVT2, int in_nrow,
 		double *out, int out_nrow, int out_ncol)
 {
@@ -623,9 +618,8 @@ static void crossprod2_mat0_SVT_int(SEXP SVT2, int in_nrow,
 	return;
 }
 
-/* Cross-product between 'SVT1' (on the left) and a fictive matrix
-   of zeros (on the right).
-   'SVT1' must contain leaf vectors of type "integer". */
+/* Cross-product between 'SVT1' (on the left) and a fictive matrix of zeros
+   (on the right). 'SVT1' must contain leaves of type "integer". */
 static void crossprod2_SVT_mat0_int(SEXP SVT1, int in_nrow,
 		double *out, int out_nrow, int out_ncol)
 {

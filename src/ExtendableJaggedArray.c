@@ -93,54 +93,49 @@ void _add_ExtendableJaggedArray_elt(ExtendableJaggedArray *x,
 	return;
 }
 
-static SEXP make_leaf(const int *offs, const int *vals, int lv_len)
+static SEXP make_leaf(const int *nzoffs, const int *nzvals, int nzcount)
 {
-	SEXP ans_offs, ans_vals, ans;
-
-	ans_offs = PROTECT(NEW_INTEGER(lv_len));
-	memcpy(INTEGER(ans_offs), offs, sizeof(int) * lv_len);
-	ans_vals = PROTECT(NEW_INTEGER(lv_len));
-	memcpy(INTEGER(ans_vals), vals, sizeof(int) * lv_len);
-	ans = zip_leaf(ans_offs, ans_vals);  // unprotected!
-	UNPROTECT(2);
+	SEXP ans_nzoffs, ans_nzvals;
+	SEXP ans = PROTECT(_alloc_and_unzip_leaf(INTSXP, nzcount,
+						 &ans_nzoffs, &ans_nzvals));
+	memcpy(INTEGER(ans_nzoffs), nzoffs, sizeof(int) * nzcount);
+	memcpy(INTEGER(ans_nzvals), nzvals, sizeof(int) * nzcount);
+	UNPROTECT(1);
 	return ans;
 }
 
-/* 'offss' and 'valss' are **asumed** to have the same shape but we don't
-   check this!
-   The function frees the columns in 'offss' and 'valss' as it walks over
-   them and copies their content to the SVT. Note that it's still the
+/* 'nzoffss' and 'nzvalss' are **asumed** to have the same shape but we
+   don't check this!
+   The function frees the columns in 'nzoffss' and 'nzvalss' as it walks
+   over them and copies their content to the SVT. Note that it's still the
    responsibility of the caller to call _free_ExtendableJaggedArray() on
-   'offss' and 'valss' on return. */
-SEXP _move_ExtendableJaggedArrays_to_SVT(ExtendableJaggedArray *offss,
-					 ExtendableJaggedArray *valss)
+   'nzoffss' and 'nzvalss' on return. */
+SEXP _move_ExtendableJaggedArrays_to_SVT(ExtendableJaggedArray *nzoffss,
+					 ExtendableJaggedArray *nzvalss)
 {
-	int SVT_len, is_empty, i, lv_len;
-	SEXP ans, ans_elt;
-	int *offs, *vals;
-
-	SVT_len = offss->_ncol;
-	ans = PROTECT(NEW_LIST(SVT_len));
-	is_empty = 1;
-	for (i = 0; i < SVT_len; i++) {
-		lv_len = offss->_nelts[i];  // assumed to be the same
-					    // as 'valss->_nelts[i]'
-		if (lv_len != 0) {
-			offs = offss->_cols[i];
-			vals = valss->_cols[i];
-			ans_elt = make_leaf(offs, vals, lv_len);
-			PROTECT(ans_elt);
+	int SVT_len = nzoffss->_ncol;
+	SEXP ans = PROTECT(NEW_LIST(SVT_len));
+	int is_empty = 1;
+	for (int i = 0; i < SVT_len; i++) {
+		int nzcount = nzoffss->_nelts[i];  // assumed to be the same
+						   // as 'nzvalss->_nelts[i]'
+		int *nzoffs, *nzvals;
+		if (nzcount != 0) {
+			nzoffs = nzoffss->_cols[i];
+			nzvals = nzvalss->_cols[i];
+			SEXP ans_elt =
+				PROTECT(make_leaf(nzoffs, nzvals, nzcount));
 			SET_VECTOR_ELT(ans, i, ans_elt);
 			UNPROTECT(1);
 			is_empty = 0;
 		}
-		if (offss->_buflengths[i] != 0) {
-			free(offs);
-			offss->_buflengths[i] = offss->_nelts[i] = 0;
+		if (nzoffss->_buflengths[i] != 0) {
+			free(nzoffs);
+			nzoffss->_buflengths[i] = nzoffss->_nelts[i] = 0;
 		}
-		if (valss->_buflengths[i] != 0) {
-			free(vals);
-			valss->_buflengths[i] = valss->_nelts[i] = 0;
+		if (nzvalss->_buflengths[i] != 0) {
+			free(nzvals);
+			nzvalss->_buflengths[i] = nzvalss->_nelts[i] = 0;
 		}
 	}
 	UNPROTECT(1);

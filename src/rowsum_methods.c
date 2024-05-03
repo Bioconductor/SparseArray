@@ -74,18 +74,16 @@ static void compute_rowsum_ints(const int *vals, const int *offs, int n,
 static void rowsum_SVT_double(int x_nrow, int x_ncol, SEXP x_SVT,
 		const int *groups, int ngroup, int narm, double *out)
 {
-	int j, lv_len;
-	SEXP subSVT, lv_offs, lv_vals;
-
 	if (x_SVT == R_NilValue)
 		return;
-	for (j = 0; j < x_ncol; j++, out += ngroup) {
-		subSVT = VECTOR_ELT(x_SVT, j);
+	for (int j = 0; j < x_ncol; j++, out += ngroup) {
+		SEXP subSVT = VECTOR_ELT(x_SVT, j);
 		if (subSVT == R_NilValue)
 			continue;
-		lv_len = unzip_leaf(subSVT, &lv_offs, &lv_vals);
+		SEXP nzoffs, nzvals;
+		int nzcount = unzip_leaf(subSVT, &nzoffs, &nzvals);
 		compute_rowsum_doubles(
-			REAL(lv_vals), INTEGER(lv_offs), lv_len,
+			REAL(nzvals), INTEGER(nzoffs), nzcount,
 			groups, out, ngroup, narm);
 	}
 	return;
@@ -94,19 +92,17 @@ static void rowsum_SVT_double(int x_nrow, int x_ncol, SEXP x_SVT,
 static void rowsum_SVT_int(int x_nrow, int x_ncol, SEXP x_SVT,
 		const int *groups, int ngroup, int narm, int *out)
 {
-	int j, lv_len;
-	SEXP subSVT, lv_offs, lv_vals;
-
 	if (x_SVT == R_NilValue)
 		return;
 	reset_ovflow_flag();
-	for (j = 0; j < x_ncol; j++, out += ngroup) {
-		subSVT = VECTOR_ELT(x_SVT, j);
+	for (int j = 0; j < x_ncol; j++, out += ngroup) {
+		SEXP subSVT = VECTOR_ELT(x_SVT, j);
 		if (subSVT == R_NilValue)
 			continue;
-		lv_len = unzip_leaf(subSVT, &lv_offs, &lv_vals);
+		SEXP nzoffs, nzvals;
+		int nzcount = unzip_leaf(subSVT, &nzoffs, &nzvals);
 		compute_rowsum_ints(
-			INTEGER(lv_vals), INTEGER(lv_offs), lv_len,
+			INTEGER(nzvals), INTEGER(nzoffs), nzcount,
 			groups, out, ngroup, narm);
 	}
 	if (get_ovflow_flag())
