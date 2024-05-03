@@ -206,7 +206,7 @@ static copy_vals_FUNType _select_copy_vals_FUN(SEXPTYPE Rtype)
 	return NULL;  /* will never reach this */
 }
 
-/* 'buf' can NOT be empty! Returns a "leaf vector". */
+/* 'buf' can NOT be empty! */
 static SEXP make_leaf_from_SparseBuf(SEXPTYPE Rtype,
 		const SparseBuf *buf, copy_vals_FUNType copy_vals_FUN)
 {
@@ -306,8 +306,7 @@ static inline int push_Rbyte_to_leaf_buffer
 static inline int push_SEXP_to_leaf_buffer
 	FUNDEF_push_val_to_leaf_buffer(SEXP, SEXPs)
 
-/* Returns a "leaf vector". */
-static SEXP lb2lv(SEXP lb, SEXPTYPE Rtype, copy_vals_FUNType copy_vals_FUN)
+static SEXP lb2leaf(SEXP lb, SEXPTYPE Rtype, copy_vals_FUNType copy_vals_FUN)
 {
 	return make_leaf_from_SparseBuf(Rtype, R_ExternalPtrAddr(lb),
 					copy_vals_FUN);
@@ -383,7 +382,7 @@ static void REC_SBT2SVT(SEXP SBT, const int *dim, int ndim,
 		SEXPTYPE Rtype, copy_vals_FUNType copy_vals_FUN)
 {
 	int SBT_len, i;
-	SEXP subSBT, lv;
+	SEXP subSBT, leaf;
 
 	SBT_len = LENGTH(SBT);
 	for (i = 0; i < SBT_len; i++) {
@@ -396,8 +395,8 @@ static void REC_SBT2SVT(SEXP SBT, const int *dim, int ndim,
 			continue;
 		}
 		/* 'subSBT' is a "leaf buffer". */
-		lv = PROTECT(lb2lv(subSBT, Rtype, copy_vals_FUN));
-		SET_VECTOR_ELT(SBT, i, lv);
+		leaf = PROTECT(lb2leaf(subSBT, Rtype, copy_vals_FUN));
+		SET_VECTOR_ELT(SBT, i, leaf);
 		finalize_int_leaf_buffer(subSBT);
 		UNPROTECT(1);
 	}

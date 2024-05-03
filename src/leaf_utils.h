@@ -20,7 +20,8 @@
                not allowed).
    The common length of 'nzoffs' and 'nzvals' is called the "nonzero count"
    (nzcount) and is guaranteed to be >= 1. Also we don't support "long leaves"
-   so 'nzcount' must always be <= INT_MAX. */
+   so 'nzcount' must always be <= INT_MAX.
+   Note that a leaf represents a 1D SVT. */
 
 static inline SEXP zip_leaf(SEXP nzoffs, SEXP nzvals)
 {
@@ -41,27 +42,70 @@ static inline SEXP zip_leaf(SEXP nzoffs, SEXP nzvals)
 	      "    invalid 'nzoffs' or 'nzvals'");
 }
 
-static inline int unzip_leaf(SEXP leaf, SEXP *nzoffs, SEXP *nzvals)
+static inline SEXP get_leaf_nzvals(SEXP leaf)
 {
-	/* Sanity checks (should never fail). */
 	if (!isVectorList(leaf))  // IS_LIST() is broken
 		goto on_error;
-	if (LENGTH(leaf) != 2)
+	/* A regular leaf is a list of length 2 but we don't test for
+	   LENGTH(leaf) == 2 because we want this to work on an "extended
+	   leaf" which is represented by a list of length 3. See
+	   SparseArray_subassignment.c where "extended leaves" are explained
+	   and used. */
+	if (LENGTH(leaf) < 2)
 		goto on_error;
-	*nzoffs = VECTOR_ELT(leaf, 0);
-	if (!IS_INTEGER(*nzoffs))
-		goto on_error;
-	R_xlen_t nzcount = XLENGTH(*nzoffs);
-	if (nzcount == 0 || nzcount > INT_MAX)
-		goto on_error;
-	*nzvals = VECTOR_ELT(leaf, 1);
-	if (XLENGTH(*nzvals) != nzcount)
-		goto on_error;
-	return (int) nzcount;
+	return VECTOR_ELT(leaf, 1);
 
     on_error:
-	error("SparseArray internal error in unzip_leaf():\n"
+	error("SparseArray internal error in get_leaf_nzvals():\n"
 	      "    invalid SVT leaf");
+}
+
+/* In-place replacement. Supplied 'nzvals' is trusted! */
+static inline void replace_leaf_nzvals(SEXP leaf, SEXP nzvals)
+{
+	SET_VECTOR_ELT(leaf, 1, nzvals);
+}
+
+static inline SEXP get_leaf_nzoffs(SEXP leaf)
+{
+	if (!isVectorList(leaf))  // IS_LIST() is broken
+		goto on_error;
+	if (LENGTH(leaf) < 2)  /* see why we don't do LENGTH(leaf) == 2 above */
+		goto on_error;
+	SEXP nzoffs = VECTOR_ELT(leaf, 0);
+	if (!IS_INTEGER(nzoffs))
+		goto on_error;
+	R_xlen_t nzcount = XLENGTH(nzoffs);
+	if (nzcount == 0 || nzcount > INT_MAX)
+		goto on_error;
+	return nzoffs;
+
+    on_error:
+	error("SparseArray internal error in get_leaf_nzoffs():\n"
+	      "    invalid SVT leaf");
+}
+
+/* In-place replacement. Supplied 'nzoffs' is trusted! */
+static inline void replace_leaf_nzoffs(SEXP leaf, SEXP nzoffs)
+{
+	SET_VECTOR_ELT(leaf, 0, nzoffs);
+}
+
+static inline int get_leaf_nzcount(SEXP leaf)
+{
+	return LENGTH(get_leaf_nzvals(leaf));
+}
+
+static inline int unzip_leaf(SEXP leaf, SEXP *nzoffs, SEXP *nzvals)
+{
+	*nzoffs = get_leaf_nzoffs(leaf);
+	*nzvals = get_leaf_nzvals(leaf);
+	R_xlen_t nzcount = XLENGTH(*nzoffs);
+	if (XLENGTH(*nzvals) != nzcount)
+		error("SparseArray internal error in unzip_leaf():\n"
+		      "    invalid SVT leaf ('nzoffs' and 'nzvals' "
+		      "are not parallel)");
+	return (int) nzcount;
 }
 
 static inline SparseVec leaf2SV(SEXP leaf, int len)
@@ -73,15 +117,15 @@ static inline SparseVec leaf2SV(SEXP leaf, int len)
 }
 
 SEXP _alloc_leaf(
-	int lv_len,
-	SEXPTYPE Rtype
+	SEXPTYPE Rtype,
+	int nzcount
 );
 
 SEXP _alloc_and_unzip_leaf(
-	int lv_len,
 	SEXPTYPE Rtype,
-	SEXP *lv_offs,
-	SEXP *lv_vals
+	int nzcount,
+	SEXP *nzoffs,
+	SEXP *nzvals
 );
 
 SEXP _make_leaf_from_bufs(
@@ -95,30 +139,30 @@ SEXP _make_leaf_from_Rsubvec(
 	SEXP Rvector,
 	R_xlen_t vec_offset,
 	int subvec_len,
-	int *offs_buf,
+	int *nzoffs_buf,
 	int avoid_copy_if_all_nonzeros
 );
 
 int _expand_leaf(
-	SEXP lv,
+	SEXP leaf,
 	SEXP out_Rvector,
 	R_xlen_t out_offset
 );
 
 SEXP _remove_zeros_from_leaf(
-	SEXP lv,
-	int *offs_buf
+	SEXP leaf,
+	int *nzoffs_buf
 );
 
 SEXP _coerce_leaf(
-	SEXP lv,
+	SEXP leaf,
 	SEXPTYPE new_Rtype,
 	int *warn,
-	int *offs_buf
+	int *nzoffs_buf
 );
 
 SEXP _subassign_leaf_with_Rvector(
-	SEXP lv,
+	SEXP leaf,
 	SEXP index,
 	SEXP Rvector
 );

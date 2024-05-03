@@ -188,17 +188,14 @@ static SEXP make_leaf_from_AEbufs(const IntAE *offs_buf, const IntAE *vals_buf)
 }
 
 static void store_AEbufs_in_env_as_leaf(
-		const IntAE *offs_buf, const IntAE *vals_buf,
+		const IntAE *nzoffs_buf, const IntAE *nzvals_buf,
 		int idx0, SEXP env)
 {
-	int lv_len;
-	SEXP lv;
-
-	lv_len = IntAE_get_nelt(offs_buf);
-	if (lv_len == 0)
+	int nzcount = IntAE_get_nelt(nzoffs_buf);
+	if (nzcount == 0)
 		return;
-	lv = PROTECT(make_leaf_from_AEbufs(offs_buf, vals_buf));
-	set_env_elt(env, idx0, lv);
+	SEXP leaf = PROTECT(make_leaf_from_AEbufs(nzoffs_buf, nzvals_buf));
+	set_env_elt(env, idx0, leaf);
 	UNPROTECT(1);
 	return;
 }

@@ -174,7 +174,7 @@ static void REC_unary_minus_SVT(SEXP SVT, const int *dim, int ndim)
 	if (SVT == R_NilValue)
 		return;
 	if (ndim == 1) {
-		/* 'SVT' is a "leaf vector". */
+		/* 'SVT' is a leaf (i.e. 1D SVT). */
 		unary_minus_leaf(SVT, 0);
 		return;
 	}
@@ -193,7 +193,7 @@ static SEXP REC_Arith_SVT1_v2(int opcode, SEXP SVT1, SEXP v2,
 		return R_NilValue;
 
 	if (ndim == 1) {
-		/* 'SVT1' is a "leaf vector". */
+		/* 'SVT1' is a leaf (i.e. 1D SVT). */
 		return Arith_leaf1_scalar(opcode, SVT1, v2, dim[0],
 					  ans_Rtype,
 					  nzoffs_buf, nzvals_buf, ovflow);
@@ -228,7 +228,7 @@ static SEXP REC_Compare_SVT1_v2(int opcode, SEXP SVT1, SEXP v2,
 		return R_NilValue;
 
 	if (ndim == 1) {
-		/* 'SVT1' is a "leaf vector". */
+		/* 'SVT1' is a leaf (i.e. 1D SVT). */
 		return Compare_leaf1_scalar(opcode, SVT1, v2, dim[0],
 				nzoffs_buf, nzvals_buf);
 	}
@@ -319,8 +319,8 @@ static SEXP REC_Compare_SVT1_SVT2(int opcode, SEXP SVT1, SEXP SVT2,
 		return R_NilValue;
 
 	if (ndim == 1) {
-		/* Each of 'SVT1' and 'SVT2' is either a "leaf vector" or NULL,
-		   but they cannot both be NULL. */
+		/* 'SVT1' and 'SVT2' are leaves (i.e. 1D SVTs).
+		   They cannot both be NULL. */
 		return Compare_leaf1_leaf2(opcode, SVT1, SVT2, dim[0],
 					   nzoffs_buf, nzvals_buf);
 	}

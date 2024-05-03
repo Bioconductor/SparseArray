@@ -125,49 +125,48 @@ static SEXP concatenate_SVTs(SEXP *SVTs, int nb_objects,
 	return ans;
 }
 
-/* Each SVT is expected to be either NULL or a "leaf vector".
-   They should never be all NULLs.
+/* The leaves in 'leaves' should never be all NULLs.
    'sum_dims_along' is used for a sanity check only so is not strictly needed */
-static SEXP concatenate_leaves(SEXP *SVTs, int nb_objects,
+static SEXP concatenate_leaves(SEXP *leaves, int nb_objects,
 		const int *dims_along, int sum_dims_along,
 		SEXPTYPE ans_Rtype,
 		CopyRVectorElts_FUNType copy_Rvector_elts_FUN)
 {
-	SEXP SVT, ans, ans_offs, ans_vals, lv_offs, lv_vals;
-	int ans_len, n, k1, offset, lv_len, k2;
-
-	ans_len = 0;
-	for (n = 0; n < nb_objects; n++) {
-		SVT = SVTs[n];
-		if (SVT == R_NilValue)
+	int ans_nzcount = 0;
+	for (int n = 0; n < nb_objects; n++) {
+		SEXP leaf = leaves[n];
+		if (leaf == R_NilValue)
 			continue;
 		/* Sanity check (should never fail). */
-		if (!isVectorList(SVT) || LENGTH(SVT) != 2)
+		if (!isVectorList(leaf) || LENGTH(leaf) != 2)
 			error("input object %d is an invalid SVT_SparseArray",
 			      n + 1);
-		ans_len += LENGTH(VECTOR_ELT(SVT, 0));
+		ans_nzcount += get_leaf_nzcount(leaf);
 	}
 
-	ans_offs = PROTECT(NEW_INTEGER(ans_len));
-	ans_vals = PROTECT(allocVector(ans_Rtype, ans_len));
-	k1 = offset = 0;
-	for (n = 0; n < nb_objects; n++) {
-		if ((SVT = SVTs[n]) != R_NilValue) {
-			lv_len = unzip_leaf(SVT, &lv_offs, &lv_vals);
-			copy_Rvector_elts_FUN(lv_vals, 0, ans_vals, k1, lv_len);
-			for (k2 = 0; k2 < lv_len; k2++, k1++)
-				INTEGER(ans_offs)[k1] = INTEGER(lv_offs)[k2] +
-							offset;
+	SEXP ans_nzoffs, ans_nzvals;
+	SEXP ans = PROTECT(_alloc_and_unzip_leaf(ans_Rtype, ans_nzcount,
+						 &ans_nzoffs, &ans_nzvals));
+	int k1 = 0, offset = 0;
+	for (int n = 0; n < nb_objects; n++) {
+		SEXP leaf = leaves[n];
+		if (leaf != R_NilValue) {
+			SEXP nzoffs, nzvals;
+			int nzcount = unzip_leaf(leaf, &nzoffs, &nzvals);
+			copy_Rvector_elts_FUN(nzvals, 0, ans_nzvals,
+					      k1, nzcount);
+			for (int k2 = 0; k2 < nzcount; k2++, k1++)
+				INTEGER(ans_nzoffs)[k1] = INTEGER(nzoffs)[k2] +
+							  offset;
 		}
 		offset += dims_along[n];
 	}
-	ans = zip_leaf(ans_offs, ans_vals);
-	UNPROTECT(2);
+	UNPROTECT(1);
 	/* Sanity checks (should never fail). */
-	if (k1 != ans_len)
+	if (k1 != ans_nzcount)
 		error("SparseArray internal error in "
 		      "concatenate_leaves():\n"
-		      "    k1 != ans_len");
+		      "    k1 != ans_nzcount");
 	if (offset != sum_dims_along)
 		error("SparseArray internal error in "
 		      "concatenate_leaves():\n"

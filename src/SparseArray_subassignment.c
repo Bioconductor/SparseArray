@@ -38,21 +38,18 @@ static inline R_xlen_t get_Lidx(SEXP Lindex, long long atid_lloff)
  *
  * An "extended leaf" is used to temporarily attach a subset of the incoming
  * data (represented by 'Mindex' and 'vals', or by 'Lindex' and 'vals') to
- * a "bottom leaf" in the SVT. Note that a "bottom leaf" is a leaf located
- * at the deepest possible depth in the SVT, that is, at depth N - 1 where N
- * is the number of dimensions of the sparse array.
- * An "extended leaf" is **either**:
- *   - An Incoming Data Subset (IDS). An IDS is simply a set of offsets
- *     w.r.t. 'Mindex' (or 'Lindex') and 'vals'. These offsets get stored in
- *     an IntAE or LLongAE buffer placed behind an external pointer, and are
- *     referred to as "atid" offsets (offsets along the incoming data).
+ * an SVT leaf. An "extended leaf" is **either**:
+ *   - A standalone Incoming Data Subset (IDS). An IDS is simply a set of
+ *     offsets w.r.t. 'Mindex' (or 'Lindex') and 'vals'. These offsets get
+ *     stored in an IntAE or LLongAE buffer placed behind an external pointer,
+ *     and are referred to as "atid" offsets (offsets along the incoming data).
  *     Note that using an IntAE buffer would be ok for now because we're
  *     not dealing with _long_ incoming data yet. However, this will
  *     change when we start supporting _long_ incoming data e.g. when
  *     C_subassign_SVT_by_Lindex() will get passed a _long_ linear index.
- *   - An "extended leaf vector" i.e. a "leaf vector" with an IDS on it.
- *     This is represented as a list of length 3: the 2 list elements of a
- *     regular "leaf vector" (lv_offs and lv_vals) + an IDS.
+ *   - An regular leaf with an IDS added to it. This is represented by a list
+ *     of length 3: the 2 list elements of a regular leaf (nzoffs and nzvals)
+ *     + the IDS.
  *
  * IMPORTANT NOTE: We don't allow the length of an IDS to be more than INT_MAX
  * at the moment. This is because we use sort_ints() in compute_offs_order()
@@ -63,14 +60,13 @@ static inline R_xlen_t get_Lidx(SEXP Lindex, long long atid_lloff)
  * to be <= INT_MAX. However, this will change when we start supporting
  * _long_ incoming data e.g. when C_subassign_SVT_by_Lindex() is called
  * with a _long_ linear index (Lindex). Then it will be possible that more
- * than INT_MAX incoming values land on the same bottom leaf of the SVT but
- * only in some crazy and rather unlikely situations. More precisely this will
- * be possible only if the supplied Lindex is _long_ and contains duplicates.
- * Like here:
+ * than INT_MAX incoming values land on the same SVT leaf but only in some
+ * crazy and rather unlikely situations. More precisely this will be possible
+ * only if the supplied Lindex is _long_ and contains duplicates. Like here:
  *
  *     svt[sample(nrow(svt), 3e9, replace=TRUE)] <- 2.5
  *
- * where 3e9 incoming values are landing on the bottom leaf associated with
+ * where 3e9 incoming values are landing on the SVT leaf associated with
  * the first column of the sparse matrix! A very atypical situation.
  */
 
@@ -91,63 +87,59 @@ static SEXP new_llIDS(void)
 	return R_MakeExternalPtr(atid_lloffs_buf, R_NilValue, R_NilValue);
 }
 
-static SEXP new_extended_leaf(SEXP lv, NewIDS_FUNType new_IDS_FUN)
+static SEXP new_extended_leaf(SEXP leaf, NewIDS_FUNType new_IDS_FUN)
 {
-	SEXP lv_offs, lv_vals, IDS, ans;
-	int lv_len;
+	SEXP nzoffs, nzvals, IDS, ans;
+	int nzcount;
 
-	lv_len = unzip_leaf(lv, &lv_offs, &lv_vals);
-	if (lv_len < 0)
-		error("SparseArray internal error in "
-		      "new_extended_leaf():\n"
+	nzcount = unzip_leaf(leaf, &nzoffs, &nzvals);
+	if (nzcount < 0)
+		error("SparseArray internal error in new_extended_leaf():\n"
 		      "    unexpected error");
 	IDS = PROTECT(new_IDS_FUN());
 	ans = PROTECT(NEW_LIST(3));
-	SET_VECTOR_ELT(ans, 0, lv_offs);
-	SET_VECTOR_ELT(ans, 1, lv_vals);
+	replace_leaf_nzvals(ans, nzvals);
+	replace_leaf_nzoffs(ans, nzoffs);
 	SET_VECTOR_ELT(ans, 2, IDS);
 	UNPROTECT(2);
 	return ans;
 }
 
-/* As a side effect the function also puts a new IDS on 'bottom_leaf' if
-   it doesn't have one yet. More precisely:
-   - If 'bottom_leaf' is R_NilValue, it gets replaced with an IDS.
-   - If 'bottom_leaf' is a "leaf vector", it gets replaced with an "extended
-     leaf vector". */
-static inline int get_IDS(SEXP bottom_leaf_parent, int i, SEXP bottom_leaf,
-			  NewIDS_FUNType new_IDS_FUN, int *lv_len, SEXP *IDS)
+/* As a side effect the function also puts a new IDS on 'leaf' if it doesn't
+   have one yet. More precisely:
+   - If 'leaf' is R_NilValue, it gets replaced with an IDS.
+   - If 'leaf' is not R_NilValue, it gets replaced with an "extended leaf". */
+static inline int get_IDS(SEXP leaf_parent, int i, SEXP leaf,
+			  NewIDS_FUNType new_IDS_FUN, int *nzcount, SEXP *IDS)
 {
-	if (bottom_leaf == R_NilValue) {
-		*lv_len = 0;
+	if (leaf == R_NilValue) {
+		*nzcount = 0;
 		*IDS = PROTECT(new_IDS_FUN());
-		SET_VECTOR_ELT(bottom_leaf_parent, i, *IDS);
+		SET_VECTOR_ELT(leaf_parent, i, *IDS);
 		UNPROTECT(1);
 		return 0;
 	}
-	if (TYPEOF(bottom_leaf) == EXTPTRSXP) {
-		/* 'bottom_leaf' is an IDS. */
-		*lv_len = 0;
-		*IDS = bottom_leaf;
+	if (TYPEOF(leaf) == EXTPTRSXP) {
+		/* 'leaf' is an IDS. */
+		*nzcount = 0;
+		*IDS = leaf;
 		return 0;
 	}
-	if (!isVectorList(bottom_leaf))  // IS_LIST() is broken
+	if (!isVectorList(leaf))  // IS_LIST() is broken
 		error("SparseArray internal error in get_IDS():\n"
 		      "    unexpected error");
-	/* 'bottom_leaf' is a "leaf vector" or an "extended leaf vector". */
-	if (LENGTH(bottom_leaf) == 2) {
-		/* 'bottom_leaf' is a "leaf vector". */
-		bottom_leaf = PROTECT(
-			new_extended_leaf(bottom_leaf, new_IDS_FUN)
-		);
-		SET_VECTOR_ELT(bottom_leaf_parent, i, bottom_leaf);
+	/* 'leaf' is either a regular leaf or an "extended leaf". */
+	if (LENGTH(leaf) == 2) {
+		/* 'leaf' is a regular leaf. */
+		leaf = PROTECT(new_extended_leaf(leaf, new_IDS_FUN));
+		SET_VECTOR_ELT(leaf_parent, i, leaf);
 		UNPROTECT(1);
-	} else if (LENGTH(bottom_leaf) != 3) {
+	} else if (LENGTH(leaf) != 3) {
 		error("SparseArray internal error in get_IDS():\n"
-		      "    unexpected bottom leaf");
+		      "    invalid extended leaf");
 	}
-	*lv_len = LENGTH(VECTOR_ELT(bottom_leaf, 0));
-	*IDS = VECTOR_ELT(bottom_leaf, 2);
+	*nzcount = get_leaf_nzcount(leaf);
+	*IDS = VECTOR_ELT(leaf, 2);
 	return 0;
 }
 
@@ -234,7 +226,7 @@ static inline SEXP make_SVT_node(SEXP SVT, int d, SEXP SVT0)
 /* Must be called with 'ndim' >= 2. */
 static inline int descend_to_bottom_by_coords0(SEXP SVT, SEXP SVT0,
 		const int *dim, int ndim, const int *coords0,
-		SEXP *bottom_leaf_parent, int *idx, SEXP *bottom_leaf)
+		SEXP *leaf_parent, int *idx, SEXP *leaf)
 {
 	SEXP subSVT0, subSVT;
 	int along, i;
@@ -249,9 +241,9 @@ static inline int descend_to_bottom_by_coords0(SEXP SVT, SEXP SVT0,
 		along--;
 		MOVE_DOWN(SVT, SVT0, i, subSVT, subSVT0, dim[along]);
 	} while (1);
-	*bottom_leaf_parent = SVT;
+	*leaf_parent = SVT;
 	*idx = i;
-	*bottom_leaf = subSVT;
+	*leaf = subSVT;
 	return 0;
 }
 
@@ -259,7 +251,7 @@ static inline int descend_to_bottom_by_coords0(SEXP SVT, SEXP SVT0,
 static inline int descend_to_bottom_by_Mindex_row(SEXP SVT, SEXP SVT0,
 		const int *dim, int ndim,
 		const int *M, R_xlen_t vals_len,
-		SEXP *bottom_leaf_parent, int *idx, SEXP *bottom_leaf)
+		SEXP *leaf_parent, int *idx, SEXP *leaf)
 {
 	SEXP subSVT0, subSVT;
 	const int *m_p;
@@ -281,9 +273,9 @@ static inline int descend_to_bottom_by_Mindex_row(SEXP SVT, SEXP SVT0,
 		along--;
 		MOVE_DOWN(SVT, SVT0, i, subSVT, subSVT0, dim[along]);
 	} while (1);
-	*bottom_leaf_parent = SVT;
+	*leaf_parent = SVT;
 	*idx = i;
-	*bottom_leaf = subSVT;
+	*leaf = subSVT;
 	return 0;
 }
 
@@ -291,7 +283,7 @@ static inline int descend_to_bottom_by_Mindex_row(SEXP SVT, SEXP SVT0,
 static inline int descend_to_bottom_by_Lidx(SEXP SVT, SEXP SVT0,
 		const int *dim, const R_xlen_t *dimcumprod, int ndim,
 		R_xlen_t Lidx,
-		SEXP *bottom_leaf_parent, int *idx, SEXP *bottom_leaf)
+		SEXP *leaf_parent, int *idx, SEXP *leaf)
 {
 	SEXP subSVT0, subSVT;
 	R_xlen_t idx0, p;
@@ -310,9 +302,9 @@ static inline int descend_to_bottom_by_Lidx(SEXP SVT, SEXP SVT0,
 		along--;
 		MOVE_DOWN(SVT, SVT0, i, subSVT, subSVT0, dim[along]);
 	} while (1);
-	*bottom_leaf_parent = SVT;
+	*leaf_parent = SVT;
 	*idx = i;
-	*bottom_leaf = subSVT;
+	*leaf = subSVT;
 	return 0;
 }
 
@@ -321,24 +313,24 @@ static inline int descend_to_bottom_by_Lidx(SEXP SVT, SEXP SVT0,
 	if (IDS_len > *(max_IDS_len))					\
 		*(max_IDS_len) = IDS_len;				\
 }
-#define	UPDATE_MAX_POSTSUBASSIGN_LV_LEN(max_postsubassign_lv_len, d1)	\
+#define	UPDATE_MAX_POSTSUBASSIGN_NZCOUNT(max_postsubassign_nzcount, d1)	\
 {									\
-	size_t worst_len = lv_len + IDS_len;				\
+	size_t worst_len = nzcount + IDS_len;				\
 	if (worst_len > (d1))						\
 		worst_len = (d1);					\
-	if (worst_len > *(max_postsubassign_lv_len))			\
-		*(max_postsubassign_lv_len) = (int) worst_len;		\
+	if (worst_len > *(max_postsubassign_nzcount))			\
+		*(max_postsubassign_nzcount) = (int) worst_len;		\
 }
 
 static int dispatch_vals_by_Mindex(SEXP SVT, SEXP SVT0,
 		const int *dim, int ndim,
 		const int *Mindex, SEXP vals,
-		size_t *max_IDS_len, int *max_postsubassign_lv_len)
+		size_t *max_IDS_len, int *max_postsubassign_nzcount)
 {
 	R_xlen_t vals_len;
 	int atid_off;  /* offset along the incoming data */
-	SEXP bottom_leaf_parent, bottom_leaf, IDS;
-	int i, lv_len, ret;
+	SEXP leaf_parent, leaf, IDS;
+	int i, nzcount, ret;
 	size_t IDS_len;
 
 	vals_len = XLENGTH(vals);
@@ -346,16 +338,16 @@ static int dispatch_vals_by_Mindex(SEXP SVT, SEXP SVT0,
 		ret = descend_to_bottom_by_Mindex_row(SVT, SVT0,
 				dim, ndim,
 				Mindex + atid_off, vals_len,
-				&bottom_leaf_parent, &i, &bottom_leaf);
+				&leaf_parent, &i, &leaf);
 		if (ret < 0)
 			return -1;
-		ret = get_IDS(bottom_leaf_parent, i, bottom_leaf,
-			      new_IDS, &lv_len, &IDS);
+		ret = get_IDS(leaf_parent, i, leaf,
+			      new_IDS, &nzcount, &IDS);
 		if (ret < 0)
 			return -1;
 		IDS_len = append_atid_off_to_IDS(IDS, atid_off);
 		UPDATE_MAX_IDS_LEN(max_IDS_len);
-		UPDATE_MAX_POSTSUBASSIGN_LV_LEN(max_postsubassign_lv_len,
+		UPDATE_MAX_POSTSUBASSIGN_NZCOUNT(max_postsubassign_nzcount,
 						dim[0]);
 	}
 	return 0;
@@ -363,12 +355,12 @@ static int dispatch_vals_by_Mindex(SEXP SVT, SEXP SVT0,
 static int dispatch_vals_by_Lindex(SEXP SVT, SEXP SVT0,
 		const int *dim, const R_xlen_t *dimcumprod, int ndim,
 		SEXP Lindex, SEXP vals,
-		size_t *max_IDS_len, int *max_postsubassign_lv_len)
+		size_t *max_IDS_len, int *max_postsubassign_nzcount)
 {
 	R_xlen_t vals_len, Lidx;
 	long long atid_lloff;  /* offset along the incoming data */
-	SEXP bottom_leaf_parent, bottom_leaf, IDS;
-	int i, lv_len, ret;
+	SEXP leaf_parent, leaf, IDS;
+	int i, nzcount, ret;
 	size_t IDS_len;
 
 	vals_len = XLENGTH(vals);
@@ -378,17 +370,17 @@ static int dispatch_vals_by_Lindex(SEXP SVT, SEXP SVT0,
 			error("'Lindex' contains invalid linear indices");
 		ret = descend_to_bottom_by_Lidx(SVT, SVT0,
 				dim, dimcumprod, ndim, Lidx,
-				&bottom_leaf_parent, &i, &bottom_leaf);
+				&leaf_parent, &i, &leaf);
 		if (ret < 0)
 			return -1;
-		ret = get_IDS(bottom_leaf_parent, i, bottom_leaf,
-			      new_llIDS, &lv_len, &IDS);
+		ret = get_IDS(leaf_parent, i, leaf,
+			      new_llIDS, &nzcount, &IDS);
 		if (ret < 0)
 			return -1;
 		IDS_len = append_atid_lloff_to_IDS(IDS, atid_lloff);
 		UPDATE_MAX_IDS_LEN(max_IDS_len);
-		UPDATE_MAX_POSTSUBASSIGN_LV_LEN(max_postsubassign_lv_len,
-						dim[0]);
+		UPDATE_MAX_POSTSUBASSIGN_NZCOUNT(max_postsubassign_nzcount,
+						 dim[0]);
 	}
 	return 0;
 }
@@ -408,10 +400,10 @@ typedef struct sort_bufs_t {
 } SortBufs;
 
 /* All buffers are made of length 'max_IDS_len' except 'sort_bufs.offs'
-   which we must make of length 'max(max_IDS_len, max_postsubassign_lv_len)'
+   which we must make of length 'max(max_IDS_len, max_postsubassign_nzcount)'
    so that we can use it in the call to _remove_zeros_from_leaf()
    in the subassign_leaf_and_remove_zeros() function below. */
-static SortBufs alloc_sort_bufs(int max_IDS_len, int max_postsubassign_lv_len)
+static SortBufs alloc_sort_bufs(int max_IDS_len, int max_postsubassign_nzcount)
 {
 	SortBufs sort_bufs;
 	int offs_len;
@@ -420,8 +412,8 @@ static SortBufs alloc_sort_bufs(int max_IDS_len, int max_postsubassign_lv_len)
 	sort_bufs.rxbuf1 = (unsigned short int *)
 			R_alloc(max_IDS_len, sizeof(unsigned short int));
 	sort_bufs.rxbuf2 = (int *) R_alloc(max_IDS_len, sizeof(int));
-	offs_len = max_postsubassign_lv_len > max_IDS_len ?
-			max_postsubassign_lv_len : max_IDS_len;
+	offs_len = max_postsubassign_nzcount > max_IDS_len ?
+			max_postsubassign_nzcount : max_IDS_len;
 	sort_bufs.offs = (int *) R_alloc(offs_len, sizeof(int));
 	return sort_bufs;
 }
@@ -495,11 +487,10 @@ static int remove_offs_dups(int *order_buf, int n, const int *offs)
 /* Returns a set of offset/value pairs sorted by strictly ascending offset.
    It is returned as a list of 2 parallel vectors: an integer vector of
    strictly sorted offsets and a subset of 'vals'. Both are of length 'n'.
-   Note that this list of length 2 could actually be seen as a leaf vector
-   with possibly zeros in it, even though they are conceptually different:
-   the latter represents a sparse vector while the former represents the
-   index and value of a subassignment operation that we will perform later
-   on. */
+   Note that this list of length 2 could actually be seen as a regular leaf
+   but with possibly zeros in it, even though they are conceptually different:
+   the latter represents a sparse vector while the former represents the index
+   and value of a subassignment operation that we will perform later on. */
 static SEXP get_offval_pairs_from_sorted_offsets(
 		const int *order, int n, const int *offs,
 		const int *atid_offs, SEXP vals)
@@ -572,55 +563,54 @@ static SEXP get_offval_pairs_from_IDS_Lindex_vals(SEXP IDS,
 				atid_lloffs_buf->elts, vals);
 }
 
-/* Takes an "extended leaf vector".
-   Returns R_NilValue or a "leaf vector". */
-static SEXP subassign_leaf_and_remove_zeros(SEXP xlv,
-		SEXP offval_pairs, int *offs_buf)
+/* Takes an "extended leaf". Returns a regular leaf. */
+static SEXP subassign_leaf_and_remove_zeros(SEXP xleaf,
+		SEXP offval_pairs, int *nzoffs_buf)
 {
-	SEXP xlv_offs, xlv_vals, lv, offs, vals, ans;
+	SEXP xnzoffs, xnzvals, leaf, nzoffs, nzvals, ans;
 
-	xlv_offs = VECTOR_ELT(xlv, 0);
-	xlv_vals = VECTOR_ELT(xlv, 1);
-	lv = PROTECT(zip_leaf(xlv_offs, xlv_vals));
+	xnzoffs = get_leaf_nzoffs(xleaf);
+	xnzvals = get_leaf_nzvals(xleaf);
+	leaf = PROTECT(zip_leaf(xnzoffs, xnzvals));
 
-	offs = VECTOR_ELT(offval_pairs, 0);
-	vals = VECTOR_ELT(offval_pairs, 1);
-	ans = PROTECT(_subassign_leaf_with_Rvector(lv, offs, vals));
+	nzoffs = VECTOR_ELT(offval_pairs, 0);
+	nzvals = VECTOR_ELT(offval_pairs, 1);
+	ans = PROTECT(_subassign_leaf_with_Rvector(leaf, nzoffs, nzvals));
 
-	/* We've made sure that 'offs_buf' is big enough (its length is at
-	   least 'max_postsubassign_lv_len'). */
-	ans = _remove_zeros_from_leaf(ans, offs_buf);
+	/* We've made sure that 'nzoffs' is big enough (its length is at
+	   least 'max_postsubassign_nzcount'). */
+	ans = _remove_zeros_from_leaf(ans, nzoffs_buf);
 	UNPROTECT(2);
 	return ans;
 }
 
-/* Returns R_NilValue or a "leaf vector". */
-static SEXP subassign_extended_leaf_with_IDS_Mindex_vals(SEXP xlv,
+/* Takes an "extended leaf". Returns a regular leaf. */
+static SEXP subassign_extended_leaf_with_IDS_Mindex_vals(SEXP xleaf,
 		SEXP Mindex, SEXP vals, int d1, SortBufs *sort_bufs)
 {
-	SEXP xlv_IDS, offval_pairs, ans;
+	SEXP xleaf_IDS, offval_pairs, ans;
 
-	xlv_IDS = VECTOR_ELT(xlv, 2);
+	xleaf_IDS = VECTOR_ELT(xleaf, 2);
 	offval_pairs = PROTECT(
-		get_offval_pairs_from_IDS_Mindex_vals(xlv_IDS,
+		get_offval_pairs_from_IDS_Mindex_vals(xleaf_IDS,
 					Mindex, vals, d1, sort_bufs)
 	);
-	ans = subassign_leaf_and_remove_zeros(xlv,
+	ans = subassign_leaf_and_remove_zeros(xleaf,
 			offval_pairs, sort_bufs->offs);
 	UNPROTECT(1);
 	return ans;
 }
-static SEXP subassign_extended_leaf_with_IDS_Lindex_vals(SEXP xlv,
+static SEXP subassign_extended_leaf_with_IDS_Lindex_vals(SEXP xleaf,
 		SEXP Lindex, SEXP vals, int d1, SortBufs *sort_bufs)
 {
-	SEXP xlv_IDS, offval_pairs, ans;
+	SEXP xleaf_IDS, offval_pairs, ans;
 
-	xlv_IDS = VECTOR_ELT(xlv, 2);
+	xleaf_IDS = VECTOR_ELT(xleaf, 2);
 	offval_pairs = PROTECT(
-		get_offval_pairs_from_IDS_Lindex_vals(xlv_IDS,
+		get_offval_pairs_from_IDS_Lindex_vals(xleaf_IDS,
 					Lindex, vals, d1, sort_bufs)
 	);
-	ans = subassign_leaf_and_remove_zeros(xlv,
+	ans = subassign_leaf_and_remove_zeros(xleaf,
 			offval_pairs, sort_bufs->offs);
 	UNPROTECT(1);
 	return ans;
@@ -638,8 +628,7 @@ static SEXP REC_absorb_vals_dispatched_by_Mindex(SEXP SVT,
 		return R_NilValue;
 
 	if (ndim == 1) {
-		/* 'SVT' is a bottom leaf (IDS, "leaf vector", or
-		   "extended leaf vector"). */
+		/* 'SVT' is an IDS, regular leaf, or "extended leaf". */
 		if (TYPEOF(SVT) == EXTPTRSXP) {
 			/* 'SVT' is an IDS. */
 			ans = PROTECT(
@@ -652,11 +641,11 @@ static SEXP REC_absorb_vals_dispatched_by_Mindex(SEXP SVT,
 		}
 		SVT_len = LENGTH(SVT);
 		if (SVT_len == 2) {
-			/* 'SVT' is a "leaf vector". */
+			/* 'SVT' is a regular leaf. */
 			return SVT;
 		}
 		if (SVT_len == 3) {
-			/* 'SVT' is an "extended leaf vector". */
+			/* 'SVT' is an "extended leaf". */
 			return
 			  subassign_extended_leaf_with_IDS_Mindex_vals(
 					SVT, Mindex, vals, dim[0], sort_bufs);
@@ -698,8 +687,7 @@ static SEXP REC_absorb_vals_dispatched_by_Lindex(SEXP SVT,
 		return R_NilValue;
 
 	if (ndim == 1) {
-		/* 'SVT' is a bottom leaf (IDS, "leaf vector", or
-		   "extended leaf vector"). */
+		/* 'SVT' is an IDS, regular leaf, or "extended leaf". */
 		if (TYPEOF(SVT) == EXTPTRSXP) {
 			/* 'SVT' is an IDS. */
 			ans = PROTECT(
@@ -713,11 +701,11 @@ static SEXP REC_absorb_vals_dispatched_by_Lindex(SEXP SVT,
 		}
 		SVT_len = LENGTH(SVT);
 		if (SVT_len == 2) {
-			/* 'SVT' is a "leaf vector". */
+			/* 'SVT' is a regular leaf. */
 			return SVT;
 		}
 		if (SVT_len == 3) {
-			/* 'SVT' is an "extended leaf vector". */
+			/* 'SVT' is an "extended leaf". */
 			return
 			  subassign_extended_leaf_with_IDS_Lindex_vals(
 					SVT, Lindex, vals, (int) dimcumprod[0],
@@ -750,9 +738,9 @@ static SEXP REC_absorb_vals_dispatched_by_Lindex(SEXP SVT,
 
 
 /****************************************************************************
- * subassign_1D_SVT_by_Lindex()
+ * subassign_leaf_by_Lindex()
  *
- * The 1D case needs special treatment.
+ * This is the 1D case and it needs special treatment.
  */
 
 /* 'Lindex' and 'vals' are assumed to have the same length. This length
@@ -761,11 +749,10 @@ static SEXP REC_absorb_vals_dispatched_by_Lindex(SEXP SVT,
    It is returned as a list of 2 parallel vectors: an integer vector of
    strictly sorted offsets and a subset of 'vals'. Their length is >= 1
    and <= length(vals).
-   Note that this list of length 2 could actually be seen as a leaf vector
-   with possibly zeros in it, even though they are conceptually different:
-   the latter represents a sparse vector while the former represents the
-   index and value of a subassignment operation that we will perform later
-   on. */
+   Note that this list of length 2 could actually be seen as a regular leaf
+   but with possibly zeros in it, even though they are conceptually different:
+   the latter represents a sparse vector while the former represents the index
+   and value of a subassignment operation that we will perform later on. */
 static SEXP get_offval_pairs_from_Lindex_vals(SEXP Lindex, SEXP vals, int d1,
 		SortBufs *sort_bufs)
 {
@@ -796,11 +783,9 @@ static SEXP get_offval_pairs_from_Lindex_vals(SEXP Lindex, SEXP vals, int d1,
 	return ans;
 }
 
-/* 'SVT' must be either R_NilValue or a "leaf vector".
-   'Lindex' and 'vals' are assumed to have the same nonzero length.
-   Returns R_NilValue or a "leaf vector". */
-static SEXP subassign_1D_SVT_by_Lindex(SEXP SVT, int d1,
-				       SEXP Lindex, SEXP vals)
+/* 'Lindex' and 'vals' are assumed to have the same nonzero length. */
+static SEXP subassign_leaf_by_Lindex(SEXP leaf, int d1,
+				     SEXP Lindex, SEXP vals)
 {
 	R_xlen_t vals_len;
 	size_t worst_len;
@@ -812,11 +797,11 @@ static SEXP subassign_1D_SVT_by_Lindex(SEXP SVT, int d1,
 		error("assigning more than INT_MAX values to "
 		      "a monodimensional SVT_SparseArray object "
 		      "is not supported");
-	if (SVT == R_NilValue) {
+	if (leaf == R_NilValue) {
 		worst_len = vals_len;
 	} else {
-		int lv_len = LENGTH(VECTOR_ELT(SVT, 0));
-		worst_len = lv_len + vals_len;
+		int nzcount = get_leaf_nzcount(leaf);
+		worst_len = nzcount + vals_len;
 		if (worst_len > d1)
 			worst_len = d1;
 	}
@@ -824,9 +809,9 @@ static SEXP subassign_1D_SVT_by_Lindex(SEXP SVT, int d1,
 	offval_pairs = PROTECT(
 		get_offval_pairs_from_Lindex_vals(Lindex, vals, d1, &sort_bufs)
 	);
-	if (SVT != R_NilValue) {
+	if (leaf != R_NilValue) {
 		offval_pairs = PROTECT(
-			_subassign_leaf_with_Rvector(SVT,
+			_subassign_leaf_with_Rvector(leaf,
 					VECTOR_ELT(offval_pairs, 0),
 					VECTOR_ELT(offval_pairs, 1))
 		);
@@ -834,7 +819,7 @@ static SEXP subassign_1D_SVT_by_Lindex(SEXP SVT, int d1,
 	/* We've made sure that 'sort_bufs.offs' is big enough (its length
 	   is at least 'worst_len'). */
 	ans = _remove_zeros_from_leaf(offval_pairs, sort_bufs.offs);
-	UNPROTECT(SVT != R_NilValue ? 2 : 1);
+	UNPROTECT(leaf != R_NilValue ? 2 : 1);
 	return ans;
 }
 
@@ -865,7 +850,7 @@ SEXP C_subassign_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		SEXP Mindex, SEXP vals)
 {
 	SEXPTYPE Rtype;
-	int x_ndim, d1, max_postsubassign_lv_len, ret;
+	int x_ndim, d1, max_postsubassign_nzcount, ret;
 	R_xlen_t vals_len;
 	SEXP ans;
 	size_t max_IDS_len;
@@ -890,8 +875,8 @@ SEXP C_subassign_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		return x_SVT;  /* no-op */
 
 	if (x_ndim == 1)
-		return subassign_1D_SVT_by_Lindex(x_SVT, INTEGER(x_dim)[0],
-						  Mindex, vals);
+		return subassign_leaf_by_Lindex(x_SVT, INTEGER(x_dim)[0],
+						Mindex, vals);
 
 	// FIXME: Bad things will happen if some of the dimensions are 0!
 
@@ -900,11 +885,11 @@ SEXP C_subassign_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	d1 = INTEGER(x_dim)[x_ndim - 1];
 	ans = PROTECT(make_SVT_node(x_SVT, d1, x_SVT));
 	max_IDS_len = 0;
-	max_postsubassign_lv_len = 0;
+	max_postsubassign_nzcount = 0;
 	ret = dispatch_vals_by_Mindex(ans, x_SVT,
 			INTEGER(x_dim), LENGTH(x_dim),
 			INTEGER(Mindex), vals,
-			&max_IDS_len, &max_postsubassign_lv_len);
+			&max_IDS_len, &max_postsubassign_nzcount);
 	if (ret < 0) {
 		UNPROTECT(1);
 		error("SparseArray internal error in "
@@ -912,8 +897,8 @@ SEXP C_subassign_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		      "    dispatch_vals_by_Mindex() returned an error");
 	}
 
-	//printf("max_IDS_len = %lu -- max_postsubassign_lv_len = %d\n",
-	//       max_IDS_len, max_postsubassign_lv_len);
+	//printf("max_IDS_len = %lu -- max_postsubassign_nzcount = %d\n",
+	//       max_IDS_len, max_postsubassign_nzcount);
 	if (max_IDS_len > INT_MAX) {
 		UNPROTECT(1);
 		error("assigning more than INT_MAX values to "
@@ -925,7 +910,7 @@ SEXP C_subassign_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	/* 2nd pass */
 	//t0 = clock();
 	sort_bufs = alloc_sort_bufs((int) max_IDS_len,
-				    max_postsubassign_lv_len);
+				    max_postsubassign_nzcount);
 	ans = REC_absorb_vals_dispatched_by_Mindex(ans,
 			INTEGER(x_dim), LENGTH(x_dim), Mindex, vals,
 			&sort_bufs);
@@ -940,7 +925,7 @@ SEXP C_subassign_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		SEXP Lindex, SEXP vals)
 {
 	SEXPTYPE Rtype;
-	int x_ndim, along, d1, max_postsubassign_lv_len, ret;
+	int x_ndim, along, d1, max_postsubassign_nzcount, ret;
 	R_xlen_t vals_len, *dimcumprod, p;
 	SEXP ans;
 	size_t max_IDS_len;
@@ -967,8 +952,8 @@ SEXP C_subassign_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		return x_SVT;  /* no-op */
 
 	if (x_ndim == 1)
-		return subassign_1D_SVT_by_Lindex(x_SVT, INTEGER(x_dim)[0],
-						  Lindex, vals);
+		return subassign_leaf_by_Lindex(x_SVT, INTEGER(x_dim)[0],
+						Lindex, vals);
 
 	dimcumprod = (R_xlen_t *) R_alloc(x_ndim, sizeof(R_xlen_t));
 	p = 1;
@@ -985,11 +970,11 @@ SEXP C_subassign_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	d1 = INTEGER(x_dim)[x_ndim - 1];
 	ans = PROTECT(make_SVT_node(x_SVT, d1, x_SVT));
 	max_IDS_len = 0;
-	max_postsubassign_lv_len = 0;
+	max_postsubassign_nzcount = 0;
 	ret = dispatch_vals_by_Lindex(ans, x_SVT,
 			INTEGER(x_dim), dimcumprod, LENGTH(x_dim),
 			Lindex, vals,
-			&max_IDS_len, &max_postsubassign_lv_len);
+			&max_IDS_len, &max_postsubassign_nzcount);
 	if (ret < 0) {
 		UNPROTECT(1);
 		error("SparseArray internal error in "
@@ -997,8 +982,8 @@ SEXP C_subassign_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		      "    dispatch_vals_by_Lindex() returned an error");
 	}
 
-	//printf("max_IDS_len = %lu -- max_postsubassign_lv_len = %d\n",
-	//       max_IDS_len, max_postsubassign_lv_len);
+	//printf("max_IDS_len = %lu -- max_postsubassign_nzcount = %d\n",
+	//       max_IDS_len, max_postsubassign_nzcount);
 	if (max_IDS_len > INT_MAX) {
 		UNPROTECT(1);
 		error("assigning more than INT_MAX values to "
@@ -1010,7 +995,7 @@ SEXP C_subassign_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	/* 2nd pass */
 	//t0 = clock();
 	sort_bufs = alloc_sort_bufs((int) max_IDS_len,
-				    max_postsubassign_lv_len);
+				    max_postsubassign_nzcount);
 	ans = REC_absorb_vals_dispatched_by_Lindex(ans,
 			dimcumprod, LENGTH(x_dim), Lindex, vals,
 			&sort_bufs);
@@ -1029,14 +1014,13 @@ typedef struct left_bufs_t {
 	CopyRVectorElt_FUNType copy_Rvector_elt_FUN;
 	SEXP Rvector;
 	int *offs;
-	SEXP precomputed_bottom_leaf;
+	SEXP precomputed_leaf;
 	int full_replacement;
 } LeftBufs;
 
 /* 'short_Rvector' must have a length >= 1.
-   'd1' must be a multiple of 'short_Rvector' length.
-   Returns R_NilValue or a "leaf vector". */
-static SEXP precompute_bottom_leaf_from_short_Rvector(
+   'd1' must be a multiple of 'short_Rvector' length. */
+static SEXP precompute_leaf_from_short_Rvector(
 		int d1, SEXP index1, SEXP short_Rvector,
 		LeftBufs *left_bufs)
 {
@@ -1095,7 +1079,7 @@ static LeftBufs init_left_bufs(int d1, SEXP index1, SEXP short_Rvector)
 	LeftBufs left_bufs;
 	SEXPTYPE Rtype;
 	R_xlen_t short_len;
-	SEXP bottom_leaf;
+	SEXP leaf;
 
 	Rtype = TYPEOF(short_Rvector);
 	left_bufs.copy_Rvector_elt_FUN = _select_copy_Rvector_elt_FUN(Rtype);
@@ -1110,34 +1094,32 @@ static LeftBufs init_left_bufs(int d1, SEXP index1, SEXP short_Rvector)
 
 	left_bufs.offs = (int *) R_alloc(d1, sizeof(int));
 	left_bufs.Rvector = PROTECT(_new_Rvector0(Rtype, d1));
-	bottom_leaf = PROTECT(
-		precompute_bottom_leaf_from_short_Rvector(
+	leaf = PROTECT(
+		precompute_leaf_from_short_Rvector(
 					d1, index1, short_Rvector,
 					&left_bufs)
 	);
-	left_bufs.precomputed_bottom_leaf = bottom_leaf;
+	left_bufs.precomputed_leaf = leaf;
 	UNPROTECT(2);
 	return left_bufs;
 }
 
-/* 'SVT' must be a bottom leaf (i.e. R_NilValue or a "leaf vector").
-   'index1' must be either R_NilValue or an integer vector.
-   'short_Rvector' must have a length >= 1.
-   Returns R_NilValue or a "leaf vector". */
-static SEXP subassign_bottom_leaf_with_short_Rvector(SEXP SVT, int d1,
+/* 'index1' must be either R_NilValue or an integer vector.
+   'short_Rvector' must have a length >= 1. */
+static SEXP subassign_leaf_with_short_Rvector(SEXP leaf, int d1,
 		SEXP index1, SEXP short_Rvector, LeftBufs *left_bufs)
 {
-	SEXP left_Rvector, ans, ans_offs;
+	SEXP left_Rvector, ans, ans_nzoffs;
 	int ret, short_len, d2, i2, coord, i1;
 
-	if (left_bufs->full_replacement || SVT == R_NilValue)
-		return left_bufs->precomputed_bottom_leaf;
+	if (left_bufs->full_replacement || leaf == R_NilValue)
+		return left_bufs->precomputed_leaf;
 
 	left_Rvector = left_bufs->Rvector;
-	ret = _expand_leaf(SVT, left_Rvector, 0);
+	ret = _expand_leaf(leaf, left_Rvector, 0);
 	if (ret < 0)
 		error("SparseArray internal error in "
-		      "subassign_bottom_leaf_with_short_Rvector:\n"
+		      "subassign_leaf_with_short_Rvector:\n"
 		      "    _expand_leaf() returned an error");
 
 	short_len = LENGTH(short_Rvector);
@@ -1159,10 +1141,10 @@ static SEXP subassign_bottom_leaf_with_short_Rvector(SEXP SVT, int d1,
 	);
 	if (ans != R_NilValue) {
 		/* Remove nonzeros introduced in 'left_bufs->Rvector'. */
-		ans_offs = VECTOR_ELT(ans, 0);
+		ans_nzoffs = get_leaf_nzoffs(ans);
 		_reset_selected_Rvector_elts(left_Rvector,
-					     INTEGER(ans_offs),
-					     LENGTH(ans_offs));
+					     INTEGER(ans_nzoffs),
+					     LENGTH(ans_nzoffs));
 	}
 	UNPROTECT(1);
 	return ans;
@@ -1199,7 +1181,7 @@ static SEXP REC_subassign_SVT_with_short_Rvector(SEXP SVT, SEXP SVT0,
 		subSVT = VECTOR_ELT(SVT, i1);
 		if (ndim == 2) {
 			subSVT = PROTECT(
-				subassign_bottom_leaf_with_short_Rvector(
+				subassign_leaf_with_short_Rvector(
 					subSVT, dim[0],
 					VECTOR_ELT(index, 0), short_Rvector,
 					left_bufs)
@@ -1230,7 +1212,10 @@ static SEXP REC_subassign_SVT_with_short_Rvector(SEXP SVT, SEXP SVT0,
 	return is_empty ? R_NilValue : SVT;
 }
 
-/* --- .Call ENTRY POINT --- */
+/* --- .Call ENTRY POINT ---
+   'index': N-index, that is, a list of integer vectors, one along each
+            dimension in the array.
+ */
 SEXP C_subassign_SVT_with_short_Rvector(
 		SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP index,
 		SEXP Rvector)
@@ -1263,10 +1248,10 @@ SEXP C_subassign_SVT_with_short_Rvector(
 
 	left_bufs = init_left_bufs(d1, index1, Rvector);
 	PROTECT(left_bufs.Rvector);
-	PROTECT(left_bufs.precomputed_bottom_leaf);
+	PROTECT(left_bufs.precomputed_leaf);
 
 	if (ndim == 1) {
-		ans = subassign_bottom_leaf_with_short_Rvector(
+		ans = subassign_leaf_with_short_Rvector(
 					x_SVT, d1,
 					index1, Rvector, &left_bufs);
 		UNPROTECT(2);
@@ -1456,10 +1441,10 @@ static inline int next_coords0(NindexIterator *Nindex_iter)
 /* 'Nindex_iter' declared and initialized with init_NindexIterator()
    in the caller (must be called with 'margin' set to 1). */
 static int subassign_SVT_with_leaf(SEXP SVT, SEXP SVT0,
-		NindexIterator *Nindex_iter, SEXP right_lv)
+		NindexIterator *Nindex_iter, SEXP Rleaf)
 {
 	int ret, i;
-	SEXP bottom_leaf_parent, bottom_leaf;
+	SEXP leaf_parent, leaf;
 
 	while ((ret = next_coords0(Nindex_iter))) {
 		if (ret < 0) {
@@ -1468,7 +1453,7 @@ static int subassign_SVT_with_leaf(SEXP SVT, SEXP SVT0,
 		ret = descend_to_bottom_by_coords0(SVT, SVT0,
 				Nindex_iter->dim, Nindex_iter->ndim,
 				Nindex_iter->coords0_buf,
-				&bottom_leaf_parent, &i, &bottom_leaf);
+				&leaf_parent, &i, &leaf);
 		if (ret < 0)
 			return -1;
 	}
