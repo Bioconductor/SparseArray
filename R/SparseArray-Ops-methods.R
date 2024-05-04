@@ -80,6 +80,7 @@
     if (is(x, "COO_SparseArray")) {
         ans <- BiocGenerics:::replaceSlots(x, nzdata=-x@nzdata, check=FALSE)
     } else if (is(x, "SVT_SparseArray")) {
+        check_svt_version(x)
         if (type(x) == "complex")
             stop(wmsg("unary \"-\" is not implemented yet on an ",
                       "SVT_SparseArray object of type \"", type(x), "\""))
@@ -108,6 +109,7 @@ setMethod("-", c("SparseArray", "missing"),
 .Arith_SVT1_v2 <- function(op, x, y)
 {
     stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
+    check_svt_version(x)
 
     ## Check types.
     .check_Arith_input_type(type(x))
@@ -173,6 +175,8 @@ setMethod("Arith", c("vector", "SVT_SparseArray"),
     stopifnot(isSingleString(op),
               is(x, "SVT_SparseArray"),
               is(y, "SVT_SparseArray"))
+    check_svt_version(x)
+    check_svt_version(y)
 
     ## Check types.
     .check_Arith_input_type(type(x))
@@ -271,6 +275,7 @@ setMethod("Arith", c("array", "SVT_SparseArray"),
 .Compare_SVT1_v2 <- function(op, x, y)
 {
     stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
+    check_svt_version(x)
 
     ## Check types.
     x_type <- type(x)
@@ -344,6 +349,8 @@ setMethod("Compare", c("vector", "SVT_SparseArray"),
     stopifnot(isSingleString(op),
               is(x, "SVT_SparseArray"),
               is(y, "SVT_SparseArray"))
+    check_svt_version(x)
+    check_svt_version(y)
 
     ## Check types.
     .check_Compare_input_type(type(x))
@@ -412,6 +419,7 @@ setMethod("!", "SparseArray",
 .Logic_SVT1_v2 <- function(op, x, y)
 {
     stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
+    check_svt_version(x)
 
     ## Check types.
     x_type <- type(x)
@@ -447,6 +455,8 @@ setMethod("Logic", c("vector", "SVT_SparseArray"),
     stopifnot(isSingleString(op),
               is(x, "SVT_SparseArray"),
               is(y, "SVT_SparseArray"))
+    check_svt_version(x)
+    check_svt_version(y)
 
     ## Check types.
     .check_Logic_input_type(type(x))

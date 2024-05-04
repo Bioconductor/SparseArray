@@ -19,20 +19,17 @@ static inline int copy_Rvector_elts(
 		SEXP out, R_xlen_t out_offset,
 		R_xlen_t nelt)
 {
-	SEXPTYPE Rtype;
-	CopyRVectorElts_FUNType copy_Rvector_elts_FUN;
-
-	Rtype = TYPEOF(in);
-	copy_Rvector_elts_FUN = _select_copy_Rvector_elts_FUN(Rtype);
-	if (copy_Rvector_elts_FUN == NULL)
+	SEXPTYPE Rtype = TYPEOF(in);
+	CopyRVectorElts_FUNType fun = _select_copy_Rvector_elts_FUN(Rtype);
+	if (fun == NULL)
 		return -1;
 	if (TYPEOF(out) != Rtype)
 		return -1;
-	if (in_offset  + nelt > XLENGTH(in))
+	if (in_offset + nelt > XLENGTH(in))
 		return -1;
 	if (out_offset + nelt > XLENGTH(out))
 		return -1;
-	copy_Rvector_elts_FUN(in, in_offset, out, out_offset, nelt);
+	fun(in, in_offset, out, out_offset, nelt);
 	return 0;
 }
 
@@ -198,9 +195,7 @@ SEXP C_nzcount_SVT_SparseArray(SEXP x_dim, SEXP x_SVT)
 static inline void from_offs_to_int_Lindex(const int *offs, int n,
 		int arr_offset, int *Lindex)
 {
-	int k;
-
-	for (k = 0; k < n; k++)
+	for (int k = 0; k < n; k++)
 		Lindex[k] = arr_offset + offs[k] + 1;  /* will never overflow */
 	return;
 }
@@ -208,9 +203,7 @@ static inline void from_offs_to_int_Lindex(const int *offs, int n,
 static inline void from_offs_to_double_Lindex(const int *offs, int n,
 		R_xlen_t arr_offset, double *Lindex)
 {
-	int k;
-
-	for (k = 0; k < n; k++)
+	for (int k = 0; k < n; k++)
 		Lindex[k] = (double) (arr_offset + offs[k] + 1);
 	return;
 }
@@ -225,8 +218,8 @@ static int REC_nzwhich_SVT_as_Lindex(SEXP SVT,
 
 	if (ndim == 1) {
 		/* 'SVT' is a leaf (i.e. 1D SVT). */
-		SEXP nzoffs, nzvals;
-		int nzcount = unzip_leaf(SVT, &nzoffs, &nzvals);
+		SEXP nzvals, nzoffs;
+		int nzcount = unzip_leaf(SVT, &nzvals, &nzoffs);
 		if (nzcount < 0)
 			return -1;
 		if (IS_INTEGER(Lindex)) {
@@ -326,8 +319,8 @@ static int REC_extract_nzcoo_and_nzvals_from_SVT(SEXP SVT,
 	}
 
 	/* 'SVT' is a leaf (i.e. a 1D SVT). */
-	SEXP leaf_nzoffs, leaf_nzvals;
-	int leaf_nzcount = unzip_leaf(SVT, &leaf_nzoffs, &leaf_nzvals);
+	SEXP leaf_nzvals, leaf_nzoffs;
+	int leaf_nzcount = unzip_leaf(SVT, &leaf_nzvals, &leaf_nzoffs);
 
 	if (nzvals != R_NilValue) {
 		int ret = copy_Rvector_elts(leaf_nzvals, (R_xlen_t) 0,
@@ -577,19 +570,19 @@ static int dump_col_to_CsparseMatrix_slots(SEXP SVT, int col_idx,
 		return 0;
 
 	/* 'subSVT' is a leaf (i.e. a 1D SVT). */
-	SEXP nzoffs, nzvals;
-	int nzcount = unzip_leaf(subSVT, &nzoffs, &nzvals);
+	SEXP nzvals, nzoffs;
+	int nzcount = unzip_leaf(subSVT, &nzvals, &nzoffs);
 	if (nzcount < 0)
 		return -1;
 
 	/* Copy 0-based row indices from 'nzoffs' to 'ans_i'. */
 	_copy_INTEGER_elts(nzoffs, (R_xlen_t) 0,
-			ans_i, (R_xlen_t) offset,
-			XLENGTH(nzoffs));
+			   ans_i, (R_xlen_t) offset,
+			   XLENGTH(nzoffs));
 
 	int ret = copy_Rvector_elts(nzvals, (R_xlen_t) 0,
-			ans_x, (R_xlen_t) offset,
-			XLENGTH(nzvals));
+				    ans_x, (R_xlen_t) offset,
+				    XLENGTH(nzvals));
 	if (ret < 0)
 		return -1;
 
@@ -599,12 +592,10 @@ static int dump_col_to_CsparseMatrix_slots(SEXP SVT, int col_idx,
 static int dump_SVT_to_CsparseMatrix_slots(SEXP x_SVT, int x_ncol,
 		SEXP ans_p, SEXP ans_i, SEXP ans_x)
 {
-	int offset, j, nzcount;
-
 	INTEGER(ans_p)[0] = 0;
-	offset = 0;
-	for (j = 0; j < x_ncol; j++) {
-		nzcount = dump_col_to_CsparseMatrix_slots(x_SVT, j,
+	int offset = 0;
+	for (int j = 0; j < x_ncol; j++) {
+		int nzcount = dump_col_to_CsparseMatrix_slots(x_SVT, j,
 						ans_i, ans_x, offset);
 		if (nzcount < 0)
 			return -1;
@@ -618,37 +609,33 @@ static int dump_SVT_to_CsparseMatrix_slots(SEXP x_SVT, int x_ncol,
 SEXP C_from_SVT_SparseMatrix_to_CsparseMatrix(SEXP x_dim,
 		SEXP x_type, SEXP x_SVT)
 {
-	R_xlen_t nzcount;
-	SEXPTYPE x_Rtype;
-	int x_ncol, ret;
-	SEXP ans_p, ans_i, ans_x, ans;
-
 	if (LENGTH(x_dim) != 2)
 		error("object to coerce to [d|l]gCMatrix "
 		      "must have exactly 2 dimensions");
 
-	nzcount = _REC_nzcount_SVT(x_SVT, 2);
+	R_xlen_t nzcount = _REC_nzcount_SVT(x_SVT, 2);
 	if (nzcount > INT_MAX)
 		error("SVT_SparseMatrix object contains too many nonzero "
 		      "values to be turned into a dgCMatrix or lgCMatrix "
 		      "object");
 
-	x_Rtype = _get_Rtype_from_Rstring(x_type);
+	SEXPTYPE x_Rtype = _get_Rtype_from_Rstring(x_type);
 	if (x_Rtype == 0)
 		error("SparseArray internal error in "
 		      "C_from_SVT_SparseMatrix_to_CsparseMatrix():\n"
 		      "    SVT_SparseMatrix object has invalid type");
 
-	x_ncol = INTEGER(x_dim)[1];
+	int x_ncol = INTEGER(x_dim)[1];
 
-	ans_i = PROTECT(NEW_INTEGER(nzcount));
-	ans_x = PROTECT(allocVector(x_Rtype, nzcount));
+	SEXP ans_i = PROTECT(NEW_INTEGER(nzcount));
+	SEXP ans_x = PROTECT(allocVector(x_Rtype, nzcount));
+	SEXP ans_p;
 	if (nzcount == 0) {
 		ans_p = PROTECT(_new_Rvector0(INTSXP, (R_xlen_t) x_ncol + 1));
 	} else {
 		ans_p = PROTECT(NEW_INTEGER(x_ncol + 1));
-		ret = dump_SVT_to_CsparseMatrix_slots(x_SVT, x_ncol,
-						      ans_p, ans_i, ans_x);
+		int ret = dump_SVT_to_CsparseMatrix_slots(x_SVT, x_ncol,
+							  ans_p, ans_i, ans_x);
 		if (ret < 0) {
 			UNPROTECT(3);
 			error("SparseArray internal error in "
@@ -657,7 +644,7 @@ SEXP C_from_SVT_SparseMatrix_to_CsparseMatrix(SEXP x_dim,
 		}
 	}
 
-	ans = PROTECT(NEW_LIST(3));
+	SEXP ans = PROTECT(NEW_LIST(3));
 	SET_VECTOR_ELT(ans, 0, ans_p);
 	SET_VECTOR_ELT(ans, 1, ans_i);
 	SET_VECTOR_ELT(ans, 2, ans_x);
@@ -775,9 +762,7 @@ SEXP C_build_SVT_from_CsparseMatrix(SEXP x, SEXP ans_type)
 
 static SEXP alloc_nzvals(SEXP type, R_xlen_t n)
 {
-	SEXPTYPE Rtype;
-
-	Rtype = _get_Rtype_from_Rstring(type);
+	SEXPTYPE Rtype = _get_Rtype_from_Rstring(type);
 	if (Rtype == 0)
 		error("SparseArray internal error in alloc_nzvals():\n"
 		      "    SVT_SparseArray object has invalid type");
@@ -788,19 +773,14 @@ static SEXP alloc_nzvals(SEXP type, R_xlen_t n)
 SEXP C_from_SVT_SparseArray_to_COO_SparseArray(SEXP x_dim,
 		SEXP x_type, SEXP x_SVT)
 {
-	R_xlen_t nzcount;
-	SEXP nzcoo, nzvals, ans;
-
-	nzcount = _REC_nzcount_SVT(x_SVT, LENGTH(x_dim));
+	R_xlen_t nzcount = _REC_nzcount_SVT(x_SVT, LENGTH(x_dim));
 	if (nzcount > INT_MAX)
 		error("SVT_SparseArray object contains too many nonzero "
 		      "values to be turned into a COO_SparseArray object");
-
-	nzvals = PROTECT(alloc_nzvals(x_type, nzcount));
-	nzcoo = PROTECT(extract_nzcoo_and_nzvals_from_SVT(x_SVT,
+	SEXP nzvals = PROTECT(alloc_nzvals(x_type, nzcount));
+	SEXP nzcoo = PROTECT(extract_nzcoo_and_nzvals_from_SVT(x_SVT,
 					(int) nzcount, LENGTH(x_dim), nzvals));
-
-	ans = PROTECT(NEW_LIST(2));
+	SEXP ans = PROTECT(NEW_LIST(2));
 	SET_VECTOR_ELT(ans, 0, nzcoo);
 	SET_VECTOR_ELT(ans, 1, nzvals);
 	UNPROTECT(3);

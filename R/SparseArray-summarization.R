@@ -20,6 +20,7 @@
 .summarize_SVT <- function(op, x, na.rm=FALSE, center=NULL)
 {
     stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
+    check_svt_version(x)
 
     ## Check 'na.rm'.
     if (!isTRUEorFALSE(na.rm))

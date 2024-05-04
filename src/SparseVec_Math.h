@@ -13,8 +13,8 @@ int _Math_doubleSV(
 	MathFUN fun,
 	const SparseVec *sv,
 	double digits,
-	int *nzoffs_buf,
 	double *nzvals_buf,
+	int *nzoffs_buf,
 	int *newNaNs
 );
 

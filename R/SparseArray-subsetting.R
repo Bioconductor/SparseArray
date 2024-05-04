@@ -96,6 +96,7 @@ subset_SVT_SparseArray <- function(x, index, ignore.dimnames=FALSE)
               is.list(index),
               length(index) == length(x@dim),
               isTRUEorFALSE(ignore.dimnames))
+    check_svt_version(x)
 
     ## Returns 'new_dim' and 'new_SVT' in a list of length 2.
     C_ans <- SparseArray.Call("C_subset_SVT_SparseArray",

@@ -117,7 +117,7 @@ MathFUN _get_MathFUN(const char *op)
  */
 
 int _Math_doubleSV(MathFUN fun, const SparseVec *sv, double digits,
-		int *nzoffs_buf, double *nzvals_buf, int *newNaNs)
+		double *nzvals_buf, int *nzoffs_buf, int *newNaNs)
 {
 	set_NaNs_produced_flag(0);
 	digits0 = digits;
@@ -127,8 +127,8 @@ int _Math_doubleSV(MathFUN fun, const SparseVec *sv, double digits,
 	for (int k = 0; k < nzcount; k++) {
 		double v = fun(nzvals[k]);
 		if (v != 0.0) {
-			nzoffs_buf[buf_len] = sv->nzoffs[k];
 			nzvals_buf[buf_len] = v;
+			nzoffs_buf[buf_len] = sv->nzoffs[k];
 			buf_len++;
 		}
 	}

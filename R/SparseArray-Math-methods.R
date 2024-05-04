@@ -37,6 +37,7 @@
 .Math_SVT <- function(op, x)
 {
     stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
+    check_svt_version(x)
     .check_Math_op(op)
     if (type(x) != "double")
         stop(wmsg("the ", op, "() method for SVT_SparseArray objects ",
@@ -55,6 +56,7 @@ setMethod("Math", "SVT_SparseArray", function(x) .Math_SVT(.Generic, x))
 .Math2_SVT <- function(op, x, digits)
 {
     stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
+    check_svt_version(x)
     if (type(x) != "double")
         stop(wmsg("the ", op, "() method for SVT_SparseArray objects ",
                   "only supports input of type \"double\""))

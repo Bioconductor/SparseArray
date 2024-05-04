@@ -135,7 +135,7 @@ test_that("dgCMatrix <==> SVT_SparseMatrix coercions", {
     m0[cbind(1:3, 1)] <- dgcm0[cbind(1:3, 1)] <- 0
     svt <- as(dgcm0, "SVT_SparseMatrix")
     check_SparseArray_object(svt, "SVT_SparseMatrix", m0)
-    expected_SVT <- list(NULL, list(c(0L, 1L, 4L), c(NA, 22, 25)))
+    expected_SVT <- list(NULL, list(c(NA, 22, 25), c(0L, 1L, 4L)))
     expect_identical(svt@SVT, expected_SVT)
     expect_identical(as(m0, "SVT_SparseMatrix"), svt)
     expect_identical(as(svt, "dgCMatrix"), as(m0, "dgCMatrix"))
@@ -208,7 +208,7 @@ test_that("lgCMatrix <==> SVT_SparseMatrix coercions", {
     m0[cbind(1:3, 1)] <- lgcm0[cbind(1:3, 1)] <- FALSE
     svt <- as(lgcm0, "SVT_SparseMatrix")
     check_SparseArray_object(svt, "SVT_SparseMatrix", m0)
-    expected_SVT <- list(NULL, list(c(0L, 1L, 4L), c(NA, TRUE, TRUE)))
+    expected_SVT <- list(NULL, list(c(NA, TRUE, TRUE), c(0L, 1L, 4L)))
     expect_identical(svt@SVT, expected_SVT)
     expect_identical(as(m0, "SVT_SparseMatrix"), svt)
     expect_identical(as(svt, "lgCMatrix"), as(m0, "lgCMatrix"))

@@ -143,7 +143,7 @@ static inline double Arith_double(int opcode, double x, double y)
 
 static int Arith_intSV_int(int opcode,
 		const SparseVec *sv1, int y,
-		int *out_nzoffs, int *out_nzvals, int *ovflow)
+		int *out_nzvals, int *out_nzoffs, int *ovflow)
 {
 	const int *nzvals1 = get_intSV_nzvals(sv1);
 	int nzcount1 = get_SV_nzcount(sv1);
@@ -151,8 +151,8 @@ static int Arith_intSV_int(int opcode,
 	for (int k = 0; k < nzcount1; k++) {
 		int v = Arith_int(opcode, nzvals1[k], y, ovflow);
 		if (v != 0) {
-			out_nzoffs[out_nzcount] = sv1->nzoffs[k];
 			out_nzvals[out_nzcount] = v;
+			out_nzoffs[out_nzcount] = sv1->nzoffs[k];
 			out_nzcount++;
 		}
 	}
@@ -161,7 +161,7 @@ static int Arith_intSV_int(int opcode,
 
 static int Arith_intSV_intSV(int opcode,
 		const SparseVec *sv1, const SparseVec *sv2,
-		int *out_nzoffs, int *out_nzvals, int *ovflow)
+		int *out_nzvals, int *out_nzoffs, int *ovflow)
 {
 	int k1, k2, off, x, y;
 
@@ -172,8 +172,8 @@ static int Arith_intSV_intSV(int opcode,
 	{
 		int v = Arith_int(opcode, x, y, ovflow);
 		if (v != 0) {
-			out_nzoffs[out_nzcount] = off;
 			out_nzvals[out_nzcount] = v;
+			out_nzoffs[out_nzcount] = off;
 			out_nzcount++;
 		}
 	}
@@ -182,7 +182,7 @@ static int Arith_intSV_intSV(int opcode,
 
 static int Arith_intSV_double(int opcode,
                 const SparseVec *sv1, double y,
-		int *out_nzoffs, double *out_nzvals)
+		double *out_nzvals, int *out_nzoffs)
 {
 	const int *nzvals1 = get_intSV_nzvals(sv1);
 	int nzcount1 = get_SV_nzcount(sv1);
@@ -196,8 +196,8 @@ static int Arith_intSV_double(int opcode,
 			v = Arith_double(opcode, (double) x, y);
 		}
 		if (v != 0.0) {
-			out_nzoffs[out_nzcount] = sv1->nzoffs[k];
 			out_nzvals[out_nzcount] = v;
+			out_nzoffs[out_nzcount] = sv1->nzoffs[k];
 			out_nzcount++;
 		}
 	}
@@ -206,7 +206,7 @@ static int Arith_intSV_double(int opcode,
 
 static int Arith_intSV_doubleSV(int opcode,
 		const SparseVec *sv1, const SparseVec *sv2,
-		int *out_nzoffs, double *out_nzvals)
+		double *out_nzvals, int *out_nzoffs)
 {
 	int k1, k2, off, x;
 	double y;
@@ -223,8 +223,8 @@ static int Arith_intSV_doubleSV(int opcode,
 			v = Arith_double(opcode, (double) x, y);
 		}
 		if (v != 0.0) {
-			out_nzoffs[out_nzcount] = off;
 			out_nzvals[out_nzcount] = v;
+			out_nzoffs[out_nzcount] = off;
 			out_nzcount++;
 		}
 	}
@@ -233,7 +233,7 @@ static int Arith_intSV_doubleSV(int opcode,
 
 static int Arith_doubleSV_intSV(int opcode,
 		const SparseVec *sv1, const SparseVec *sv2,
-		int *out_nzoffs, double *out_nzvals)
+		double *out_nzvals, int *out_nzoffs)
 {
 	int k1, k2, off, y;
 	double x;
@@ -250,8 +250,8 @@ static int Arith_doubleSV_intSV(int opcode,
 			v = Arith_double(opcode, x, (double) y);
 		}
 		if (v != 0.0) {
-			out_nzoffs[out_nzcount] = off;
 			out_nzvals[out_nzcount] = v;
+			out_nzoffs[out_nzcount] = off;
 			out_nzcount++;
 		}
 	}
@@ -260,7 +260,7 @@ static int Arith_doubleSV_intSV(int opcode,
 
 static int Arith_doubleSV_double(int opcode,
 		const SparseVec *sv1, double y,
-		int *out_nzoffs, double *out_nzvals)
+		double *out_nzvals, int *out_nzoffs)
 {
 	const double *nzvals1 = get_doubleSV_nzvals(sv1);
 	int nzcount1 = get_SV_nzcount(sv1);
@@ -268,8 +268,8 @@ static int Arith_doubleSV_double(int opcode,
 	for (int k = 0; k < nzcount1; k++) {
 		double v = Arith_double(opcode, nzvals1[k], y);
 		if (v != 0.0) {
-			out_nzoffs[out_nzcount] = sv1->nzoffs[k];
 			out_nzvals[out_nzcount] = v;
+			out_nzoffs[out_nzcount] = sv1->nzoffs[k];
 			out_nzcount++;
 		}
 	}
@@ -278,7 +278,7 @@ static int Arith_doubleSV_double(int opcode,
 
 static int Arith_doubleSV_doubleSV(int opcode,
 		const SparseVec *sv1, const SparseVec *sv2,
-		int *out_nzoffs, double *out_nzvals)
+		double *out_nzvals, int *out_nzoffs)
 {
 	int k1, k2, off;
 	double x, y;
@@ -290,8 +290,8 @@ static int Arith_doubleSV_doubleSV(int opcode,
 	{
 		double v = Arith_double(opcode, x, y);
 		if (v != 0.0) {
-			out_nzoffs[out_nzcount] = off;
 			out_nzvals[out_nzcount] = v;
+			out_nzoffs[out_nzcount] = off;
 			out_nzcount++;
 		}
 	}
@@ -302,7 +302,7 @@ static int Arith_doubleSV_doubleSV(int opcode,
    This is NOT checked! */
 int _Arith_sv1_scalar(int opcode, const SparseVec *sv1, SEXP scalar,
 		SEXPTYPE expected_outRtype,
-		int *out_nzoffs, void *out_nzvals, int *ovflow)
+		void *out_nzvals, int *out_nzoffs, int *ovflow)
 {
 	SEXPTYPE effective_outRtype = REALSXP;
 	int nzcount = -1;
@@ -312,17 +312,17 @@ int _Arith_sv1_scalar(int opcode, const SparseVec *sv1, SEXP scalar,
 			effective_outRtype = INTSXP;
 			nzcount = Arith_intSV_int(opcode,
 				sv1, INTEGER(scalar)[0],
-				out_nzoffs, (int *) out_nzvals, ovflow);
+				(int *) out_nzvals, out_nzoffs, ovflow);
 		} else if (TYPEOF(scalar) == REALSXP) {
 			nzcount = Arith_intSV_double(opcode,
 				sv1, REAL(scalar)[0],
-				out_nzoffs, (double *) out_nzvals);
+				(double *) out_nzvals, out_nzoffs);
 		}
 	} else if (Rtype1 == REALSXP) {
 		if (TYPEOF(scalar) == REALSXP) {
 			nzcount = Arith_doubleSV_double(opcode,
 				sv1, REAL(scalar)[0],
-				out_nzoffs, (double *) out_nzvals);
+				(double *) out_nzvals, out_nzoffs);
 		}
 	}
 	if (nzcount == -1)
@@ -345,7 +345,7 @@ int _Arith_sv1_scalar(int opcode, const SparseVec *sv1, SEXP scalar,
    Assumes that 'outRtype' is equal or bigger than the type of the
    nonzero values in 'sv'. */
 int _mult_SV_zero(const SparseVec *sv,
-		SEXPTYPE outRtype, int *out_nzoffs, void *out_nzvals)
+		SEXPTYPE outRtype, void *out_nzvals, int *out_nzoffs)
 {
 	int nzcount = -1;
 	SEXPTYPE Rtype = get_SV_Rtype(sv);
@@ -358,8 +358,8 @@ int _mult_SV_zero(const SparseVec *sv,
 			for (int k = nzcount = 0; k < in_nzcount; k++) {
 				int x = nzvals[k];
 				if (x == NA_INTEGER) {
-					out_nzoffs[nzcount] = sv->nzoffs[k];
 					out_nzvals_p[nzcount] = NA_INTEGER;
+					out_nzoffs[nzcount] = sv->nzoffs[k];
 					nzcount++;
 				}
 			}
@@ -369,8 +369,8 @@ int _mult_SV_zero(const SparseVec *sv,
 			for (int k = nzcount = 0; k < in_nzcount; k++) {
 				int x = nzvals[k];
 				if (x == NA_INTEGER) {
-					out_nzoffs[nzcount] = sv->nzoffs[k];
 					out_nzvals_p[nzcount] = NA_REAL;
+					out_nzoffs[nzcount] = sv->nzoffs[k];
 					nzcount++;
 				}
 			}
@@ -379,7 +379,7 @@ int _mult_SV_zero(const SparseVec *sv,
 		if (outRtype == REALSXP) {
 			nzcount = Arith_doubleSV_double(MULT_OPCODE,
 					sv, 0.0,
-					out_nzoffs, (double *) out_nzvals);
+					(double *) out_nzvals, out_nzoffs);
 		}
 	}
 	if (nzcount == -1)
@@ -390,7 +390,7 @@ int _mult_SV_zero(const SparseVec *sv,
 
 int _Arith_sv1_sv2(int opcode, const SparseVec *sv1, const SparseVec *sv2,
 		SEXPTYPE expected_outRtype,
-		int *out_nzoffs, void *out_nzvals, int *ovflow)
+		void *out_nzvals, int *out_nzoffs, int *ovflow)
 {
 	SEXPTYPE effective_outRtype = REALSXP;
 	int nzcount = -1;
@@ -400,19 +400,19 @@ int _Arith_sv1_sv2(int opcode, const SparseVec *sv1, const SparseVec *sv2,
 		if (Rtype2 == INTSXP) {
 			effective_outRtype = INTSXP;
 			nzcount = Arith_intSV_intSV(opcode, sv1, sv2,
-					out_nzoffs, (int *) out_nzvals,
+					(int *) out_nzvals, out_nzoffs,
 					ovflow);
 		} else if (Rtype2 == REALSXP) {
 			nzcount = Arith_intSV_doubleSV(opcode, sv1, sv2,
-					out_nzoffs, (double *) out_nzvals);
+					(double *) out_nzvals, out_nzoffs);
 		}
 	} else if (Rtype1 == REALSXP) {
 		if (Rtype2 == INTSXP) {
 			nzcount = Arith_doubleSV_intSV(opcode, sv1, sv2,
-					out_nzoffs, (double *) out_nzvals);
+					(double *) out_nzvals, out_nzoffs);
 		} else if (Rtype2 == REALSXP) {
 			nzcount = Arith_doubleSV_doubleSV(opcode, sv1, sv2,
-					out_nzoffs, (double *) out_nzvals);
+					(double *) out_nzvals, out_nzoffs);
 		}
 	}
 	if (nzcount == -1)

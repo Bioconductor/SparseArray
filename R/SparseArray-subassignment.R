@@ -11,6 +11,7 @@
 {
     stopifnot(is(x, "SVT_SparseArray"),
               is.matrix(Mindex), is.numeric(Mindex))
+    check_svt_version(x)
     if (!is.vector(value))
         stop(wmsg("the supplied value must be a vector for this form ",
                   "of subassignment to an SVT_SparseArray object"))
@@ -40,6 +41,7 @@
 {
     stopifnot(is(x, "SVT_SparseArray"),
               is.vector(Lindex), is.numeric(Lindex))
+    check_svt_version(x)
     if (!is.vector(value))
         stop(wmsg("the supplied value must be a vector for this form ",
                   "of subassignment to an SVT_SparseArray object"))
@@ -81,6 +83,7 @@
 .subassign_SVT_with_SVT <- function(x, index, v)
 {
     stopifnot(is(v, "SVT_SparseArray"))
+    check_svt_version(v)
     SparseArray.Call("C_subassign_SVT_with_SVT",
                      x@dim, x@type, x@SVT, index, v@dim, v@type, v@SVT)
 }
@@ -92,6 +95,7 @@
 .subassign_SVT_SparseArray_by_index <- function(x, index, value)
 {
     stopifnot(is(x, "SVT_SparseArray"), is.list(index))
+    check_svt_version(x)
     if (!is.vector(value) && !is.array(value) && !is(value, "SVT_SparseArray"))
         stop(wmsg("the supplied value must be an ordinary vector or array, ",
                   "or an SVT_SparseArray object, for this subassignment"))

@@ -24,14 +24,18 @@
 
 setClassUnion("NULL_OR_list", c("NULL", "list"))
 
+.SVT_VERSION <- 1L
+
 setClass("SVT_SparseArray",
     contains="SparseArray",
     representation(
         type="character",
-        SVT="NULL_OR_list"  # NULL or Sparse Vector Tree (SVT)
+        SVT="NULL_OR_list",  # NULL or Sparse Vector Tree (SVT)
+        svt_version="integer"
     ),
     prototype(
-        type="logical"
+        type="logical",
+        svt_version=.SVT_VERSION
     )
 )
 
@@ -42,6 +46,24 @@ setClass("SVT_SparseMatrix",
         dimnames=list(NULL, NULL)
     )
 )
+
+### Not exported (for internal use only).
+svt_version <- function(x)
+{
+    stopifnot(is(x, "SVT_SparseArray"))
+    if (.hasSlot(x, "svt_version")) x@svt_version else 0L
+}
+
+check_svt_version <- function(x)
+{
+    if (svt_version(x) == 0L && !is.null(x@SVT)) {
+        pkg_version <- as.character(packageVersion("SparseArray"))
+        stop(wmsg("Old SVT_SparseArray object detected: object uses ",
+                  "version 0 of the SVT internal layout which is not ",
+                  "compatible with versions >= 1.5.0 of the SparseArray ",
+                  "package (your version is ", pkg_version, ")."))
+    }
+}
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -99,6 +121,7 @@ setMethod("type", "SVT_SparseArray", function(x) x@type)
 .set_SVT_SparseArray_type <- function(x, value)
 {
     stopifnot(is(x, "SVT_SparseArray"))
+    check_svt_version(x)
 
     value <- S4Arrays:::normarg_array_type(value, "the supplied type")
     x_type <- type(x)
@@ -122,6 +145,7 @@ setReplaceMethod("type", "SVT_SparseArray", .set_SVT_SparseArray_type)
 .get_SVT_SparseArray_nzcount <- function(x)
 {
     stopifnot(is(x, "SVT_SparseArray"))
+    check_svt_version(x)
     SparseArray.Call("C_nzcount_SVT_SparseArray", x@dim, x@SVT)
 }
 
@@ -132,6 +156,7 @@ setMethod("nzcount", "SVT_SparseArray", .get_SVT_SparseArray_nzcount)
 .nzwhich_SVT_SparseArray <- function(x, arr.ind=FALSE)
 {
     stopifnot(is(x, "SVT_SparseArray"))
+    check_svt_version(x)
     if (!isTRUEorFALSE(arr.ind))
         stop(wmsg("'arr.ind' must be TRUE or FALSE"))
     SparseArray.Call("C_nzwhich_SVT_SparseArray", x@dim, x@SVT, arr.ind)
@@ -166,6 +191,7 @@ new_SVT_SparseArray <- function(dim, dimnames=NULL,
 .from_SVT_SparseArray_to_array <- function(from)
 {
     stopifnot(is(from, "SVT_SparseArray"))
+    check_svt_version(from)
     SparseArray.Call("C_from_SVT_SparseArray_to_Rarray",
                      from@dim, dimnames(from), from@type, from@SVT)
 }
@@ -198,6 +224,7 @@ setAs("matrix", "SVT_SparseMatrix",
 .make_CsparseMatrix_from_SVT_SparseMatrix <- function(from, to_type)
 {
     stopifnot(is(from, "SVT_SparseMatrix"))
+    check_svt_version(from)
 
     ## Late type switching tends to be slightly more memory efficient.
     ## However, switching to a smaller type (e.g. from "complex" to "double"
@@ -254,6 +281,7 @@ setAs("Matrix", "SVT_SparseArray", function(from) as(from, "SVT_SparseMatrix"))
 .from_SVT_SparseArray_to_COO_SparseArray <- function(from)
 {
     stopifnot(is(from, "SVT_SparseArray"))
+    check_svt_version(from)
     ## Returns 'ans_nzcoo' and 'ans_nzdata' in a list of length 2.
     C_ans <- SparseArray.Call("C_from_SVT_SparseArray_to_COO_SparseArray",
                               from@dim, from@type, from@SVT)
@@ -364,6 +392,7 @@ SparseArray <- function(x, type=NA)
         return(.new_empty_SVT_SparseArray(type))
 
     if (is(x, "SparseArray")) {
+        check_svt_version(x)
         if (!identical(type, NA))
             type(x) <- type
         return(x)

@@ -16,6 +16,7 @@
  * _alloc_leaf()
  * _alloc_and_unzip_leaf()
  * _make_leaf_from_bufs()
+ * _expand_leaf()
  */
 
 /* Do NOT use when 'nzcount' is 0!
@@ -25,25 +26,25 @@ SEXP _alloc_leaf(SEXPTYPE Rtype, int nzcount)
 	if (nzcount == 0)
 		error("SparseArray internal error in _alloc_leaf():\n"
 		      "    nzcount == 0");
-	SEXP nzoffs = PROTECT(NEW_INTEGER(nzcount));
 	SEXP nzvals = PROTECT(allocVector(Rtype, nzcount));
-	SEXP ans = zip_leaf(nzoffs, nzvals);
+	SEXP nzoffs = PROTECT(NEW_INTEGER(nzcount));
+	SEXP ans = zip_leaf(nzvals, nzoffs);
 	UNPROTECT(2);
 	return ans;
 }
 
 SEXP _alloc_and_unzip_leaf(SEXPTYPE Rtype, int nzcount,
-		SEXP *nzoffs, SEXP *nzvals)
+		SEXP *nzvals, SEXP *nzoffs)
 {
 	SEXP ans = PROTECT(_alloc_leaf(Rtype, nzcount));
-	unzip_leaf(ans, nzoffs, nzvals);
+	unzip_leaf(ans, nzvals, nzoffs);
 	UNPROTECT(1);
 	return ans;
 }
 
 /* Does NOT work for 'Rtype' == STRSXP or VECSXP. */
 SEXP _make_leaf_from_bufs(SEXPTYPE Rtype,
-		const int *nzoffs_buf, const void *nzvals_buf, int buf_len)
+		const void *nzvals_buf, const int *nzoffs_buf, int buf_len)
 {
 	size_t Rtype_size;
 	SEXP ans, ans_offs, ans_vals;
@@ -56,11 +57,23 @@ SEXP _make_leaf_from_bufs(SEXPTYPE Rtype,
 		      "_make_leaf_from_bufs():\n"
 		      "    type \"%s\" is not supported", type2char(Rtype));
 	ans = PROTECT(_alloc_and_unzip_leaf(Rtype, buf_len,
-					    &ans_offs, &ans_vals));
-	memcpy(INTEGER(ans_offs), nzoffs_buf, sizeof(int) * buf_len);
+					    &ans_vals, &ans_offs));
 	memcpy(DATAPTR(ans_vals), nzvals_buf, Rtype_size * buf_len);
+	memcpy(INTEGER(ans_offs), nzoffs_buf, sizeof(int) * buf_len);
 	UNPROTECT(1);
 	return ans;
+}
+
+/* Assumes that 'out_Rvector' is long enough, has the right type,
+   and is already filled with zeros e.g. it was created with
+   _new_Rvector0(TYPEOF(leaf), d). */
+int _expand_leaf(SEXP leaf, SEXP out_Rvector, R_xlen_t out_offset)
+{
+	SEXP nzvals, nzoffs;
+	unzip_leaf(leaf, &nzvals, &nzoffs);  /* ignore returned nzcount */
+	_copy_Rvector_elts_to_offsets(nzvals, INTEGER(nzoffs),
+				      out_Rvector, out_offset);
+	return 0;
 }
 
 
@@ -70,85 +83,67 @@ SEXP _make_leaf_from_bufs(SEXPTYPE Rtype,
 
 /* 'nzoffs_buf' must be of length 'subvec_len' (or more). */
 SEXP _make_leaf_from_Rsubvec(
-		SEXP Rvector, R_xlen_t vec_offset, int subvec_len,
-		int *nzoffs_buf, int avoid_copy_if_all_nonzeros)
+		SEXP Rvector, R_xlen_t subvec_offset, int subvec_len,
+		int *selection_buf, int avoid_copy_if_all_nonzeros)
 {
-	int ans_nzcount;
-	SEXP ans_nzoffs, ans_nzvals, ans;
-
-	ans_nzcount = _collect_offsets_of_nonzero_Rsubvec_elts(
-				Rvector, vec_offset, subvec_len,
-				nzoffs_buf);
-	if (ans_nzcount == 0)
+	/* 'n' will always be >= 0 and <= subvec_len. */
+	int n = _collect_offsets_of_nonzero_Rsubvec_elts(
+				Rvector, subvec_offset, subvec_len,
+				selection_buf);
+	if (n == 0)
 		return R_NilValue;
 
-	ans_nzoffs = PROTECT(NEW_INTEGER(ans_nzcount));
-	memcpy(INTEGER(ans_nzoffs), nzoffs_buf, sizeof(int) * ans_nzcount);
+	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(n));
+	memcpy(INTEGER(ans_nzoffs), selection_buf, sizeof(int) * n);
 
-	if (avoid_copy_if_all_nonzeros && ans_nzcount == subvec_len &&
-	    vec_offset == 0 && XLENGTH(Rvector) == subvec_len)
+	if (avoid_copy_if_all_nonzeros &&
+	    subvec_offset == 0 && n == XLENGTH(Rvector))
 	{
 		/* The full 'Rvector' contains no zeros and can be reused
 		   as-is without the need to copy its nonzero elements to
 		   a new SEXP. */
-		ans = zip_leaf(ans_nzoffs, Rvector);
+		SEXP ans = zip_leaf(Rvector, ans_nzoffs);
 		UNPROTECT(1);
 		return ans;
 	}
 
-	ans_nzvals = PROTECT(allocVector(TYPEOF(Rvector), ans_nzcount));
-	_copy_selected_Rsubvec_elts(Rvector, vec_offset,
-				    nzoffs_buf, ans_nzvals);
-	ans = zip_leaf(ans_nzoffs, ans_nzvals);
+	SEXP ans_nzvals = PROTECT(
+		_subset_Rsubvec(Rvector, subvec_offset, selection_buf, n)
+	);
+	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs);
 	UNPROTECT(2);
 	return ans;
 }
 
 
 /****************************************************************************
- * _expand_leaf()
+ * _INPLACE_remove_zeros_from_leaf()
  */
 
-/* Assumes that 'out_Rvector' is long enough, has the right type, and
-   is already filled with zeros e.g. it was created with
-   _new_Rvector0(TYPEOF(leaf), d). */
-int _expand_leaf(SEXP leaf, SEXP out_Rvector, R_xlen_t out_offset)
+SEXP _INPLACE_remove_zeros_from_leaf(SEXP leaf, int *selection_buf)
 {
-	SEXP nzoffs, nzvals;
+	SEXP nzvals, nzoffs;
+	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
+	/* 'n' will always be >= 0 and <= nzcount. */
+	int n = _collect_offsets_of_nonzero_Rsubvec_elts(
+				nzvals, 0, nzcount, selection_buf);
 
-	unzip_leaf(leaf, &nzoffs, &nzvals);  /* ignore returned nzcount */
-	_copy_Rvector_elts_to_offsets(nzvals, INTEGER(nzoffs),
-				      out_Rvector, out_offset);
-	return 0;
-}
-
-
-/****************************************************************************
- * _remove_zeros_from_leaf()
- */
-
-SEXP _remove_zeros_from_leaf(SEXP leaf, int *nzoffs_buf)
-{
-	SEXP nzoffs, nzvals, ans_nzoffs, ans_nzvals, ans;
-	int nzcount, ans_nzcount;
-
-	nzcount = unzip_leaf(leaf, &nzoffs, &nzvals);
-	ans_nzcount = _collect_offsets_of_nonzero_Rsubvec_elts(
-				nzvals, 0, nzcount,
-				nzoffs_buf);
-	if (ans_nzcount == 0)        /* all values in 'leaf' are zeros */
+	if (n == 0)	      /* all values in 'nzvals' are zeros */
 		return R_NilValue;
-	if (ans_nzcount == nzcount)  /* all values in 'leaf' are nonzeros */
+
+	if (n == nzcount)     /* all values in 'nzvals' are nonzeros */
 		return leaf;  /* no-op */
 
-	ans_nzoffs = PROTECT(NEW_INTEGER(ans_nzcount));
-	_copy_selected_ints(INTEGER(nzoffs), nzoffs_buf, ans_nzcount,
-			    INTEGER(ans_nzoffs));
-	ans_nzvals = PROTECT(allocVector(TYPEOF(nzvals), ans_nzcount));
-	_copy_selected_Rsubvec_elts(nzvals, 0, nzoffs_buf, ans_nzvals);
-	ans = zip_leaf(ans_nzoffs, ans_nzvals);
-	UNPROTECT(2);
-	return ans;
+	/* Shrink 'nzvals'. */
+	SEXP new_nzvals = PROTECT(_subset_Rsubvec(nzvals, 0, selection_buf, n));
+	replace_leaf_nzvals(leaf, new_nzvals);
+	UNPROTECT(1);
+
+	/* Shrink 'nzoffs'. */
+	SEXP new_nzoffs = PROTECT(_subset_Rsubvec(nzoffs, 0, selection_buf, n));
+	replace_leaf_nzoffs(leaf, new_nzoffs);
+	UNPROTECT(1);
+	return leaf;
 }
 
 
@@ -162,17 +157,17 @@ SEXP _remove_zeros_from_leaf(SEXP leaf, int *nzoffs_buf)
 /* Note that, in practice, _coerce_leaf() is always called to actually
    change the type of 'leaf', so the code below does not bother to check
    for the (trivial) no-op case. */
-SEXP _coerce_leaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn, int *nzoffs_buf)
+SEXP _coerce_leaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn, int *selection_buf)
 {
-	SEXP nzoffs, nzvals, ans_nzvals, ans;
+	SEXP nzvals, nzoffs, ans_nzvals, ans;
 
-	unzip_leaf(leaf, &nzoffs, &nzvals);
+	unzip_leaf(leaf, &nzvals, &nzoffs);
 	ans_nzvals = PROTECT(_coerceVector2(nzvals, new_Rtype, warn));
-	ans = PROTECT(zip_leaf(nzoffs, ans_nzvals));
+	ans = PROTECT(zip_leaf(ans_nzvals, nzoffs));
 	/* The above coercion can introduce zeros in 'ans_nzvals' e.g. when
 	   going from double/complex to int/raw. We need to remove them. */
 	if (_coercion_can_introduce_zeros(TYPEOF(nzvals), new_Rtype))
-		ans = _remove_zeros_from_leaf(ans, nzoffs_buf);
+		ans = _INPLACE_remove_zeros_from_leaf(ans, selection_buf);
 	UNPROTECT(2);
 	return ans;
 }
@@ -185,15 +180,17 @@ SEXP _coerce_leaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn, int *nzoffs_buf)
  * (a.k.a. offsets) into 'leaf' seen as dense. They are expected to be
  * already sorted in strictly ascending order.
  * 'Rvector' must be a vector (atomic or list) of the same length as 'index'.
- * Returns a leaf whose nzcount is guaranteed to not exceed
- * min(length(leaf) + length(index), INT_MAX). Note that the zeros in 'Rvector'
- * will be injected in the returned leaf. This function does NOT remove them!
+ * Returns a leaf POSSIBLY CONTAMINATED WITH ZEROS in its 'nzvals'.
+ * More precisely: the zeros in 'Rvector' will be injected in the 'nzvals'
+ * of the returned leaf. This function does NOT remove them!
+ * 'nzcount' of the returned leaf is guaranteed to not exceed
+ * min(nzcount(leaf) + length(index), INT_MAX).
  */
 
 SEXP _subassign_leaf_with_Rvector(SEXP leaf, SEXP index, SEXP Rvector)
 {
-	SEXP nzoffs, nzvals;
-	int nzcount = unzip_leaf(leaf, &nzoffs, &nzvals);
+	SEXP nzvals, nzoffs;
+	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
 	SEXPTYPE Rtype = TYPEOF(nzvals);
 
 	CopyRVectorElt_FUNType copy_Rvector_elt_FUN =
@@ -243,9 +240,9 @@ SEXP _subassign_leaf_with_Rvector(SEXP leaf, SEXP index, SEXP Rvector)
 		ans_nzcount += index_len - k2;
 	}
 
-	SEXP ans_nzoffs, ans_nzvals;
+	SEXP ans_nzvals, ans_nzoffs;
 	SEXP ans = PROTECT(_alloc_and_unzip_leaf(Rtype, ans_nzcount,
-						 &ans_nzoffs, &ans_nzvals));
+						 &ans_nzvals, &ans_nzoffs));
 	nzoffs1_p = INTEGER(nzoffs);
 	offs2_p = INTEGER(index);
 	int *ans_nzoffs_p = INTEGER(ans_nzoffs);

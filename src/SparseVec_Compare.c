@@ -221,7 +221,7 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 /* Generate def of Compare_<Ltype>SV_<Rtype>() functions. */
 #define FUNDEF_Compare_LtypeSV_Rtype(Ltype, Rtype)(int opcode,		\
 		const SparseVec *sv1, Rtype y,				\
-		int *out_nzoffs, int *out_nzvals)			\
+		int *out_nzvals, int *out_nzoffs)			\
 {									\
 	const Ltype *nzvals1 = get_ ## Ltype ## SV_nzvals(sv1);		\
 	int nzcount1 = get_SV_nzcount(sv1);				\
@@ -231,8 +231,8 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 		int v = Compare_ ## Ltype ## _ ## Rtype			\
 					(opcode, x, y);			\
 		if (v != 0) {						\
-			out_nzoffs[out_nzcount] = sv1->nzoffs[k];	\
 			out_nzvals[out_nzcount] = v;			\
+			out_nzoffs[out_nzcount] = sv1->nzoffs[k];	\
 			out_nzcount++;					\
 		}							\
 	}								\
@@ -242,7 +242,7 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 /* Generate def of Compare_<Ltype>SV_<Rtype>SV() functions. */
 #define FUNDEF_Compare_LtypeSV_RtypeSV(Ltype, Rtype)(int opcode,	\
 		const SparseVec *sv1, const SparseVec *sv2,		\
-		int *out_nzoffs, int *out_nzvals)			\
+		int *out_nzvals, int *out_nzoffs)			\
 {									\
 	int k1, k2, off;						\
 	Ltype x;							\
@@ -256,8 +256,8 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 		int v = Compare_ ## Ltype ## _ ## Rtype			\
 					(opcode, x, y);			\
 		if (v != 0) {						\
-			out_nzoffs[out_nzcount] = off;			\
 			out_nzvals[out_nzcount] = v;			\
+			out_nzoffs[out_nzcount] = off;			\
 			out_nzcount++;					\
 		}							\
 	}								\
@@ -328,26 +328,26 @@ static int Compare_RcomplexSV_RcomplexSV
 /* Type of 'scalar' is expected to be "raw" or bigger. */
 static int Compare_RbyteSV_scalar(int opcode,
 		const SparseVec *sv1, SEXP scalar,
-		int *out_nzoffs, int *out_nzvals)
+		int *out_nzvals, int *out_nzoffs)
 {
 	SEXPTYPE Rtype2 = TYPEOF(scalar);
 	switch (Rtype2) {
 	    case RAWSXP:
 		return Compare_RbyteSV_Rbyte(opcode,
 					sv1, RAW(scalar)[0],
-					out_nzoffs, out_nzvals);
+					out_nzvals, out_nzoffs);
 	    case LGLSXP: case INTSXP:
 		return Compare_RbyteSV_int(opcode,
 					sv1, INTEGER(scalar)[0],
-					out_nzoffs, out_nzvals);
+					out_nzvals, out_nzoffs);
 	    case REALSXP:
 		return Compare_RbytesSV_double(opcode,
 					sv1, REAL(scalar)[0],
-					out_nzoffs, out_nzvals);
+					out_nzvals, out_nzoffs);
 	    case CPLXSXP:
 		return Compare_RbyteSV_Rcomplex(opcode,
 					sv1, COMPLEX(scalar)[0],
-					out_nzoffs, out_nzvals);
+					out_nzvals, out_nzoffs);
 	}
 	error("SparseArray internal error in "
 	      "Compare_RbyteSV_scalar():\n"
@@ -358,22 +358,22 @@ static int Compare_RbyteSV_scalar(int opcode,
 /* Type of 'scalar' is expected to be "integer" or bigger. */
 static int Compare_intSV_scalar(int opcode,
 		const SparseVec *sv1, SEXP scalar,
-		int *out_nzoffs, int *out_nzvals)
+		int *out_nzvals, int *out_nzoffs)
 {
 	SEXPTYPE Rtype2 = TYPEOF(scalar);
 	switch (Rtype2) {
 	    case LGLSXP: case INTSXP:
 		return Compare_intSV_int(opcode,
 					sv1, INTEGER(scalar)[0],
-					out_nzoffs, out_nzvals);
+					out_nzvals, out_nzoffs);
 	    case REALSXP:
 		return Compare_intSV_double(opcode,
 					sv1, REAL(scalar)[0],
-					out_nzoffs, out_nzvals);
+					out_nzvals, out_nzoffs);
 	    case CPLXSXP:
 		return Compare_intSV_Rcomplex(opcode,
 					sv1, COMPLEX(scalar)[0],
-					out_nzoffs, out_nzvals);
+					out_nzvals, out_nzoffs);
 	}
 	error("SparseArray internal error in "
 	      "Compare_intSV_scalar():\n"
@@ -384,18 +384,18 @@ static int Compare_intSV_scalar(int opcode,
 /* Type of 'scalar' is expected to be "double" or bigger. */
 static int Compare_doubleSV_scalar(int opcode,
 		const SparseVec *sv1, SEXP scalar,
-		int *out_nzoffs, int *out_nzvals)
+		int *out_nzvals, int *out_nzoffs)
 {
 	SEXPTYPE Rtype2 = TYPEOF(scalar);
 	switch (Rtype2) {
 	    case REALSXP:
 		return Compare_doubleSV_double(opcode,
 					sv1, REAL(scalar)[0],
-					out_nzoffs, out_nzvals);
+					out_nzvals, out_nzoffs);
 	    case CPLXSXP:
 		return Compare_doubleSV_Rcomplex(opcode,
 					sv1, COMPLEX(scalar)[0],
-					out_nzoffs, out_nzvals);
+					out_nzvals, out_nzoffs);
 	}
 	error("SparseArray internal error in "
 	      "Compare_doubleSV_scalar():\n"
@@ -406,14 +406,14 @@ static int Compare_doubleSV_scalar(int opcode,
 /* Type of 'scalar' is expected to be "complex". */
 static int Compare_RcomplexSV_scalar(int opcode,
 		const SparseVec *sv1, SEXP scalar,
-		int *out_nzoffs, int *out_nzvals)
+		int *out_nzvals, int *out_nzoffs)
 {
 	SEXPTYPE Rtype2 = TYPEOF(scalar);
 	switch (Rtype2) {
 	    case CPLXSXP:
 		return Compare_RcomplexSV_Rcomplex(opcode,
 					sv1, COMPLEX(scalar)[0],
-					out_nzoffs, out_nzvals);
+					out_nzvals, out_nzoffs);
 	}
 	error("SparseArray internal error in "
 	      "Compare_RcomplexSV_scalar():\n"
@@ -431,22 +431,22 @@ static int Compare_RcomplexSV_scalar(int opcode,
 
 static int Compare_RbyteSV_SV(int opcode,
 		const SparseVec *sv1, const SparseVec *sv2,
-		int *out_nzoffs, int *out_nzvals)
+		int *out_nzvals, int *out_nzoffs)
 {
 	SEXPTYPE Rtype2 = get_SV_Rtype(sv2);
 	switch (Rtype2) {
 	    case RAWSXP:
 		return Compare_RbyteSV_RbyteSV(opcode,
-				sv1, sv2, out_nzoffs, out_nzvals);
+				sv1, sv2, out_nzvals, out_nzoffs);
 	    case LGLSXP: case INTSXP:
 		return Compare_RbyteSV_intSV(opcode,
-				sv1, sv2, out_nzoffs, out_nzvals);
+				sv1, sv2, out_nzvals, out_nzoffs);
 	    case REALSXP:
 		return Compare_RbytesSV_doubleSV(opcode,
-				sv1, sv2, out_nzoffs, out_nzvals);
+				sv1, sv2, out_nzvals, out_nzoffs);
 	    case CPLXSXP:
 		return Compare_RbyteSV_RcomplexSV(opcode,
-				sv1, sv2, out_nzoffs, out_nzvals);
+				sv1, sv2, out_nzvals, out_nzoffs);
 	}
 	error("SparseArray internal error in "
 	      "Compare_RbyteSV_SV():\n"
@@ -456,22 +456,22 @@ static int Compare_RbyteSV_SV(int opcode,
 
 static int Compare_intSV_SV(int opcode,
 		const SparseVec *sv1, const SparseVec *sv2,
-		int *out_nzoffs, int *out_nzvals)
+		int *out_nzvals, int *out_nzoffs)
 {
 	SEXPTYPE Rtype2 = get_SV_Rtype(sv2);
 	switch (Rtype2) {
 	    case RAWSXP:
 		return Compare_RbyteSV_intSV(flip_opcode(opcode),
-				sv2, sv1, out_nzoffs, out_nzvals);
+				sv2, sv1, out_nzvals, out_nzoffs);
 	    case LGLSXP: case INTSXP:
 		return Compare_intSV_intSV(opcode,
-				sv1, sv2, out_nzoffs, out_nzvals);
+				sv1, sv2, out_nzvals, out_nzoffs);
 	    case REALSXP:
 		return Compare_intSV_doubleSV(opcode,
-				sv1, sv2, out_nzoffs, out_nzvals);
+				sv1, sv2, out_nzvals, out_nzoffs);
 	    case CPLXSXP:
 		return Compare_intSV_RcomplexSV(opcode,
-				sv1, sv2, out_nzoffs, out_nzvals);
+				sv1, sv2, out_nzvals, out_nzoffs);
 	}
 	error("SparseArray internal error in "
 	      "Compare_intSV_SV():\n"
@@ -481,22 +481,22 @@ static int Compare_intSV_SV(int opcode,
 
 static int Compare_doubleSV_SV(int opcode,
 		const SparseVec *sv1, const SparseVec *sv2,
-		int *out_nzoffs, int *out_nzvals)
+		int *out_nzvals, int *out_nzoffs)
 {
 	SEXPTYPE Rtype2 = get_SV_Rtype(sv2);
 	switch (Rtype2) {
 	    case RAWSXP:
 		return Compare_RbytesSV_doubleSV(flip_opcode(opcode),
-				sv2, sv1, out_nzoffs, out_nzvals);
+				sv2, sv1, out_nzvals, out_nzoffs);
 	    case LGLSXP: case INTSXP:
 		return Compare_intSV_doubleSV(flip_opcode(opcode),
-				sv2, sv1, out_nzoffs, out_nzvals);
+				sv2, sv1, out_nzvals, out_nzoffs);
 	    case REALSXP:
 		return Compare_doubleSV_doubleSV(opcode,
-				sv1, sv2, out_nzoffs, out_nzvals);
+				sv1, sv2, out_nzvals, out_nzoffs);
 	    case CPLXSXP:
 		return Compare_doubleSV_RcomplexSV(opcode,
-				sv1, sv2, out_nzoffs, out_nzvals);
+				sv1, sv2, out_nzvals, out_nzoffs);
 	}
 	error("SparseArray internal error in "
 	      "Compare_doubleSV_SV():\n"
@@ -506,22 +506,22 @@ static int Compare_doubleSV_SV(int opcode,
 
 static int Compare_RcomplexSV_SV(int opcode,
 		const SparseVec *sv1, const SparseVec *sv2,
-		int *out_nzoffs, int *out_nzvals)
+		int *out_nzvals, int *out_nzoffs)
 {
 	SEXPTYPE Rtype2 = get_SV_Rtype(sv2);
 	switch (Rtype2) {
 	    case RAWSXP:
 		return Compare_RbyteSV_RcomplexSV(flip_opcode(opcode),
-				sv2, sv1, out_nzoffs, out_nzvals);
+				sv2, sv1, out_nzvals, out_nzoffs);
 	    case LGLSXP: case INTSXP:
 		return Compare_intSV_RcomplexSV(flip_opcode(opcode),
-				sv2, sv1, out_nzoffs, out_nzvals);
+				sv2, sv1, out_nzvals, out_nzoffs);
 	    case REALSXP:
 		return Compare_doubleSV_RcomplexSV(flip_opcode(opcode),
-				sv2, sv1, out_nzoffs, out_nzvals);
+				sv2, sv1, out_nzvals, out_nzoffs);
 	    case CPLXSXP:
 		return Compare_RcomplexSV_RcomplexSV(opcode,
-				sv1, sv2, out_nzoffs, out_nzvals);
+				sv1, sv2, out_nzvals, out_nzoffs);
 	}
 	error("SparseArray internal error in "
 	      "Compare_RcomplexSV_SV():\n"
@@ -537,22 +537,22 @@ static int Compare_RcomplexSV_SV(int opcode,
  */
 
 int _Compare_sv1_zero(int opcode, const SparseVec *sv1,
-		int *out_nzoffs, int *out_nzvals)
+		int *out_nzvals, int *out_nzoffs)
 {
 	SEXPTYPE Rtype1 = get_SV_Rtype(sv1);
 	switch (Rtype1) {
 	    case RAWSXP:
 		return Compare_RbyteSV_Rbyte(opcode,
-				sv1, Rbyte0, out_nzoffs, out_nzvals);
+				sv1, Rbyte0, out_nzvals, out_nzoffs);
 	    case LGLSXP: case INTSXP:
 		return Compare_intSV_int(opcode,
-				sv1, int0, out_nzoffs, out_nzvals);
+				sv1, int0, out_nzvals, out_nzoffs);
 	    case REALSXP:
 		return Compare_doubleSV_double(opcode,
-				sv1, double0, out_nzoffs, out_nzvals);
+				sv1, double0, out_nzvals, out_nzoffs);
 	    case CPLXSXP:
 		return Compare_RcomplexSV_Rcomplex(opcode,
-				sv1, Rcomplex0, out_nzoffs, out_nzvals);
+				sv1, Rcomplex0, out_nzvals, out_nzoffs);
 	}
 	error("SparseArray internal error in "
 	      "_Compare_sv1_zero():\n"
@@ -563,22 +563,22 @@ int _Compare_sv1_zero(int opcode, const SparseVec *sv1,
 /* 'scalar' is assumed to be an atomic vector of length 1. This is NOT checked!
    Also its type is expected to be the same size as sv1's type or bigger. */
 int _Compare_sv1_scalar(int opcode, const SparseVec *sv1, SEXP scalar,
-		int *out_nzoffs, int *out_nzvals)
+		int *out_nzvals, int *out_nzoffs)
 {
 	SEXPTYPE Rtype1 = get_SV_Rtype(sv1);
 	switch (Rtype1) {
 	    case RAWSXP:
 		return Compare_RbyteSV_scalar(opcode,
-				sv1, scalar, out_nzoffs, out_nzvals);
+				sv1, scalar, out_nzvals, out_nzoffs);
 	    case LGLSXP: case INTSXP:
 		return Compare_intSV_scalar(opcode,
-				sv1, scalar, out_nzoffs, out_nzvals);
+				sv1, scalar, out_nzvals, out_nzoffs);
 	    case REALSXP:
 		return Compare_doubleSV_scalar(opcode,
-				sv1, scalar, out_nzoffs, out_nzvals);
+				sv1, scalar, out_nzvals, out_nzoffs);
 	    case CPLXSXP:
 		return Compare_RcomplexSV_scalar(opcode,
-				sv1, scalar, out_nzoffs, out_nzvals);
+				sv1, scalar, out_nzvals, out_nzoffs);
 	}
 	error("SparseArray internal error in "
 	      "_Compare_sv1_scalar():\n"
@@ -587,22 +587,22 @@ int _Compare_sv1_scalar(int opcode, const SparseVec *sv1, SEXP scalar,
 }
 
 int _Compare_sv1_sv2(int opcode, const SparseVec *sv1, const SparseVec *sv2,
-		int *out_nzoffs, int *out_nzvals)
+		int *out_nzvals, int *out_nzoffs)
 {
 	SEXPTYPE Rtype1 = get_SV_Rtype(sv1);
 	switch (Rtype1) {
 	    case RAWSXP:
 		return Compare_RbyteSV_SV(opcode,
-				sv1, sv2, out_nzoffs, out_nzvals);
+				sv1, sv2, out_nzvals, out_nzoffs);
 	    case LGLSXP: case INTSXP:
 		return Compare_intSV_SV(opcode,
-				sv1, sv2, out_nzoffs, out_nzvals);
+				sv1, sv2, out_nzvals, out_nzoffs);
 	    case REALSXP:
 		return Compare_doubleSV_SV(opcode,
-				sv1, sv2, out_nzoffs, out_nzvals);
+				sv1, sv2, out_nzvals, out_nzoffs);
 	    case CPLXSXP:
 		return Compare_RcomplexSV_SV(opcode,
-				sv1, sv2, out_nzoffs, out_nzvals);
+				sv1, sv2, out_nzvals, out_nzoffs);
 	}
 	error("SparseArray internal error in "
 	      "_Compare_sv1_sv2():\n"

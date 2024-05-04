@@ -188,24 +188,38 @@ sparsity <- function(x) { 1 - nzcount(x) / length(x) }
 ### show()
 ###
 
-SparseArray_as_one_line_summary <- function(x)
+setMethod("classNameForDisplay", "SparseArray", function(x) "SparseArray")
+setMethod("classNameForDisplay", "SparseMatrix", function(x) "SparseMatrix")
+
+.show_headline_part1 <- function(x)
 {
-    sprintf("<%s %s> of type \"%s\" (nzcount=%s)",
-            paste0(dim(x), collapse=" x "), class(x),
-            type(x), format(nzcount(x)))
+    sprintf("<%s %s> of type \"%s\" ", paste0(dim(x), collapse=" x "),
+                                       classNameForDisplay(x), type(x))
+}
+
+.show_headline_part2 <- function(x)
+{
+    ## Calling nzcount(x) will fail if 'x' is an SVT_SparseArray object
+    ## that uses version 0 of the SVT internal layout.
+    x_nzcount <- nzcount(x)
+    x_density <- x_nzcount / length(x)
+    sprintf("[nzcount=%s (%s%%)]", format(x_nzcount),
+                                   signif(100 * x_density, digits=2))
 }
 
 setMethod("show", "SparseArray",
     function(object)
     {
-        #grey <- make_style("grey")
-        #cat(grey(SparseArray_as_one_line_summary(object)))
-        cat(SparseArray_as_one_line_summary(object))
+        ## Only reason we print the headline in 2 steps is because we
+        ## want to make sure to print at least something (part1) even
+        ## when printing part2 is going to fail. This will happen for
+        ## example if the call to nzcount() in .show_headline_part2() fails.
+        cat(.show_headline_part1(object))
+        cat(.show_headline_part2(object))
         if (any(dim(object) == 0L)) {
             cat("\n")
             return()
         }
-        #cat(grey(":"), "\n", sep="")
         cat(":\n", sep="")
         S4Arrays:::print_some_array_elements(object)
     }

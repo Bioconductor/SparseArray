@@ -24,6 +24,7 @@
     stopifnot(is(x, "SVT_SparseMatrix"),
               is.matrix(y),
               isTRUEorFALSE(transpose.y))
+    check_svt_version(x)
     if (transpose.y) {
         if (nrow(x) != ncol(y))
             stop(wmsg("non-conformable arguments"))
@@ -54,6 +55,7 @@
     stopifnot(is.matrix(x),
               is(y, "SVT_SparseMatrix"),
               isTRUEorFALSE(transpose.x))
+    check_svt_version(y)
     if (transpose.x) {
         if (ncol(x) != nrow(y))
             stop(wmsg("non-conformable arguments"))
@@ -82,6 +84,8 @@
 .crossprod2_SVT_SVT <- function(x, y=NULL)
 {
     stopifnot(is(x, "SVT_SparseMatrix"), is(y, "SVT_SparseMatrix"))
+    check_svt_version(x)
+    check_svt_version(y)
     if (nrow(x) != nrow(y))
         stop(wmsg("non-conformable arguments"))
     ans_dim <- c(ncol(x), ncol(y))
@@ -103,6 +107,7 @@
 .crossprod1_SVT <- function(x, y=NULL)
 {
     stopifnot(is(x, "SVT_SparseMatrix"), is.null(y))
+    check_svt_version(x)
     ans_dim <- c(ncol(x), ncol(x))
     .check_crossprod_input_type(type(x))
     ans_type <- "double"

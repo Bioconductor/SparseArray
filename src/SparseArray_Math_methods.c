@@ -10,12 +10,12 @@
 
 
 static SEXP Math_leaf(MathFUN fun, SEXP leaf, double digits, int dim0,
-		int *nzoffs_buf, double *nzvals_buf, int *newNaNs)
+		double *nzvals_buf, int *nzoffs_buf, int *newNaNs)
 {
 	const SparseVec sv = leaf2SV(leaf, dim0);
 	int buf_len = _Math_doubleSV(fun, &sv, digits,
-				     nzoffs_buf, nzvals_buf, newNaNs);
-	return _make_leaf_from_bufs(REALSXP, nzoffs_buf, nzvals_buf, buf_len);
+				     nzvals_buf, nzoffs_buf, newNaNs);
+	return _make_leaf_from_bufs(REALSXP, nzvals_buf, nzoffs_buf, buf_len);
 }
 
 
@@ -25,7 +25,7 @@ static SEXP Math_leaf(MathFUN fun, SEXP leaf, double digits, int dim0,
 
 static SEXP REC_Math_SVT(MathFUN fun, SEXP SVT, double digits,
 			 const int *dim, int ndim,
-			 int *nzoffs_buf, double *nzvals_buf, int *newNaNs)
+			 double *nzvals_buf, int *nzoffs_buf, int *newNaNs)
 {
 	if (SVT == R_NilValue)
 		return R_NilValue;
@@ -33,7 +33,7 @@ static SEXP REC_Math_SVT(MathFUN fun, SEXP SVT, double digits,
 	if (ndim == 1) {
 		/* 'SVT' is a leaf. */
 		return Math_leaf(fun, SVT, digits, dim[0],
-				 nzoffs_buf, nzvals_buf, newNaNs);
+				 nzvals_buf, nzoffs_buf, newNaNs);
 	}
 
 	/* 'SVT' is a list. */
@@ -44,7 +44,7 @@ static SEXP REC_Math_SVT(MathFUN fun, SEXP SVT, double digits,
 		SEXP subSVT = VECTOR_ELT(SVT, i);
 		SEXP ans_elt = REC_Math_SVT(fun, subSVT, digits,
 					    dim, ndim - 1,
-					    nzoffs_buf, nzvals_buf, newNaNs);
+					    nzvals_buf, nzoffs_buf, newNaNs);
 		if (ans_elt != R_NilValue) {
 			PROTECT(ans_elt);
 			SET_VECTOR_ELT(ans, i, ans_elt);
@@ -80,14 +80,14 @@ SEXP C_Math_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP op, SEXP digits)
 	MathFUN fun = _get_MathFUN(CHAR(op));
 	double digits0 = REAL(digits)[0];
 
-	int *nzoffs_buf = (int *)
-		R_alloc(INTEGER(x_dim)[0], sizeof(int));
 	double *nzvals_buf = (double *)
 		R_alloc(INTEGER(x_dim)[0], sizeof(double));
+	int *nzoffs_buf = (int *)
+		R_alloc(INTEGER(x_dim)[0], sizeof(int));
 	int newNaNs = 0;
 	SEXP ans = REC_Math_SVT(fun, x_SVT, digits0,
 				INTEGER(x_dim), LENGTH(x_dim),
-				nzoffs_buf, nzvals_buf, &newNaNs);
+				nzvals_buf, nzoffs_buf, &newNaNs);
 	if (newNaNs) {
 		PROTECT(ans);
 		warning("NaNs produced");

@@ -80,8 +80,8 @@ static void rowsum_SVT_double(int x_nrow, int x_ncol, SEXP x_SVT,
 		SEXP subSVT = VECTOR_ELT(x_SVT, j);
 		if (subSVT == R_NilValue)
 			continue;
-		SEXP nzoffs, nzvals;
-		int nzcount = unzip_leaf(subSVT, &nzoffs, &nzvals);
+		SEXP nzvals, nzoffs;
+		int nzcount = unzip_leaf(subSVT, &nzvals, &nzoffs);
 		compute_rowsum_doubles(
 			REAL(nzvals), INTEGER(nzoffs), nzcount,
 			groups, out, ngroup, narm);
@@ -99,8 +99,8 @@ static void rowsum_SVT_int(int x_nrow, int x_ncol, SEXP x_SVT,
 		SEXP subSVT = VECTOR_ELT(x_SVT, j);
 		if (subSVT == R_NilValue)
 			continue;
-		SEXP nzoffs, nzvals;
-		int nzcount = unzip_leaf(subSVT, &nzoffs, &nzvals);
+		SEXP nzvals, nzoffs;
+		int nzcount = unzip_leaf(subSVT, &nzvals, &nzoffs);
 		compute_rowsum_ints(
 			INTEGER(nzvals), INTEGER(nzoffs), nzcount,
 			groups, out, ngroup, narm);
