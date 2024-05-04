@@ -31,11 +31,11 @@ setClass("SVT_SparseArray",
     representation(
         type="character",
         SVT="NULL_OR_list",  # NULL or Sparse Vector Tree (SVT)
-        svt_version="integer"
+        .svt_version="integer"
     ),
     prototype(
         type="logical",
-        svt_version=.SVT_VERSION
+        .svt_version=.SVT_VERSION
     )
 )
 
@@ -51,7 +51,7 @@ setClass("SVT_SparseMatrix",
 svt_version <- function(x)
 {
     stopifnot(is(x, "SVT_SparseArray"))
-    if (.hasSlot(x, "svt_version")) x@svt_version else 0L
+    if (.hasSlot(x, ".svt_version")) x@.svt_version else 0L
 }
 
 check_svt_version <- function(x)
