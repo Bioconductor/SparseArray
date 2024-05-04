@@ -21,8 +21,8 @@ void _add_ExtendableJaggedArray_elt(
 );
 
 SEXP _move_ExtendableJaggedArrays_to_SVT(
-	ExtendableJaggedArray *offss,
-	ExtendableJaggedArray *valss
+	ExtendableJaggedArray *valss,
+	ExtendableJaggedArray *offss
 );
 
 #endif  /* _EXTENDABLE_JAGGED_ARRAY_H_ */

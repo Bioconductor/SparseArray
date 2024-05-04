@@ -49,7 +49,7 @@ static inline int Logic_int_int(int x, int y, int opcode)
 }
 
 int _Logic_intSV_intSV(int opcode, const SparseVec *sv1, const SparseVec *sv2,
-		int *out_nzoffs, int *out_nzvals)
+		int *out_nzvals, int *out_nzoffs)
 {
 	int nzcount, k1, k2, off, x, y, v;
 
@@ -59,8 +59,8 @@ int _Logic_intSV_intSV(int opcode, const SparseVec *sv1, const SparseVec *sv2,
 	{
 		v = Logic_int_int(x, y, opcode);
 		if (v != 0) {
-			out_nzoffs[nzcount] = off;
 			out_nzvals[nzcount] = v;
+			out_nzoffs[nzcount] = off;
 			nzcount++;
 		}
 	}

@@ -40,21 +40,21 @@ static int increase_buflength(int buflength)
  */
 
 /* TODO: Using a union for this feels a little bit over engineered.
-   Maybe drop the union struct and relace the 'SparseBufVals vals' record
-   in the SparseBuf struct with 'void *vals'. */
+   Maybe drop the union struct and relace the 'SparseBufNzVals nzvals'
+   record in the SparseBuf struct with 'void *nzvals'. */
 typedef union sparse_buf_vals_t {
 	int *ints;
 	double *doubles;
 	Rcomplex *Rcomplexes;
 	Rbyte *Rbytes;
 	SEXP *SEXPs;
-} SparseBufVals;
+} SparseBufNzVals;
 
 typedef struct sparse_buf_t {
 	int buflength;
 	int nelt;
-	int *offs;
-	SparseBufVals vals;  /* just do 'void *vals' here? */
+	SparseBufNzVals nzvals;  /* maybe just do 'void *nzvals' here? */
+	int *nzoffs;
 } SparseBuf;
 
 #define	FUNDEF_new_SparseBuf(type, union_member)			     \
@@ -65,14 +65,14 @@ typedef struct sparse_buf_t {
 	buf = (SparseBuf *) malloc(sizeof(SparseBuf));			     \
 	if (buf == NULL)						     \
 		error("new_" #type "_SparseBuf: malloc() error");	     \
-	buf->offs = (int *) malloc(sizeof(int) * buflength);		     \
-	if (buf->offs == NULL) {					     \
+	buf->nzvals.union_member = (type *) malloc(sizeof(type) * buflength);\
+	if (buf->nzvals.union_member == NULL) {				     \
 		free(buf);						     \
 		error("new_" #type "_SparseBuf: malloc() error");	     \
 	}								     \
-	buf->vals.union_member = (type *) malloc(sizeof(type) * buflength);  \
-	if (buf->vals.union_member == NULL) {				     \
-		free(buf->offs);					     \
+	buf->nzoffs = (int *) malloc(sizeof(int) * buflength);		     \
+	if (buf->nzoffs == NULL) {					     \
+		free(buf->nzvals.union_member);				     \
 		free(buf);						     \
 		error("new_" #type "_SparseBuf: malloc() error");	     \
 	}								     \
@@ -92,21 +92,20 @@ static SparseBuf *new_Rbyte_SparseBuf
 static SparseBuf *new_SEXP_SparseBuf
 	FUNDEF_new_SparseBuf(SEXP, SEXPs)
 
+/* FIXME: SparseBuf needs to be freed if one of the realloc() fails. */
 #define	FUNDEF_extend_SparseBuf(type, union_member)			     \
 	(SparseBuf *buf, int new_buflength)				     \
 {									     \
-	int *new_offs;							     \
-	type *new_vals;							     \
-									     \
-	new_offs = (int *) realloc(buf->offs, sizeof(int) * new_buflength);  \
-	if (new_offs == NULL)						     \
+	type *new_nzvals = (type *)					     \
+	    realloc(buf->nzvals.union_member, sizeof(type) * new_buflength); \
+	if (new_nzvals == NULL)						     \
 		error("extend_" #type "_SparseBuf: realloc() error");	     \
-	buf->offs = new_offs;						     \
-	new_vals = (type *) realloc(buf->vals.union_member,		     \
-				    sizeof(type) * new_buflength);	     \
-	if (new_vals == NULL)						     \
+	buf->nzvals.union_member = new_nzvals;				     \
+	int *new_nzoffs = (int *)					     \
+		realloc(buf->nzoffs, sizeof(int) * new_buflength);	     \
+	if (new_nzoffs == NULL)						     \
 		error("extend_" #type "_SparseBuf: realloc() error");	     \
-	buf->vals.union_member = new_vals;				     \
+	buf->nzoffs = new_nzoffs;					     \
 	buf->buflength = new_buflength;					     \
 	return;								     \
 }
@@ -125,10 +124,8 @@ static void extend_SEXP_SparseBuf
 #define	FUNDEF_free_SparseBuf(union_member)				     \
 	(SparseBuf *buf)						     \
 {									     \
-	/*printf("free SparseBuf -- ");*/				     \
-	/*printf("nelt/buflength = %d/%d\n", buf->nelt, buf->buflength);*/   \
-	free(buf->vals.union_member);					     \
-	free(buf->offs);						     \
+	free(buf->nzvals.union_member);					     \
+	free(buf->nzoffs);						     \
 	free(buf);							     \
 	return;								     \
 }
@@ -139,53 +136,49 @@ static void free_Rcomplex_SparseBuf FUNDEF_free_SparseBuf(Rcomplexes)
 static void free_Rbyte_SparseBuf FUNDEF_free_SparseBuf(Rbytes)
 static void free_SEXP_SparseBuf FUNDEF_free_SparseBuf(SEXPs)
 
-static void copy_SparseBuf_ints_to_Rvector(const SparseBufVals vals,
+static void copy_SparseBuf_ints_to_Rvector(const SparseBufNzVals nzvals,
 		SEXP Rvector, int n)
 {
-	memcpy(INTEGER(Rvector), vals.ints, sizeof(int) * n);
+	memcpy(INTEGER(Rvector), nzvals.ints, sizeof(int) * n);
 	return;
 }
-static void copy_SparseBuf_doubles_to_Rvector(const SparseBufVals vals,
+static void copy_SparseBuf_doubles_to_Rvector(const SparseBufNzVals nzvals,
 		SEXP Rvector, int n)
 {
-	memcpy(REAL(Rvector), vals.doubles, sizeof(double) * n);
+	memcpy(REAL(Rvector), nzvals.doubles, sizeof(double) * n);
 	return;
 }
-static void copy_SparseBuf_Rcomplexes_to_Rvector(const SparseBufVals vals,
+static void copy_SparseBuf_Rcomplexes_to_Rvector(const SparseBufNzVals nzvals,
 		SEXP Rvector, int n)
 {
-	memcpy(COMPLEX(Rvector), vals.Rcomplexes, sizeof(Rcomplex) * n);
+	memcpy(COMPLEX(Rvector), nzvals.Rcomplexes, sizeof(Rcomplex) * n);
 	return;
 }
-static void copy_SparseBuf_Rbytes_to_Rvector(const SparseBufVals vals,
+static void copy_SparseBuf_Rbytes_to_Rvector(const SparseBufNzVals nzvals,
 		SEXP Rvector, int n)
 {
-	memcpy(RAW(Rvector), vals.Rbytes, sizeof(Rbyte) * n);
+	memcpy(RAW(Rvector), nzvals.Rbytes, sizeof(Rbyte) * n);
 	return;
 }
-static void copy_SparseBuf_SEXPs_to_character(const SparseBufVals vals,
+static void copy_SparseBuf_SEXPs_to_character(const SparseBufNzVals nzvals,
 		SEXP Rvector, int n)
 {
-	int k;
-
-	for (k = 0; k < n; k++)
-		SET_STRING_ELT(Rvector, k, vals.SEXPs[k]);
+	for (int k = 0; k < n; k++)
+		SET_STRING_ELT(Rvector, k, nzvals.SEXPs[k]);
 	return;
 }
-static void copy_SparseBuf_SEXPs_to_list(const SparseBufVals vals,
+static void copy_SparseBuf_SEXPs_to_list(const SparseBufNzVals nzvals,
 		SEXP Rvector, int n)
 {
-	int k;
-
-	for (k = 0; k < n; k++)
-		SET_VECTOR_ELT(Rvector, k, vals.SEXPs[k]);
+	for (int k = 0; k < n; k++)
+		SET_VECTOR_ELT(Rvector, k, nzvals.SEXPs[k]);
 	return;
 }
 
-typedef void (*copy_vals_FUNType)(const SparseBufVals vals,
-				  SEXP Rvector, int n);
+typedef void (*copy_nzvals_FUNType)(const SparseBufNzVals nzvals,
+				    SEXP Rvector, int n);
 
-static copy_vals_FUNType _select_copy_vals_FUN(SEXPTYPE Rtype)
+static copy_nzvals_FUNType _select_copy_nzvals_FUN(SEXPTYPE Rtype)
 {
 	switch (Rtype) {
 	    case LGLSXP: case INTSXP:
@@ -201,24 +194,21 @@ static copy_vals_FUNType _select_copy_vals_FUN(SEXPTYPE Rtype)
 	    case VECSXP:
 		return copy_SparseBuf_SEXPs_to_list;
 	}
-	error("SparseArray internal error in _select_copy_vals_FUN():\n"
+	error("SparseArray internal error in _select_copy_nzvals_FUN():\n"
 	      "    type \"%s\" is not supported", type2char(Rtype));
 	return NULL;  /* will never reach this */
 }
 
 /* 'buf' can NOT be empty! */
 static SEXP make_leaf_from_SparseBuf(SEXPTYPE Rtype,
-		const SparseBuf *buf, copy_vals_FUNType copy_vals_FUN)
+		const SparseBuf *buf, copy_nzvals_FUNType copy_nzvals_FUN)
 {
-	int ans_len;
-	SEXP ans_offs, ans_vals, ans;
-
-	ans_len = buf->nelt;
-	ans_offs = PROTECT(NEW_INTEGER(ans_len));
-	memcpy(INTEGER(ans_offs), buf->offs, sizeof(int) * ans_len);
-	ans_vals = PROTECT(allocVector(Rtype, ans_len));
-	copy_vals_FUN(buf->vals, ans_vals, ans_len);
-	ans = zip_leaf(ans_offs, ans_vals);
+	int buf_len = buf->nelt;
+	SEXP ans_nzvals = PROTECT(allocVector(Rtype, buf_len));
+	copy_nzvals_FUN(buf->nzvals, ans_nzvals, buf_len);
+	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(buf_len));
+	memcpy(INTEGER(ans_nzoffs), buf->nzoffs, sizeof(int) * buf_len);
+	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs);
 	UNPROTECT(2);
 	return ans;
 }
@@ -250,19 +240,17 @@ static void finalize_Rcomplex_leaf_buffer FUNDEF_finalize_leaf_buffer(Rcomplex)
 static void finalize_Rbyte_leaf_buffer FUNDEF_finalize_leaf_buffer(Rbyte)
 static void finalize_SEXP_leaf_buffer FUNDEF_finalize_leaf_buffer(SEXP)
 
+/* FIXME: SparseBuf must be freed if one of the malloc() fails. */
 #define	FUNDEF_new_leaf_buffer(type, union_member)			     \
 	(int buflength)							     \
 {									     \
-	SparseBuf *buf;							     \
-	SEXP ans;							     \
-									     \
-	buf = new_ ## type ## _SparseBuf(buflength);			     \
+	SparseBuf *buf = new_ ## type ## _SparseBuf(buflength);		     \
 	buf = (SparseBuf *) malloc(sizeof(SparseBuf));			     \
-	buf->offs = (int *) malloc(sizeof(int) * buflength);		     \
-	buf->vals.union_member = (type *) malloc(sizeof(type) * buflength);  \
+	buf->nzvals.union_member = (type *) malloc(sizeof(type) * buflength);\
+	buf->nzoffs = (int *) malloc(sizeof(int) * buflength);		     \
 	buf->buflength = buflength;					     \
-	buf->nelt = 0;							     \
-	ans = PROTECT(R_MakeExternalPtr(buf, R_NilValue, R_NilValue));	     \
+	buf->nelt = 0;						     \
+	SEXP ans = PROTECT(R_MakeExternalPtr(buf, R_NilValue, R_NilValue));  \
 	R_RegisterCFinalizer(ans, finalize_ ## type ## _leaf_buffer);	     \
 	UNPROTECT(1);							     \
 	return ans;							     \
@@ -282,16 +270,13 @@ static SEXP new_SEXP_leaf_buffer
 #define	FUNDEF_push_val_to_leaf_buffer(type, union_member)		     \
 	(SEXP lb, int off, type val)					     \
 {									     \
-	SparseBuf *buf;							     \
-	int new_buflength;						     \
-									     \
-	buf = R_ExternalPtrAddr(lb);					     \
+	SparseBuf *buf = R_ExternalPtrAddr(lb);				     \
 	if (buf->nelt == buf->buflength) {				     \
-		new_buflength = increase_buflength(buf->buflength);	     \
+		int new_buflength = increase_buflength(buf->buflength);	     \
 		extend_ ## type ## _SparseBuf(buf, new_buflength);	     \
 	}								     \
-	buf->offs[buf->nelt] = off;					     \
-	buf->vals.union_member[buf->nelt] = val;			     \
+	buf->nzoffs[buf->nelt] = off;					     \
+	buf->nzvals.union_member[buf->nelt] = val;			     \
 	return ++buf->nelt;						     \
 }
 
@@ -306,10 +291,11 @@ static inline int push_Rbyte_to_leaf_buffer
 static inline int push_SEXP_to_leaf_buffer
 	FUNDEF_push_val_to_leaf_buffer(SEXP, SEXPs)
 
-static SEXP lb2leaf(SEXP lb, SEXPTYPE Rtype, copy_vals_FUNType copy_vals_FUN)
+static SEXP lb2leaf(SEXP lb, SEXPTYPE Rtype,
+		    copy_nzvals_FUNType copy_nzvals_FUN)
 {
 	return make_leaf_from_SparseBuf(Rtype, R_ExternalPtrAddr(lb),
-					copy_vals_FUN);
+					copy_nzvals_FUN);
 }
 
 
@@ -379,7 +365,7 @@ void _push_SEXP_to_SBT		FUNDEF_push_val_to_SBT(SEXP)
 
 /* Recursive. 'SBT' can NOT be R_NilValue! */
 static void REC_SBT2SVT(SEXP SBT, const int *dim, int ndim,
-		SEXPTYPE Rtype, copy_vals_FUNType copy_vals_FUN)
+		SEXPTYPE Rtype, copy_nzvals_FUNType copy_nzvals_FUN)
 {
 	int SBT_len, i;
 	SEXP subSBT, leaf;
@@ -391,11 +377,11 @@ static void REC_SBT2SVT(SEXP SBT, const int *dim, int ndim,
 			continue;
 		if (ndim >= 3) {
 			REC_SBT2SVT(subSBT, dim, ndim - 1,
-				    Rtype, copy_vals_FUN);
+				    Rtype, copy_nzvals_FUN);
 			continue;
 		}
 		/* 'subSBT' is a "leaf buffer". */
-		leaf = PROTECT(lb2leaf(subSBT, Rtype, copy_vals_FUN));
+		leaf = PROTECT(lb2leaf(subSBT, Rtype, copy_nzvals_FUN));
 		SET_VECTOR_ELT(SBT, i, leaf);
 		finalize_int_leaf_buffer(subSBT);
 		UNPROTECT(1);
@@ -407,10 +393,10 @@ static void REC_SBT2SVT(SEXP SBT, const int *dim, int ndim,
    'SBT' can NOT be R_NilValue! Must be called with 'ndim' >= 2. */
 void _SBT2SVT(SEXP SBT, const int *dim, int ndim, SEXPTYPE Rtype)
 {
-	copy_vals_FUNType copy_vals_FUN;
+	copy_nzvals_FUNType copy_nzvals_FUN;
 
-	copy_vals_FUN = _select_copy_vals_FUN(Rtype);
-	REC_SBT2SVT(SBT, dim, ndim, Rtype, copy_vals_FUN);
+	copy_nzvals_FUN = _select_copy_nzvals_FUN(Rtype);
+	REC_SBT2SVT(SBT, dim, ndim, Rtype, copy_nzvals_FUN);
 	return;
 }
 

@@ -26,7 +26,7 @@ Authors@R: c(
 	person("Jacques", "Serizay", role="ctb"))
 Depends: R (>= 4.3.0), methods, Matrix, BiocGenerics (>= 0.43.1),
 	MatrixGenerics (>= 1.11.1), S4Vectors, S4Arrays (>= 1.1.6)
-Imports: stats, matrixStats, IRanges, XVector
+Imports: utils, stats, matrixStats, IRanges, XVector
 LinkingTo: S4Vectors, IRanges, XVector
 Suggests: DelayedArray, testthat, knitr, rmarkdown, BiocStyle
 VignetteBuilder: knitr

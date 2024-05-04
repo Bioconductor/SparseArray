@@ -12,6 +12,7 @@
         stop(wmsg("'na.rm' must be TRUE or FALSE"))
     group <- match(group, ugroup)
     if (is(x, "SVT_SparseMatrix")) {
+        check_svt_version(x)
         ans <- SparseArray.Call("C_rowsum_SVT", x@dim, x@type, x@SVT,
                                 group, length(ugroup), na.rm)
     } else {

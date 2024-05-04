@@ -57,10 +57,8 @@ static inline void _copy_NUMERIC_elts(
 		SEXP out, R_xlen_t out_offset,
 		R_xlen_t nelt)
 {
-	void *dest, *src;
-
-	dest = REAL(out) + out_offset;
-	src  = REAL(in)  + in_offset;
+	void *dest = REAL(out) + out_offset;
+	void *src  = REAL(in)  + in_offset;
 	memcpy(dest, src, sizeof(double) * nelt);
 	return;
 }
@@ -78,10 +76,8 @@ static inline void _copy_COMPLEX_elts(
 		SEXP out, R_xlen_t out_offset,
 		R_xlen_t nelt)
 {
-	void *dest, *src;
-
-	dest = COMPLEX(out) + out_offset;
-	src  = COMPLEX(in)  + in_offset;
+	void *dest = COMPLEX(out) + out_offset;
+	void *src  = COMPLEX(in)  + in_offset;
 	memcpy(dest, src, sizeof(Rcomplex) * nelt);
 	return;
 }
@@ -99,10 +95,8 @@ static inline void _copy_RAW_elts(
 		SEXP out, R_xlen_t out_offset,
 		R_xlen_t nelt)
 {
-	void *dest, *src;
-
-	dest = RAW(out) + out_offset;
-	src  = RAW(in)  + in_offset;
+	void *dest = RAW(out) + out_offset;
+	void *src  = RAW(in)  + in_offset;
 	memcpy(dest, src, sizeof(Rbyte) * nelt);
 	return;
 }
@@ -120,9 +114,7 @@ static inline void _copy_CHARACTER_elts(
 		SEXP out, R_xlen_t out_offset,
 		R_xlen_t nelt)
 {
-	R_xlen_t k;
-
-	for (k = 0; k < nelt; k++)
+	for (R_xlen_t k = 0; k < nelt; k++)
 		_copy_CHARACTER_elt(in, in_offset + k, out, out_offset + k);
 	return;
 }
@@ -140,9 +132,7 @@ static inline void _copy_LIST_elts(
 		SEXP out, R_xlen_t out_offset,
 		R_xlen_t nelt)
 {
-	R_xlen_t k;
-
-	for (k = 0; k < nelt; k++)
+	for (R_xlen_t k = 0; k < nelt; k++)
 		_copy_LIST_elt(in, in_offset + k, out, out_offset + k);
 	return;
 }
@@ -182,7 +172,7 @@ int _collect_offsets_of_nonzero_Rsubvec_elts(
 	SEXP Rvector,
 	R_xlen_t subvec_offset,
 	int subvec_len,
-	int *out_nzoffs
+	int *out
 );
 
 void _reset_selected_Rvector_elts(
@@ -220,10 +210,17 @@ void _copy_selected_Rbytes(
 );
 
 void _copy_selected_Rsubvec_elts(
-	SEXP in_Rvector,
-	R_xlen_t in_offset,
+	SEXP Rvector,
+	R_xlen_t subvec_offset,
 	const int *selection,
 	SEXP out_Rvector
+);
+
+SEXP _subset_Rsubvec(
+	SEXP Rvector,
+	R_xlen_t subvec_offset,
+	const int *selection,
+	int n
 );
 
 void _copy_ints_to_offsets(

@@ -15,8 +15,8 @@ int _Logic_intSV_intSV(
 	int opcode,
 	const SparseVec *sv1,
 	const SparseVec *sv2,
-	int *out_nzoffs,
-	int *out_nzvals
+	int *out_nzvals,
+	int *out_nzoffs
 );
 
 #endif  /* _SPARSEVEC_LOGIC_H_ */

@@ -142,13 +142,11 @@ static SEXP drop_outermost_dims(SEXP SVT, int ndim_to_drop)
 static SEXP wrap_Rvector_elt_in_scalar_leaf(SEXP in_Rvector, int k,
 		CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
 {
-	SEXP ans_nzoffs, ans_nzvals, ans;
-
-	ans_nzoffs = PROTECT(NEW_INTEGER(1));
-	ans_nzvals = PROTECT(allocVector(TYPEOF(in_Rvector), 1));
+	SEXP ans_nzvals = PROTECT(allocVector(TYPEOF(in_Rvector), 1));
+	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(1));
 	INTEGER(ans_nzoffs)[0] = 0;
 	copy_Rvector_elt_FUN(in_Rvector, k, ans_nzvals, 0);
-	ans = zip_leaf(ans_nzoffs, ans_nzvals);
+	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs);
 	UNPROTECT(2);
 	return ans;
 }
@@ -157,8 +155,8 @@ static void copy_scalar_leaf_val_to_Rvector(SEXP scalar_leaf,
 		SEXP out_Rvector, int k,
 		CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
 {
-	SEXP nzoffs, nzvals;
-	int nzcount = unzip_leaf(scalar_leaf, &nzoffs, &nzvals);
+	SEXP nzvals, nzoffs;
+	int nzcount = unzip_leaf(scalar_leaf, &nzvals, &nzoffs);
 	/* Sanity checks. */
 	if (nzcount != 1 || INTEGER(nzoffs)[0] != 0)
 		error("SparseArray internal error in "
@@ -177,8 +175,8 @@ static void copy_scalar_leaf_val_to_Rvector(SEXP scalar_leaf,
 static SEXP unroll_leaf_as_SVT(SEXP leaf, int N, int ans_ndim,
 		CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
 {
-	SEXP nzoffs, nzvals;
-	int nzcount = unzip_leaf(leaf, &nzoffs, &nzvals);
+	SEXP nzvals, nzoffs;
+	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
 	SEXP ans = PROTECT(NEW_LIST(N));
 	for (int k = 0; k < nzcount; k++) {
 		int i = INTEGER(nzoffs)[k];
@@ -215,9 +213,9 @@ static SEXP roll_SVT_into_leaf(SEXP SVT, int ndim, SEXPTYPE Rtype,
 	if (ans_nzcount == 0)
 		error("SparseArray internal error in roll_SVT_into_leaf():\n"
 		      "    ans_nzcount == 0");
-	SEXP ans_nzoffs, ans_nzvals;
+	SEXP ans_nzvals, ans_nzoffs;
 	SEXP ans = PROTECT(_alloc_and_unzip_leaf(Rtype, ans_nzcount,
-						 &ans_nzoffs, &ans_nzvals));
+						 &ans_nzvals, &ans_nzoffs));
 	ans_nzcount = 0;
 	for (int i = 0; i < N; i++) {
 		SEXP subSVT = VECTOR_ELT(SVT, i);

@@ -21,16 +21,16 @@ int _Arith_sv1_scalar(
 	const SparseVec *sv1,
 	SEXP scalar,
 	SEXPTYPE expected_outRtype,
-	int *out_nzoffs,
 	void *out_nzvals,
+	int *out_nzoffs,
 	int *ovflow
 );
 
 int _mult_SV_zero(
 	const SparseVec *sv,
 	SEXPTYPE outRtype,
-	int *out_nzoffs,
-	void *out_nzvals
+	void *out_nzvals,
+	int *out_nzoffs
 );
 
 int _Arith_sv1_sv2(
@@ -38,8 +38,8 @@ int _Arith_sv1_sv2(
 	const SparseVec *sv1,
 	const SparseVec *sv2,
 	SEXPTYPE expected_outRtype,
-	int *out_nzoffs,
 	void *out_nzvals,
+	int *out_nzoffs,
 	int *ovflow
 );
 

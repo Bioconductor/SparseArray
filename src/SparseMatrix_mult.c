@@ -327,7 +327,7 @@ static void crossprod2_doubleSV_doublemat(
 	const double *vals1_p, *v2_p;
 	double v1;
 
-	lv1_len = unzip_leaf(lv1, &lv1_offs, &lv1_vals);
+	lv1_len = unzip_leaf(lv1, &lv1_vals, &lv1_offs);
 	offs1_p = INTEGER(lv1_offs);
 	vals1_p = REAL(lv1_vals);
 	for (k1 = 0; k1 < lv1_len; k1++) {
@@ -367,7 +367,7 @@ static void crossprod2_doublemat_doubleSV(
 	const double *vals2_p, *v1_p;
 	double v2;
 
-	lv2_len = unzip_leaf(lv2, &lv2_offs, &lv2_vals);
+	lv2_len = unzip_leaf(lv2, &lv2_vals, &lv2_offs);
 	offs2_p = INTEGER(lv2_offs);
 	vals2_p = REAL(lv2_vals);
 	for (k2 = 0; k2 < lv2_len; k2++) {

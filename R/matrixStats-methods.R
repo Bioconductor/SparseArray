@@ -78,6 +78,7 @@
 .colStats_SVT <- function(op, x, na.rm=FALSE, center=NULL, dims=1L, useNames=NA)
 {
     stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
+    check_svt_version(x)
 
     ## Check 'na.rm'.
     if (!isTRUEorFALSE(na.rm))
@@ -121,6 +122,7 @@
 ### use some tricks to avoid this multidimensional transposition.
 .rowStats_SVT <- function(op, x, na.rm=FALSE, center=NULL, dims=1L, useNames=NA){
     stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
+    check_svt_version(x)
 
     ## Check and normalize 'dims'.
     dims <- .normarg_dims(dims)

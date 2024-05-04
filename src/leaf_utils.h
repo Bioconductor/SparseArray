@@ -16,24 +16,36 @@
    A leaf is represented by an R_NilValue if it's empty, or by a list of 2
    parallel dense vectors:
      - nzoffs: an integer vector of offsets (i.e. 0-based positions);
-     - nzvals: a vector (atomic or list) of nonzero values (zeroes are
+     - nzvals: a vector (atomic or list) of nonzero values (zeros are
                not allowed).
    The common length of 'nzoffs' and 'nzvals' is called the "nonzero count"
    (nzcount) and is guaranteed to be >= 1. Also we don't support "long leaves"
    so 'nzcount' must always be <= INT_MAX.
    Note that a leaf represents a 1D SVT. */
 
-static inline SEXP zip_leaf(SEXP nzoffs, SEXP nzvals)
+/* In-place replacement. Supplied 'nzvals' is trusted! */
+static inline void replace_leaf_nzvals(SEXP leaf, SEXP nzvals)
+{
+	SET_VECTOR_ELT(leaf, 1, nzvals);
+}
+
+/* In-place replacement. Supplied 'nzoffs' is trusted! */
+static inline void replace_leaf_nzoffs(SEXP leaf, SEXP nzoffs)
+{
+	SET_VECTOR_ELT(leaf, 0, nzoffs);
+}
+
+static inline SEXP zip_leaf(SEXP nzvals, SEXP nzoffs)
 {
 	/* Sanity checks (should never fail). */
 	if (!IS_INTEGER(nzoffs))
 		goto on_error;
 	R_xlen_t nzcount = XLENGTH(nzoffs);
-	if (nzcount == 0 || nzcount > INT_MAX || XLENGTH(nzvals) != nzcount)
+	if (nzcount == 0 || nzcount > INT_MAX || nzcount != XLENGTH(nzvals))
 		goto on_error;
 	SEXP leaf = PROTECT(NEW_LIST(2));
-	SET_VECTOR_ELT(leaf, 0, nzoffs);
-	SET_VECTOR_ELT(leaf, 1, nzvals);
+	replace_leaf_nzvals(leaf, nzvals);
+	replace_leaf_nzoffs(leaf, nzoffs);
 	UNPROTECT(1);
 	return leaf;
 
@@ -60,12 +72,6 @@ static inline SEXP get_leaf_nzvals(SEXP leaf)
 	      "    invalid SVT leaf");
 }
 
-/* In-place replacement. Supplied 'nzvals' is trusted! */
-static inline void replace_leaf_nzvals(SEXP leaf, SEXP nzvals)
-{
-	SET_VECTOR_ELT(leaf, 1, nzvals);
-}
-
 static inline SEXP get_leaf_nzoffs(SEXP leaf)
 {
 	if (!isVectorList(leaf))  // IS_LIST() is broken
@@ -85,34 +91,28 @@ static inline SEXP get_leaf_nzoffs(SEXP leaf)
 	      "    invalid SVT leaf");
 }
 
-/* In-place replacement. Supplied 'nzoffs' is trusted! */
-static inline void replace_leaf_nzoffs(SEXP leaf, SEXP nzoffs)
-{
-	SET_VECTOR_ELT(leaf, 0, nzoffs);
-}
-
 static inline int get_leaf_nzcount(SEXP leaf)
 {
 	return LENGTH(get_leaf_nzvals(leaf));
 }
 
-static inline int unzip_leaf(SEXP leaf, SEXP *nzoffs, SEXP *nzvals)
+static inline int unzip_leaf(SEXP leaf, SEXP *nzvals, SEXP *nzoffs)
 {
-	*nzoffs = get_leaf_nzoffs(leaf);
 	*nzvals = get_leaf_nzvals(leaf);
-	R_xlen_t nzcount = XLENGTH(*nzoffs);
-	if (XLENGTH(*nzvals) != nzcount)
+	*nzoffs = get_leaf_nzoffs(leaf);
+	R_xlen_t nzcount = XLENGTH(*nzvals);
+	if (nzcount != XLENGTH(*nzoffs))
 		error("SparseArray internal error in unzip_leaf():\n"
-		      "    invalid SVT leaf ('nzoffs' and 'nzvals' "
+		      "    invalid SVT leaf ('nzvals' and 'nzoffs' "
 		      "are not parallel)");
 	return (int) nzcount;
 }
 
 static inline SparseVec leaf2SV(SEXP leaf, int len)
 {
-	SEXP nzoffs, nzvals;
+	SEXP nzvals, nzoffs;
 
-	unzip_leaf(leaf, &nzoffs, &nzvals);
+	unzip_leaf(leaf, &nzvals, &nzoffs);
 	return make_SparseVec(nzvals, INTEGER(nzoffs), len);
 }
 
@@ -124,23 +124,15 @@ SEXP _alloc_leaf(
 SEXP _alloc_and_unzip_leaf(
 	SEXPTYPE Rtype,
 	int nzcount,
-	SEXP *nzoffs,
-	SEXP *nzvals
+	SEXP *nzvals,
+	SEXP *nzoffs
 );
 
 SEXP _make_leaf_from_bufs(
 	SEXPTYPE Rtype,
-	const int *nzoffs_buf,
 	const void *nzvals_buf,
+	const int *nzoffs_buf,
 	int buf_len
-);
-
-SEXP _make_leaf_from_Rsubvec(
-	SEXP Rvector,
-	R_xlen_t vec_offset,
-	int subvec_len,
-	int *nzoffs_buf,
-	int avoid_copy_if_all_nonzeros
 );
 
 int _expand_leaf(
@@ -149,16 +141,24 @@ int _expand_leaf(
 	R_xlen_t out_offset
 );
 
-SEXP _remove_zeros_from_leaf(
+SEXP _make_leaf_from_Rsubvec(
+	SEXP Rvector,
+	R_xlen_t subvec_offset,
+	int subvec_len,
+	int *selection_buf,
+	int avoid_copy_if_all_nonzeros
+);
+
+SEXP _INPLACE_remove_zeros_from_leaf(
 	SEXP leaf,
-	int *nzoffs_buf
+	int *selection_buf
 );
 
 SEXP _coerce_leaf(
 	SEXP leaf,
 	SEXPTYPE new_Rtype,
 	int *warn,
-	int *nzoffs_buf
+	int *selection_buf
 );
 
 SEXP _subassign_leaf_with_Rvector(

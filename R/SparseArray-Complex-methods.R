@@ -20,6 +20,8 @@
 .SVT_SparseArray_Complex <- function(op, z)
 {
     stopifnot(isSingleString(op), is(z, "SVT_SparseArray"))
+    check_svt_version(z)
+
     if (type(z) != "complex")
         stop(wmsg("the ", op, "() method for SVT_SparseArray objects ",
                   "only supports input of type \"complex\" at the moment"))

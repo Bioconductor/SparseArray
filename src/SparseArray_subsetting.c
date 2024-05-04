@@ -132,8 +132,8 @@ static SEXP subset_leaf(SEXP leaf, SEXP idx, int i2max,
 	if (idx_len == 0)
 		return R_NilValue;
 
-	SEXP nzoffs, nzvals;
-	int nzcount = unzip_leaf(leaf, &nzoffs, &nzvals);
+	SEXP nzvals, nzoffs;
+	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
 	build_lookup_table(lookup_table, INTEGER(nzoffs), nzcount);
 	int ans_nzcount = 0;
 	for (int i1 = 0; i1 < idx_len; i1++) {
@@ -151,11 +151,11 @@ static SEXP subset_leaf(SEXP leaf, SEXP idx, int i2max,
 	if (ans_nzcount == 0)
 		return R_NilValue;
 
-	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(ans_nzcount));
 	SEXP ans_nzvals = PROTECT(allocVector(TYPEOF(nzvals), ans_nzcount));
-	memcpy(INTEGER(ans_nzoffs), i1_buf, sizeof(int) * ans_nzcount);
 	_copy_selected_Rsubvec_elts(nzvals, 0, k2_buf, ans_nzvals);
-	SEXP ans = zip_leaf(ans_nzoffs, ans_nzvals);
+	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(ans_nzcount));
+	memcpy(INTEGER(ans_nzoffs), i1_buf, sizeof(int) * ans_nzcount);
+	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs);
 	UNPROTECT(2);
 	return ans;
 }

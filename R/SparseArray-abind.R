@@ -75,10 +75,11 @@
     if (is(x, "COO_SparseArray"))
         return(.abind_COO_SparseArray_objects(objects, dims, along,
                                               ans_dimnames))
-    if (is(x, "SVT_SparseArray"))
+    if (is(x, "SVT_SparseArray")) {
+        check_svt_version(x)
         return(.abind_SVT_SparseArray_objects(objects, along,
                                               ans_dimnames))
-
+    }
     stop(wmsg(class(x)[[1L]], " objects are not supported"))
 }
 

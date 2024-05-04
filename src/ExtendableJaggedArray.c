@@ -93,25 +93,14 @@ void _add_ExtendableJaggedArray_elt(ExtendableJaggedArray *x,
 	return;
 }
 
-static SEXP make_leaf(const int *nzoffs, const int *nzvals, int nzcount)
-{
-	SEXP ans_nzoffs, ans_nzvals;
-	SEXP ans = PROTECT(_alloc_and_unzip_leaf(INTSXP, nzcount,
-						 &ans_nzoffs, &ans_nzvals));
-	memcpy(INTEGER(ans_nzoffs), nzoffs, sizeof(int) * nzcount);
-	memcpy(INTEGER(ans_nzvals), nzvals, sizeof(int) * nzcount);
-	UNPROTECT(1);
-	return ans;
-}
-
-/* 'nzoffss' and 'nzvalss' are **asumed** to have the same shape but we
+/* 'nzvalss' and 'nzoffss' are **asumed** to have the same shape but we
    don't check this!
-   The function frees the columns in 'nzoffss' and 'nzvalss' as it walks
+   The function frees the columns in 'nzvalss' and 'nzoffss' as it walks
    over them and copies their content to the SVT. Note that it's still the
    responsibility of the caller to call _free_ExtendableJaggedArray() on
-   'nzoffss' and 'nzvalss' on return. */
-SEXP _move_ExtendableJaggedArrays_to_SVT(ExtendableJaggedArray *nzoffss,
-					 ExtendableJaggedArray *nzvalss)
+   'nzvalss' and 'nzoffss' on return. */
+SEXP _move_ExtendableJaggedArrays_to_SVT(ExtendableJaggedArray *nzvalss,
+					 ExtendableJaggedArray *nzoffss)
 {
 	int SVT_len = nzoffss->_ncol;
 	SEXP ans = PROTECT(NEW_LIST(SVT_len));
@@ -119,12 +108,14 @@ SEXP _move_ExtendableJaggedArrays_to_SVT(ExtendableJaggedArray *nzoffss,
 	for (int i = 0; i < SVT_len; i++) {
 		int nzcount = nzoffss->_nelts[i];  // assumed to be the same
 						   // as 'nzvalss->_nelts[i]'
-		int *nzoffs, *nzvals;
+		int *nzvals, *nzoffs;
 		if (nzcount != 0) {
-			nzoffs = nzoffss->_cols[i];
 			nzvals = nzvalss->_cols[i];
-			SEXP ans_elt =
-				PROTECT(make_leaf(nzoffs, nzvals, nzcount));
+			nzoffs = nzoffss->_cols[i];
+			SEXP ans_elt = PROTECT(
+				_make_leaf_from_bufs(INTSXP, nzvals, nzoffs,
+						     nzcount)
+			);
 			SET_VECTOR_ELT(ans, i, ans_elt);
 			UNPROTECT(1);
 			is_empty = 0;

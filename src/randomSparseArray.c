@@ -141,51 +141,38 @@ SEXP C_simple_rpois(SEXP n, SEXP lambda)
  * C_poissonSparseArray()
  */
 
-static SEXP build_poisson_leaf(int d1, double lambda,
-			       int *offs_buf, int *vals_buf)
+static SEXP build_poisson_leaf(int dim0, double lambda,
+			       int *nzvals_buf, int *nzoffs_buf)
 {
-	int ans_len, i, val;
-	SEXP ans_offs, ans_vals, ans;
-
-	ans_len = 0;
-	for (i = 0; i < d1; i++) {
-		val = simple_rpois(lambda);
+	int buf_len = 0;
+	for (int i = 0; i < dim0; i++) {
+		int val = simple_rpois(lambda);
 		if (val != 0) {
-			offs_buf[ans_len] = i;
-			vals_buf[ans_len] = val;
-			ans_len++;
+			nzvals_buf[buf_len] = val;
+			nzoffs_buf[buf_len] = i;
+			buf_len++;
 		}
 	}
-
-	if (ans_len == 0)
-		return R_NilValue;
-
-	ans_offs = PROTECT(NEW_INTEGER(ans_len));
-	memcpy(INTEGER(ans_offs), offs_buf, sizeof(int) * ans_len);
-	ans_vals = PROTECT(NEW_INTEGER(ans_len));
-	memcpy(INTEGER(ans_vals), vals_buf, sizeof(int) * ans_len);
-	ans = zip_leaf(ans_offs, ans_vals);
-	UNPROTECT(2);
-	return ans;
+	return _make_leaf_from_bufs(INTSXP, nzvals_buf, nzoffs_buf, buf_len);
 }
 
 /* Recursive. */
 static SEXP REC_build_poisson_SVT(const int *dim, int ndim, double lambda,
-				  int *offs_buf, int *vals_buf)
+				  int *nzvals_buf, int *nzoffs_buf)
 {
 	int SVT_len, is_empty, i;
 	SEXP ans, ans_elt;
 
 	if (ndim == 1)
 		return build_poisson_leaf(dim[0], lambda,
-					  offs_buf, vals_buf);
+					  nzvals_buf, nzoffs_buf);
 
 	SVT_len = dim[ndim - 1];  /* cannot be 0 */
 	ans = PROTECT(NEW_LIST(SVT_len));
 	is_empty = 1;
 	for (i = 0; i < SVT_len; i++) {
 		ans_elt = REC_build_poisson_SVT(dim, ndim - 1, lambda,
-						offs_buf, vals_buf);
+						nzvals_buf, nzoffs_buf);
 		if (ans_elt != R_NilValue) {
 			PROTECT(ans_elt);
 			SET_VECTOR_ELT(ans, i, ans_elt);
@@ -200,28 +187,24 @@ static SEXP REC_build_poisson_SVT(const int *dim, int ndim, double lambda,
 /* --- .Call ENTRY POINT --- */
 SEXP C_poissonSparseArray(SEXP dim, SEXP lambda)
 {
-	double lambda0;
-	const int *dim_p;
-	int ndim, along, *offs_buf, *vals_buf;
-	SEXP ans;
-
 	if (!IS_NUMERIC(lambda) || LENGTH(lambda) != 1)
 		error("'lambda' must be a single numeric value");
-	lambda0 = REAL(lambda)[0];
+	double lambda0 = REAL(lambda)[0];
 	if (lambda0 < 0.0 || lambda0 > 4.0)
 		error("'lambda' must be >= 0 and <= 4");
 
-	dim_p = INTEGER(dim);
-	ndim = LENGTH(dim);
-	for (along = 0; along < ndim; along++)
+	const int *dim_p = INTEGER(dim);
+	int ndim = LENGTH(dim);
+	for (int along = 0; along < ndim; along++)
 		if (dim_p[along] == 0)
 			return R_NilValue;
 
-	offs_buf = (int *) R_alloc(dim_p[0], sizeof(int));
-	vals_buf = (int *) R_alloc(dim_p[0], sizeof(int));
+	int *nzvals_buf = (int *) R_alloc(dim_p[0], sizeof(int));
+	int *nzoffs_buf = (int *) R_alloc(dim_p[0], sizeof(int));
 	GetRNGstate();
-	ans = PROTECT(
-		REC_build_poisson_SVT(dim_p, ndim, lambda0, offs_buf, vals_buf)
+	SEXP ans = PROTECT(
+		REC_build_poisson_SVT(dim_p, ndim, lambda0,
+				      nzvals_buf, nzoffs_buf)
 	);
 	PutRNGstate();
 	UNPROTECT(1);

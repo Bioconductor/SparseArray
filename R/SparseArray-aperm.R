@@ -45,6 +45,8 @@ setMethod("t", "SVT_SparseMatrix", t.SVT_SparseMatrix)
 .aperm_SVT <- function(x, perm, .NAME=c("C_aperm_SVT", "C_aperm0_SVT"))
 {
     stopifnot(is(x, "SVT_SparseArray"))
+    check_svt_version(x)
+
     .NAME <- match.arg(.NAME)
     perm <- S4Arrays:::normarg_perm(perm, x@dim)
     new_SVT <- SparseArray.Call(.NAME, x@dim, x@type, x@SVT, perm)
