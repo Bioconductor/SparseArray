@@ -85,12 +85,15 @@ RsparseMatrix <- function(dim, i, j, nzdata, dimnames=NULL)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Coercion from ordinary matrix to sparseMatrix derivative
+### Critically endangered coercions from/to sparseMatrix derivatives
 ###
-### This simply restores some of the basic coercion methods that used to be
-### defined in the Matrix package but that the lazy Matrix maintainers
-### decided to deprecate in Matrix 1.7-0
+### This simply brings back some basic coercion methods originally defined
+### in the Matrix package but that the lazy Matrix maintainers have decided
+### to eradicate from the surface of Earth in an attempt to make the life
+### of their users no so easy.
 ###
+
+### --- from ordinary matrix to [d|l|n]gCMatrix and [d|l|n]gRMatrix ---
 
 ### Not deprecated yet. Cold feet maybe?
 #setAs("matrix", "dgCMatrix",
@@ -126,6 +129,13 @@ setAs("matrix", "ngCMatrix",
 setAs("matrix", "ngRMatrix",
     function(from)
         as(as(as(from, "nMatrix"), "generalMatrix"), "RsparseMatrix")
+)
+
+### --- other useful coercions ---
+
+### Deprecated in Matrix 1.7-0
+setAs("dgCMatrix", "ngCMatrix",
+    function(from) as(from, "nMatrix")
 )
 
 

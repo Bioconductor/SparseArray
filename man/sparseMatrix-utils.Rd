@@ -8,6 +8,7 @@
 \alias{coerce,matrix,lgRMatrix-method}
 \alias{coerce,matrix,ngCMatrix-method}
 \alias{coerce,matrix,ngRMatrix-method}
+\alias{coerce,dgCMatrix,ngCMatrix-method}
 
 \alias{coerce,Array,dgCMatrix-method}
 \alias{coerce,Array,dgRMatrix-method}
