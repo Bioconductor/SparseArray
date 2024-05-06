@@ -6,11 +6,15 @@
 \alias{coerce,matrix,dgRMatrix-method}
 \alias{coerce,matrix,lgCMatrix-method}
 \alias{coerce,matrix,lgRMatrix-method}
+\alias{coerce,matrix,ngCMatrix-method}
+\alias{coerce,matrix,ngRMatrix-method}
 
 \alias{coerce,Array,dgCMatrix-method}
 \alias{coerce,Array,dgRMatrix-method}
 \alias{coerce,Array,lgCMatrix-method}
 \alias{coerce,Array,lgRMatrix-method}
+\alias{coerce,Array,ngCMatrix-method}
+\alias{coerce,Array,ngRMatrix-method}
 \alias{coerce,Array,CsparseMatrix-method}
 \alias{coerce,Array,RsparseMatrix-method}
 \alias{coerce,Array,sparseMatrix-method}

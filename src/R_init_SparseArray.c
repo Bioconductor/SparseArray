@@ -44,7 +44,7 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_nzwhich_SVT_SparseArray, 3),
 	CALLMETHOD_DEF(C_from_SVT_SparseArray_to_Rarray, 4),
 	CALLMETHOD_DEF(C_build_SVT_from_Rarray, 2),
-	CALLMETHOD_DEF(C_from_SVT_SparseMatrix_to_CsparseMatrix, 3),
+	CALLMETHOD_DEF(C_from_SVT_SparseMatrix_to_CsparseMatrix, 4),
 	CALLMETHOD_DEF(C_build_SVT_from_CsparseMatrix, 2),
 	CALLMETHOD_DEF(C_from_SVT_SparseArray_to_COO_SparseArray, 3),
 

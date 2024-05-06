@@ -127,8 +127,9 @@ setMethod("is_sparse", "SparseArray", function(x) TRUE)
 ### Returns the number of nonzero array elements in 'x'.
 setGeneric("nzcount", function(x) standardGeneric("nzcount"))
 
-### Not 100% reliable because [d|l]gCMatrix objects are allowed to have
-### zeros in their @x slot! See src/SVT_SparseArray_class.c for an example.
+### Not 100% reliable on [d|l]gCMatrix objects because these objects are
+### allowed to have zeros in their @x slot!
+### See src/SVT_SparseArray_class.c for an example.
 setMethod("nzcount", "CsparseMatrix", function(x) length(x@i))
 setMethod("nzcount", "RsparseMatrix", function(x) length(x@j))
 
@@ -151,9 +152,9 @@ setMethod("nzwhich", "ANY", default_nzwhich)
 
 ### default_nzwhich() above works on a CsparseMatrix derivative but
 ### nzwhich_CsparseMatrix() will typically be 50x or 100x faster, or more!
-### However, this is **NOT** 100% reliable because [d|l]gCMatrix objects are
-### allowed to have zeros in their @x slot! See src/SVT_SparseArray_class.c
-### for an example.
+### However, this is **NOT** 100% reliable on [d|l]gCMatrix objects because
+### these objects are allowed to have zeros in their @x slot!
+### See src/SVT_SparseArray_class.c for an example.
 nzwhich_CsparseMatrix <- function(x, arr.ind=FALSE)
 {
     if (!isTRUEorFALSE(arr.ind))

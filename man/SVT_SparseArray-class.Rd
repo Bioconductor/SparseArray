@@ -29,6 +29,7 @@
 
 \alias{coerce,SVT_SparseMatrix,dgCMatrix-method}
 \alias{coerce,SVT_SparseMatrix,lgCMatrix-method}
+\alias{coerce,SVT_SparseMatrix,ngCMatrix-method}
 \alias{coerce,CsparseMatrix,SVT_SparseMatrix-method}
 
 \alias{coerce,Matrix,SVT_SparseArray-method}

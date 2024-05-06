@@ -3,7 +3,8 @@ useDynLib(SparseArray)
 import(methods)
 importFrom(utils, packageVersion)
 importFrom(stats, setNames, rnorm, rpois)
-importClassFrom(Matrix, dgCMatrix, lgCMatrix, dgRMatrix, lgRMatrix)
+importClassFrom(Matrix, dgCMatrix, lgCMatrix, ngCMatrix,
+                        dgRMatrix, lgRMatrix, ngRMatrix)
 importFrom(Matrix, sparseMatrix, crossprod, tcrossprod)
 
 import(BiocGenerics)

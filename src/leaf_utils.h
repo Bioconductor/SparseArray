@@ -15,13 +15,18 @@
    strictly ascending offset.
    A leaf is represented by an R_NilValue if it's empty, or by a list of 2
    parallel dense vectors:
-     - nzoffs: an integer vector of offsets (i.e. 0-based positions);
      - nzvals: a vector (atomic or list) of nonzero values (zeros are
                not allowed).
-   The common length of 'nzoffs' and 'nzvals' is called the "nonzero count"
+     - nzoffs: an integer vector of offsets (i.e. 0-based positions);
+   The common length of 'nzvals' and 'nzoffs' is called the "nonzero count"
    (nzcount) and is guaranteed to be >= 1. Also we don't support "long leaves"
    so 'nzcount' must always be <= INT_MAX.
    Note that a leaf represents a 1D SVT. */
+
+/* Is it ok to produce lacunar leaves? Proper handling of lacunar leaves
+   is still work-in-progress so we can turn this off any time if things
+   go wrong. */
+#define OK_TO_MAKE_LACUNAR_LEAVES 0
 
 /* In-place replacement. Supplied 'nzvals' is trusted! */
 static inline void replace_leaf_nzvals(SEXP leaf, SEXP nzvals)
@@ -41,7 +46,9 @@ static inline SEXP zip_leaf(SEXP nzvals, SEXP nzoffs)
 	if (!IS_INTEGER(nzoffs))
 		goto on_error;
 	R_xlen_t nzcount = XLENGTH(nzoffs);
-	if (nzcount == 0 || nzcount > INT_MAX || nzcount != XLENGTH(nzvals))
+	if (nzcount == 0 || nzcount > INT_MAX)
+		goto on_error;
+	if (nzvals != R_NilValue && XLENGTH(nzvals) != nzcount)
 		goto on_error;
 	SEXP leaf = PROTECT(NEW_LIST(2));
 	replace_leaf_nzvals(leaf, nzvals);
@@ -51,7 +58,7 @@ static inline SEXP zip_leaf(SEXP nzvals, SEXP nzoffs)
 
     on_error:
 	error("SparseArray internal error in zip_leaf():\n"
-	      "    invalid 'nzoffs' or 'nzvals'");
+	      "    invalid 'nzvals' or 'nzoffs'");
 }
 
 static inline SEXP get_leaf_nzvals(SEXP leaf)
@@ -93,15 +100,15 @@ static inline SEXP get_leaf_nzoffs(SEXP leaf)
 
 static inline int get_leaf_nzcount(SEXP leaf)
 {
-	return LENGTH(get_leaf_nzvals(leaf));
+	return LENGTH(get_leaf_nzoffs(leaf));
 }
 
 static inline int unzip_leaf(SEXP leaf, SEXP *nzvals, SEXP *nzoffs)
 {
 	*nzvals = get_leaf_nzvals(leaf);
 	*nzoffs = get_leaf_nzoffs(leaf);
-	R_xlen_t nzcount = XLENGTH(*nzvals);
-	if (nzcount != XLENGTH(*nzoffs))
+	R_xlen_t nzcount = XLENGTH(*nzoffs);
+	if (*nzvals != R_NilValue && XLENGTH(*nzvals) != nzcount)
 		error("SparseArray internal error in unzip_leaf():\n"
 		      "    invalid SVT leaf ('nzvals' and 'nzoffs' "
 		      "are not parallel)");
@@ -135,7 +142,7 @@ SEXP _make_leaf_from_bufs(
 	int buf_len
 );
 
-int _expand_leaf(
+void _expand_leaf(
 	SEXP leaf,
 	SEXP out_Rvector,
 	R_xlen_t out_offset
@@ -153,6 +160,8 @@ SEXP _INPLACE_remove_zeros_from_leaf(
 	SEXP leaf,
 	int *selection_buf
 );
+
+void _INPLACE_turn_into_lacunar_leaf_if_all_ones(SEXP leaf);
 
 SEXP _coerce_leaf(
 	SEXP leaf,

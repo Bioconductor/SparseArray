@@ -21,24 +21,28 @@
 new_CsparseMatrix <- function(dim, p, i, x, dimnames=NULL)
 {
     stopifnot(is.integer(dim), length(dim) == 2L)
+    ans_dimnames <- S4Arrays:::normarg_dimnames(dimnames, dim)
+    if (is.null(x))
+        return(new("ngCMatrix", Dim=dim, p=p, i=i, Dimnames=ans_dimnames))
     x_type <- typeof(x)
     ans_type <- .infer_sparseMatrix_type_from_input_type(x_type)
     ans_class <- if (ans_type == "double") "dgCMatrix" else "lgCMatrix"
     if (ans_type != x_type)
         storage.mode(x) <- ans_type
-    ans_dimnames <- S4Arrays:::normarg_dimnames(dimnames, dim)
     new(ans_class, Dim=dim, p=p, i=i, x=x, Dimnames=ans_dimnames)
 }
 
 new_RsparseMatrix <- function(dim, p, j, x, dimnames=NULL)
 {
     stopifnot(is.integer(dim), length(dim) == 2L)
+    ans_dimnames <- S4Arrays:::normarg_dimnames(dimnames, dim)
+    if (is.null(x))
+        return(new("ngRMatrix", Dim=dim, p=p, j=j, Dimnames=ans_dimnames))
     x_type <- typeof(x)
     ans_type <- .infer_sparseMatrix_type_from_input_type(x_type)
     ans_class <- if (ans_type == "double") "dgRMatrix" else "lgRMatrix"
     if (ans_type != x_type)
         storage.mode(x) <- ans_type
-    ans_dimnames <- S4Arrays:::normarg_dimnames(dimnames, dim)
     new(ans_class, Dim=dim, p=p, j=j, x=x, Dimnames=ans_dimnames)
 }
 
@@ -106,10 +110,22 @@ setAs("matrix", "lgCMatrix",
         as(as(as(from, "lMatrix"), "generalMatrix"), "CsparseMatrix")
 )
 
-### Never worked?
+### Never supported by Matrix?
 setAs("matrix", "lgRMatrix",
     function(from)
         as(as(as(from, "lMatrix"), "generalMatrix"), "RsparseMatrix")
+)
+
+### Deprecated in Matrix 1.7-0
+setAs("matrix", "ngCMatrix",
+    function(from)
+        as(as(as(from, "nMatrix"), "generalMatrix"), "CsparseMatrix")
+)
+
+### Never supported by Matrix?
+setAs("matrix", "ngRMatrix",
+    function(from)
+        as(as(as(from, "nMatrix"), "generalMatrix"), "RsparseMatrix")
 )
 
 
@@ -141,6 +157,12 @@ setAs("Array", "lgCMatrix",
 )
 setAs("Array", "lgRMatrix",
     function(from) .from_Array_to_sparseMatrix(from, "lgRMatrix")
+)
+setAs("Array", "ngCMatrix",
+    function(from) .from_Array_to_sparseMatrix(from, "ngCMatrix")
+)
+setAs("Array", "ngRMatrix",
+    function(from) .from_Array_to_sparseMatrix(from, "ngRMatrix")
 )
 
 ### These coercions will work out-of-the-box on any Array derivative that

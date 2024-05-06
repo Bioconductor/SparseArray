@@ -3,6 +3,8 @@
 
 #include <Rdefines.h>
 
+#include "Rvector_utils.h"
+
 #include <limits.h>  /* for INT_MAX */
 
 typedef struct sparse_vec_t {
@@ -55,11 +57,6 @@ static inline const Rcomplex *get_RcomplexSV_nzvals(const SparseVec *sv)
 {
 	return COMPLEX(sv->nzvals);
 }
-
-static const Rbyte Rbyte0 = 0;
-static const int int0 = 0;
-static const double double0 = 0.0;
-static const Rcomplex Rcomplex0 = {{0.0, 0.0}};
 
 #define FUNDEF_next_nzvals(Ltype, Rtype)				\
 	(const SparseVec *sv1,						\
