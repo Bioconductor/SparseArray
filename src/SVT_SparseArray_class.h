@@ -50,7 +50,8 @@ SEXP C_build_SVT_from_Rarray(
 SEXP C_from_SVT_SparseMatrix_to_CsparseMatrix(
 	SEXP x_dim,
 	SEXP x_type,
-	SEXP x_SVT
+	SEXP x_SVT,
+	SEXP as_ngCMatrix
 );
 
 SEXP C_build_SVT_from_CsparseMatrix(

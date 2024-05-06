@@ -21,24 +21,28 @@
 new_CsparseMatrix <- function(dim, p, i, x, dimnames=NULL)
 {
     stopifnot(is.integer(dim), length(dim) == 2L)
+    ans_dimnames <- S4Arrays:::normarg_dimnames(dimnames, dim)
+    if (is.null(x))
+        return(new("ngCMatrix", Dim=dim, p=p, i=i, Dimnames=ans_dimnames))
     x_type <- typeof(x)
     ans_type <- .infer_sparseMatrix_type_from_input_type(x_type)
     ans_class <- if (ans_type == "double") "dgCMatrix" else "lgCMatrix"
     if (ans_type != x_type)
         storage.mode(x) <- ans_type
-    ans_dimnames <- S4Arrays:::normarg_dimnames(dimnames, dim)
     new(ans_class, Dim=dim, p=p, i=i, x=x, Dimnames=ans_dimnames)
 }
 
 new_RsparseMatrix <- function(dim, p, j, x, dimnames=NULL)
 {
     stopifnot(is.integer(dim), length(dim) == 2L)
+    ans_dimnames <- S4Arrays:::normarg_dimnames(dimnames, dim)
+    if (is.null(x))
+        return(new("ngRMatrix", Dim=dim, p=p, j=j, Dimnames=ans_dimnames))
     x_type <- typeof(x)
     ans_type <- .infer_sparseMatrix_type_from_input_type(x_type)
     ans_class <- if (ans_type == "double") "dgRMatrix" else "lgRMatrix"
     if (ans_type != x_type)
         storage.mode(x) <- ans_type
-    ans_dimnames <- S4Arrays:::normarg_dimnames(dimnames, dim)
     new(ans_class, Dim=dim, p=p, j=j, x=x, Dimnames=ans_dimnames)
 }
 
@@ -81,12 +85,15 @@ RsparseMatrix <- function(dim, i, j, nzdata, dimnames=NULL)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Coercion from ordinary matrix to sparseMatrix derivative
+### Critically endangered coercions from/to sparseMatrix derivatives
 ###
-### This simply restores some of the basic coercion methods that used to be
-### defined in the Matrix package but that the lazy Matrix maintainers
-### decided to deprecate in Matrix 1.7-0
+### This simply brings back some basic coercion methods originally defined
+### in the Matrix package but that the lazy Matrix maintainers have decided
+### to eradicate from the surface of Earth in an attempt to make the life
+### of their users no so easy.
 ###
+
+### --- from ordinary matrix to [d|l|n]gCMatrix and [d|l|n]gRMatrix ---
 
 ### Not deprecated yet. Cold feet maybe?
 #setAs("matrix", "dgCMatrix",
@@ -106,10 +113,29 @@ setAs("matrix", "lgCMatrix",
         as(as(as(from, "lMatrix"), "generalMatrix"), "CsparseMatrix")
 )
 
-### Never worked?
+### Never supported by Matrix?
 setAs("matrix", "lgRMatrix",
     function(from)
         as(as(as(from, "lMatrix"), "generalMatrix"), "RsparseMatrix")
+)
+
+### Deprecated in Matrix 1.7-0
+setAs("matrix", "ngCMatrix",
+    function(from)
+        as(as(as(from, "nMatrix"), "generalMatrix"), "CsparseMatrix")
+)
+
+### Never supported by Matrix?
+setAs("matrix", "ngRMatrix",
+    function(from)
+        as(as(as(from, "nMatrix"), "generalMatrix"), "RsparseMatrix")
+)
+
+### --- other useful coercions ---
+
+### Deprecated in Matrix 1.7-0
+setAs("dgCMatrix", "ngCMatrix",
+    function(from) as(from, "nMatrix")
 )
 
 
@@ -141,6 +167,12 @@ setAs("Array", "lgCMatrix",
 )
 setAs("Array", "lgRMatrix",
     function(from) .from_Array_to_sparseMatrix(from, "lgRMatrix")
+)
+setAs("Array", "ngCMatrix",
+    function(from) .from_Array_to_sparseMatrix(from, "ngCMatrix")
+)
+setAs("Array", "ngRMatrix",
+    function(from) .from_Array_to_sparseMatrix(from, "ngRMatrix")
 )
 
 ### These coercions will work out-of-the-box on any Array derivative that

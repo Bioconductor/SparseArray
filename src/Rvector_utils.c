@@ -39,6 +39,7 @@ SEXPTYPE _get_Rtype_from_Rstring(SEXP type)
 	return 0;
 }
 
+/* Supported types: "logical", "integer", "double", "complex", or "raw". */
 size_t _get_Rtype_size(SEXPTYPE Rtype)
 {
 	switch (Rtype) {
@@ -121,6 +122,53 @@ SEXP _new_Rarray0(SEXPTYPE Rtype, SEXP dim, SEXP dimnames)
 		}
 		memset(DATAPTR(ans), 0, Rtype_size * XLENGTH(ans));
 	}
+	UNPROTECT(1);
+	return ans;
+}
+
+/* Restricted to types "logical", "integer", "double", "complex", and "raw". */
+void _set_Rsubvec_to_one(SEXP Rvector,
+		R_xlen_t subvec_offset, int subvec_len)
+{
+	SEXPTYPE Rtype = TYPEOF(Rvector);
+	switch (Rtype) {
+	    case LGLSXP: case INTSXP: {
+		int *data = INTEGER(Rvector) + subvec_offset;
+		for (int i = 0; i < subvec_len; i++)
+			data[i] = int1;
+		return;
+	    }
+	    case REALSXP: {
+		double *data = REAL(Rvector) + subvec_offset;
+		for (int i = 0; i < subvec_len; i++)
+			data[i] = double1;
+		return;
+	    }
+	    case CPLXSXP: {
+		Rcomplex *data = COMPLEX(Rvector) + subvec_offset;
+		for (int i = 0; i < subvec_len; i++)
+			data[i] = Rcomplex1;
+		return;
+	    }
+	    case RAWSXP: {
+		Rbyte *data = RAW(Rvector) + subvec_offset;
+		for (int i = 0; i < subvec_len; i++)
+			data[i] = Rbyte1;
+		return;
+	    }
+	}
+	error("SparseArray internal error in _set_Rsubvec_to_one():\n"
+	      "    type \"%s\" is not supported", type2char(Rtype));
+}
+
+/* Like _new_Rvector0() but:
+   - initializes the vector elements to 1;
+   - 'len' must be int, not R_xlen_t (i.e. long vectors not supported)
+   Restricted to types "logical", "integer", "double", "complex", and "raw". */
+SEXP _new_Rvector1(SEXPTYPE Rtype, int len)
+{
+	SEXP ans = PROTECT(allocVector(Rtype, (R_xlen_t) len));
+	_set_Rsubvec_to_one(ans, 0, len);
 	UNPROTECT(1);
 	return ans;
 }
@@ -275,95 +323,213 @@ int _collect_offsets_of_nonzero_Rsubvec_elts(
 
 
 /****************************************************************************
- * _reset_selected_Rvector_elts()
+ * _set_selected_Rvector_elts_to_zero()
+ * _set_selected_Rvector_elts_to_one()
  */
 
-static void reset_selected_int_elts(int *x,
-		const int *selection, int n)
+static void set_selected_int_elts(int *x,
+		const int *selection, int n, int val)
 {
 	for (int i = 0; i < n; i++, selection++)
-		x[*selection] = 0;
+		x[*selection] = val;
 	return;
 }
 
-static void reset_selected_double_elts(double *x,
-		const int *selection, int n)
+static void set_selected_double_elts(double *x,
+		const int *selection, int n, double val)
 {
 	for (int i = 0; i < n; i++, selection++)
-		x[*selection] = 0.0;
+		x[*selection] = val;
 	return;
 }
 
-static void reset_selected_Rcomplex_elts(Rcomplex *x,
-		const int *selection, int n)
-{
-	Rcomplex *x_elt;
-
-	for (int i = 0; i < n; i++, selection++) {
-		x_elt = x + *selection;
-		x_elt->r = x_elt->i = 0.0;
-	}
-	return;
-}
-
-static void reset_selected_Rbyte_elts(Rbyte *x,
-		const int *selection, int n)
+static void set_selected_Rcomplex_elts(Rcomplex *x,
+		const int *selection, int n, Rcomplex val)
 {
 	for (int i = 0; i < n; i++, selection++)
-		x[*selection] = 0.0;
+		x[*selection] = val;
 	return;
 }
 
-static void reset_selected_character_elts(SEXP x,
-		const int *selection, int n)
-{
-	SEXP x0;
-
-	x0 = PROTECT(mkChar(""));
-	for (int i = 0; i < n; i++, selection++)
-		SET_STRING_ELT(x, *selection, x0);
-	UNPROTECT(1);
-	return;
-}
-
-static void reset_selected_list_elts(SEXP x,
-		const int *selection, int n)
+static void set_selected_Rbyte_elts(Rbyte *x,
+		const int *selection, int n, Rbyte val)
 {
 	for (int i = 0; i < n; i++, selection++)
-		SET_VECTOR_ELT(x, *selection, R_NilValue);
+		x[*selection] = val;
 	return;
 }
 
-void _reset_selected_Rvector_elts(SEXP Rvector, const int *selection, int n)
+static void set_selected_character_elts(SEXP Rvector, R_xlen_t subvec_offset,
+		const int *selection, int n, SEXP val)
 {
-	SEXPTYPE Rtype;
+	for (int i = 0; i < n; i++, selection++)
+		SET_STRING_ELT(Rvector, subvec_offset + *selection, val);
+	return;
+}
 
-	Rtype = TYPEOF(Rvector);
+static void set_selected_list_elts(SEXP Rvector, R_xlen_t subvec_offset,
+		const int *selection, int n, SEXP val)
+{
+	for (int i = 0; i < n; i++, selection++)
+		SET_VECTOR_ELT(Rvector, subvec_offset + *selection, val);
+	return;
+}
+
+void _set_selected_Rsubvec_elts_to_zero(SEXP Rvector, R_xlen_t subvec_offset,
+		const int *selection, int n)
+{
+	SEXPTYPE Rtype = TYPEOF(Rvector);
 	switch (Rtype) {
 	    case LGLSXP: case INTSXP:
-		reset_selected_int_elts(INTEGER(Rvector), selection, n);
-		break;
+		set_selected_int_elts(INTEGER(Rvector) + subvec_offset,
+					selection, n, int0);
+		return;
 	    case REALSXP:
-		reset_selected_double_elts(REAL(Rvector), selection, n);
-		break;
+		set_selected_double_elts(REAL(Rvector) + subvec_offset,
+					selection, n, double0);
+		return;
 	    case CPLXSXP:
-		reset_selected_Rcomplex_elts(COMPLEX(Rvector), selection, n);
-		break;
+		set_selected_Rcomplex_elts(COMPLEX(Rvector) + subvec_offset,
+					selection, n, Rcomplex0);
+		return;
 	    case RAWSXP:
-		reset_selected_Rbyte_elts(RAW(Rvector), selection, n);
-		break;
+		set_selected_Rbyte_elts(RAW(Rvector) + subvec_offset,
+					selection, n, Rbyte0);
+		return;
 	    case STRSXP:
-		reset_selected_character_elts(Rvector, selection, n);
-		break;
+		SEXP zero = PROTECT(mkChar(""));
+		set_selected_character_elts(Rvector, subvec_offset,
+					selection, n, zero);
+		UNPROTECT(1);
+		return;
 	    case VECSXP:
-		reset_selected_list_elts(Rvector, selection, n);
-		break;
-	    default:
-		error("SparseArray internal error in "
-		      "_reset_selected_Rvector_elts():\n"
-		      "    type \"%s\" is not supported", type2char(Rtype));
+		set_selected_list_elts(Rvector, subvec_offset,
+					selection, n, R_NilValue);
+		return;
 	}
-	return;
+	error("SparseArray internal error in "
+	      "_set_selected_Rsubvec_elts_to_zero():\n"
+	      "    type \"%s\" is not supported", type2char(Rtype));
+}
+
+/* Restricted to types "logical", "integer", "double", "complex", and "raw". */
+void _set_selected_Rsubvec_elts_to_one(SEXP Rvector, R_xlen_t subvec_offset,
+		const int *selection, int n)
+{
+	SEXPTYPE Rtype = TYPEOF(Rvector);
+	switch (Rtype) {
+	    case LGLSXP: case INTSXP:
+		set_selected_int_elts(INTEGER(Rvector) + subvec_offset,
+					selection, n, int1);
+		return;
+	    case REALSXP:
+		set_selected_double_elts(REAL(Rvector) + subvec_offset,
+					selection, n, double1);
+		return;
+	    case CPLXSXP:
+		set_selected_Rcomplex_elts(COMPLEX(Rvector) + subvec_offset,
+					selection, n, Rcomplex1);
+		return;
+	    case RAWSXP:
+		set_selected_Rbyte_elts(RAW(Rvector) + subvec_offset,
+					selection, n, Rbyte1);
+		return;
+	}
+	error("SparseArray internal error in "
+	      "_set_selected_Rsubvec_elts_to_one():\n"
+	      "    type \"%s\" is not supported", type2char(Rtype));
+}
+
+
+/****************************************************************************
+ * _all_Rsubvec_elts_equal_one()
+ * _all_selected_Rsubvec_elts_equal_one()
+ */
+
+/* Restricted to types "logical", "integer", "double", "complex", and "raw". */
+int _all_Rsubvec_elts_equal_one(SEXP Rvector,
+		R_xlen_t subvec_offset, int subvec_len)
+{
+	SEXPTYPE Rtype = TYPEOF(Rvector);
+	switch (Rtype) {
+	    case LGLSXP: case INTSXP: {
+		int *data = INTEGER(Rvector) + subvec_offset;
+		for (int i = 0; i < subvec_len; i++)
+			if (data[i] != int1)
+				return 0;
+		return 1;
+	    }
+	    case REALSXP: {
+		double *data = REAL(Rvector) + subvec_offset;
+		for (int i = 0; i < subvec_len; i++)
+			if (data[i] != double1)
+				return 0;
+		return 1;
+	    }
+	    case CPLXSXP: {
+		Rcomplex *data = COMPLEX(Rvector) + subvec_offset;
+		for (int i = 0; i < subvec_len; i++) {
+			Rcomplex *vec_elt = data + i;
+			if (vec_elt->r != Rcomplex1.r ||
+			    vec_elt->i != Rcomplex1.i)
+				return 0;
+		}
+		return 1;
+	    }
+	    case RAWSXP: {
+		Rbyte *data = RAW(Rvector) + subvec_offset;
+		for (int i = 0; i < subvec_len; i++)
+			if (data[i] != Rbyte1)
+				return 0;
+		return 1;
+	    }
+	}
+	error("SparseArray internal error in "
+	      "_all_Rsubvec_elts_equal_one():\n"
+	      "    type \"%s\" is not supported", type2char(Rtype));
+}
+
+/* Restricted to types "logical", "integer", "double", "complex", and "raw". */
+int _all_selected_Rsubvec_elts_equal_one(SEXP Rvector, R_xlen_t subvec_offset,
+	const int *selection, int n)
+{
+	SEXPTYPE Rtype = TYPEOF(Rvector);
+	switch (Rtype) {
+	    case LGLSXP: case INTSXP: {
+		int *data = INTEGER(Rvector) + subvec_offset;
+		for (int k = 0; k < n; k++, selection++)
+			if (data[*selection] != int1)
+				return 0;
+		return 1;
+	    }
+	    case REALSXP: {
+		double *data = REAL(Rvector) + subvec_offset;
+		for (int k = 0; k < n; k++, selection++)
+			if (data[*selection] != double1)
+				return 0;
+		return 1;
+	    }
+	    case CPLXSXP: {
+		Rcomplex *data = COMPLEX(Rvector) + subvec_offset;
+		for (int k = 0; k < n; k++, selection++) {
+			Rcomplex *vec_elt = data + *selection;
+			if (vec_elt->r != Rcomplex1.r ||
+			    vec_elt->i != Rcomplex1.i)
+				return 0;
+		}
+		return 1;
+	    }
+	    case RAWSXP: {
+		Rbyte *data = RAW(Rvector) + subvec_offset;
+		for (int k = 0; k < n; k++, selection++)
+			if (data[*selection] != Rbyte1)
+				return 0;
+		return 1;
+	    }
+	}
+	error("SparseArray internal error in "
+	      "_all_selected_Rsubvec_elts_equal_one():\n"
+	      "    type \"%s\" is not supported", type2char(Rtype));
 }
 
 

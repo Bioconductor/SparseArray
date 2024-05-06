@@ -5,6 +5,17 @@
 #include <string.h>  /* for memcpy() */
 
 
+static const Rbyte Rbyte0 = 0;
+static const int int0 = 0;
+static const double double0 = 0.0;
+static const Rcomplex Rcomplex0 = {{0.0, 0.0}};
+
+static const Rbyte Rbyte1 = 1;
+static const int int1 = 1;
+static const double double1 = 1.0;
+static const Rcomplex Rcomplex1 = {{1.0, 0.0}};
+
+
 /****************************************************************************
  * typedefs
  */
@@ -164,6 +175,17 @@ SEXP _new_Rarray0(
 	SEXP dimnames
 );
 
+void _set_Rsubvec_to_one(
+	SEXP Rvector,
+	R_xlen_t subvec_offset,
+	int subvec_len
+);
+
+SEXP _new_Rvector1(
+	SEXPTYPE Rtype,
+	int len
+);
+
 CopyRVectorElt_FUNType _select_copy_Rvector_elt_FUN(SEXPTYPE Rtype);
 
 CopyRVectorElts_FUNType _select_copy_Rvector_elts_FUN(SEXPTYPE Rtype);
@@ -175,8 +197,29 @@ int _collect_offsets_of_nonzero_Rsubvec_elts(
 	int *out
 );
 
-void _reset_selected_Rvector_elts(
+void _set_selected_Rsubvec_elts_to_zero(
 	SEXP Rvector,
+	R_xlen_t subvec_offset,
+	const int *selection,
+	int n
+);
+
+void _set_selected_Rsubvec_elts_to_one(
+	SEXP Rvector,
+	R_xlen_t subvec_offset,
+	const int *selection,
+	int n
+);
+
+int _all_Rsubvec_elts_equal_one(
+	SEXP Rvector,
+	R_xlen_t subvec_offset,
+	int subvec_len
+);
+
+int _all_selected_Rsubvec_elts_equal_one(
+	SEXP Rvector,
+	R_xlen_t subvec_offset,
 	const int *selection,
 	int n
 );

@@ -17,7 +17,7 @@
 ### - The cumulated length of the "leaf vectors" in the SVT is the number
 ###   of nonzero elements (i.e. nzcount) in the SVT_SparseArray object.
 ###   There is no upper limit to this number.
-###   In other words, unlike dgCMatrix objects where this number is
+###   In other words, unlike *gCMatrix objects where this number is
 ###   limited to INT_MAX, an SVT_SparseArray can store an arbitrary number
 ###   of nonzero elements.
 ###
@@ -218,45 +218,51 @@ setAs("matrix", "SVT_SparseMatrix",
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Going back and forth between SVT_SparseMatrix and [d|l]gCMatrix objects
+### Going back and forth between SVT_SparseMatrix and *gCMatrix objects
 ###
 
-.make_CsparseMatrix_from_SVT_SparseMatrix <- function(from, to_type)
+.make_CsparseMatrix_from_SVT_SparseMatrix <- function(from, to_type=NULL)
 {
     stopifnot(is(from, "SVT_SparseMatrix"))
     check_svt_version(from)
 
-    ## Late type switching tends to be slightly more memory efficient.
-    ## However, switching to a smaller type (e.g. from "complex" to "double"
-    ## or from "integer" to "logical") can introduce zeros. In this case,
-    ## we must switch the type early. Otherwise we will end up with zeros
-    ## in the "x" slot of the resulting dgCMatrix or lgCMatrix object.
-    switch_type_early <- coercion_can_introduce_zeros(from@type, to_type)
-    if (switch_type_early)
-        type(from) <- to_type  # early type switching
+    if (!is.null(to_type)) {
+        ## Late type switching tends to be slightly more memory efficient.
+        ## However, switching to a smaller type (e.g. from "complex" to "double"
+        ## or from "integer" to "logical") can introduce zeros. In this case,
+        ## we must switch the type early. Otherwise we will end up with zeros
+        ## in the "x" slot of the resulting dgCMatrix or lgCMatrix object.
+        switch_type_early <- coercion_can_introduce_zeros(from@type, to_type)
+        if (switch_type_early)
+            type(from) <- to_type  # early type switching
+    }
 
     ## Returns 'ans_p', 'ans_i', and 'ans_x', in a list of length 3.
     C_ans <- SparseArray.Call("C_from_SVT_SparseMatrix_to_CsparseMatrix",
-                              from@dim, from@type, from@SVT)
+                              from@dim, from@type, from@SVT, is.null(to_type))
     ans_p <- C_ans[[1L]]
     ans_i <- C_ans[[2L]]
-    ans_x <- C_ans[[3L]]  # same type as 'from'
+    ans_x <- C_ans[[3L]]  # NULL (if 'is.null(to_type)') or same type as 'from'
 
-    ## This type switching is safe only if it does not introduce zeros.
-    if (!switch_type_early)
-        storage.mode(ans_x) <- to_type  # late type switching
+    if (!is.null(to_type)) {
+        ## This type switching is safe only if it does not introduce zeros.
+        if (!switch_type_early)
+            storage.mode(ans_x) <- to_type  # late type switching
+    }
 
     new_CsparseMatrix(from@dim, ans_p, ans_i, ans_x, dimnames=from@dimnames)
 }
 
 .from_SVT_SparseMatrix_to_dgCMatrix <- function(from)
     .make_CsparseMatrix_from_SVT_SparseMatrix(from, "double")
-
 .from_SVT_SparseMatrix_to_lgCMatrix <- function(from)
     .make_CsparseMatrix_from_SVT_SparseMatrix(from, "logical")
+.from_SVT_SparseMatrix_to_ngCMatrix <- function(from)
+    .make_CsparseMatrix_from_SVT_SparseMatrix(from)
 
 setAs("SVT_SparseMatrix", "dgCMatrix", .from_SVT_SparseMatrix_to_dgCMatrix)
 setAs("SVT_SparseMatrix", "lgCMatrix", .from_SVT_SparseMatrix_to_lgCMatrix)
+setAs("SVT_SparseMatrix", "ngCMatrix", .from_SVT_SparseMatrix_to_ngCMatrix)
 
 .build_SVT_SparseMatrix_from_CsparseMatrix <- function(x, type=NA)
 {

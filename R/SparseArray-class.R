@@ -127,8 +127,9 @@ setMethod("is_sparse", "SparseArray", function(x) TRUE)
 ### Returns the number of nonzero array elements in 'x'.
 setGeneric("nzcount", function(x) standardGeneric("nzcount"))
 
-### Not 100% reliable because [d|l]gCMatrix objects are allowed to have
-### zeros in their @x slot! See src/SVT_SparseArray_class.c for an example.
+### Not 100% reliable on [d|l]gCMatrix objects because these objects are
+### allowed to have zeros in their @x slot!
+### See src/SVT_SparseArray_class.c for an example.
 setMethod("nzcount", "CsparseMatrix", function(x) length(x@i))
 setMethod("nzcount", "RsparseMatrix", function(x) length(x@j))
 
@@ -138,22 +139,34 @@ setGeneric("nzwhich", signature="x",
     function(x, arr.ind=FALSE) standardGeneric("nzwhich")
 )
 
+### Works on any array-like object 'x' that supports type(x) and comparison
+### with zero (x != zero). One notable exception is ngRMatrix objects from
+### the Matrix package ('x != FALSE' is broken on these objects).
 default_nzwhich <- function(x, arr.ind=FALSE)
 {
     if (!isTRUEorFALSE(arr.ind))
         stop(wmsg("'arr.ind' must be TRUE or FALSE"))
     ## Make sure to use 'type()' and not 'typeof()'.
     zero <- vector(type(x), length=1L)
-    is_nonzero <- x != zero
+    is_nonzero <- x != zero  # broken on ngRMatrix objects!
     which(is_nonzero | is.na(is_nonzero), arr.ind=arr.ind, useNames=FALSE)
 }
 setMethod("nzwhich", "ANY", default_nzwhich)
 
-### default_nzwhich() above works on a CsparseMatrix derivative but
-### nzwhich_CsparseMatrix() will typically be 50x or 100x faster, or more!
-### However, this is **NOT** 100% reliable because [d|l]gCMatrix objects are
-### allowed to have zeros in their @x slot! See src/SVT_SparseArray_class.c
-### for an example.
+### default_nzwhich() above works fine on [C|R]sparseMatrix derivatives
+### (except on ngRMatrix objects) but nzwhich_CsparseMatrix() and
+### nzwhich_RsparseMatrix() below are more efficient:
+### - nzwhich_CsparseMatrix() is typically 10x to 50x faster than
+###   default_nzwhich() on big CsparseMatrix objects;
+### - nzwhich_RsparseMatrix() is only slightly faster than default_nzwhich()
+###   but is provided mostly to make nzwhich() work on ngRMatrix objects
+###   (default_nzwhich() doesn't work on these objects, see above).
+### IMPORTANT NOTE: nzwhich_CsparseMatrix() and nzwhich_RsparseMatrix()
+### use a shortcut that is **NOT** 100% reliable on [d|l]gCMatrix or
+### [d|l]gRMatrix objects because these objects sometimes have zeros in
+### their @x slot (see src/SVT_SparseArray_class.c for examples of such
+### objects). So in this case the functions will produce a result that
+### contains some false positives.
 nzwhich_CsparseMatrix <- function(x, arr.ind=FALSE)
 {
     if (!isTRUEorFALSE(arr.ind))
@@ -166,7 +179,28 @@ nzwhich_CsparseMatrix <- function(x, arr.ind=FALSE)
         return(ans)
     Lindex2Mindex(ans, dim(x))
 }
+nzwhich_RsparseMatrix <- function(x, arr.ind=FALSE)
+{
+    if (!isTRUEorFALSE(arr.ind))
+        stop(wmsg("'arr.ind' must be TRUE or FALSE"))
+    x_nrow <- nrow(x)
+    x_ncol <- ncol(x)
+    offsets <- rep.int(x_ncol * seq_len(x_nrow) - (x_ncol - 1L), diff(x@p))
+    transposed_nzwhich <- x@j + offsets
+    transposed_arr_ind <- Lindex2Mindex(transposed_nzwhich, rev(dim(x)))
+    transposed_arr_ind1 <- transposed_arr_ind[ , 1L]
+    transposed_arr_ind2 <- transposed_arr_ind[ , 2L]
+    oo <- order(transposed_arr_ind1, transposed_arr_ind2)
+    arr_ind1 <- transposed_arr_ind2[oo]
+    arr_ind2 <- transposed_arr_ind1[oo]
+    arr_ind <- cbind(arr_ind1, arr_ind2, deparse.level=0)
+    if (arr.ind)
+        return(arr_ind)
+    Mindex2Lindex(arr_ind, dim(x))
+}
+
 setMethod("nzwhich", "CsparseMatrix", nzwhich_CsparseMatrix)
+setMethod("nzwhich", "RsparseMatrix", nzwhich_RsparseMatrix)
 
 ### Returns the values of the nonzero array elements in a vector of the
 ### same type() as 'x' and parallel to nzwhich(x).
@@ -174,12 +208,25 @@ setMethod("nzwhich", "CsparseMatrix", nzwhich_CsparseMatrix)
 ### does). However specialized methods can make this dramatically faster.
 setGeneric("nzvals", function(x) standardGeneric("nzvals"))
 
-setMethod("nzvals", "ANY", function(x) x[nzwhich(x)])
+### Assumes that array-like object 'x' supports subsetting by a linear
+### numeric subscript (L-index). An alternative would be to use an M-index
+### instead, that is, to subset by 'nzwhich(x, arr.ind=TRUE)' instead
+### of 'nzwhich(x)'.
+### Note that the call to as.vector() should not be necessary since
+### the result of subsetting 'x' by an L- or M-index should already
+### be a vector (atomic or list). However, in the case of a 1D ordinary
+### array, it's not! For example, 'array(11:15)[matrix(3:1)]' is a 1D array.
+### This is a bug in base::`[`.
+setMethod("nzvals", "ANY", function(x) as.vector(x[nzwhich(x)]))
 
-### Not 100% reliable because [d|l]gCMatrix objects are allowed to have
-### zeros in their @x slot! See src/SVT_SparseArray_class.c for an example.
+### Not 100% reliable because [d|l]gCMatrix objects can have zeros in
+### their @x slot (see comment for nzwhich_CsparseMatrix() above), but
+### consistent with nzwhich_CsparseMatrix().
 setMethod("nzvals", "dgCMatrix", function(x) x@x)
 setMethod("nzvals", "lgCMatrix", function(x) x@x)
+
+setMethod("nzvals", "ngCMatrix", function(x) rep.int(TRUE, length(x@i)))
+setMethod("nzvals", "ngRMatrix", function(x) rep.int(TRUE, length(x@j)))
 
 sparsity <- function(x) { 1 - nzcount(x) / length(x) }
 

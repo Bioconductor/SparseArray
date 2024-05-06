@@ -66,14 +66,22 @@ SEXP _make_leaf_from_bufs(SEXPTYPE Rtype,
 
 /* Assumes that 'out_Rvector' is long enough, has the right type,
    and is already filled with zeros e.g. it was created with
-   _new_Rvector0(TYPEOF(leaf), d). */
-int _expand_leaf(SEXP leaf, SEXP out_Rvector, R_xlen_t out_offset)
+   _new_Rvector0(TYPEOF(leaf), dim0). */
+void _expand_leaf(SEXP leaf, SEXP out_Rvector, R_xlen_t out_offset)
 {
 	SEXP nzvals, nzoffs;
 	unzip_leaf(leaf, &nzvals, &nzoffs);  /* ignore returned nzcount */
-	_copy_Rvector_elts_to_offsets(nzvals, INTEGER(nzoffs),
-				      out_Rvector, out_offset);
-	return 0;
+	if (nzvals == R_NilValue) {
+		/* lacunar leaf */
+		_set_selected_Rsubvec_elts_to_one(out_Rvector, out_offset,
+					INTEGER(nzoffs), LENGTH(nzoffs));
+
+	} else {
+		/* standard leaf */
+		_copy_Rvector_elts_to_offsets(nzvals, INTEGER(nzoffs),
+					out_Rvector, out_offset);
+	}
+	return;
 }
 
 
@@ -81,7 +89,8 @@ int _expand_leaf(SEXP leaf, SEXP out_Rvector, R_xlen_t out_offset)
  * _make_leaf_from_Rsubvec()
  */
 
-/* 'nzoffs_buf' must be of length 'subvec_len' (or more). */
+/* 'nzoffs_buf' must be of length 'subvec_len' (or more).
+   The returned leaf can be lacunar. */
 SEXP _make_leaf_from_Rsubvec(
 		SEXP Rvector, R_xlen_t subvec_offset, int subvec_len,
 		int *selection_buf, int avoid_copy_if_all_nonzeros)
@@ -95,6 +104,16 @@ SEXP _make_leaf_from_Rsubvec(
 
 	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(n));
 	memcpy(INTEGER(ans_nzoffs), selection_buf, sizeof(int) * n);
+
+	if (OK_TO_MAKE_LACUNAR_LEAVES) {
+		int all_ones = _all_selected_Rsubvec_elts_equal_one(Rvector,
+					subvec_offset, selection_buf, n);
+		if (all_ones) {
+			SEXP ans = zip_leaf(R_NilValue, ans_nzoffs);
+			UNPROTECT(1);
+			return ans;
+		}
+	}
 
 	if (avoid_copy_if_all_nonzeros &&
 	    subvec_offset == 0 && n == XLENGTH(Rvector))
@@ -118,8 +137,10 @@ SEXP _make_leaf_from_Rsubvec(
 
 /****************************************************************************
  * _INPLACE_remove_zeros_from_leaf()
+ * _INPLACE_turn_into_lacunar_leaf_if_all_ones()
  */
 
+/* Do NOT use on a NULL or lacunar leaf. */
 SEXP _INPLACE_remove_zeros_from_leaf(SEXP leaf, int *selection_buf)
 {
 	SEXP nzvals, nzoffs;
@@ -146,6 +167,17 @@ SEXP _INPLACE_remove_zeros_from_leaf(SEXP leaf, int *selection_buf)
 	return leaf;
 }
 
+/* Do NOT use on a NULL or lacunar leaf. */
+void _INPLACE_turn_into_lacunar_leaf_if_all_ones(SEXP leaf)
+{
+	SEXP nzvals = get_leaf_nzvals(leaf);
+	int nzcount = LENGTH(nzvals);
+	int all_ones = _all_Rsubvec_elts_equal_one(nzvals, 0, nzcount);
+	if (all_ones)
+		replace_leaf_nzvals(leaf, R_NilValue);
+	return;
+}
+
 
 /****************************************************************************
  * _coerce_leaf()
@@ -154,16 +186,26 @@ SEXP _INPLACE_remove_zeros_from_leaf(SEXP leaf, int *selection_buf)
  * the input leaf.
  */
 
+static SEXP coerce_lacunar_leaf(SEXP leaf, SEXPTYPE new_Rtype)
+{
+	if (new_Rtype != STRSXP && new_Rtype != VECSXP)
+		return leaf;  /* no-op */
+	error("SparseArray internal error in coerce_lacunar_leaf():"
+	      "    coercing a lacunar leaf to \"character\" or \"double\" "
+	      "    is not supported yet");
+}
+
 /* Note that, in practice, _coerce_leaf() is always called to actually
    change the type of 'leaf', so the code below does not bother to check
    for the (trivial) no-op case. */
 SEXP _coerce_leaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn, int *selection_buf)
 {
-	SEXP nzvals, nzoffs, ans_nzvals, ans;
-
-	unzip_leaf(leaf, &nzvals, &nzoffs);
-	ans_nzvals = PROTECT(_coerceVector2(nzvals, new_Rtype, warn));
-	ans = PROTECT(zip_leaf(ans_nzvals, nzoffs));
+	SEXP nzvals, nzoffs;
+	unzip_leaf(leaf, &nzvals, &nzoffs);  /* ignore returned nzcount */
+	if (nzvals == R_NilValue)  /* lacunar leaf */
+		return coerce_lacunar_leaf(leaf, new_Rtype);
+	SEXP ans_nzvals = PROTECT(_coerceVector2(nzvals, new_Rtype, warn));
+	SEXP ans = PROTECT(zip_leaf(ans_nzvals, nzoffs));
 	/* The above coercion can introduce zeros in 'ans_nzvals' e.g. when
 	   going from double/complex to int/raw. We need to remove them. */
 	if (_coercion_can_introduce_zeros(TYPEOF(nzvals), new_Rtype))
@@ -175,38 +217,22 @@ SEXP _coerce_leaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn, int *selection_buf)
 
 /****************************************************************************
  * _subassign_leaf_with_Rvector()
- *
- * 'index' must be an integer vector containing valid zero-based indices
- * (a.k.a. offsets) into 'leaf' seen as dense. They are expected to be
- * already sorted in strictly ascending order.
- * 'Rvector' must be a vector (atomic or list) of the same length as 'index'.
- * Returns a leaf POSSIBLY CONTAMINATED WITH ZEROS in its 'nzvals'.
- * More precisely: the zeros in 'Rvector' will be injected in the 'nzvals'
- * of the returned leaf. This function does NOT remove them!
- * 'nzcount' of the returned leaf is guaranteed to not exceed
- * min(nzcount(leaf) + length(index), INT_MAX).
  */
 
+/* Do NOT use on a NULL leaf. Can be used on a lacunar leaf.
+   'index' must be an integer vector containing valid zero-based indices
+   (a.k.a. offsets) into 'leaf' seen as dense. They are expected to be
+   already sorted in strictly ascending order.
+   'Rvector' must be a vector (atomic or list) of the same length as 'index'.
+   Returns a leaf POSSIBLY CONTAMINATED WITH ZEROS in its 'nzvals'.
+   More precisely: the zeros in 'Rvector' will be injected in the 'nzvals'
+   of the returned leaf. This function does NOT remove them!
+   'nzcount' of the returned leaf is guaranteed to not exceed
+   min(nzcount(leaf) + length(index), INT_MAX).
+   Will NEVER return a NULL. Can ONLY return a lacunar leaf if input leaf
+   is already lacunar **and** 'index' has length 0 (no-op). */
 SEXP _subassign_leaf_with_Rvector(SEXP leaf, SEXP index, SEXP Rvector)
 {
-	SEXP nzvals, nzoffs;
-	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
-	SEXPTYPE Rtype = TYPEOF(nzvals);
-
-	CopyRVectorElt_FUNType copy_Rvector_elt_FUN =
-		_select_copy_Rvector_elt_FUN(Rtype);
-	CopyRVectorElts_FUNType copy_Rvector_elts_FUN =
-		_select_copy_Rvector_elts_FUN(Rtype);
-	if (copy_Rvector_elt_FUN == NULL || copy_Rvector_elts_FUN == NULL)
-		error("SparseArray internal error in "
-		      "_subassign_leaf_with_Rvector():\n"
-		      "    type \"%s\" is not supported", type2char(Rtype));
-
-	if (TYPEOF(Rvector) != Rtype)
-		error("SparseArray internal error in "
-		      "_subassign_leaf_with_Rvector():\n"
-		      "    'leaf' and 'Rvector' have different types");
-
 	int index_len = LENGTH(index);
 	if (LENGTH(Rvector) != index_len)
 		error("SparseArray internal error in "
@@ -215,21 +241,30 @@ SEXP _subassign_leaf_with_Rvector(SEXP leaf, SEXP index, SEXP Rvector)
 	if (index_len == 0)
 		return leaf;  /* no-op */
 
-	const int *nzoffs1_p = INTEGER(nzoffs);
-	const int *offs2_p = INTEGER(index);
+	SEXP nzvals, nzoffs;
+	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
+	SEXPTYPE Rtype = TYPEOF(Rvector);
+	if (nzvals != R_NilValue && TYPEOF(nzvals) != Rtype)
+		error("SparseArray internal error in "
+		      "_subassign_leaf_with_Rvector():\n"
+		      "    'Rvector' and 'leaf' have different types");
+
+	/* Compute 'ans_nzcount'. */
+	const int *nzoffs_p = INTEGER(nzoffs);
+	const int *index_p = INTEGER(index);
 	int ans_nzcount = 0, k1 = 0, k2 = 0;
 	while (k1 < nzcount && k2 < index_len) {
-		if (*nzoffs1_p < *offs2_p) {
-			nzoffs1_p++;
+		if (*nzoffs_p < *index_p) {
+			nzoffs_p++;
 			k1++;
-		} else if (*nzoffs1_p > *offs2_p) {
-			offs2_p++;
+		} else if (*nzoffs_p > *index_p) {
+			index_p++;
 			k2++;
 		} else {
-			/* *nzoffs1_p == *offs2_p */
-			nzoffs1_p++;
+			/* *nzoffs_p == *index_p */
+			nzoffs_p++;
 			k1++;
-			offs2_p++;
+			index_p++;
 			k2++;
 		}
 		ans_nzcount++;
@@ -240,35 +275,52 @@ SEXP _subassign_leaf_with_Rvector(SEXP leaf, SEXP index, SEXP Rvector)
 		ans_nzcount += index_len - k2;
 	}
 
+	CopyRVectorElt_FUNType copy_Rvector_elt_FUN =
+		_select_copy_Rvector_elt_FUN(Rtype);
+	CopyRVectorElts_FUNType copy_Rvector_elts_FUN =
+		_select_copy_Rvector_elts_FUN(Rtype);
+	if (copy_Rvector_elt_FUN == NULL || copy_Rvector_elts_FUN == NULL)
+		error("SparseArray internal error in "
+		      "_subassign_leaf_with_Rvector():\n"
+		      "    type \"%s\" is not supported", type2char(Rtype));
+
 	SEXP ans_nzvals, ans_nzoffs;
 	SEXP ans = PROTECT(_alloc_and_unzip_leaf(Rtype, ans_nzcount,
 						 &ans_nzvals, &ans_nzoffs));
-	nzoffs1_p = INTEGER(nzoffs);
-	offs2_p = INTEGER(index);
+
+	/* Fill 'ans_nzvals' and 'ans_nzoffs'. */
+	nzoffs_p = INTEGER(nzoffs);
+	index_p = INTEGER(index);
 	int *ans_nzoffs_p = INTEGER(ans_nzoffs);
 	int k = 0;
 	k1 = k2 = 0;
 	while (k1 < nzcount && k2 < index_len) {
-		if (*nzoffs1_p < *offs2_p) {
-			*ans_nzoffs_p = *nzoffs1_p;
-			copy_Rvector_elt_FUN(nzvals, (R_xlen_t) k1,
-					     ans_nzvals, (R_xlen_t) k);
-			nzoffs1_p++;
+		if (*nzoffs_p < *index_p) {
+			*ans_nzoffs_p = *nzoffs_p;
+			if (nzvals == R_NilValue) {
+				/* lacunar leaf */
+				_set_selected_Rsubvec_elts_to_one(
+						     ans_nzvals, 0, &k, 1);
+			} else {
+				copy_Rvector_elt_FUN(nzvals, (R_xlen_t) k1,
+						     ans_nzvals, (R_xlen_t) k);
+			}
+			nzoffs_p++;
 			k1++;
-		} else if (*nzoffs1_p > *offs2_p) {
-			*ans_nzoffs_p = *offs2_p;
+		} else if (*nzoffs_p > *index_p) {
+			*ans_nzoffs_p = *index_p;
 			copy_Rvector_elt_FUN(Rvector, (R_xlen_t) k2,
 					     ans_nzvals, (R_xlen_t) k);
-			offs2_p++;
+			index_p++;
 			k2++;
 		} else {
-			/* *nzoffs1_p == *offs2_p */
-			*ans_nzoffs_p = *offs2_p;
+			/* *nzoffs_p == *index_p */
+			*ans_nzoffs_p = *index_p;
 			copy_Rvector_elt_FUN(Rvector, (R_xlen_t) k2,
 					     ans_nzvals, (R_xlen_t) k);
-			nzoffs1_p++;
+			nzoffs_p++;
 			k1++;
-			offs2_p++;
+			index_p++;
 			k2++;
 		}
 		ans_nzoffs_p++;
@@ -277,13 +329,18 @@ SEXP _subassign_leaf_with_Rvector(SEXP leaf, SEXP index, SEXP Rvector)
 	int n;
 	if (k1 < nzcount) {
 		n = nzcount - k1;
-		memcpy(ans_nzoffs_p, nzoffs1_p, sizeof(int) * n);
-		copy_Rvector_elts_FUN(nzvals, (R_xlen_t) k1,
-				      ans_nzvals, (R_xlen_t) k,
-				      (R_xlen_t) n);
+		memcpy(ans_nzoffs_p, nzoffs_p, sizeof(int) * n);
+		if (nzvals == R_NilValue) {
+			/* lacunar leaf */
+			_set_Rsubvec_to_one(ans_nzvals, (R_xlen_t) k, n);
+		} else {
+			copy_Rvector_elts_FUN(nzvals, (R_xlen_t) k1,
+					      ans_nzvals, (R_xlen_t) k,
+					      (R_xlen_t) n);
+		}
 	} else if (k2 < index_len) {
 		n = index_len - k2;
-		memcpy(ans_nzoffs_p, offs2_p, sizeof(int) * n);
+		memcpy(ans_nzoffs_p, index_p, sizeof(int) * n);
 		copy_Rvector_elts_FUN(Rvector, (R_xlen_t) k2,
 				      ans_nzvals, (R_xlen_t) k,
 				      (R_xlen_t) n);
