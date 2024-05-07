@@ -1,81 +1,46 @@
-- Use OpenMP to Parallelize crossprod(), tcrossprod(), and %*% of
-  SVT_SparseMatrix objects at the C level.
-  See https://en.wikipedia.org/wiki/OpenMP#Work-sharing_constructs
-
 - Add nzvals() methods for COO_SparseArray and SVT_SparseArray objects.
   Uncomment nzvals() examples in vignette and SparseArray-class.Rd
 
 - Add unit tests for nzwhich() and nzvals() methods for COO_SparseArray
   and SVT_SparseArray objects.
 
-- To support Shila's use case (see #tech-advisory-board channel on
-  community Slack):
+- Parallelize more operations (with OpenMP). Right now only %*%, crossprod(),
+  tcrossprod(), and the matrixStats operations are parallelized.
 
-  1. We can't use base::apply() on an SparseArray derivative because it
-     will turn it into an ordinary (i.e. dense) array.
-     Also, trying to circumvent the base::apply() problem by implementing
-     our own loop in R e.g. with something like:
+- Use "sparseness" instead of "sparsity" in the doc when referring to the
+  quality of being structurally sparse. Use "sparsity" to refer to the
+  number (>= 0 and <= 1) that measures how sparse an object is.
+  sparsity = 1 - density
 
-       summarize_along_3rd_dim <- function(X, FUN, ...)
-       {
-           stopifnot(length(dim(X)) == 3L)
-           FUN <- match.fun(FUN)
-           ans <- matrix(0, nrow=nrow(X), ncol=ncol(X))
-           for (i in seq_len(nrow(ans))) {
-               for (j in seq_len(ncol(ans))) {
-                   ans[i, j] <- FUN(X[i, j, ], ...)
-               }
-           }
-           ans
-       }
+- Extend the capabilities of the SVT_SparseArray() and SparseArray()
+  constructors so that they can be used to create a SVT_SparseArray object
+  with the specified dimensions and only zeros (i.e. no nonzero data).
 
-       res1 <- summarize_along_3rd_dim(big_GxNxk_array, mean)
+- Subassignments like this need to work:
+      svt[ , , 1] <- svt[ , , 3, drop=FALSE]
+      svt[ , , 1] <- svt[ , , 3]
 
-     is very very slow! e.g. it takes about 17 min. for a 500x200x15000
-     SVT_SparseArray object with a 10% density (memory footprint of the
-     object is 1.6Gb).
+- Implement table() method for SVT_SparseArray objects of type logical,
+  integer, or raw (should it go in R/SparseArray-summarization.R?)
 
-     The following is significantly faster (5.5 sec. instead of 17 min.)
-     but feels a little bit too tricky:
+- Implement function for loading a TENxMatrixSeed subset as an
+  SVT_SparseMatrix. Test it on the 1.3 Million Brain Cell Dataset.
 
-       tmp <- lapply(seq_len(ncol(big_GxNxk_array)),
-                     function(j) rowMeans(big_GxNxk_array[,j,]));
-       res2 <- do.call(cbind, tmp)  # identical to 'res1'
+- Improve readSparseCSV() functionality by adding a few read.table-like args
+  to it. See https://github.com/Bioconductor/SparseArray/issues/5 for the
+  details.
 
-     So we need the following:
-       a. We should be able to call col/rowSums() and col/rowMeans(), as well
-          as any other matrixStats function on an SVT_SparseArray object with
-          an arbitrary number of dimensions, not just on an SVT_SparseMatrix
-          object.
-       b. The col/rowSums() and col/rowMeans() methods for SVT_SparseArray
-          objects should support the 'dims' argument supported by the base
-          functions. This would allow us to do
-
-            rowMeans(big_GxNxk_array, dims=2)
-
-          instead of the above trick. This syntax is the natural thing to
-          use to compute stats along arbitrary dimensions. Note that its
-          implementation could actually use something like the above trick
-          but now it would be hidden from the user.
-       c. Furthermore, if we find a way to construct 'big_kxGxN_array'
-          efficiently (maybe with 'aperm(big_GxNxk_array, perm=c(3,1,2))'),
-          then we would be able to simply do 'colMeans(big_kxGxN_array)'
-          instead of 'rowMeans(big_GxNxk_array, dims=2)'. There's chance
-          that the former will be slightly more efficient than the latter
-          (slicing of the SVT will require much less rearrangements,
-          no need to transpose each slice, direct summarization of
-          the individual leaf vectors of a given slice).
-       d. These methods must loop at the C level.
-       e. Finally these capabilities should be extended to all matrixStats
-          functions.
-
-  2. Extend the capabilities of the SVT_SparseArray() and SparseArray()
-     constructors so that they can be used to create a SVT_SparseArray object
-     with the specified dimensions and only zeros (i.e. no nonzero data).
-
-  3. Subassignments like this need to work:
-       svt[ , , 1] <- svt[ , , 3, drop=FALSE]
-       svt[ , , 1] <- svt[ , , 3]
+- We can't use base::apply() or base::asplit() on a SparseArray derivative
+  because they turn it into an ordinary (i.e. dense) array.
+  So turn apply() and asplit() into generic functions and implement methods
+  for SparseArray objects. These methods could either:
+  1. Mimic the behavior of base::apply() and base::asplit() but preverve
+     sparseness. However, it should be clarified in the man page for the
+     matrixStats methods that using apply() to compute stats on an object
+     with > 2 dimensions is not going to be as efficient as using
+     the 'dims' argument (almost all matrixStats methods support it). The
+     latter should be 10x or 100x faster when used on big objects.
+  2. Just fail with a friendly error message.
 
 - Maybe implement svd() for SVT_SparseArray objects?
 
@@ -96,12 +61,6 @@
   3. Revisit implementation of C_readSparseCSV_as_SVT_SparseMatrix(): Try to
      use an SBT instead of an ExtendableJaggedArray. Performance should not
      be impacted. Then we can get rid of the ExtendableJaggedArray thing.
-
-- Improve readSparseCSV() functionality by adding a few read.table-like args
-  to it. See https://github.com/Bioconductor/SparseArray/issues/5 for the
-  details.
-
-- Rename sparsity -> sparseness?
 
 - To help implement the Kronecker product (see below): Introduce
   arep_times(x, times) and arep_each(x, each) generics. The 'times'
@@ -198,10 +157,6 @@
   See https://en.wikipedia.org/wiki/Kronecker_product for other properties
   to test.
 
-- Define apply() and asplit() methods for SparseArray objects that fail with
-  a friendly error message. Otherwise base::apply() or base::asplit() get
-  called and they call as.array() on the object internally which is BAD!
-
 - Try to speed up SVT_SparseArray transposition by implementing a one-pass
   approach that uses ExtendableJaggedArray intermediate buffers (offss, valss).
   See src/readSparseCSV.c where this approach is already used.
@@ -229,13 +184,7 @@
   Matrix package.
   See https://math.nist.gov/MatrixMarket/formats.html
 
-- Implement table() method for SVT_SparseArray objects of type logical,
-  integer, or raw (should it go in R/SparseArray-summarization.R?)
-
 - Add unit tests for the SVT_SparseArray stuff.
-
-- Implement function for loading a TENxMatrixSeed subset as an
-  SVT_SparseMatrix. Test it on the 1.3 Million Brain Cell Dataset.
 
 - Go after dgCMatrix objects in ExperimentHub (query(eh, "dgCMatrix")),
   convert them to SVT_SparseMatrix objects and try to do the things that
@@ -280,3 +229,7 @@
     business of the SVT_SparseArray representation to use either a Sparse
     Vector Tree for the general case or an Offset Vector Tree for the
     special "type=logical with no NAs" case.
+  UPDATE ON THIS (May 7, 2024):
+    This will be achieved by supporting "lacunar leaves" which will be
+    internal business, so no need to introduce a new SparseArray subclass.
+    This is currently work-in-progress.
