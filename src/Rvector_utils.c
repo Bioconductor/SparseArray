@@ -397,9 +397,8 @@ void _set_selected_Rsubvec_elts_to_zero(SEXP Rvector, R_xlen_t subvec_offset,
 					selection, n, Rbyte0);
 		return;
 	    case STRSXP:
-		SEXP zero = PROTECT(mkChar(""));
 		set_selected_character_elts(Rvector, subvec_offset,
-					selection, n, zero);
+					selection, n, R_BlankString);
 		UNPROTECT(1);
 		return;
 	    case VECSXP:
