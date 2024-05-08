@@ -17,20 +17,27 @@
  * in terms of performance for the 2D case compared to C_transpose_2D_SVT().
  */
 
-static void count_nonzero_elts_per_row(SEXP SVT, int nrow, int ncol,
-		int *nzcounts)
+static void collect_stats_on_rows(SEXP SVT, int nrow, int ncol,
+		int *nzcount_buf, int *onecount_buf)
 {
-	memset(nzcounts, 0, sizeof(int) * nrow);
+	memset(nzcount_buf, 0, sizeof(int) * nrow);
+	if (onecount_buf != NULL)
+		memset(onecount_buf, 0, sizeof(int) * nrow);
 	for (int j = 0; j < ncol; j++) {
-		SEXP subSVT = VECTOR_ELT(SVT, j);
-		if (subSVT == R_NilValue)
+		SEXP leaf = VECTOR_ELT(SVT, j);
+		if (leaf == R_NilValue)
 			continue;
-		/* 'subSVT' is a leaf (i.e. 1D SVT). */
 		SEXP nzvals, nzoffs;
-		int nzcount = unzip_leaf(subSVT, &nzvals, &nzoffs);
+		int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
 		const int *nzoffs_p = INTEGER(nzoffs);
-		for (int k = 0; k < nzcount; k++, nzoffs_p++)
-			nzcounts[*nzoffs_p]++;
+		for (int k = 0; k < nzcount; k++, nzoffs_p++) {
+			nzcount_buf[*nzoffs_p]++;
+			if (onecount_buf == NULL)
+				continue;
+			if (nzvals == R_NilValue ||  /* lacunar leaf */
+			    _all_Rsubvec_elts_equal_one(nzvals, 0, 1))
+				onecount_buf[*nzoffs_p]++;
+		}
 	}
 	return;
 }
@@ -44,8 +51,10 @@ static void **set_quick_out_nzvals_p(SEXP out_SVT, SEXPTYPE Rtype)
 		int **p = vals_p;
 		for (int i = 0; i < out_SVT_len; i++, p++) {
 			SEXP leaf = VECTOR_ELT(out_SVT, i);
-			if (leaf != R_NilValue)
-				*p = INTEGER(get_leaf_nzvals(leaf));
+			if (leaf == R_NilValue)
+				continue;
+			SEXP nzvals = get_leaf_nzvals(leaf);
+			*p = nzvals == R_NilValue ? NULL : INTEGER(nzvals);
 		}
 		return (void **) vals_p;
 	    }
@@ -55,8 +64,10 @@ static void **set_quick_out_nzvals_p(SEXP out_SVT, SEXPTYPE Rtype)
 		double **p = vals_p;
 		for (int i = 0; i < out_SVT_len; i++, p++) {
 			SEXP leaf = VECTOR_ELT(out_SVT, i);
-			if (leaf != R_NilValue)
-				*p = REAL(get_leaf_nzvals(leaf));
+			if (leaf == R_NilValue)
+				continue;
+			SEXP nzvals = get_leaf_nzvals(leaf);
+			*p = nzvals == R_NilValue ? NULL : REAL(nzvals);
 		}
 		return (void **) vals_p;
 	    }
@@ -66,8 +77,10 @@ static void **set_quick_out_nzvals_p(SEXP out_SVT, SEXPTYPE Rtype)
 		Rcomplex **p = vals_p;
 		for (int i = 0; i < out_SVT_len; i++, p++) {
 			SEXP leaf = VECTOR_ELT(out_SVT, i);
-			if (leaf != R_NilValue)
-				*p = COMPLEX(get_leaf_nzvals(leaf));
+			if (leaf == R_NilValue)
+				continue;
+			SEXP nzvals = get_leaf_nzvals(leaf);
+			*p = nzvals == R_NilValue ? NULL : COMPLEX(nzvals);
 		}
 		return (void **) vals_p;
 	    }
@@ -77,8 +90,10 @@ static void **set_quick_out_nzvals_p(SEXP out_SVT, SEXPTYPE Rtype)
 		Rbyte **p = vals_p;
 		for (int i = 0; i < out_SVT_len; i++, p++) {
 			SEXP leaf = VECTOR_ELT(out_SVT, i);
-			if (leaf != R_NilValue)
-				*p = RAW(get_leaf_nzvals(leaf));
+			if (leaf == R_NilValue)
+				continue;
+			SEXP nzvals = get_leaf_nzvals(leaf);
+			*p = nzvals == R_NilValue ? NULL : RAW(nzvals);
 		}
 		return (void **) vals_p;
 	    }
@@ -87,117 +102,166 @@ static void **set_quick_out_nzvals_p(SEXP out_SVT, SEXPTYPE Rtype)
 	return NULL;
 }
 
-typedef void (*TransposeCol_FUNType)(int col_idx,
-		SEXP nzvals, const int *nzoffs,
+typedef void (*TransposeCol_FUNType)(int col_idx, SEXP col,
 		void **quick_out_nzvals_p, int **quick_out_nzoffs_p,
 		SEXP out_SVT, int *nzcount_buf);
 
 /* Ignores 'out_SVT' and 'nzcount_buf'. */
-static void transpose_INTEGER_col(int col_idx,
-		SEXP nzvals, const int *nzoffs,
+static void transpose_INTEGER_col(int col_idx, SEXP col,
 		void **quick_out_nzvals_p, int **quick_out_nzoffs_p,
 		SEXP out_SVT, int *nzcount_buf)
 {
-	int **nzvals_p = (int **) quick_out_nzvals_p;
-	int nzcount = LENGTH(nzvals);
-	const int *v = INTEGER(nzvals);
-	for (int k = 0; k < nzcount; k++, v++) {
-		int row_idx = *nzoffs;
-		*(nzvals_p[row_idx]++) = *v;
+	SEXP col_nzvals, col_nzoffs;
+	int col_nzcount = unzip_leaf(col, &col_nzvals, &col_nzoffs);
+	const int *col_nzvals_p = NULL;  /* -Wmaybe-uninitialized */
+	int v;
+	if (col_nzvals != R_NilValue) {
+		col_nzvals_p = INTEGER(col_nzvals);
+	} else {
+		v = int1;
+	}
+	int **out_nzvals_p = (int **) quick_out_nzvals_p;
+	const int *col_nzoffs_p = INTEGER(col_nzoffs);
+	for (int k = 0; k < col_nzcount; k++) {
+		int row_idx = *col_nzoffs_p;
+		int **p = out_nzvals_p + row_idx;
+		if (*p != NULL) {
+			if (col_nzvals != R_NilValue)
+				v = col_nzvals_p[k];
+			*((*p)++) = v;
+		}
 		*(quick_out_nzoffs_p[row_idx]++) = col_idx;
-		nzoffs++;
+		col_nzoffs_p++;
 	}
 	return;
 }
 
 /* Ignores 'out_SVT' and 'nzcount_buf'. */
-static void transpose_NUMERIC_col(int col_idx,
-		SEXP nzvals, const int *nzoffs,
+static void transpose_NUMERIC_col(int col_idx, SEXP col,
 		void **quick_out_nzvals_p, int **quick_out_nzoffs_p,
 		SEXP out_SVT, int *nzcount_buf)
 {
-	double **nzvals_p = (double **) quick_out_nzvals_p;
-	int nzcount = LENGTH(nzvals);
-	const double *v = REAL(nzvals);
-	for (int k = 0; k < nzcount; k++, v++) {
-		int row_idx = *nzoffs;
-		*(nzvals_p[row_idx]++) = *v;
+	SEXP col_nzvals, col_nzoffs;
+	int col_nzcount = unzip_leaf(col, &col_nzvals, &col_nzoffs);
+	const double *col_nzvals_p = NULL;  /* -Wmaybe-uninitialized */
+	double v;
+	if (col_nzvals != R_NilValue) {
+		col_nzvals_p = REAL(col_nzvals);
+	} else {
+		v = double1;
+	}
+	double **out_nzvals_p = (double **) quick_out_nzvals_p;
+	const int *col_nzoffs_p = INTEGER(col_nzoffs);
+	for (int k = 0; k < col_nzcount; k++) {
+		int row_idx = *col_nzoffs_p;
+		double **p = out_nzvals_p + row_idx;
+		if (*p != NULL) {
+			if (col_nzvals != R_NilValue)
+				v = col_nzvals_p[k];
+			*((*p)++) = v;
+		}
 		*(quick_out_nzoffs_p[row_idx]++) = col_idx;
-		nzoffs++;
+		col_nzoffs_p++;
 	}
 	return;
 }
 
 /* Ignores 'out_SVT' and 'nzcount_buf'. */
-static void transpose_COMPLEX_col(int col_idx,
-		SEXP nzvals, const int *nzoffs,
+static void transpose_COMPLEX_col(int col_idx, SEXP col,
 		void **quick_out_nzvals_p, int **quick_out_nzoffs_p,
 		SEXP out_SVT, int *nzcount_buf)
 {
-	Rcomplex **nzvals_p = (Rcomplex **) quick_out_nzvals_p;
-	int nzcount = LENGTH(nzvals);
-	const Rcomplex *v = COMPLEX(nzvals);
-	for (int k = 0; k < nzcount; k++, v++) {
-		int row_idx = *nzoffs;
-		*(nzvals_p[row_idx]++) = *v;
+	SEXP col_nzvals, col_nzoffs;
+	int col_nzcount = unzip_leaf(col, &col_nzvals, &col_nzoffs);
+	const Rcomplex *col_nzvals_p = NULL;  /* -Wmaybe-uninitialized */
+	Rcomplex v;
+	if (col_nzvals != R_NilValue) {
+		col_nzvals_p = COMPLEX(col_nzvals);
+	} else {
+		v = Rcomplex1;
+	}
+	Rcomplex **out_nzvals_p = (Rcomplex **) quick_out_nzvals_p;
+	const int *col_nzoffs_p = INTEGER(col_nzoffs);
+	for (int k = 0; k < col_nzcount; k++) {
+		int row_idx = *col_nzoffs_p;
+		Rcomplex **p = out_nzvals_p + row_idx;
+		if (*p != NULL) {
+			if (col_nzvals != R_NilValue)
+				v = col_nzvals_p[k];
+			*((*p)++) = v;
+		}
 		*(quick_out_nzoffs_p[row_idx]++) = col_idx;
-		nzoffs++;
+		col_nzoffs_p++;
 	}
 	return;
 }
 
 /* Ignores 'out_SVT' and 'nzcount_buf'. */
-static void transpose_RAW_col(int col_idx,
-		SEXP nzvals, const int *nzoffs,
+static void transpose_RAW_col(int col_idx, SEXP col,
 		void **quick_out_nzvals_p, int **quick_out_nzoffs_p,
 		SEXP out_SVT, int *nzcount_buf)
 {
-	Rbyte **nzvals_p = (Rbyte **) quick_out_nzvals_p;
-	int nzcount = LENGTH(nzvals);
-	const Rbyte *v = RAW(nzvals);
-	for (int k = 0; k < nzcount; k++, v++) {
-		int row_idx = *nzoffs;
-		*(nzvals_p[row_idx]++) = *v;
+	SEXP col_nzvals, col_nzoffs;
+	int col_nzcount = unzip_leaf(col, &col_nzvals, &col_nzoffs);
+	const Rbyte *col_nzvals_p = NULL;  /* -Wmaybe-uninitialized */
+	Rbyte v;
+	if (col_nzvals != R_NilValue) {
+		col_nzvals_p = RAW(col_nzvals);
+	} else {
+		v = Rbyte1;
+	}
+	Rbyte **out_nzvals_p = (Rbyte **) quick_out_nzvals_p;
+	const int *col_nzoffs_p = INTEGER(col_nzoffs);
+	for (int k = 0; k < col_nzcount; k++) {
+		int row_idx = *col_nzoffs_p;
+		Rbyte **p = out_nzvals_p + row_idx;
+		if (*p != NULL) {
+			if (col_nzvals != R_NilValue)
+				v = col_nzvals_p[k];
+			*((*p)++) = v;
+		}
 		*(quick_out_nzoffs_p[row_idx]++) = col_idx;
-		nzoffs++;
+		col_nzoffs_p++;
 	}
 	return;
 }
 
 /* Ignores 'quick_out_nzvals_p'. */
-static void transpose_CHARACTER_col(int col_idx,
-		SEXP nzvals, const int *nzoffs,
+static void transpose_CHARACTER_col(int col_idx, SEXP col,
 		void **quick_out_nzvals_p, int **quick_out_nzoffs_p,
 		SEXP out_SVT, int *nzcount_buf)
 {
-	int nzcount = LENGTH(nzvals);
-	for (int k = 0; k < nzcount; k++) {
-		int row_idx = *nzoffs;
+	SEXP col_nzvals, col_nzoffs;
+	int col_nzcount = unzip_leaf(col, &col_nzvals, &col_nzoffs);
+	const int *col_nzoffs_p = INTEGER(col_nzoffs);
+	for (int k = 0; k < col_nzcount; k++) {
+		int row_idx = *col_nzoffs_p;
 		SEXP out_leaf = VECTOR_ELT(out_SVT, row_idx);
-		_copy_CHARACTER_elt(nzvals, (R_xlen_t) k,
+		_copy_CHARACTER_elt(col_nzvals, (R_xlen_t) k,
 			get_leaf_nzvals(out_leaf),
 			(R_xlen_t) nzcount_buf[row_idx]++);
 		*(quick_out_nzoffs_p[row_idx]++) = col_idx;
-		nzoffs++;
+		col_nzoffs_p++;
 	}
 	return;
 }
 
 /* Ignores 'quick_out_nzvals_p'. */
-static void transpose_LIST_col(int col_idx,
-		SEXP nzvals, const int *nzoffs,
+static void transpose_LIST_col(int col_idx, SEXP col,
 		void **quick_out_nzvals_p, int **quick_out_nzoffs_p,
 		SEXP out_SVT, int *nzcount_buf)
 {
-	int nzcount = LENGTH(nzvals);
-	for (int k = 0; k < nzcount; k++) {
-		int row_idx = *nzoffs;
+	SEXP col_nzvals, col_nzoffs;
+	int col_nzcount = unzip_leaf(col, &col_nzvals, &col_nzoffs);
+	const int *col_nzoffs_p = INTEGER(col_nzoffs);
+	for (int k = 0; k < col_nzcount; k++) {
+		int row_idx = *col_nzoffs_p;
 		SEXP out_leaf = VECTOR_ELT(out_SVT, row_idx);
-		_copy_LIST_elt(nzvals, (R_xlen_t) k,
+		_copy_LIST_elt(col_nzvals, (R_xlen_t) k,
 			get_leaf_nzvals(out_leaf),
 			(R_xlen_t) nzcount_buf[row_idx]++);
 		*(quick_out_nzoffs_p[row_idx]++) = col_idx;
-		nzoffs++;
+		col_nzoffs_p++;
 	}
 	return;
 }
@@ -216,13 +280,8 @@ static TransposeCol_FUNType select_transpose_col_FUN(SEXPTYPE Rtype)
 }
 
 static SEXP transpose_2D_SVT(SEXP SVT, int nrow, int ncol, SEXPTYPE Rtype,
-		int *nzcount_buf)
+		int *nzcount_buf, int *onecount_buf)
 {
-	/* 1st pass: Count the number of nonzero elements per row in the
-	   input object. */
-	count_nonzero_elts_per_row(SVT, nrow, ncol, nzcount_buf);
-
-	/* 2nd pass: Build the transposed SVT. */
 	TransposeCol_FUNType transpose_col_FUN =
 			select_transpose_col_FUN(Rtype);
 	if (transpose_col_FUN == NULL)
@@ -230,17 +289,31 @@ static SEXP transpose_2D_SVT(SEXP SVT, int nrow, int ncol, SEXPTYPE Rtype,
 		      "transpose_2D_SVT():\n"
 		      "    SVT_SparseMatrix object has invalid type");
 
+	/* 1st pass: Collect number of nonzero elements (and ones) for each
+	   row in the input matrix. */
+	collect_stats_on_rows(SVT, nrow, ncol, nzcount_buf, onecount_buf);
+
+	/* 2nd pass: Build the transposed SVT. */
 	SEXP ans = PROTECT(NEW_LIST(nrow));
 	int **quick_out_nzoffs_p = (int **) R_alloc(nrow, sizeof(int *));
 	for (int i = 0; i < nrow; i++) {
 		int nzcount = nzcount_buf[i];
-		if (nzcount != 0) {
-			SEXP ans_elt = PROTECT(_alloc_leaf(Rtype, nzcount));
-			SET_VECTOR_ELT(ans, i, ans_elt);
-			UNPROTECT(1);
-			quick_out_nzoffs_p[i] =
-				INTEGER(get_leaf_nzoffs(ans_elt));
+		if (nzcount == 0)
+			continue;
+		SEXP ans_nzoffs = PROTECT(NEW_INTEGER(nzcount));
+		quick_out_nzoffs_p[i] = INTEGER(ans_nzoffs);
+		SEXP ans_nzvals;
+		if (onecount_buf != NULL && onecount_buf[i] == nzcount) {
+			/* Create a lacunar leaf. Will turn it into a
+			   standard leaf later if LACUNAR_MODE_IS_ON
+			   is set to 0. */
+			ans_nzvals = R_NilValue;
+		} else {
+			ans_nzvals = PROTECT(allocVector(Rtype, nzcount));
 		}
+		SEXP ans_elt = PROTECT(zip_leaf(ans_nzvals, ans_nzoffs));
+		SET_VECTOR_ELT(ans, i, ans_elt);
+		UNPROTECT(ans_nzvals == R_NilValue ? 2 : 3);
 	}
 	void **quick_out_nzvals_p = set_quick_out_nzvals_p(ans, Rtype);
 
@@ -249,19 +322,27 @@ static SEXP transpose_2D_SVT(SEXP SVT, int nrow, int ncol, SEXPTYPE Rtype,
 		SEXP leaf = VECTOR_ELT(SVT, j);
 		if (leaf == R_NilValue)
 			continue;
-		SEXP nzvals, nzoffs;
-		int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
-		if (nzcount < 0) {
-			UNPROTECT(1);
-			error("SparseArray internal error in "
-			      "transpose_2D_SVT():\n"
-			      "    invalid SVT_SparseMatrix object");
-		}
-		transpose_col_FUN(j,
-			nzvals, INTEGER(nzoffs),
+		transpose_col_FUN(j, leaf,
 			quick_out_nzvals_p, quick_out_nzoffs_p,
 			ans, nzcount_buf);
 	}
+
+	if (onecount_buf != NULL && !LACUNAR_MODE_IS_ON) {
+		/* Turn lacunar leaves into standard leaves. */
+		for (int i = 0; i < nrow; i++) {
+			SEXP ans_leaf = VECTOR_ELT(ans, i);
+			if (ans_leaf == R_NilValue)
+				continue;
+			SEXP nzvals, nzoffs;
+			int nzcount = unzip_leaf(ans_leaf, &nzvals, &nzoffs);
+			if (nzvals != R_NilValue)
+				continue;
+			nzvals = PROTECT(_new_Rvector1(Rtype, nzcount));
+			replace_leaf_nzvals(ans_leaf, nzvals);
+			UNPROTECT(1);
+		}
+	}
+
 	UNPROTECT(1);
 	return ans;
 }
@@ -284,8 +365,11 @@ SEXP C_transpose_2D_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT)
 	int x_nrow = INTEGER(x_dim)[0];
 	int x_ncol = INTEGER(x_dim)[1];
 	int *nzcount_buf = (int *) R_alloc(x_nrow, sizeof(int));
-
-	return transpose_2D_SVT(x_SVT, x_nrow, x_ncol, x_Rtype, nzcount_buf);
+	int *onecount_buf = NULL;
+	if (x_Rtype != STRSXP && x_Rtype != VECSXP)
+		onecount_buf = (int *) R_alloc(x_nrow, sizeof(int));
+	return transpose_2D_SVT(x_SVT, x_nrow, x_ncol, x_Rtype,
+				nzcount_buf, onecount_buf);
 }
 
 

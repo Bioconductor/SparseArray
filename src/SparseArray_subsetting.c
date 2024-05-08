@@ -18,8 +18,8 @@ static SEXP compute_subset_dim(SEXP index, SEXP x_dim)
 
 	ndim = LENGTH(x_dim);
 	if (!isVectorList(index) || LENGTH(index) != ndim)
-		error("'index' must be a list with one "
-		      "list element per dimension in 'x'");
+		error("'index' must be a list with one list "
+		      "element along each dimension in 'x'");
 
 	ans_dim = PROTECT(duplicate(x_dim));
 
@@ -122,6 +122,8 @@ static inline int map_i2_to_k2_with_bsearch(int i2,
 	return -1;
 }
 
+/* Takes a non-NULL leaf (standard or lacunar), and returns a leaf that can
+   be NULL, standard, or lacunar. */
 static SEXP subset_leaf(SEXP leaf, SEXP idx, int i2max,
 		int *i1_buf, int *k2_buf, int *lookup_table)
 {
@@ -151,10 +153,25 @@ static SEXP subset_leaf(SEXP leaf, SEXP idx, int i2max,
 	if (ans_nzcount == 0)
 		return R_NilValue;
 
-	SEXP ans_nzvals = PROTECT(allocVector(TYPEOF(nzvals), ans_nzcount));
-	_copy_selected_Rsubvec_elts(nzvals, 0, k2_buf, ans_nzvals);
 	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(ans_nzcount));
 	memcpy(INTEGER(ans_nzoffs), i1_buf, sizeof(int) * ans_nzcount);
+	if (nzvals == R_NilValue) {
+		/* Leaf to subset is lacunar --> subsetting preserves that. */
+		SEXP ans = zip_leaf(R_NilValue, ans_nzoffs);
+		UNPROTECT(1);
+		return ans;
+	}
+	if (LACUNAR_MODE_IS_ON) {
+		int all_ones = _all_selected_Rsubvec_elts_equal_one(nzvals, 0,
+						     k2_buf, ans_nzcount);
+		if (all_ones) {
+			SEXP ans = zip_leaf(R_NilValue, ans_nzoffs);
+			UNPROTECT(1);
+			return ans;
+		}
+	}
+	SEXP ans_nzvals =
+		PROTECT(_subset_Rsubvec(nzvals, 0, k2_buf, ans_nzcount));
 	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs);
 	UNPROTECT(2);
 	return ans;
@@ -166,13 +183,10 @@ static SEXP REC_subset_SVT(SEXP SVT, SEXP index,
 		const int *x_dim, const int *ans_dim, int ndim,
 		int *i1_buf, int *k2_buf, int *lookup_table)
 {
-	SEXP idx, ans, SVT_elt, ans_elt;
-	int SVT_len, ans_len, is_empty, i1, i2;
-
 	if (SVT == R_NilValue)
 		return R_NilValue;
 
-	idx = VECTOR_ELT(index, ndim - 1);
+	SEXP idx = VECTOR_ELT(index, ndim - 1);
 
 	if (ndim == 1) {
 		/* 'SVT' is a leaf. */
@@ -181,18 +195,19 @@ static SEXP REC_subset_SVT(SEXP SVT, SEXP index,
 	}
 
 	/* 'SVT' is a regular node (list). */
-	SVT_len = LENGTH(SVT);
-	ans_len = ans_dim[ndim - 1];
-	ans = PROTECT(NEW_LIST(ans_len));
-	is_empty = 1;
-	for (i1 = 0; i1 < ans_len; i1++) {
+	int SVT_len = LENGTH(SVT);
+	int ans_len = ans_dim[ndim - 1];
+	SEXP ans = PROTECT(NEW_LIST(ans_len));
+	int is_empty = 1;
+	for (int i1 = 0; i1 < ans_len; i1++) {
+		int i2;
 		if (idx == R_NilValue) {
 			i2 = i1;
 		} else {
 			i2 = get_i2(INTEGER(idx), i1, SVT_len);
 		}
-		SVT_elt = VECTOR_ELT(SVT, i2);
-		ans_elt = REC_subset_SVT(SVT_elt, index,
+		SEXP SVT_elt = VECTOR_ELT(SVT, i2);
+		SEXP ans_elt = REC_subset_SVT(SVT_elt, index,
 					 x_dim, ans_dim, ndim - 1,
 					 i1_buf, k2_buf, lookup_table);
 		if (ans_elt != R_NilValue) {
@@ -206,34 +221,34 @@ static SEXP REC_subset_SVT(SEXP SVT, SEXP index,
 	return is_empty ? R_NilValue : ans;
 }
 
-/* --- .Call ENTRY POINT --- */
+/* --- .Call ENTRY POINT ---
+   'index' must be an N-index, that is, a list of integer vectors (or NULLs),
+   one along each dimension in the array. */
 SEXP C_subset_SVT_SparseArray(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		SEXP index)
 {
-	SEXPTYPE Rtype;
-	SEXP ans_dim, ans_SVT, ans;
-	int *i1_buf, *k2_buf, *lookup_table, i;
-
-	Rtype = _get_Rtype_from_Rstring(x_type);
+	SEXPTYPE Rtype = _get_Rtype_from_Rstring(x_type);
 	if (Rtype == 0)
 		error("SparseArray internal error in "
 		      "C_subset_SVT_SparseArray():\n"
 		      "    SVT_SparseArray object has invalid type");
 
-	ans_dim = PROTECT(compute_subset_dim(index, x_dim));
-	i1_buf = (int *) R_alloc(INTEGER(ans_dim)[0], sizeof(int));
-	k2_buf = (int *) R_alloc(INTEGER(ans_dim)[0], sizeof(int));
-	lookup_table = (int *) R_alloc(INTEGER(x_dim)[0], sizeof(int));
-	for (i = 0; i < INTEGER(x_dim)[0]; i++)
+	SEXP ans_dim = PROTECT(compute_subset_dim(index, x_dim));
+	int x_dim0 = INTEGER(x_dim)[0];
+	int *lookup_table = (int *) R_alloc(x_dim0, sizeof(int));
+	int ans_dim0 = INTEGER(ans_dim)[0];
+	int *i1_buf = (int *) R_alloc(ans_dim0, sizeof(int));
+	int *k2_buf = (int *) R_alloc(ans_dim0, sizeof(int));
+	for (int i = 0; i < x_dim0; i++)
 		lookup_table[i] = -1;
-	ans_SVT = REC_subset_SVT(x_SVT, index,
+	SEXP ans_SVT = REC_subset_SVT(x_SVT, index,
 				 INTEGER(x_dim),
 				 INTEGER(ans_dim), LENGTH(ans_dim),
 				 i1_buf, k2_buf, lookup_table);
 	if (ans_SVT != R_NilValue)
 		PROTECT(ans_SVT);
 
-	ans = PROTECT(NEW_LIST(2));
+	SEXP ans = PROTECT(NEW_LIST(2));
 	SET_VECTOR_ELT(ans, 0, ans_dim);
 	if (ans_SVT != R_NilValue) {
 		SET_VECTOR_ELT(ans, 1, ans_SVT);
