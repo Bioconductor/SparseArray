@@ -648,10 +648,10 @@ static SEXP build_leaf_from_ngCsparseMatrix_col(SEXP x_sloti,
 	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(col_nzcount));
 	_copy_INTEGER_elts(x_sloti, (R_xlen_t) ix_offset,
 			   ans_nzoffs, 0, (R_xlen_t) col_nzcount);
-	SEXP ans_nzvals = OK_TO_MAKE_LACUNAR_LEAVES ?
+	SEXP ans_nzvals = LACUNAR_MODE_IS_ON ?
 		R_NilValue : PROTECT(_new_Rvector1(ans_Rtype, col_nzcount));
 	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs);
-	UNPROTECT(OK_TO_MAKE_LACUNAR_LEAVES ? 1 : 2);
+	UNPROTECT(LACUNAR_MODE_IS_ON ? 1 : 2);
 	return ans;
 }
 

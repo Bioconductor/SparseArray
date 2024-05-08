@@ -1,5 +1,6 @@
 #include <R_ext/Rdynload.h>
 
+#include "leaf_utils.h"
 #include "thread_control.h"
 #include "sparseMatrix_utils.h"
 #include "SparseArray_class.h"
@@ -23,6 +24,9 @@
 #define CALLMETHOD_DEF(fun, numArgs) {#fun, (DL_FUNC) &fun, numArgs}
 
 static const R_CallMethodDef callMethods[] = {
+
+/* leaf_utils.c */
+	CALLMETHOD_DEF(C_lacunar_mode_is_on, 0),
 
 /* thread_control.c */
 	CALLMETHOD_DEF(C_get_num_procs, 0),

@@ -12,6 +12,13 @@
 #include <string.h>  /* for memcpy() */
 
 
+/* --- .Call ENTRY POINT --- */
+SEXP C_lacunar_mode_is_on(void)
+{
+	return ScalarLogical(LACUNAR_MODE_IS_ON);
+}
+
+
 /****************************************************************************
  * _alloc_leaf()
  * _alloc_and_unzip_leaf()
@@ -105,7 +112,7 @@ SEXP _make_leaf_from_Rsubvec(
 	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(n));
 	memcpy(INTEGER(ans_nzoffs), selection_buf, sizeof(int) * n);
 
-	if (OK_TO_MAKE_LACUNAR_LEAVES) {
+	if (LACUNAR_MODE_IS_ON) {
 		int all_ones = _all_selected_Rsubvec_elts_equal_one(Rvector,
 					subvec_offset, selection_buf, n);
 		if (all_ones) {

@@ -26,7 +26,7 @@
 /* Is it ok to produce lacunar leaves? Proper handling of lacunar leaves
    is still work-in-progress so we can turn this off any time if things
    go wrong. */
-#define OK_TO_MAKE_LACUNAR_LEAVES 0
+#define LACUNAR_MODE_IS_ON 0
 
 /* In-place replacement. Supplied 'nzvals' is trusted! */
 static inline void replace_leaf_nzvals(SEXP leaf, SEXP nzvals)
@@ -122,6 +122,8 @@ static inline SparseVec leaf2SV(SEXP leaf, int len)
 	unzip_leaf(leaf, &nzvals, &nzoffs);
 	return make_SparseVec(nzvals, INTEGER(nzoffs), len);
 }
+
+SEXP C_lacunar_mode_is_on(void);
 
 SEXP _alloc_leaf(
 	SEXPTYPE Rtype,

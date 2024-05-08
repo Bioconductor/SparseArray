@@ -176,9 +176,9 @@ test_that(paste("subassign an SVT_SparseArray object by an Nindex",
     check_SparseArray_object(svt, "SVT_SparseArray", a)
 })
 
-if (FALSE) {
-testthat("handling of lacunar leaves in SVT_SparseArray subassignment", {
+if (SparseArray:::.SVT_VERSION != 0L) {
 
+test_that("handling of lacunar leaves in SVT_SparseArray subassignment", {
     svt1 <- as(array(0L, dim=4L), "SVT_SparseArray")  # 1D
     m3 <- matrix(0L, nrow=4, ncol=5)
     svt2 <- svt3 <- as(m3, "SVT_SparseMatrix")        # 2D
@@ -228,7 +228,7 @@ testthat("handling of lacunar leaves in SVT_SparseArray subassignment", {
     svt3[1:2, c(2L, 4:5)] <- 0L
       m3[1:2, c(2L, 4:5)] <- 0L
     check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
-    check_svt123_leaves(list(NULL, 2:3))            # lacunar leaf
+    check_svt123_leaves(make_lacunar_leaf(2:3))
     expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
 
     svt1[1L] <- NA
@@ -244,7 +244,7 @@ testthat("handling of lacunar leaves in SVT_SparseArray subassignment", {
     svt3[1L, c(2L, 4:5)] <- 1L
       m3[1L, c(2L, 4:5)] <- 1L
     check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
-    check_svt123_leaves(list(NULL, c(0L, 2L, 3L)))  # lacunar leaf
+    check_svt123_leaves(make_lacunar_leaf(c(0L, 2L, 3L)))
     expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
 
     svt1[3L] <- 11L
@@ -260,7 +260,7 @@ testthat("handling of lacunar leaves in SVT_SparseArray subassignment", {
     svt3[2:3, c(2L, 4:5)] <- 0L
       m3[2:3, c(2L, 4:5)] <- 0L
     check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
-    check_svt123_leaves(list(NULL, c(0L, 3L)))      # lacunar leaf
+    check_svt123_leaves(make_lacunar_leaf(c(0L, 3L)))
     expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
 
     svt1[1:4] <- 1:0
@@ -268,7 +268,7 @@ testthat("handling of lacunar leaves in SVT_SparseArray subassignment", {
     svt3[1:4, c(2L, 4:5)] <- 1:0
       m3[1:4, c(2L, 4:5)] <- 1:0
     check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
-    check_svt123_leaves(list(NULL, c(0L, 2L)))      # lacunar leaf
+    check_svt123_leaves(make_lacunar_leaf(c(0L, 2L)))
     expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
 
     svt1[c(1L, 4L)] <- 1L
@@ -276,7 +276,7 @@ testthat("handling of lacunar leaves in SVT_SparseArray subassignment", {
     svt3[c(1L, 4L), c(2L, 4:5)] <- 1L
       m3[c(1L, 4L), c(2L, 4:5)] <- 1L
     check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
-    check_svt123_leaves(list(NULL, c(0L, 2L, 3L)))  # lacunar leaf
+    check_svt123_leaves(make_lacunar_leaf(c(0L, 2L, 3L)))
     expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
 
     svt1[c(1L, 4:3)] <- c(0L, 1L, 0L)
@@ -284,7 +284,7 @@ testthat("handling of lacunar leaves in SVT_SparseArray subassignment", {
     svt3[c(1L, 4:3), c(2L, 4:5)] <- c(0L, 1L, 0L)
       m3[c(1L, 4:3), c(2L, 4:5)] <- c(0L, 1L, 0L)
     check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
-    check_svt123_leaves(list(NULL, 3L))             # lacunar leaf
+    check_svt123_leaves(make_lacunar_leaf(3L))
     expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
 
     svt1[1:2] <- 2:1
@@ -300,7 +300,8 @@ testthat("handling of lacunar leaves in SVT_SparseArray subassignment", {
     svt3[c(3L, 1L), c(2L, 4:5)] <- 1L
       m3[c(3L, 1L), c(2L, 4:5)] <- 1L
     check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
-    check_svt123_leaves(list(NULL, 0:3))            # lacunar leaf
+    check_svt123_leaves(make_lacunar_leaf(0:3))
     expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
 })
-}
+
+}  # ----- end if (SparseArray:::.SVT_VERSION != 0L) -----

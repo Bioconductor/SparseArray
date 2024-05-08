@@ -30,7 +30,8 @@ Imports: utils, stats, matrixStats, IRanges, XVector
 LinkingTo: S4Vectors, IRanges, XVector
 Suggests: DelayedArray, testthat, knitr, rmarkdown, BiocStyle
 VignetteBuilder: knitr
-Collate: options.R
+Collate: utils.R
+	options.R
 	thread-control.R
 	sparseMatrix-utils.R
 	SparseArray-class.R

@@ -586,7 +586,7 @@ static SEXP subassign_xleaf3_with_offval_pairs(SEXP xleaf3,
 	/* We've made sure that 'offs_buf' is big enough (its length is
 	   at least 'max_postsubassign_nzcount'). */
 	ans = _INPLACE_remove_zeros_from_leaf(ans, offs_buf);
-	if (ans != R_NilValue && OK_TO_MAKE_LACUNAR_LEAVES)
+	if (ans != R_NilValue && LACUNAR_MODE_IS_ON)
 		_INPLACE_turn_into_lacunar_leaf_if_all_ones(ans);
 	UNPROTECT(2);
 	return ans;
@@ -640,7 +640,7 @@ static SEXP postprocess_xleaf_using_Mindex(SEXP xleaf, int dim0,
 		   enough for this (its length is at least 'worst_nzcount'). */
 		SEXP ans = _INPLACE_remove_zeros_from_leaf(offval_pairs,
 							   sort_bufs->offs);
-		if (ans != R_NilValue && OK_TO_MAKE_LACUNAR_LEAVES)
+		if (ans != R_NilValue && LACUNAR_MODE_IS_ON)
 			_INPLACE_turn_into_lacunar_leaf_if_all_ones(ans);
 		UNPROTECT(1);
 		return ans;
@@ -677,7 +677,7 @@ static SEXP postprocess_xleaf_using_Lindex(SEXP xleaf, int dim0,
 		   enough for this (its length is at least 'worst_nzcount'). */
 		SEXP ans = _INPLACE_remove_zeros_from_leaf(offval_pairs,
 							   sort_bufs->offs);
-		if (ans != R_NilValue && OK_TO_MAKE_LACUNAR_LEAVES)
+		if (ans != R_NilValue && LACUNAR_MODE_IS_ON)
 			_INPLACE_turn_into_lacunar_leaf_if_all_ones(ans);
 		UNPROTECT(1);
 		return ans;
@@ -846,7 +846,7 @@ static SEXP subassign_leaf_by_Lindex(SEXP leaf, int dim0,
 	   (its length is at least 'worst_nzcount'). */
 	SEXP ans = _INPLACE_remove_zeros_from_leaf(offval_pairs,
 						   sort_bufs.offs);
-	if (ans != R_NilValue && OK_TO_MAKE_LACUNAR_LEAVES)
+	if (ans != R_NilValue && LACUNAR_MODE_IS_ON)
 		_INPLACE_turn_into_lacunar_leaf_if_all_ones(ans);
 	UNPROTECT(leaf != R_NilValue ? 2 : 1);
 	return ans;
@@ -1224,12 +1224,10 @@ static SEXP REC_subassign_SVT_with_short_Rvector(SEXP SVT, SEXP SVT0,
 }
 
 /* --- .Call ENTRY POINT ---
-   'index': N-index, that is, a list of integer vectors, one along each
-            dimension in the array.
- */
-SEXP C_subassign_SVT_with_short_Rvector(
-		SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP index,
-		SEXP Rvector)
+   'index' must be an N-index, that is, a list of integer vectors (or NULLs),
+   one along each dimension in the array. */
+SEXP C_subassign_SVT_with_short_Rvector(SEXP x_dim, SEXP x_type, SEXP x_SVT,
+		SEXP index, SEXP Rvector)
 {
 	SEXPTYPE Rtype = _get_Rtype_from_Rstring(x_type);
 	if (Rtype == 0)
@@ -1276,19 +1274,25 @@ SEXP C_subassign_SVT_with_short_Rvector(
  * C_subassign_SVT_with_Rarray() and C_subassign_SVT_with_SVT()
  */
 
-/* --- .Call ENTRY POINT --- */
-SEXP C_subassign_SVT_with_Rarray(
-		SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP index,
-		SEXP Rarray)
+/* --- .Call ENTRY POINT ---
+   The left and right arrays ('x' and 'Rarray') must have the same number
+   of dimensions.
+   'index' must be an N-index, that is, a list of integer vectors (or NULLs),
+   one along each dimension in the arrays. */
+SEXP C_subassign_SVT_with_Rarray(SEXP x_dim, SEXP x_type, SEXP x_SVT,
+		SEXP index, SEXP Rarray)
 {
 	error("not ready yet");
 	return R_NilValue;
 }
 
-/* --- .Call ENTRY POINT --- */
-SEXP C_subassign_SVT_with_SVT(
-		SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP index,
-		SEXP v_dim, SEXP v_type, SEXP v_SVT)
+/* --- .Call ENTRY POINT ---
+   The left and right arrays ('x' and 'v') must have the same number
+   of dimensions.
+  'index' must be an N-index, that is, a list of integer vectors (or NULLs),
+   one along each dimension in the arrays. */
+SEXP C_subassign_SVT_with_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
+		SEXP index, SEXP v_dim, SEXP v_type, SEXP v_SVT)
 {
 	error("not ready yet");
 	return R_NilValue;
