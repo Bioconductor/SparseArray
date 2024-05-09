@@ -19,13 +19,16 @@ check_SparseArray_object <- function(object, expected_class, a0)
     expect_identical(a, a0)
 }
 
-make_lacunar_leaf <- function(nzoffs)
+make_lacunar_leaf <- function(mode, nzoffs)
 {
+    stopifnot(isSingleString(mode))
     stopifnot(is.integer(nzoffs))
     if (SparseArray:::lacunar_mode_is_on()) {
         nzvals <- NULL
     } else {
-        nzvals <- rep.int(1L, length(nzoffs))
+        as.fun <- base::get(paste0("as.", mode), envir=asNamespace("base"),
+                            mode="function")
+        nzvals <- rep.int(as.fun(1L), length(nzoffs))
     }
     list(nzvals, nzoffs)
 }

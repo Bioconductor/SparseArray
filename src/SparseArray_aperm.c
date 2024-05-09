@@ -148,7 +148,7 @@ static void collect_stats_on_input_rows(SEXP SVT, int nrow, int ncol,
 			if (onecount_buf == NULL)
 				continue;
 			if (nzvals == R_NilValue ||  /* lacunar leaf */
-			    _all_Rsubvec_elts_equal_one(nzvals, 0, 1))
+			    _all_Rsubvec_elts_equal_one(nzvals, k, 1))
 				onecount_buf[*nzoffs_p]++;
 		}
 	}
@@ -350,7 +350,7 @@ static SEXP transpose_2D_SVT(SEXP SVT, int nrow, int ncol, SEXPTYPE Rtype,
 	SEXP ans = PROTECT(NEW_LIST(nrow));
 	for (int i = 0; i < nrow; i++) {
 		SEXP ans_elt = alloc_output_leaf(Rtype, nzcount_buf[i],
-						 onecount_buf,
+						 onecount_buf + i,
 						 quick_out_nzvals_p + i,
 						 quick_out_nzoffs_p + i);
 		if (ans_elt != R_NilValue) {
@@ -676,7 +676,7 @@ static inline void scan_input_leaf(SEXP leaf,
 		if (onecount_buf == NULL)
 			continue;
 		if (nzvals == R_NilValue ||  /* lacunar leaf */
-		    _all_Rsubvec_elts_equal_one(nzvals, 0, 1))
+		    _all_Rsubvec_elts_equal_one(nzvals, k, 1))
 			onecount_buf[outer_idx]++;
 	}
 	return;
@@ -946,9 +946,9 @@ static SEXP aperm_SVT_shattering_leaves(
  */
 
 /* Can handle any array permutation. However, it is optimized for the "no
-   outer margin" case, that is, when the permutation vector has no outer
-   margin. When the permutation vector has a nonzero outer margin,
-   aperm0_SVT() won't be as efficient as C_aperm_SVT().
+   outer margin" case, that is, for the case when the permutation vector
+   has no outer margin. When the permutation vector has a nonzero outer
+   margin, aperm0_SVT() won't be as efficient as C_aperm_SVT().
    In other words, C_aperm_SVT() should always be used instead of
    aperm0_SVT() as it will always handle the general case optimally.
    C_aperm_SVT() is based on aperm0_SVT().
@@ -976,8 +976,8 @@ static SEXP aperm0_SVT(SEXP SVT, const int *dim, int ndim, SEXPTYPE Rtype,
 }
 
 /* --- .Call ENTRY POINT ---
- * Just a wrapper for aperm0_SVT(). Only provided for convenience testing of
- * aperm0_SVT() from the R command line.
+ * Just a wrapper around aperm0_SVT(). Provided only for convenience testing
+ * of aperm0_SVT() from the R command line.
  */
 SEXP C_aperm0_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP perm)
 {
