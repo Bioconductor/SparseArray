@@ -183,125 +183,141 @@ test_that("handling of lacunar leaves in SVT_SparseArray subassignment", {
     m3 <- matrix(0L, nrow=4, ncol=5)
     svt2 <- svt3 <- as(m3, "SVT_SparseMatrix")        # 2D
 
-    check_svt123_leaves <- function(expected_leaf) {
-        expect_identical(svt1@SVT, expected_leaf)
-        expect_identical(svt2@SVT[[2L]], expected_leaf)
-        expect_identical(svt3@SVT[[2L]], expected_leaf)
-        expect_identical(svt3@SVT[[4L]], expected_leaf)
-        expect_identical(svt3@SVT[[5L]], expected_leaf)
+    run_tests <- function(type) {
+
+        check_svt123_leaves <- function(expected_leaf) {
+            leaf_nzvals <- expected_leaf[[1L]]
+            if (!is.null(leaf_nzvals)) {
+                type(leaf_nzvals) <- type
+                expected_leaf[[1L]] <- leaf_nzvals
+            }
+            expect_identical(svt1@SVT, expected_leaf)
+            expect_identical(svt2@SVT[[2L]], expected_leaf)
+            expect_identical(svt3@SVT[[2L]], expected_leaf)
+            expect_identical(svt3@SVT[[4L]], expected_leaf)
+            expect_identical(svt3@SVT[[5L]], expected_leaf)
+        }
+
+        svt1[2:3] <- -99L
+        svt2[6:7] <- -99L
+        svt3[2:3, c(2L, 4:5)] <- -99L
+          m3[2:3, c(2L, 4:5)] <- -99L
+        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_svt123_leaves(list(c(-99L, -99L), c(1L, 2L)))
+        expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
+
+        svt1[2:3] <- 0L
+        svt2[6:7] <- 0L
+        svt3[2:3, c(2L, 4:5)] <- 0L
+          m3[2:3, c(2L, 4:5)] <- 0L
+        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_svt123_leaves(NULL)
+        expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
+
+        svt1[1:4] <- 101:104
+        svt2[5:8] <- 101:104
+        svt3[1:4, c(2L, 4:5)] <- 101:104
+          m3[1:4, c(2L, 4:5)] <- 101:104
+        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_svt123_leaves(list(101:104, 0:3))
+        expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
+
+        svt1[2:4] <- 1L
+        svt2[6:8] <- 1L
+        svt3[2:4, c(2L, 4:5)] <- 1L
+          m3[2:4, c(2L, 4:5)] <- 1L
+        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_svt123_leaves(list(c(101L, 1L, 1L, 1L), 0:3))
+        expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
+
+        svt1[1:2] <- 0L
+        svt2[5:6] <- 0L
+        svt3[1:2, c(2L, 4:5)] <- 0L
+          m3[1:2, c(2L, 4:5)] <- 0L
+        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_svt123_leaves(make_lacunar_leaf(type, 2:3))
+        expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
+
+        svt1[1L] <- NA
+        svt2[5L] <- NA
+        svt3[1L, c(2L, 4:5)] <- NA
+          m3[1L, c(2L, 4:5)] <- NA
+        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_svt123_leaves(list(c(NA, 1L, 1L), c(0L, 2L, 3L)))
+        expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
+
+        svt1[1L] <- 1L
+        svt2[5L] <- 1L
+        svt3[1L, c(2L, 4:5)] <- 1L
+          m3[1L, c(2L, 4:5)] <- 1L
+        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_svt123_leaves(make_lacunar_leaf(type, c(0L, 2L, 3L)))
+        expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
+
+        svt1[3L] <- 11L
+        svt2[7L] <- 11L
+        svt3[3L, c(2L, 4:5)] <- 11L
+          m3[3L, c(2L, 4:5)] <- 11L
+        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_svt123_leaves(list(c(1L, 11L, 1L), c(0L, 2L, 3L)))
+        expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
+
+        svt1[2:3] <- 0L
+        svt2[6:7] <- 0L
+        svt3[2:3, c(2L, 4:5)] <- 0L
+          m3[2:3, c(2L, 4:5)] <- 0L
+        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_svt123_leaves(make_lacunar_leaf(type, c(0L, 3L)))
+        expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
+
+        svt1[1:4] <- 1:0
+        svt2[5:8] <- 1:0
+        svt3[1:4, c(2L, 4:5)] <- 1:0
+          m3[1:4, c(2L, 4:5)] <- 1:0
+        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_svt123_leaves(make_lacunar_leaf(type, c(0L, 2L)))
+        expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
+
+        svt1[c(1L, 4L)] <- 1L
+        svt2[c(5L, 8L)] <- 1L
+        svt3[c(1L, 4L), c(2L, 4:5)] <- 1L
+          m3[c(1L, 4L), c(2L, 4:5)] <- 1L
+        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_svt123_leaves(make_lacunar_leaf(type, c(0L, 2L, 3L)))
+        expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
+
+        svt1[c(1L, 4:3)] <- c(0L, 1L, 0L)
+        svt2[c(5L, 8:7)] <- c(0L, 1L, 0L)
+        svt3[c(1L, 4:3), c(2L, 4:5)] <- c(0L, 1L, 0L)
+          m3[c(1L, 4:3), c(2L, 4:5)] <- c(0L, 1L, 0L)
+        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_svt123_leaves(make_lacunar_leaf(type, 3L))
+        expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
+
+        svt1[1:2] <- 2:1
+        svt2[5:6] <- 2:1
+        svt3[1:2, c(2L, 4:5)] <- 2:1
+          m3[1:2, c(2L, 4:5)] <- 2:1
+        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_svt123_leaves(list(c(2L, 1L, 1L), c(0L, 1L, 3L)))
+        expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
+
+        svt1[c(3L, 1L)] <- 1L
+        svt2[c(7L, 5L)] <- 1L
+        svt3[c(3L, 1L), c(2L, 4:5)] <- 1L
+          m3[c(3L, 1L), c(2L, 4:5)] <- 1L
+        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_svt123_leaves(make_lacunar_leaf(type, 0:3))
+        expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
     }
 
-    svt1[2:3] <- -99L
-    svt2[6:7] <- -99L
-    svt3[2:3, c(2L, 4:5)] <- -99L
-      m3[2:3, c(2L, 4:5)] <- -99L
-    check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
-    check_svt123_leaves(list(c(-99L, -99L), c(1L, 2L)))
-    expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
+    run_tests("integer")
 
-    svt1[2:3] <- 0L
-    svt2[6:7] <- 0L
-    svt3[2:3, c(2L, 4:5)] <- 0L
-      m3[2:3, c(2L, 4:5)] <- 0L
-    check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
-    check_svt123_leaves(NULL)
-    expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
+    type(svt1) <- "double"
+    m3[ , 3L] <- 0.1
+    svt2 <- svt3 <- as(m3, "SVT_SparseMatrix")
+    run_tests("double")
 
-    svt1[1:4] <- 101:104
-    svt2[5:8] <- 101:104
-    svt3[1:4, c(2L, 4:5)] <- 101:104
-      m3[1:4, c(2L, 4:5)] <- 101:104
-    check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
-    check_svt123_leaves(list(101:104, 0:3))
-    expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
-
-    svt1[2:4] <- 1L
-    svt2[6:8] <- 1L
-    svt3[2:4, c(2L, 4:5)] <- 1L
-      m3[2:4, c(2L, 4:5)] <- 1L
-    check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
-    check_svt123_leaves(list(c(101L, 1L, 1L, 1L), 0:3))
-    expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
-
-    svt1[1:2] <- 0L
-    svt2[5:6] <- 0L
-    svt3[1:2, c(2L, 4:5)] <- 0L
-      m3[1:2, c(2L, 4:5)] <- 0L
-    check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
-    check_svt123_leaves(make_lacunar_leaf(2:3))
-    expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
-
-    svt1[1L] <- NA
-    svt2[5L] <- NA
-    svt3[1L, c(2L, 4:5)] <- NA
-      m3[1L, c(2L, 4:5)] <- NA
-    check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
-    check_svt123_leaves(list(c(NA, 1L, 1L), c(0L, 2L, 3L)))
-    expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
-
-    svt1[1L] <- 1L
-    svt2[5L] <- 1L
-    svt3[1L, c(2L, 4:5)] <- 1L
-      m3[1L, c(2L, 4:5)] <- 1L
-    check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
-    check_svt123_leaves(make_lacunar_leaf(c(0L, 2L, 3L)))
-    expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
-
-    svt1[3L] <- 11L
-    svt2[7L] <- 11L
-    svt3[3L, c(2L, 4:5)] <- 11L
-      m3[3L, c(2L, 4:5)] <- 11L
-    check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
-    check_svt123_leaves(list(c(1L, 11L, 1L), c(0L, 2L, 3L)))
-    expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
-
-    svt1[2:3] <- 0L
-    svt2[6:7] <- 0L
-    svt3[2:3, c(2L, 4:5)] <- 0L
-      m3[2:3, c(2L, 4:5)] <- 0L
-    check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
-    check_svt123_leaves(make_lacunar_leaf(c(0L, 3L)))
-    expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
-
-    svt1[1:4] <- 1:0
-    svt2[5:8] <- 1:0
-    svt3[1:4, c(2L, 4:5)] <- 1:0
-      m3[1:4, c(2L, 4:5)] <- 1:0
-    check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
-    check_svt123_leaves(make_lacunar_leaf(c(0L, 2L)))
-    expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
-
-    svt1[c(1L, 4L)] <- 1L
-    svt2[c(5L, 8L)] <- 1L
-    svt3[c(1L, 4L), c(2L, 4:5)] <- 1L
-      m3[c(1L, 4L), c(2L, 4:5)] <- 1L
-    check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
-    check_svt123_leaves(make_lacunar_leaf(c(0L, 2L, 3L)))
-    expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
-
-    svt1[c(1L, 4:3)] <- c(0L, 1L, 0L)
-    svt2[c(5L, 8:7)] <- c(0L, 1L, 0L)
-    svt3[c(1L, 4:3), c(2L, 4:5)] <- c(0L, 1L, 0L)
-      m3[c(1L, 4:3), c(2L, 4:5)] <- c(0L, 1L, 0L)
-    check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
-    check_svt123_leaves(make_lacunar_leaf(3L))
-    expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
-
-    svt1[1:2] <- 2:1
-    svt2[5:6] <- 2:1
-    svt3[1:2, c(2L, 4:5)] <- 2:1
-      m3[1:2, c(2L, 4:5)] <- 2:1
-    check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
-    check_svt123_leaves(list(c(2L, 1L, 1L), c(0L, 1L, 3L)))
-    expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
-
-    svt1[c(3L, 1L)] <- 1L
-    svt2[c(7L, 5L)] <- 1L
-    svt3[c(3L, 1L), c(2L, 4:5)] <- 1L
-      m3[c(3L, 1L), c(2L, 4:5)] <- 1L
-    check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
-    check_svt123_leaves(make_lacunar_leaf(0:3))
-    expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
 })
 
 }  # ----- end if (SparseArray:::.SVT_VERSION != 0L) -----

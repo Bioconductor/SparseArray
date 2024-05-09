@@ -120,3 +120,91 @@ test_that(".aperm_SVT()", {
     expect_identical(aperm(svt, perm[perm]), aperm(current, perm))
 })
 
+if (SparseArray:::.SVT_VERSION != 0L) {
+
+test_that("handling of lacunar leaves in t.SVT_SparseMatrix()", {
+    m0 <- matrix(0L, nrow=4, ncol=5)
+    m0[2:3 , 2L] <- 99L
+    m0[1:2 , 3L] <- m0[c(1L, 4L), 5L] <- 1L
+
+    run_tests <- function() {
+        type0 <- type(m0)
+        svt0 <- as(m0, "SVT_SparseMatrix")
+        m <- t(m0)
+        svt <- t(svt0)
+        check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+        expect_identical(svt@SVT[[1L]], make_lacunar_leaf(type0, c(2L, 4L)))
+        expect_identical(svt@SVT[[4L]], make_lacunar_leaf(type0, 4L))
+        expect_identical(as(m, "SVT_SparseMatrix"), svt)
+        expect_identical(t(svt), svt0)
+    }
+
+    run_tests()
+
+    type(m0) <- "double"
+    run_tests()
+
+    type(m0) <- "complex"
+    run_tests()
+
+    type(m0) <- "raw"
+    run_tests()
+
+    type(m0) <- "logical"
+    run_tests()
+})
+
+test_that("handling of lacunar leaves in .aperm_SVT()", {
+    a0 <- array(0L, c(3, 5, 2))
+    a0[2:3 , 2L, 1L] <- 99L
+    a0[1L, 2L, 1L] <- a0[1:2 , 3L, 1L] <- a0[c(1L, 3L), 5L, 1L] <- 1L
+    a0[1L, 2L, 2L] <- a0[2L, 5L, 2L] <- 1L
+    a0[1L, 4L, 2L] <- 99L
+
+    run_tests <- function() {
+        type0 <- type(a0)
+        svt0 <- as(a0, "SVT_SparseArray")
+
+        a <- aperm(a0, c(2:1, 3L))
+        svt <- aperm(svt0, c(2:1, 3L))
+        check_SparseArray_object(svt, "SVT_SparseArray", a)
+        expect_identical(svt@SVT[[1L]][[1L]],
+                         make_lacunar_leaf(type0, c(1L, 2L, 4L)))
+        expect_identical(svt@SVT[[2L]][[2L]],
+                         make_lacunar_leaf(type0, 4L))
+        expect_identical(as(a, "SVT_SparseArray"), svt)
+        expect_identical(aperm(svt, c(2:1, 3L)), svt0)
+
+        a <- aperm(a0, 3:1)
+        svt <- aperm(svt0, 3:1)
+        check_SparseArray_object(svt, "SVT_SparseArray", a)
+        expect_identical(svt@SVT[[1L]][[2L]],
+                         make_lacunar_leaf(type0, c(0L, 1L)))
+        expect_identical(as(a, "SVT_SparseArray"), svt)
+        expect_identical(aperm(svt, 3:1), svt0)
+
+        a <- aperm(a0, c(2L, 3L, 1L))
+        svt <- aperm(svt0, c(2L, 3L, 1L))
+        check_SparseArray_object(svt, "SVT_SparseArray", a)
+        expect_identical(svt@SVT[[1L]][[1L]],
+                         make_lacunar_leaf(type0, c(1L, 2L, 4L)))
+        expect_identical(svt@SVT[[2L]][[2L]],
+                         make_lacunar_leaf(type0, 4L))
+        expect_identical(as(a, "SVT_SparseArray"), svt)
+        expect_identical(aperm(svt, c(3L, 1L, 2L)), svt0)
+    }
+
+    type(a0) <- "double"
+    run_tests()
+
+    type(a0) <- "complex"
+    run_tests()
+
+    type(a0) <- "raw"
+    run_tests()
+
+    type(a0) <- "logical"
+    run_tests()
+})
+
+}  # ----- end if (SparseArray:::.SVT_VERSION != 0L) -----
