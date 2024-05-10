@@ -166,8 +166,8 @@ static int Arith_intSV_intSV(int opcode,
 
 	int out_nzcount = 0;
 	k1 = k2 = 0;
-	while (next_nzvals_int_int(sv1, sv2,
-				   &k1, &k2, &off, &x, &y))
+	while (next_2SV_vals_int_int(sv1, sv2,
+				&k1, &k2, &off, &x, &y))
 	{
 		int v = Arith_int(opcode, x, y, ovflow);
 		if (v != int0) {
@@ -212,8 +212,8 @@ static int Arith_intSV_doubleSV(int opcode,
 
 	int out_nzcount = 0;
 	k1 = k2 = 0;
-	while (next_nzvals_int_double(sv1, sv2,
-				      &k1, &k2, &off, &x, &y))
+	while (next_2SV_vals_int_double(sv1, sv2,
+				&k1, &k2, &off, &x, &y))
 	{
 		double v;
 		if (x == NA_INTEGER) {
@@ -239,8 +239,8 @@ static int Arith_doubleSV_intSV(int opcode,
 
 	int out_nzcount = 0;
 	k1 = k2 = 0;
-	while (next_nzvals_double_int(sv1, sv2,
-				      &k1, &k2, &off, &x, &y))
+	while (next_2SV_vals_double_int(sv1, sv2,
+				&k1, &k2, &off, &x, &y))
 	{
 		double v;
 		if (y == NA_INTEGER) {
@@ -284,8 +284,8 @@ static int Arith_doubleSV_doubleSV(int opcode,
 
 	int out_nzcount = 0;
 	k1 = k2 = 0;
-	while (next_nzvals_double_double(sv1, sv2,
-					 &k1, &k2, &off, &x, &y))
+	while (next_2SV_vals_double_double(sv1, sv2,
+				&k1, &k2, &off, &x, &y))
 	{
 		double v = Arith_double(opcode, x, y);
 		if (v != double0) {

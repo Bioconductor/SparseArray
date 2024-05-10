@@ -250,7 +250,7 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 									\
 	int out_nzcount = 0;						\
 	k1 = k2 = 0;							\
-	while (next_nzvals_ ## Ltype ## _ ## Rtype			\
+	while (next_2SV_vals_ ## Ltype ## _ ## Rtype			\
 		(sv1, sv2, &k1, &k2, &off, &x, &y))			\
 	{								\
 		int v = Compare_ ## Ltype ## _ ## Rtype			\

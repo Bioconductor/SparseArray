@@ -82,84 +82,115 @@ static inline const Rcomplex *get_RcomplexSV_nzvals(const SparseVec *sv)
 	return COMPLEX(sv->nzvals);
 }
 
-#define FUNDEF_next_nzvals(Ltype, Rtype)				\
+static inline int smallest_offset(
+		const int *offs1, int n1,
+		const int *offs2, int n2,
+		int k1, int k2, int *off)
+{
+	if (k1 < n1 && k2 < n2) {
+		int off1 = offs1[k1];
+		int off2 = offs2[k2];
+		if (off1 < off2) {
+			*off = off1;
+			return 1;
+		}
+		if (off1 > off2) {
+			*off = off2;
+			return 2;
+		}
+		*off = off1;  /* same as 'off2' */
+		return 3;
+	}
+	if (k1 < n1) {
+		*off = offs1[k1];
+		return 1;
+	}
+	if (k2 < n2) {
+		*off = offs2[k2];
+		return 2;
+	}
+	return 0;
+}
+
+static inline int next_2SV_off(
+	const SparseVec *sv1, const SparseVec *sv2,
+	int *k1, int *k2, int *off)
+{
+	int ret = smallest_offset(sv1->nzoffs, get_SV_nzcount(sv1),
+				  sv2->nzoffs, get_SV_nzcount(sv2),
+				  *k1, *k2, off);
+	switch (ret) {
+	    case 1: (*k1)++;          break;
+	    case 2: (*k2)++;          break;
+	    case 3: (*k1)++; (*k2)++; break;
+	}
+	return ret;
+}
+
+#define FUNDEF_next_2SV_vals(Ltype, Rtype)				\
 	(const SparseVec *sv1,						\
 	 const SparseVec *sv2,						\
 	 int *k1, int *k2, int *off, Ltype *val1, Rtype *val2)		\
 {									\
-	const Ltype *nzvals1 = get_ ## Ltype  ## SV_nzvals(sv1);	\
-	const Rtype *nzvals2 = get_ ## Rtype  ## SV_nzvals(sv2);	\
-	int nzcount1 = get_SV_nzcount(sv1);				\
-	int nzcount2 = get_SV_nzcount(sv2);				\
-	const int *nzoffs1 = sv1->nzoffs;				\
-	const int *nzoffs2 = sv2->nzoffs;				\
-	if (*k1 < nzcount1 && *k2 < nzcount2) {				\
-		int nzoff1 = nzoffs1[*k1];				\
-		int nzoff2 = nzoffs2[*k2];				\
-		if (nzoff1 < nzoff2) {					\
-			*off = nzoff1;					\
-			*val1 = nzvals1[(*k1)++];			\
-			*val2 = Rtype ## 0;				\
-			return 1;					\
-		}							\
-		if (nzoff1 > nzoff2) {					\
-			*off = nzoff2;					\
-			*val1 = Ltype ## 0;				\
-			*val2 = nzvals2[(*k2)++];			\
-			return 2;					\
-		}							\
-		*off = nzoff1;						\
-		*val1 = nzvals1[(*k1)++];				\
-		*val2 = nzvals2[(*k2)++];				\
-		return 3;						\
-	}								\
-	if (*k1 < nzcount1) {						\
-		*off = nzoffs1[*k1];					\
-		*val1 = nzvals1[(*k1)++];				\
+	int ret = smallest_offset(sv1->nzoffs, get_SV_nzcount(sv1),	\
+				  sv2->nzoffs, get_SV_nzcount(sv2),	\
+				  *k1, *k2, off);			\
+	switch (ret) {							\
+	    case 1: {							\
+		*val1 = get_ ## Ltype  ## SV_nzvals(sv1)[*k1];		\
 		*val2 = Rtype ## 0;					\
-		return 1;						\
-	}								\
-	if (*k2 < nzcount2) {						\
-		*off = nzoffs2[*k2];					\
+		(*k1)++;						\
+		break;							\
+	    }								\
+	    case 2: {							\
 		*val1 = Ltype ## 0;					\
-		*val2 = nzvals2[(*k2)++];				\
-		return 2;						\
+		*val2 = get_ ## Rtype  ## SV_nzvals(sv2)[*k2];		\
+		(*k2)++;						\
+		break;							\
+	    }								\
+	    case 3: {							\
+		*val1 = get_ ## Ltype  ## SV_nzvals(sv1)[*k1];		\
+		*val2 = get_ ## Rtype  ## SV_nzvals(sv2)[*k2];		\
+		(*k1)++;						\
+		(*k2)++;						\
+		break;							\
+	    }								\
 	}								\
-	return 0;							\
+	return ret;							\
 }
 
-static inline int next_nzvals_Rbyte_Rbyte
-	FUNDEF_next_nzvals(Rbyte, Rbyte)
+static inline int next_2SV_vals_Rbyte_Rbyte
+	FUNDEF_next_2SV_vals(Rbyte, Rbyte)
 
-static inline int next_nzvals_Rbyte_int
-	FUNDEF_next_nzvals(Rbyte, int)
+static inline int next_2SV_vals_Rbyte_int
+	FUNDEF_next_2SV_vals(Rbyte, int)
 
-static inline int next_nzvals_Rbyte_double
-	FUNDEF_next_nzvals(Rbyte, double)
+static inline int next_2SV_vals_Rbyte_double
+	FUNDEF_next_2SV_vals(Rbyte, double)
 
-static inline int next_nzvals_Rbyte_Rcomplex
-	FUNDEF_next_nzvals(Rbyte, Rcomplex)
+static inline int next_2SV_vals_Rbyte_Rcomplex
+	FUNDEF_next_2SV_vals(Rbyte, Rcomplex)
 
-static inline int next_nzvals_int_int
-	FUNDEF_next_nzvals(int, int)
+static inline int next_2SV_vals_int_int
+	FUNDEF_next_2SV_vals(int, int)
 
-static inline int next_nzvals_int_double
-	FUNDEF_next_nzvals(int, double)
+static inline int next_2SV_vals_int_double
+	FUNDEF_next_2SV_vals(int, double)
 
-static inline int next_nzvals_int_Rcomplex
-	FUNDEF_next_nzvals(int, Rcomplex)
+static inline int next_2SV_vals_int_Rcomplex
+	FUNDEF_next_2SV_vals(int, Rcomplex)
 
-static inline int next_nzvals_double_int
-	FUNDEF_next_nzvals(double, int)
+static inline int next_2SV_vals_double_int
+	FUNDEF_next_2SV_vals(double, int)
 
-static inline int next_nzvals_double_double
-	FUNDEF_next_nzvals(double, double)
+static inline int next_2SV_vals_double_double
+	FUNDEF_next_2SV_vals(double, double)
 
-static inline int next_nzvals_double_Rcomplex
-	FUNDEF_next_nzvals(double, Rcomplex)
+static inline int next_2SV_vals_double_Rcomplex
+	FUNDEF_next_2SV_vals(double, Rcomplex)
 
-static inline int next_nzvals_Rcomplex_Rcomplex
-	FUNDEF_next_nzvals(Rcomplex, Rcomplex)
+static inline int next_2SV_vals_Rcomplex_Rcomplex
+	FUNDEF_next_2SV_vals(Rcomplex, Rcomplex)
 
 #endif  /* _SPARSEVEC_H_ */
 

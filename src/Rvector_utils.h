@@ -197,6 +197,22 @@ int _collect_offsets_of_nonzero_Rsubvec_elts(
 	int *out
 );
 
+void _set_selected_elts_to_zero(
+	SEXPTYPE Rtype,
+	void *x,
+	R_xlen_t offset,
+	const int *selection,
+	int n
+);
+
+void _set_selected_elts_to_one(
+	SEXPTYPE Rtype,
+	void *x,
+	R_xlen_t offset,
+	const int *selection,
+	int n
+);
+
 void _set_selected_Rsubvec_elts_to_zero(
 	SEXP Rvector,
 	R_xlen_t subvec_offset,
