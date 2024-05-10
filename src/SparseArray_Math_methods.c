@@ -12,10 +12,11 @@
 static SEXP Math_leaf(MathFUN fun, SEXP leaf, double digits, int dim0,
 		double *nzvals_buf, int *nzoffs_buf, int *newNaNs)
 {
-	const SparseVec sv = leaf2SV(leaf, dim0);
+	const SparseVec sv = leaf2SV(leaf, REALSXP, dim0);
 	int buf_len = _Math_doubleSV(fun, &sv, digits,
 				     nzvals_buf, nzoffs_buf, newNaNs);
-	return _make_leaf_from_bufs(REALSXP, nzvals_buf, nzoffs_buf, buf_len);
+	return _make_leaf_from_two_arrays(REALSXP,
+					  nzvals_buf, nzoffs_buf, buf_len);
 }
 
 

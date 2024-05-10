@@ -211,6 +211,12 @@ void _set_selected_Rsubvec_elts_to_one(
 	int n
 );
 
+int _all_elts_equal_one(
+	SEXPTYPE Rtype,
+	const void *x,
+	int n
+);
+
 int _all_Rsubvec_elts_equal_one(
 	SEXP Rvector,
 	R_xlen_t subvec_offset,

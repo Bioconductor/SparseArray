@@ -50,6 +50,7 @@ static inline SEXP zip_leaf(SEXP nzvals, SEXP nzoffs)
 		goto on_error;
 	if (nzvals != R_NilValue && XLENGTH(nzvals) != nzcount)
 		goto on_error;
+
 	SEXP leaf = PROTECT(NEW_LIST(2));
 	replace_leaf_nzvals(leaf, nzvals);
 	replace_leaf_nzoffs(leaf, nzoffs);
@@ -58,7 +59,8 @@ static inline SEXP zip_leaf(SEXP nzvals, SEXP nzoffs)
 
     on_error:
 	error("SparseArray internal error in zip_leaf():\n"
-	      "    invalid 'nzvals' or 'nzoffs'");
+	      "    supplied 'nzvals' and/or 'nzoffs' "
+	      "are invalid or incompatible");
 }
 
 static inline SEXP get_leaf_nzvals(SEXP leaf)
@@ -115,12 +117,12 @@ static inline int unzip_leaf(SEXP leaf, SEXP *nzvals, SEXP *nzoffs)
 	return (int) nzcount;
 }
 
-static inline SparseVec leaf2SV(SEXP leaf, int len)
+static inline SparseVec leaf2SV(SEXP leaf, SEXPTYPE Rtype, int len)
 {
 	SEXP nzvals, nzoffs;
 
 	unzip_leaf(leaf, &nzvals, &nzoffs);
-	return make_SparseVec(nzvals, INTEGER(nzoffs), len);
+	return toSparseVec(nzvals, nzoffs, Rtype, len);
 }
 
 SEXP C_lacunar_mode_is_on(void);
@@ -137,17 +139,17 @@ SEXP _alloc_and_unzip_leaf(
 	SEXP *nzoffs
 );
 
-SEXP _make_leaf_from_bufs(
-	SEXPTYPE Rtype,
-	const void *nzvals_buf,
-	const int *nzoffs_buf,
-	int buf_len
-);
-
 void _expand_leaf(
 	SEXP leaf,
 	SEXP out_Rvector,
 	R_xlen_t out_offset
+);
+
+SEXP _make_leaf_from_two_arrays(
+	SEXPTYPE Rtype,
+	const void *nzvals_p,
+	const int *nzoffs_p,
+	int nzcount
 );
 
 SEXP _make_leaf_from_Rsubvec(

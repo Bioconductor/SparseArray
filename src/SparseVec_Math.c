@@ -119,6 +119,8 @@ MathFUN _get_MathFUN(const char *op)
 int _Math_doubleSV(MathFUN fun, const SparseVec *sv, double digits,
 		double *nzvals_buf, int *nzoffs_buf, int *newNaNs)
 {
+	if (sv->nzvals == R_NilValue)
+		error("_Math_doubleSV() not ready on a lacunar SparseVec");
 	set_NaNs_produced_flag(0);
 	digits0 = digits;
 	const double *nzvals = get_doubleSV_nzvals(sv);

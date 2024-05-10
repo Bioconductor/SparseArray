@@ -3,7 +3,6 @@
  ****************************************************************************/
 #include "SparseVec_Arith.h"
 
-//#include "Rvector_utils.h"
 #include "SparseVec.h"
 
 #include <limits.h>  /* for INT_MAX */
@@ -58,7 +57,7 @@ static inline int Arith_int(int opcode, int x, int y, int *ovflow)
 			return NA_INTEGER;
 		zz = x % y;
 		/* R's "%%" wants the result to be the same sign as 'y' (this
-		   deviates from C's modulo operator %), so we adjust to
+		   deviates from C modulo operator %), so we adjust to
 		   provide R's "%%" behavior. */
 		if ((y > 0 && zz < 0) || (y < 0 && zz > 0))
 			zz += y;
@@ -150,7 +149,7 @@ static int Arith_intSV_int(int opcode,
 	int out_nzcount = 0;
 	for (int k = 0; k < nzcount1; k++) {
 		int v = Arith_int(opcode, nzvals1[k], y, ovflow);
-		if (v != 0) {
+		if (v != int0) {
 			out_nzvals[out_nzcount] = v;
 			out_nzoffs[out_nzcount] = sv1->nzoffs[k];
 			out_nzcount++;
@@ -171,7 +170,7 @@ static int Arith_intSV_intSV(int opcode,
 				   &k1, &k2, &off, &x, &y))
 	{
 		int v = Arith_int(opcode, x, y, ovflow);
-		if (v != 0) {
+		if (v != int0) {
 			out_nzvals[out_nzcount] = v;
 			out_nzoffs[out_nzcount] = off;
 			out_nzcount++;
@@ -195,7 +194,7 @@ static int Arith_intSV_double(int opcode,
 		} else {
 			v = Arith_double(opcode, (double) x, y);
 		}
-		if (v != 0.0) {
+		if (v != double0) {
 			out_nzvals[out_nzcount] = v;
 			out_nzoffs[out_nzcount] = sv1->nzoffs[k];
 			out_nzcount++;
@@ -222,7 +221,7 @@ static int Arith_intSV_doubleSV(int opcode,
 		} else {
 			v = Arith_double(opcode, (double) x, y);
 		}
-		if (v != 0.0) {
+		if (v != double0) {
 			out_nzvals[out_nzcount] = v;
 			out_nzoffs[out_nzcount] = off;
 			out_nzcount++;
@@ -249,7 +248,7 @@ static int Arith_doubleSV_intSV(int opcode,
 		} else {
 			v = Arith_double(opcode, x, (double) y);
 		}
-		if (v != 0.0) {
+		if (v != double0) {
 			out_nzvals[out_nzcount] = v;
 			out_nzoffs[out_nzcount] = off;
 			out_nzcount++;
@@ -267,7 +266,7 @@ static int Arith_doubleSV_double(int opcode,
 	int out_nzcount = 0;
 	for (int k = 0; k < nzcount1; k++) {
 		double v = Arith_double(opcode, nzvals1[k], y);
-		if (v != 0.0) {
+		if (v != double0) {
 			out_nzvals[out_nzcount] = v;
 			out_nzoffs[out_nzcount] = sv1->nzoffs[k];
 			out_nzcount++;
@@ -289,7 +288,7 @@ static int Arith_doubleSV_doubleSV(int opcode,
 					 &k1, &k2, &off, &x, &y))
 	{
 		double v = Arith_double(opcode, x, y);
-		if (v != 0.0) {
+		if (v != double0) {
 			out_nzvals[out_nzcount] = v;
 			out_nzoffs[out_nzcount] = off;
 			out_nzcount++;
@@ -304,10 +303,13 @@ int _Arith_sv1_scalar(int opcode, const SparseVec *sv1, SEXP scalar,
 		SEXPTYPE expected_outRtype,
 		void *out_nzvals, int *out_nzoffs, int *ovflow)
 {
+	if (sv1->nzvals == R_NilValue)
+		error("_Arith_sv1_scalar() not ready on a lacunar SparseVec");
 	SEXPTYPE effective_outRtype = REALSXP;
 	int nzcount = -1;
 	SEXPTYPE Rtype1 = get_SV_Rtype(sv1);
-	if (Rtype1 == INTSXP) {
+	switch (Rtype1) {
+	    case INTSXP:
 		if (TYPEOF(scalar) == INTSXP) {
 			effective_outRtype = INTSXP;
 			nzcount = Arith_intSV_int(opcode,
@@ -318,12 +320,14 @@ int _Arith_sv1_scalar(int opcode, const SparseVec *sv1, SEXP scalar,
 				sv1, REAL(scalar)[0],
 				(double *) out_nzvals, out_nzoffs);
 		}
-	} else if (Rtype1 == REALSXP) {
+	    break;
+	    case REALSXP:
 		if (TYPEOF(scalar) == REALSXP) {
 			nzcount = Arith_doubleSV_double(opcode,
 				sv1, REAL(scalar)[0],
 				(double *) out_nzvals, out_nzoffs);
 		}
+	    break;
 	}
 	if (nzcount == -1)
 		error("_Arith_sv1_scalar() only supports input of "
@@ -347,6 +351,8 @@ int _Arith_sv1_scalar(int opcode, const SparseVec *sv1, SEXP scalar,
 int _mult_SV_zero(const SparseVec *sv,
 		SEXPTYPE outRtype, void *out_nzvals, int *out_nzoffs)
 {
+	if (sv->nzvals == R_NilValue)
+		error("_mult_SV_zero() not ready on a lacunar SparseVec");
 	int nzcount = -1;
 	SEXPTYPE Rtype = get_SV_Rtype(sv);
 	if (Rtype == INTSXP) {
@@ -392,6 +398,8 @@ int _Arith_sv1_sv2(int opcode, const SparseVec *sv1, const SparseVec *sv2,
 		SEXPTYPE expected_outRtype,
 		void *out_nzvals, int *out_nzoffs, int *ovflow)
 {
+	if (sv1->nzvals == R_NilValue || sv2->nzvals == R_NilValue)
+		error("_Arith_sv1_sv2() not ready when 'sv1' or 'sv2' is lacunar");
 	SEXPTYPE effective_outRtype = REALSXP;
 	int nzcount = -1;
 	SEXPTYPE Rtype1 = get_SV_Rtype(sv1);

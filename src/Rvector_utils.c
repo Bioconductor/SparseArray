@@ -205,43 +205,44 @@ CopyRVectorElts_FUNType _select_copy_Rvector_elts_FUN(SEXPTYPE Rtype)
  */
 
 static int collect_offsets_of_nonzero_int_elts(
-		const int *in, int in_len, int *out)
+		const int *x, int n, int *out)
 {
 	const int *out0 = out;
-	for (int offset = 0; offset < in_len; offset++, in++)
-		if (*in != 0)
-			*(out++) = offset;
+	for (int i = 0; i < n; i++)
+		if (x[i] != int0)
+			*(out++) = i;
 	return (int) (out - out0);
 }
 
 static int collect_offsets_of_nonzero_double_elts(
-		const double *in, int in_len, int *out)
+		const double *x, int n, int *out)
 {
 	const int *out0 = out;
-	for (int offset = 0; offset < in_len; offset++, in++)
-		if (*in != 0.0)
-			*(out++) = offset;
+	for (int i = 0; i < n; i++)
+		if (x[i] != double0)
+			*(out++) = i;
 	return (int) (out - out0);
 }
 
-#define	IS_NONZERO_RCOMPLEX(x) ((x)->r != 0.0 || (x)->i != 0.0)
+#define	IS_NONZERO_RCOMPLEX(x) ((x)->r != double0 || (x)->i != double0)
 static int collect_offsets_of_nonzero_Rcomplex_elts(
-		const Rcomplex *in, int in_len, int *out)
+		const Rcomplex *x, int n, int *out)
 {
 	const int *out0 = out;
-	for (int offset = 0; offset < in_len; offset++, in++)
-		if (IS_NONZERO_RCOMPLEX(in))
-			*(out++) = offset;
+	for (int i = 0; i < n; i++, x++) {
+		if (IS_NONZERO_RCOMPLEX(x))
+			*(out++) = i;
+	}
 	return (int) (out - out0);
 }
 
 static int collect_offsets_of_nonzero_Rbyte_elts(
-		const Rbyte *in, int in_len, int *out)
+		const Rbyte *x, int n, int *out)
 {
 	const int *out0 = out;
-	for (int offset = 0; offset < in_len; offset++, in++)
-		if (*in != 0)
-			*(out++) = offset;
+	for (int i = 0; i < n; i++)
+		if (x[i] != Rbyte0)
+			*(out++) = i;
 	return (int) (out - out0);
 }
 
@@ -251,10 +252,10 @@ static int collect_offsets_of_nonempty_character_elts(
 		int *out)
 {
 	const int *out0 = out;
-	for (int offset = 0; offset < subvec_len; offset++, subvec_offset++) {
-		SEXP Rvector_elt = STRING_ELT(Rvector, subvec_offset);
-		if (IS_NONEMPTY_CHARSXP(Rvector_elt))
-			*(out++) = offset;
+	for (int i = 0; i < subvec_len; i++, subvec_offset++) {
+		SEXP elt = STRING_ELT(Rvector, subvec_offset);
+		if (IS_NONEMPTY_CHARSXP(elt))
+			*(out++) = i;
 	}
 	return (int) (out - out0);
 }
@@ -264,10 +265,10 @@ static int collect_offsets_of_nonnull_list_elts(
 		int *out)
 {
 	const int *out0 = out;
-	for (int offset = 0; offset < subvec_len; offset++, subvec_offset++) {
-		SEXP Rvector_elt = VECTOR_ELT(Rvector, subvec_offset);
-		if (Rvector_elt != R_NilValue)
-			*(out++) = offset;
+	for (int i = 0; i < subvec_len; i++, subvec_offset++) {
+		SEXP elt = VECTOR_ELT(Rvector, subvec_offset);
+		if (elt != R_NilValue)
+			*(out++) = i;
 	}
 	return (int) (out - out0);
 }
@@ -441,90 +442,155 @@ void _set_selected_Rsubvec_elts_to_one(SEXP Rvector, R_xlen_t subvec_offset,
 
 
 /****************************************************************************
+ * _all_elts_equal_one()
  * _all_Rsubvec_elts_equal_one()
  * _all_selected_Rsubvec_elts_equal_one()
  */
 
-/* Restricted to types "logical", "integer", "double", "complex", and "raw". */
+static int all_int_elts_equal_one(const int *x, int n)
+{
+	for (int i = 0; i < n; i++)
+		if (x[i] != int1)
+			return 0;
+	return 1;
+}
+
+static int all_double_elts_equal_one(const double *x, int n)
+{
+	for (int i = 0; i < n; i++)
+		if (x[i] != double1)
+			return 0;
+	return 1;
+}
+
+static int all_Rcomplex_elts_equal_one(const Rcomplex *x, int n)
+{
+	for (int i = 0; i < n; i++, x++)
+		if (x->r != Rcomplex1.r || x->i != Rcomplex1.i)
+			return 0;
+	return 1;
+}
+
+static int all_Rbyte_elts_equal_one(const Rbyte *x, int n)
+{
+	for (int i = 0; i < n; i++)
+		if (x[i] != Rbyte1)
+			return 0;
+	return 1;
+}
+
+/* Always returns 0 on a character vector or list at the moment. */
+int _all_elts_equal_one(SEXPTYPE Rtype, const void *x, int n)
+{
+	switch (Rtype) {
+	    case LGLSXP: case INTSXP:
+		return all_int_elts_equal_one((const int *) x, n);
+	    case REALSXP:
+		return all_double_elts_equal_one((const double *) x, n);
+	    case CPLXSXP:
+		return all_Rcomplex_elts_equal_one((const Rcomplex *) x, n);
+	    case RAWSXP:
+		return all_Rbyte_elts_equal_one((const Rbyte *) x, n);
+	    case STRSXP: case VECSXP:
+		return 0;
+	}
+	error("SparseArray internal error in "
+	      "_all_elts_equal_one():\n"
+	      "    type \"%s\" is not supported", type2char(Rtype));
+}
+
+/* Always returns 0 on a character vector or list at the moment. */
 int _all_Rsubvec_elts_equal_one(SEXP Rvector,
 		R_xlen_t subvec_offset, int subvec_len)
 {
 	SEXPTYPE Rtype = TYPEOF(Rvector);
 	switch (Rtype) {
 	    case LGLSXP: case INTSXP: {
-		int *data = INTEGER(Rvector) + subvec_offset;
-		for (int i = 0; i < subvec_len; i++)
-			if (data[i] != int1)
-				return 0;
-		return 1;
+		const int      *x = INTEGER(Rvector) + subvec_offset;
+		return all_int_elts_equal_one(x, subvec_len);
 	    }
 	    case REALSXP: {
-		double *data = REAL(Rvector) + subvec_offset;
-		for (int i = 0; i < subvec_len; i++)
-			if (data[i] != double1)
-				return 0;
-		return 1;
+		const double   *x = REAL(Rvector) + subvec_offset;
+		return all_double_elts_equal_one(x, subvec_len);
 	    }
 	    case CPLXSXP: {
-		Rcomplex *data = COMPLEX(Rvector) + subvec_offset;
-		for (int i = 0; i < subvec_len; i++) {
-			Rcomplex *vec_elt = data + i;
-			if (vec_elt->r != Rcomplex1.r ||
-			    vec_elt->i != Rcomplex1.i)
-				return 0;
-		}
-		return 1;
+		const Rcomplex *x = COMPLEX(Rvector) + subvec_offset;
+		return all_Rcomplex_elts_equal_one(x, subvec_len);
 	    }
 	    case RAWSXP: {
-		Rbyte *data = RAW(Rvector) + subvec_offset;
-		for (int i = 0; i < subvec_len; i++)
-			if (data[i] != Rbyte1)
-				return 0;
-		return 1;
+		const Rbyte    *x = RAW(Rvector) + subvec_offset;
+		return all_Rbyte_elts_equal_one(x, subvec_len);
 	    }
+	    case STRSXP: case VECSXP:
+		return 0;
 	}
 	error("SparseArray internal error in "
 	      "_all_Rsubvec_elts_equal_one():\n"
 	      "    type \"%s\" is not supported", type2char(Rtype));
 }
 
-/* Restricted to types "logical", "integer", "double", "complex", and "raw". */
+static int all_selected_int_elts_equal_one(const int *x,
+		const int *selection, int n)
+{
+	for (int k = 0; k < n; k++, selection++)
+		if (x[*selection] != int1)
+			return 0;
+	return 1;
+}
+
+static int all_selected_double_elts_equal_one(const double *x,
+		const int *selection, int n)
+{
+	for (int k = 0; k < n; k++, selection++)
+		if (x[*selection] != double1)
+			return 0;
+	return 1;
+}
+
+static int all_selected_Rcomplex_elts_equal_one(const Rcomplex *x,
+		const int *selection, int n)
+{
+	for (int k = 0; k < n; k++, selection++) {
+		const Rcomplex *z = x + *selection;
+		if (z->r != Rcomplex1.r || z->i != Rcomplex1.i)
+			return 0;
+	}
+	return 1;
+}
+
+static int all_selected_Rbyte_elts_equal_one(const Rbyte *x,
+		const int *selection, int n)
+{
+	for (int k = 0; k < n; k++, selection++)
+		if (x[*selection] != Rbyte1)
+			return 0;
+	return 1;
+}
+
+/* Always returns 0 on a character vector or list at the moment. */
 int _all_selected_Rsubvec_elts_equal_one(SEXP Rvector, R_xlen_t subvec_offset,
-	const int *selection, int n)
+		const int *selection, int n)
 {
 	SEXPTYPE Rtype = TYPEOF(Rvector);
 	switch (Rtype) {
 	    case LGLSXP: case INTSXP: {
-		int *data = INTEGER(Rvector) + subvec_offset;
-		for (int k = 0; k < n; k++, selection++)
-			if (data[*selection] != int1)
-				return 0;
-		return 1;
+		const int      *x = INTEGER(Rvector) + subvec_offset;
+		return all_selected_int_elts_equal_one(x, selection, n);
 	    }
 	    case REALSXP: {
-		double *data = REAL(Rvector) + subvec_offset;
-		for (int k = 0; k < n; k++, selection++)
-			if (data[*selection] != double1)
-				return 0;
-		return 1;
+		const double   *x = REAL(Rvector) + subvec_offset;
+		return all_selected_double_elts_equal_one(x, selection, n);
 	    }
 	    case CPLXSXP: {
-		Rcomplex *data = COMPLEX(Rvector) + subvec_offset;
-		for (int k = 0; k < n; k++, selection++) {
-			Rcomplex *vec_elt = data + *selection;
-			if (vec_elt->r != Rcomplex1.r ||
-			    vec_elt->i != Rcomplex1.i)
-				return 0;
-		}
-		return 1;
+		const Rcomplex *x = COMPLEX(Rvector) + subvec_offset;
+		return all_selected_Rcomplex_elts_equal_one(x, selection, n);
 	    }
 	    case RAWSXP: {
-		Rbyte *data = RAW(Rvector) + subvec_offset;
-		for (int k = 0; k < n; k++, selection++)
-			if (data[*selection] != Rbyte1)
-				return 0;
-		return 1;
+		const Rbyte    *x = RAW(Rvector) + subvec_offset;
+		return all_selected_Rbyte_elts_equal_one(x, selection, n);
 	    }
+	    case STRSXP: case VECSXP:
+		return 0;
 	}
 	error("SparseArray internal error in "
 	      "_all_selected_Rsubvec_elts_equal_one():\n"

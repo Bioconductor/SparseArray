@@ -51,14 +51,17 @@ static inline int Logic_int_int(int x, int y, int opcode)
 int _Logic_intSV_intSV(int opcode, const SparseVec *sv1, const SparseVec *sv2,
 		int *out_nzvals, int *out_nzoffs)
 {
-	int nzcount, k1, k2, off, x, y, v;
+	if (sv1->nzvals == R_NilValue || sv2->nzvals == R_NilValue)
+		error("_Logic_intSV_intSV() not ready when 'sv1' or 'sv2' is lacunar");
+	int k1, k2, off, x, y;
 
-	nzcount = k1 = k2 = 0;
+	int nzcount = 0;
+	k1 = k2 = 0;
 	while (next_nzvals_int_int(sv1, sv2,
 				   &k1, &k2, &off, &x, &y))
 	{
-		v = Logic_int_int(x, y, opcode);
-		if (v != 0) {
+		int v = Logic_int_int(x, y, opcode);
+		if (v != int0) {
 			out_nzvals[nzcount] = v;
 			out_nzoffs[nzcount] = off;
 			nzcount++;
