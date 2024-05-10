@@ -11,14 +11,18 @@
 static void summarize_leaf(SEXP leaf, int dim0,
 		const SummarizeOp *summarize_op, SummarizeResult *res)
 {
-	SEXP nzvals = get_leaf_nzvals(leaf);
-	int nzcount = LENGTH(nzvals);
-        /* We add 'dim0 - nzcount' rather than 'dim0' because
-	   _summarize_Rvector()  will add 'nzcount'. */
+	SEXP nzvals, nzoffs;
+	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
+	/* We add 'dim0 - nzcount' rather than 'dim0' because
+	   _summarize_ones() and _summarize_Rvector() will add 'nzcount'. */
 	res->in_length += dim0 - nzcount;
 	res->in_nzcount += nzcount; /* assuming 'nzvals' contains no zeros! */
-        _summarize_Rvector(nzvals, summarize_op, res);
-        return;
+	if (nzvals == R_NilValue) {
+		_summarize_ones(nzcount, summarize_op, res);
+	} else {
+		_summarize_Rvector(nzvals, summarize_op, res);
+	}
+	return;
 }
 
 
