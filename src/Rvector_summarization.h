@@ -79,6 +79,12 @@ void _init_SummarizeResult(
 	SummarizeResult *res
 );
 
+void _summarize_ones(
+	int x_len,
+	const SummarizeOp *summarize_op,
+	SummarizeResult *res
+);
+
 void _summarize_Rvector(
 	SEXP x,
 	const SummarizeOp *summarize_op,
