@@ -57,8 +57,8 @@ int _Logic_intSV_intSV(int opcode, const SparseVec *sv1, const SparseVec *sv2,
 
 	int nzcount = 0;
 	k1 = k2 = 0;
-	while (next_nzvals_int_int(sv1, sv2,
-				   &k1, &k2, &off, &x, &y))
+	while (next_2SV_vals_int_int(sv1, sv2,
+				&k1, &k2, &off, &x, &y))
 	{
 		int v = Logic_int_int(x, y, opcode);
 		if (v != int0) {

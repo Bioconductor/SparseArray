@@ -324,6 +324,8 @@ int _collect_offsets_of_nonzero_Rsubvec_elts(
 
 
 /****************************************************************************
+ * _set_selected_elts_to_zero()
+ * _set_selected_elts_to_one()
  * _set_selected_Rvector_elts_to_zero()
  * _set_selected_Rvector_elts_to_one()
  */
@@ -376,68 +378,88 @@ static void set_selected_list_elts(SEXP Rvector, R_xlen_t subvec_offset,
 	return;
 }
 
+/* Restricted to types "logical", "integer", "double", "complex", and "raw". */
+void _set_selected_elts_to_zero(SEXPTYPE Rtype, void *x,
+		R_xlen_t offset, const int *selection, int n)
+{
+	switch (Rtype) {
+	    case LGLSXP: case INTSXP:
+		set_selected_int_elts((int *) x + offset,
+					selection, n, int0);
+		return;
+	    case REALSXP:
+		set_selected_double_elts((double *) x + offset,
+					selection, n, double0);
+		return;
+	    case CPLXSXP:
+		set_selected_Rcomplex_elts((Rcomplex *) x + offset,
+					selection, n, Rcomplex0);
+		return;
+	    case RAWSXP:
+		set_selected_Rbyte_elts((Rbyte *) + offset,
+					selection, n, Rbyte0);
+		return;
+	}
+	error("SparseArray internal error in "
+	      "_set_selected_elts_to_zero():\n"
+	      "    type \"%s\" is not supported", type2char(Rtype));
+	return;
+}
+
+/* Restricted to types "logical", "integer", "double", "complex", and "raw". */
+void _set_selected_elts_to_one(SEXPTYPE Rtype, void *x,
+		R_xlen_t offset, const int *selection, int n)
+{
+	switch (Rtype) {
+	    case LGLSXP: case INTSXP:
+		set_selected_int_elts((int *) x + offset,
+					selection, n, int1);
+		return;
+	    case REALSXP:
+		set_selected_double_elts((double *) x + offset,
+					selection, n, double1);
+		return;
+	    case CPLXSXP:
+		set_selected_Rcomplex_elts((Rcomplex *) x + offset,
+					selection, n, Rcomplex1);
+		return;
+	    case RAWSXP:
+		set_selected_Rbyte_elts((Rbyte *) + offset,
+					selection, n, Rbyte1);
+		return;
+	}
+	error("SparseArray internal error in "
+	      "_set_selected_elts_to_one():\n"
+	      "    type \"%s\" is not supported", type2char(Rtype));
+	return;
+}
+
 void _set_selected_Rsubvec_elts_to_zero(SEXP Rvector, R_xlen_t subvec_offset,
 		const int *selection, int n)
 {
 	SEXPTYPE Rtype = TYPEOF(Rvector);
-	switch (Rtype) {
-	    case LGLSXP: case INTSXP:
-		set_selected_int_elts(INTEGER(Rvector) + subvec_offset,
-					selection, n, int0);
-		return;
-	    case REALSXP:
-		set_selected_double_elts(REAL(Rvector) + subvec_offset,
-					selection, n, double0);
-		return;
-	    case CPLXSXP:
-		set_selected_Rcomplex_elts(COMPLEX(Rvector) + subvec_offset,
-					selection, n, Rcomplex0);
-		return;
-	    case RAWSXP:
-		set_selected_Rbyte_elts(RAW(Rvector) + subvec_offset,
-					selection, n, Rbyte0);
-		return;
-	    case STRSXP:
+	if (Rtype == STRSXP) {
 		set_selected_character_elts(Rvector, subvec_offset,
-					selection, n, R_BlankString);
-		UNPROTECT(1);
-		return;
-	    case VECSXP:
-		set_selected_list_elts(Rvector, subvec_offset,
-					selection, n, R_NilValue);
+				            selection, n, R_BlankString);
 		return;
 	}
-	error("SparseArray internal error in "
-	      "_set_selected_Rsubvec_elts_to_zero():\n"
-	      "    type \"%s\" is not supported", type2char(Rtype));
+	if (Rtype == VECSXP) {
+		set_selected_list_elts(Rvector, subvec_offset,
+				       selection, n, R_NilValue);
+		return;
+	}
+	_set_selected_elts_to_zero(Rtype, DATAPTR(Rvector), subvec_offset,
+				   selection, n);
+	return;
 }
 
 /* Restricted to types "logical", "integer", "double", "complex", and "raw". */
 void _set_selected_Rsubvec_elts_to_one(SEXP Rvector, R_xlen_t subvec_offset,
 		const int *selection, int n)
 {
-	SEXPTYPE Rtype = TYPEOF(Rvector);
-	switch (Rtype) {
-	    case LGLSXP: case INTSXP:
-		set_selected_int_elts(INTEGER(Rvector) + subvec_offset,
-					selection, n, int1);
-		return;
-	    case REALSXP:
-		set_selected_double_elts(REAL(Rvector) + subvec_offset,
-					selection, n, double1);
-		return;
-	    case CPLXSXP:
-		set_selected_Rcomplex_elts(COMPLEX(Rvector) + subvec_offset,
-					selection, n, Rcomplex1);
-		return;
-	    case RAWSXP:
-		set_selected_Rbyte_elts(RAW(Rvector) + subvec_offset,
-					selection, n, Rbyte1);
-		return;
-	}
-	error("SparseArray internal error in "
-	      "_set_selected_Rsubvec_elts_to_one():\n"
-	      "    type \"%s\" is not supported", type2char(Rtype));
+	_set_selected_elts_to_one(TYPEOF(Rvector), DATAPTR(Rvector),
+				  subvec_offset, selection, n);
+	return;
 }
 
 

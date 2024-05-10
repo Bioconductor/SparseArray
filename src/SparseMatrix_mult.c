@@ -30,43 +30,40 @@ static int has_no_NA(const int *x, int x_len)
 
 static int doubleSV_has_no_NaN_or_Inf(const SparseVec *sv)
 {
+	if (sv->nzvals == R_NilValue)  /* lacunar SparseVec */
+		return 1;
 	return has_no_NaN_or_Inf(get_doubleSV_nzvals(sv),
 				 get_SV_nzcount(sv));
 }
 
 static int intSV_has_no_NA(const SparseVec *sv)
 {
+	if (sv->nzvals == R_NilValue)  /* lacunar SparseVec */
+		return 1;
 	return has_no_NA(get_intSV_nzvals(sv),
 			 get_SV_nzcount(sv));
 }
 
 static void fill_col(double *out, int out_nrow, double v)
 {
-	int i;
-
-	for (i = 0; i < out_nrow; i++, out++)
+	for (int i = 0; i < out_nrow; i++, out++)
 		*out = v;
 	return;
 }
 
 static void fill_row(double *out, int out_nrow, int out_ncol, double v)
 {
-	int j;
-
-	for (j = 0; j < out_ncol; j++, out += out_nrow)
+	for (int j = 0; j < out_ncol; j++, out += out_nrow)
 		*out = v;
 	return;
 }
 
 static void sym_fill_with_NAs(double *out, int out_nrow, int j)
 {
-	double *out1, *out2;
-	int i;
-
 	*out = NA_REAL;
-	out1 = out + 1;
-	out2 = out + out_nrow;
-	for (i = j + 1; i < out_nrow; i++, out1++, out2 += out_nrow)
+	double *out1 = out + 1;
+	double *out2 = out + out_nrow;
+	for (int i = j + 1; i < out_nrow; i++, out1++, out2 += out_nrow)
 		*out1 = *out2 = NA_REAL;
 	return;
 }
@@ -74,16 +71,28 @@ static void sym_fill_with_NAs(double *out, int out_nrow, int j)
 static void expand_doubleSV(const SparseVec *sv, double *out)
 {
 	memset(out, 0, sizeof(double) * sv->len);
-	_copy_doubles_to_offsets(get_doubleSV_nzvals(sv),
-				 sv->nzoffs, get_SV_nzcount(sv), out);
+	if (sv->nzvals == R_NilValue) {
+		/* lacunar SparseVec */
+		_set_selected_elts_to_one(REALSXP, out, 0,
+				sv->nzoffs, get_SV_nzcount(sv));
+	} else {
+		_copy_doubles_to_offsets(get_doubleSV_nzvals(sv),
+				sv->nzoffs, get_SV_nzcount(sv), out);
+	}
 	return;
 }
 
 static void expand_intSV(const SparseVec *sv, int *out)
 {
 	memset(out, 0, sizeof(int) * sv->len);
-	_copy_ints_to_offsets(get_intSV_nzvals(sv),
-			      sv->nzoffs, get_SV_nzcount(sv), out);
+	if (sv->nzvals == R_NilValue) {
+		/* lacunar SparseVec */
+		_set_selected_elts_to_one(INTSXP, out, 0,
+				sv->nzoffs, get_SV_nzcount(sv));
+	} else {
+		_copy_ints_to_offsets(get_intSV_nzvals(sv),
+				sv->nzoffs, get_SV_nzcount(sv), out);
+	}
 	return;
 }
 
