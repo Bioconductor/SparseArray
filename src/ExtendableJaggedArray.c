@@ -108,24 +108,25 @@ SEXP _move_ExtendableJaggedArrays_to_SVT(ExtendableJaggedArray *nzvalss,
 	for (int i = 0; i < SVT_len; i++) {
 		int nzcount = nzoffss->_nelts[i];  // assumed to be the same
 						   // as 'nzvalss->_nelts[i]'
-		int *nzvals, *nzoffs;
+		int *nzvals_p, *nzoffs_p;
 		if (nzcount != 0) {
-			nzvals = nzvalss->_cols[i];
-			nzoffs = nzoffss->_cols[i];
+			nzvals_p = nzvalss->_cols[i];
+			nzoffs_p = nzoffss->_cols[i];
 			SEXP ans_elt = PROTECT(
-				_make_leaf_from_bufs(INTSXP, nzvals, nzoffs,
-						     nzcount)
+				_make_leaf_from_two_arrays(INTSXP,
+							   nzvals_p, nzoffs_p,
+							   nzcount)
 			);
 			SET_VECTOR_ELT(ans, i, ans_elt);
 			UNPROTECT(1);
 			is_empty = 0;
 		}
 		if (nzoffss->_buflengths[i] != 0) {
-			free(nzoffs);
+			free(nzoffs_p);
 			nzoffss->_buflengths[i] = nzoffss->_nelts[i] = 0;
 		}
 		if (nzvalss->_buflengths[i] != 0) {
-			free(nzvals);
+			free(nzvals_p);
 			nzvalss->_buflengths[i] = nzvalss->_nelts[i] = 0;
 		}
 	}

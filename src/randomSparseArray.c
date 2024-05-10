@@ -153,7 +153,8 @@ static SEXP build_poisson_leaf(int dim0, double lambda,
 			buf_len++;
 		}
 	}
-	return _make_leaf_from_bufs(INTSXP, nzvals_buf, nzoffs_buf, buf_len);
+	return _make_leaf_from_two_arrays(INTSXP,
+					  nzvals_buf, nzoffs_buf, buf_len);
 }
 
 /* Recursive. */

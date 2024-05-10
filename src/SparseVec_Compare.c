@@ -215,7 +215,7 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 
 /****************************************************************************
  * Two macros to generate the Compare_<Ltype>SV_<Rtype>()
- * and Compare_<Ltype>SV_<Rtype>SV() functions (20 in total)
+ * and Compare_<Ltype>SV_<Rtype>SV() functions (20 functions in total)
  */
 
 /* Generate def of Compare_<Ltype>SV_<Rtype>() functions. */
@@ -230,7 +230,7 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 		Ltype x = nzvals1[k];					\
 		int v = Compare_ ## Ltype ## _ ## Rtype			\
 					(opcode, x, y);			\
-		if (v != 0) {						\
+		if (v != int0) {					\
 			out_nzvals[out_nzcount] = v;			\
 			out_nzoffs[out_nzcount] = sv1->nzoffs[k];	\
 			out_nzcount++;					\
@@ -255,7 +255,7 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 	{								\
 		int v = Compare_ ## Ltype ## _ ## Rtype			\
 					(opcode, x, y);			\
-		if (v != 0) {						\
+		if (v != int0) {					\
 			out_nzvals[out_nzcount] = v;			\
 			out_nzoffs[out_nzcount] = off;			\
 			out_nzcount++;					\
@@ -539,6 +539,8 @@ static int Compare_RcomplexSV_SV(int opcode,
 int _Compare_sv1_zero(int opcode, const SparseVec *sv1,
 		int *out_nzvals, int *out_nzoffs)
 {
+	if (sv1->nzvals == R_NilValue)
+		error("_Compare_sv1_zero() not ready on a lacunar SparseVec");
 	SEXPTYPE Rtype1 = get_SV_Rtype(sv1);
 	switch (Rtype1) {
 	    case RAWSXP:
@@ -565,6 +567,8 @@ int _Compare_sv1_zero(int opcode, const SparseVec *sv1,
 int _Compare_sv1_scalar(int opcode, const SparseVec *sv1, SEXP scalar,
 		int *out_nzvals, int *out_nzoffs)
 {
+	if (sv1->nzvals == R_NilValue)
+		error("_Compare_sv1_scalar() not ready on a lacunar SparseVec");
 	SEXPTYPE Rtype1 = get_SV_Rtype(sv1);
 	switch (Rtype1) {
 	    case RAWSXP:
@@ -589,6 +593,8 @@ int _Compare_sv1_scalar(int opcode, const SparseVec *sv1, SEXP scalar,
 int _Compare_sv1_sv2(int opcode, const SparseVec *sv1, const SparseVec *sv2,
 		int *out_nzvals, int *out_nzoffs)
 {
+	if (sv1->nzvals == R_NilValue || sv2->nzvals == R_NilValue)
+		error("_Compare_sv1_sv2() not ready when 'sv1' or 'sv2' is lacunar");
 	SEXPTYPE Rtype1 = get_SV_Rtype(sv1);
 	switch (Rtype1) {
 	    case RAWSXP:

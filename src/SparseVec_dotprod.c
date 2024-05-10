@@ -8,6 +8,8 @@
 
 double _dotprod_doubleSV_doubleSV(const SparseVec *sv1, const SparseVec *sv2)
 {
+	if (sv1->nzvals == R_NilValue || sv2->nzvals == R_NilValue)
+		error("_dotprod_doubleSV_doubleSV() not ready when 'sv1' or 'sv2' is lacunar");
 	int k1, k2, off;
 	double val1, val2;
 
@@ -31,6 +33,8 @@ double _dotprod_doubleSV_doubleSV(const SparseVec *sv1, const SparseVec *sv2)
    This is NOT checked! */
 double _dotprod_doubleSV_finite_doubles(const SparseVec *sv1, const double *x2)
 {
+	if (sv1->nzvals == R_NilValue)
+		error("_dotprod_doubleSV_finite_doubles() not ready on a lacunar SparseVec");
 	const double *nzvals1 = get_doubleSV_nzvals(sv1);
 	int nzcount1 = get_SV_nzcount(sv1);
 	double ans = 0.0;
@@ -44,6 +48,8 @@ double _dotprod_doubleSV_finite_doubles(const SparseVec *sv1, const double *x2)
    Significantly slower than _dotprod_doubleSV_finite_doubles(). */
 double _dotprod_doubleSV_doubles(const SparseVec *sv1, const double *x2)
 {
+	if (sv1->nzvals == R_NilValue)
+		error("_dotprod_doubleSV_doubles() not ready on a lacunar SparseVec");
 	const double *nzvals1 = get_doubleSV_nzvals(sv1);
 	int nzcount1 = get_SV_nzcount(sv1);
 	double ans = 0.0;
@@ -73,6 +79,8 @@ double _dotprod_doubleSV_doubles(const SparseVec *sv1, const double *x2)
    This is NOT checked! */
 double _dotprod_intSV_noNA_ints(const SparseVec *sv1, const int *x2)
 {
+	if (sv1->nzvals == R_NilValue)
+		error("_dotprod_intSV_noNA_ints() not ready on a lacunar SparseVec");
 	const int *nzvals1 = get_intSV_nzvals(sv1);
 	int nzcount1 = get_SV_nzcount(sv1);
 	double ans = 0.0;
@@ -90,6 +98,8 @@ double _dotprod_intSV_noNA_ints(const SparseVec *sv1, const int *x2)
    content of 'x2'. Significantly slower than _dotprod_intSV_noNA_ints(). */
 double _dotprod_intSV_ints(const SparseVec *sv1, const int *x2)
 {
+	if (sv1->nzvals == R_NilValue)
+		error("_dotprod_intSV_ints() not ready on a lacunar SparseVec");
 	const int *nzvals1 = get_intSV_nzvals(sv1);
 	int nzcount1 = get_SV_nzcount(sv1);
 	double ans = 0.0;
@@ -137,12 +147,16 @@ double _dotprod_ints_zero(const int *x, int x_len)
 
 double _dotprod_doubleSV_zero(const SparseVec *sv)
 {
+	if (sv->nzvals == R_NilValue)
+		error("_dotprod_doubleSV_zero() not ready on a lacunar SparseVec");
 	return _dotprod_doubles_zero(get_doubleSV_nzvals(sv),
 				     get_SV_nzcount(sv));
 }
 
 double _dotprod_intSV_zero(const SparseVec *sv)
 {
+	if (sv->nzvals == R_NilValue)
+		error("_dotprod_intSV_zero() not ready on a lacunar SparseVec");
 	return _dotprod_ints_zero(get_intSV_nzvals(sv), get_SV_nzcount(sv));
 }
 

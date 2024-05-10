@@ -7,35 +7,59 @@
 
 #include <limits.h>  /* for INT_MAX */
 
+/* Set 'nzvals' to R_NilValue to represent a lacunar SparseVec. */
 typedef struct sparse_vec_t {
-	SEXP nzvals;         /* vector type (atomic or list) */
+	SEXP nzvals;         /* vector type (atomic or list) or R_NilValue */
 	const int *nzoffs;   /* offsets of nonzero values */
-	int len;             /* vector length (-1 if unknown) */
+	int nzcount;         /* nb of nonzero values */
+	SEXPTYPE Rtype;      /* = TYPEOF(nzvals) if nzvals != R_NilValue */
+	int len;             /* vector length (= nzcount + nb of zeros) */
 } SparseVec;
 
-static inline SparseVec make_SparseVec(
-		const SEXP nzvals, const int *nzoffs, int len)
+/* 'Rtype' **must** be set to 'TYPEOF(nzvals)' if 'nzvals' is not R_NilValue.
+   The only reason we have the 'Rtype' argument (and SparseVec has the 'Rtype'
+   member) is so that we can still store the 'Rtype' in the SparseVec even
+   when the supplied 'nzvals' is R_NilValue (lacunar case). */
+static inline SparseVec toSparseVec(SEXP nzvals, SEXP nzoffs,
+				    SEXPTYPE Rtype, int len)
 {
-	SparseVec sv;
+	/* Sanity checks (should never fail). */
+	if (!IS_INTEGER(nzoffs))
+		goto on_error;
+	R_xlen_t nzcount = XLENGTH(nzoffs);
+	if (nzcount == 0 || nzcount > INT_MAX)
+		goto on_error;
+	if (nzvals != R_NilValue) {
+		if (TYPEOF(nzvals) != Rtype)
+			error("SparseArray internal error in toSparseVec():\n"
+			      "    TYPEOF(nzvals) != Rtype");
+		if (XLENGTH(nzvals) != nzcount)
+			goto on_error;
+	}
 
-	R_xlen_t nzcount = XLENGTH(nzvals);
-	if (nzcount > INT_MAX)
-		error("SparseArray internal error in make_SparseVec():\n"
-		      "    number of nonzero values must be <= INT_MAX");
+	SparseVec sv;
 	sv.nzvals = nzvals;
-	sv.nzoffs = nzoffs;
+	sv.nzoffs = INTEGER(nzoffs);
+	sv.nzcount = LENGTH(nzoffs);
+	sv.Rtype = Rtype;
 	sv.len = len;
 	return sv;
+
+    on_error:
+	error("SparseArray internal error in toSparseVec():\n"
+	      "    supplied 'nzvals' and/or 'nzoffs' "
+	      "are invalid or incompatible");
+
 }
 
 static inline SEXPTYPE get_SV_Rtype(const SparseVec *sv)
 {
-	return TYPEOF(sv->nzvals);
+	return sv->Rtype;
 }
 
 static inline int get_SV_nzcount(const SparseVec *sv)
 {
-	return LENGTH(sv->nzvals);
+	return sv->nzcount;
 }
 
 static inline const Rbyte *get_RbyteSV_nzvals(const SparseVec *sv)

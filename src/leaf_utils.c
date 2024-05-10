@@ -22,7 +22,6 @@ SEXP C_lacunar_mode_is_on(void)
 /****************************************************************************
  * _alloc_leaf()
  * _alloc_and_unzip_leaf()
- * _make_leaf_from_bufs()
  * _expand_leaf()
  */
 
@@ -49,28 +48,6 @@ SEXP _alloc_and_unzip_leaf(SEXPTYPE Rtype, int nzcount,
 	return ans;
 }
 
-/* Does NOT work for 'Rtype' == STRSXP or VECSXP. */
-SEXP _make_leaf_from_bufs(SEXPTYPE Rtype,
-		const void *nzvals_buf, const int *nzoffs_buf, int buf_len)
-{
-	size_t Rtype_size;
-	SEXP ans, ans_offs, ans_vals;
-
-	if (buf_len == 0)
-		return R_NilValue;
-	Rtype_size = _get_Rtype_size(Rtype);
-	if (Rtype_size == 0)
-		error("SparseArray internal error in "
-		      "_make_leaf_from_bufs():\n"
-		      "    type \"%s\" is not supported", type2char(Rtype));
-	ans = PROTECT(_alloc_and_unzip_leaf(Rtype, buf_len,
-					    &ans_vals, &ans_offs));
-	memcpy(DATAPTR(ans_vals), nzvals_buf, Rtype_size * buf_len);
-	memcpy(INTEGER(ans_offs), nzoffs_buf, sizeof(int) * buf_len);
-	UNPROTECT(1);
-	return ans;
-}
-
 /* Assumes that 'out_Rvector' is long enough, has the right type,
    and is already filled with zeros e.g. it was created with
    _new_Rvector0(TYPEOF(leaf), dim0). */
@@ -93,8 +70,42 @@ void _expand_leaf(SEXP leaf, SEXP out_Rvector, R_xlen_t out_offset)
 
 
 /****************************************************************************
+ * _make_leaf_from_two_arrays()
  * _make_leaf_from_Rsubvec()
  */
+
+/* Does NOT work if 'Rtype' is STRSXP or VECSXP.
+   The 'nzvals_p' array is **trusted** to not contain any zeros. This is NOT
+   checked! The returned leaf can be lacunar. */
+SEXP _make_leaf_from_two_arrays(SEXPTYPE Rtype,
+		const void *nzvals_p, const int *nzoffs_p, int nzcount)
+{
+	if (nzcount == 0)
+		return R_NilValue;
+
+	size_t Rtype_size = _get_Rtype_size(Rtype);
+	if (Rtype_size == 0)
+		error("SparseArray internal error in "
+		      "_make_leaf_from_two_arrays():\n"
+		      "    type \"%s\" is not supported", type2char(Rtype));
+
+	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(nzcount));
+	memcpy(INTEGER(ans_nzoffs), nzoffs_p, sizeof(int) * nzcount);
+
+	if (LACUNAR_MODE_IS_ON) {
+		int all_ones = _all_elts_equal_one(Rtype, nzvals_p, nzcount);
+		if (all_ones) {
+			SEXP ans = zip_leaf(R_NilValue, ans_nzoffs);
+			UNPROTECT(1);
+			return ans;
+		}
+	}
+	SEXP ans_nzvals = PROTECT(allocVector(Rtype, nzcount));
+	memcpy(DATAPTR(ans_nzvals), nzvals_p, Rtype_size * nzcount);
+	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs);
+	UNPROTECT(2);
+	return ans;
+}
 
 /* 'nzoffs_buf' must be of length 'subvec_len' (or more).
    The returned leaf can be lacunar. */
