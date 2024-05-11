@@ -131,7 +131,7 @@ static inline void *shift_out(const void *out, SEXPTYPE out_Rtype,
 			      long long int by)
 {
 	switch (out_Rtype) {
-	    case LGLSXP: case INTSXP: return ((int    *) out) + by;
+	    case INTSXP: case LGLSXP: return ((int    *) out) + by;
 	    case REALSXP:             return ((double *) out) + by;
 	}
 	error("SparseArray internal error in shift_out():\n"
@@ -148,7 +148,7 @@ static inline void copy_result_to_out(const SummarizeResult *res,
 		      "copy_result_to_out():\n"
 		      "    out_Rtype != res->out_Rtype");
 	switch (out_Rtype) {
-	    case LGLSXP: case INTSXP:
+	    case INTSXP: case LGLSXP:
 		*((int *) out) = res->outbuf.one_int[0];
 		return;
 	    case REALSXP:

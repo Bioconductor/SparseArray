@@ -930,7 +930,7 @@ void _summarize_Rvector(SEXP x, const SummarizeOp *summarize_op,
 	res->in_length += x_len;
 	int new_status;
 	switch (x_Rtype) {
-	    case LGLSXP: case INTSXP:
+	    case INTSXP: case LGLSXP:
 		new_status = summarize_ints(INTEGER(x), x_len,
 				summarize_op->opcode, summarize_op->na_rm,
 				summarize_op->center, res);
@@ -975,7 +975,7 @@ static void summarize_one_zero(const SummarizeOp *summarize_op,
 		      "    outbuf already set with breaking value");
 	int new_status;
 	switch (summarize_op->in_Rtype) {
-	    case LGLSXP: case INTSXP:
+	    case INTSXP: case LGLSXP:
 		new_status = summarize_ints(&int0, 1,
 				summarize_op->opcode, summarize_op->na_rm,
 				summarize_op->center, res);
@@ -1242,7 +1242,7 @@ SEXP _make_SEXP_from_summarize_result(const SummarizeOp *summarize_op,
 static inline int is_single_NA(SEXP x)
 {
 	switch (TYPEOF(x)) {
-	    case LGLSXP: case INTSXP:
+	    case INTSXP: case LGLSXP:
 		if (LENGTH(x) == 1 && INTEGER(x)[0] == NA_INTEGER)
 			return 1;
 	    break;

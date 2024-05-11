@@ -8,12 +8,12 @@
 static const Rbyte Rbyte0 = 0;
 static const int int0 = 0;
 static const double double0 = 0.0;
-static const Rcomplex Rcomplex0 = {{0.0, 0.0}};
+static const Rcomplex Rcomplex0 = {{double0, double0}};
 
 static const Rbyte Rbyte1 = 1;
 static const int int1 = 1;
 static const double double1 = 1.0;
-static const Rcomplex Rcomplex1 = {{1.0, 0.0}};
+static const Rcomplex Rcomplex1 = {{double1, double0}};
 
 
 /****************************************************************************
@@ -157,44 +157,30 @@ SEXPTYPE _get_Rtype_from_Rstring(SEXP type);
 
 size_t _get_Rtype_size(SEXPTYPE Rtype);
 
-SEXP _new_Rvector0(
+void _set_elts_to_zero(
 	SEXPTYPE Rtype,
-	R_xlen_t len
+	void *x,
+	R_xlen_t offset,
+	R_xlen_t n
 );
 
-SEXP _new_Rmatrix0(
+void _set_elts_to_one(
 	SEXPTYPE Rtype,
-	int nrow,
-	int ncol,
-	SEXP dimnames
+	void *x,
+	R_xlen_t offset,
+	R_xlen_t n
 );
 
-SEXP _new_Rarray0(
-	SEXPTYPE Rtype,
-	SEXP dim,
-	SEXP dimnames
+void _set_Rsubvec_to_zero(
+	SEXP Rvector,
+	R_xlen_t subvec_offset,
+	R_xlen_t subvec_len
 );
 
 void _set_Rsubvec_to_one(
 	SEXP Rvector,
 	R_xlen_t subvec_offset,
-	int subvec_len
-);
-
-SEXP _new_Rvector1(
-	SEXPTYPE Rtype,
-	int len
-);
-
-CopyRVectorElt_FUNType _select_copy_Rvector_elt_FUN(SEXPTYPE Rtype);
-
-CopyRVectorElts_FUNType _select_copy_Rvector_elts_FUN(SEXPTYPE Rtype);
-
-int _collect_offsets_of_nonzero_Rsubvec_elts(
-	SEXP Rvector,
-	R_xlen_t subvec_offset,
-	int subvec_len,
-	int *out
+	R_xlen_t subvec_len
 );
 
 void _set_selected_elts_to_zero(
@@ -225,6 +211,40 @@ void _set_selected_Rsubvec_elts_to_one(
 	R_xlen_t subvec_offset,
 	const int *selection,
 	int n
+);
+
+SEXP _new_Rvector0(
+	SEXPTYPE Rtype,
+	R_xlen_t len
+);
+
+SEXP _new_Rmatrix0(
+	SEXPTYPE Rtype,
+	int nrow,
+	int ncol,
+	SEXP dimnames
+);
+
+SEXP _new_Rarray0(
+	SEXPTYPE Rtype,
+	SEXP dim,
+	SEXP dimnames
+);
+
+SEXP _new_Rvector1(
+	SEXPTYPE Rtype,
+	int len
+);
+
+CopyRVectorElt_FUNType _select_copy_Rvector_elt_FUN(SEXPTYPE Rtype);
+
+CopyRVectorElts_FUNType _select_copy_Rvector_elts_FUN(SEXPTYPE Rtype);
+
+int _collect_offsets_of_nonzero_Rsubvec_elts(
+	SEXP Rvector,
+	R_xlen_t subvec_offset,
+	int subvec_len,
+	int *out
 );
 
 int _all_elts_equal_one(

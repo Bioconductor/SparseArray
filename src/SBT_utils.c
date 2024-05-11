@@ -181,7 +181,7 @@ typedef void (*copy_nzvals_FUNType)(const SparseBufNzVals nzvals,
 static copy_nzvals_FUNType _select_copy_nzvals_FUN(SEXPTYPE Rtype)
 {
 	switch (Rtype) {
-	    case LGLSXP: case INTSXP:
+	    case INTSXP: case LGLSXP:
 		return copy_SparseBuf_ints_to_Rvector;
 	    case REALSXP:
 		return copy_SparseBuf_doubles_to_Rvector;

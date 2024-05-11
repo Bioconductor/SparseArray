@@ -336,7 +336,7 @@ static int Compare_RbyteSV_scalar(int opcode,
 		return Compare_RbyteSV_Rbyte(opcode,
 					sv1, RAW(scalar)[0],
 					out_nzvals, out_nzoffs);
-	    case LGLSXP: case INTSXP:
+	    case INTSXP: case LGLSXP:
 		return Compare_RbyteSV_int(opcode,
 					sv1, INTEGER(scalar)[0],
 					out_nzvals, out_nzoffs);
@@ -362,7 +362,7 @@ static int Compare_intSV_scalar(int opcode,
 {
 	SEXPTYPE Rtype2 = TYPEOF(scalar);
 	switch (Rtype2) {
-	    case LGLSXP: case INTSXP:
+	    case INTSXP: case LGLSXP:
 		return Compare_intSV_int(opcode,
 					sv1, INTEGER(scalar)[0],
 					out_nzvals, out_nzoffs);
@@ -438,7 +438,7 @@ static int Compare_RbyteSV_SV(int opcode,
 	    case RAWSXP:
 		return Compare_RbyteSV_RbyteSV(opcode,
 				sv1, sv2, out_nzvals, out_nzoffs);
-	    case LGLSXP: case INTSXP:
+	    case INTSXP: case LGLSXP:
 		return Compare_RbyteSV_intSV(opcode,
 				sv1, sv2, out_nzvals, out_nzoffs);
 	    case REALSXP:
@@ -463,7 +463,7 @@ static int Compare_intSV_SV(int opcode,
 	    case RAWSXP:
 		return Compare_RbyteSV_intSV(flip_opcode(opcode),
 				sv2, sv1, out_nzvals, out_nzoffs);
-	    case LGLSXP: case INTSXP:
+	    case INTSXP: case LGLSXP:
 		return Compare_intSV_intSV(opcode,
 				sv1, sv2, out_nzvals, out_nzoffs);
 	    case REALSXP:
@@ -488,7 +488,7 @@ static int Compare_doubleSV_SV(int opcode,
 	    case RAWSXP:
 		return Compare_RbytesSV_doubleSV(flip_opcode(opcode),
 				sv2, sv1, out_nzvals, out_nzoffs);
-	    case LGLSXP: case INTSXP:
+	    case INTSXP: case LGLSXP:
 		return Compare_intSV_doubleSV(flip_opcode(opcode),
 				sv2, sv1, out_nzvals, out_nzoffs);
 	    case REALSXP:
@@ -513,7 +513,7 @@ static int Compare_RcomplexSV_SV(int opcode,
 	    case RAWSXP:
 		return Compare_RbyteSV_RcomplexSV(flip_opcode(opcode),
 				sv2, sv1, out_nzvals, out_nzoffs);
-	    case LGLSXP: case INTSXP:
+	    case INTSXP: case LGLSXP:
 		return Compare_intSV_RcomplexSV(flip_opcode(opcode),
 				sv2, sv1, out_nzvals, out_nzoffs);
 	    case REALSXP:
@@ -546,7 +546,7 @@ int _Compare_sv1_zero(int opcode, const SparseVec *sv1,
 	    case RAWSXP:
 		return Compare_RbyteSV_Rbyte(opcode,
 				sv1, Rbyte0, out_nzvals, out_nzoffs);
-	    case LGLSXP: case INTSXP:
+	    case INTSXP: case LGLSXP:
 		return Compare_intSV_int(opcode,
 				sv1, int0, out_nzvals, out_nzoffs);
 	    case REALSXP:
@@ -574,7 +574,7 @@ int _Compare_sv1_scalar(int opcode, const SparseVec *sv1, SEXP scalar,
 	    case RAWSXP:
 		return Compare_RbyteSV_scalar(opcode,
 				sv1, scalar, out_nzvals, out_nzoffs);
-	    case LGLSXP: case INTSXP:
+	    case INTSXP: case LGLSXP:
 		return Compare_intSV_scalar(opcode,
 				sv1, scalar, out_nzvals, out_nzoffs);
 	    case REALSXP:
@@ -600,7 +600,7 @@ int _Compare_sv1_sv2(int opcode, const SparseVec *sv1, const SparseVec *sv2,
 	    case RAWSXP:
 		return Compare_RbyteSV_SV(opcode,
 				sv1, sv2, out_nzvals, out_nzoffs);
-	    case LGLSXP: case INTSXP:
+	    case INTSXP: case LGLSXP:
 		return Compare_intSV_SV(opcode,
 				sv1, sv2, out_nzvals, out_nzoffs);
 	    case REALSXP:

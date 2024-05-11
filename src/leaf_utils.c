@@ -350,7 +350,8 @@ SEXP _subassign_leaf_with_Rvector(SEXP leaf, SEXP index, SEXP Rvector)
 		memcpy(ans_nzoffs_p, nzoffs_p, sizeof(int) * n);
 		if (nzvals == R_NilValue) {
 			/* lacunar leaf */
-			_set_Rsubvec_to_one(ans_nzvals, (R_xlen_t) k, n);
+			_set_Rsubvec_to_one(ans_nzvals, (R_xlen_t) k,
+					    (R_xlen_t) n);
 		} else {
 			copy_Rvector_elts_FUN(nzvals, (R_xlen_t) k1,
 					      ans_nzvals, (R_xlen_t) k,
