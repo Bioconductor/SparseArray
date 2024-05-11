@@ -21,7 +21,7 @@
 static void *alloc_quick_out_nzvals_p(unsigned long long int n, SEXPTYPE Rtype)
 {
 	switch (Rtype) {
-	    case LGLSXP: case INTSXP: return R_alloc(n, sizeof(int *));
+	    case INTSXP: case LGLSXP: return R_alloc(n, sizeof(int *));
 	    case REALSXP:             return R_alloc(n, sizeof(double *));
 	    case CPLXSXP:             return R_alloc(n, sizeof(Rcomplex *));
 	    case RAWSXP:              return R_alloc(n, sizeof(Rbyte *));
@@ -36,7 +36,7 @@ static inline void set_quick_out_nzvals_p(void *quick_out_nzvals_p,
 					  SEXPTYPE Rtype, SEXP nzvals)
 {
 	switch (Rtype) {
-	    case LGLSXP: case INTSXP: {
+	    case INTSXP: case LGLSXP: {
 		int      **p = quick_out_nzvals_p;
 		*p = nzvals == R_NilValue ? NULL : INTEGER(nzvals);
 		return;
@@ -160,7 +160,7 @@ typedef void (*TransposeCol_FUNType)(int col_idx, SEXP col,
 		int *nzcount_buf);
 
 /* Ignores 'nzcount_buf'. */
-static void transpose_INTEGER_col(int col_idx, SEXP col,
+static void transpose_integer_col(int col_idx, SEXP col,
 		void **quick_out_nzvals_p, int **quick_out_nzoffs_p,
 		int *nzcount_buf)
 {
@@ -190,7 +190,7 @@ static void transpose_INTEGER_col(int col_idx, SEXP col,
 }
 
 /* Ignores 'nzcount_buf'. */
-static void transpose_NUMERIC_col(int col_idx, SEXP col,
+static void transpose_double_col(int col_idx, SEXP col,
 		void **quick_out_nzvals_p, int **quick_out_nzoffs_p,
 		int *nzcount_buf)
 {
@@ -220,7 +220,7 @@ static void transpose_NUMERIC_col(int col_idx, SEXP col,
 }
 
 /* Ignores 'nzcount_buf'. */
-static void transpose_COMPLEX_col(int col_idx, SEXP col,
+static void transpose_complex_col(int col_idx, SEXP col,
 		void **quick_out_nzvals_p, int **quick_out_nzoffs_p,
 		int *nzcount_buf)
 {
@@ -250,7 +250,7 @@ static void transpose_COMPLEX_col(int col_idx, SEXP col,
 }
 
 /* Ignores 'nzcount_buf'. */
-static void transpose_RAW_col(int col_idx, SEXP col,
+static void transpose_raw_col(int col_idx, SEXP col,
 		void **quick_out_nzvals_p, int **quick_out_nzoffs_p,
 		int *nzcount_buf)
 {
@@ -279,7 +279,7 @@ static void transpose_RAW_col(int col_idx, SEXP col,
 	return;
 }
 
-static void transpose_CHARACTER_col(int col_idx, SEXP col,
+static void transpose_character_col(int col_idx, SEXP col,
 		void **quick_out_nzvals_p, int **quick_out_nzoffs_p,
 		int *nzcount_buf)
 {
@@ -298,7 +298,7 @@ static void transpose_CHARACTER_col(int col_idx, SEXP col,
 	return;
 }
 
-static void transpose_LIST_col(int col_idx, SEXP col,
+static void transpose_list_col(int col_idx, SEXP col,
 		void **quick_out_nzvals_p, int **quick_out_nzoffs_p,
 		int *nzcount_buf)
 {
@@ -320,12 +320,12 @@ static void transpose_LIST_col(int col_idx, SEXP col,
 static TransposeCol_FUNType select_transpose_col_FUN(SEXPTYPE Rtype)
 {
 	switch (Rtype) {
-	    case LGLSXP: case INTSXP: return transpose_INTEGER_col;
-	    case REALSXP:             return transpose_NUMERIC_col;
-	    case CPLXSXP:             return transpose_COMPLEX_col;
-	    case RAWSXP:              return transpose_RAW_col;
-	    case STRSXP:              return transpose_CHARACTER_col;
-	    case VECSXP:              return transpose_LIST_col;
+	    case INTSXP: case LGLSXP: return transpose_integer_col;
+	    case REALSXP:             return transpose_double_col;
+	    case CPLXSXP:             return transpose_complex_col;
+	    case RAWSXP:              return transpose_raw_col;
+	    case STRSXP:              return transpose_character_col;
+	    case VECSXP:              return transpose_list_col;
 	}
 	return NULL;
 }
@@ -491,7 +491,7 @@ static inline void *shift_quick_out_nzvals_p(const void *p, SEXPTYPE Rtype,
 					     unsigned long long int by)
 {
 	switch (Rtype) {
-	    case LGLSXP: case INTSXP: return ((int      **) p) + by;
+	    case INTSXP: case LGLSXP: return ((int      **) p) + by;
 	    case REALSXP:             return ((double   **) p) + by;
 	    case CPLXSXP:             return ((Rcomplex **) p) + by;
 	    case RAWSXP:              return ((Rbyte    **) p) + by;
@@ -845,12 +845,12 @@ static void spray_input_leaf_on_output_leaves(SEXP leaf, SEXPTYPE Rtype,
 			  int *nzcount_buf,
 			  void *quick_out_nzvals_p, int **quick_out_nzoffs_p);
 	switch (Rtype) {
-	    case LGLSXP: case INTSXP: spray_FUN = spray_integer_leaf; break;
-	    case REALSXP: spray_FUN = spray_double_leaf; break;
-	    case CPLXSXP: spray_FUN = spray_complex_leaf; break;
-	    case RAWSXP: spray_FUN = spray_raw_leaf; break;
-	    case STRSXP: spray_FUN = spray_character_leaf; break;
-	    case VECSXP: spray_FUN = spray_list_leaf; break;
+	    case INTSXP: case LGLSXP: spray_FUN = spray_integer_leaf;   break;
+	    case REALSXP:             spray_FUN = spray_double_leaf;    break;
+	    case CPLXSXP:             spray_FUN = spray_complex_leaf;   break;
+	    case RAWSXP:              spray_FUN = spray_raw_leaf;       break;
+	    case STRSXP:              spray_FUN = spray_character_leaf; break;
+	    case VECSXP:              spray_FUN = spray_list_leaf;      break;
 	    default:
 		error("SparseArray internal error in "
 		      "spray_input_leaf_on_output_leaves():\n"

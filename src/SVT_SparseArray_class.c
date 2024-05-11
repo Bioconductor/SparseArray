@@ -547,7 +547,8 @@ static int dump_leaf_to_ix(SEXP leaf,
 	/* Copy 'nzvals' to 'slotx'. */
 	if (nzvals == R_NilValue) {
 		/* lacunar leaf */
-		_set_Rsubvec_to_one(slotx, (R_xlen_t) ix_offset, nzcount);
+		_set_Rsubvec_to_one(slotx, (R_xlen_t) ix_offset,
+				    (R_xlen_t) nzcount);
 	} else {
 		/* regular leaf */
 		int ret = copy_Rvector_elts(nzvals, (R_xlen_t) 0,
