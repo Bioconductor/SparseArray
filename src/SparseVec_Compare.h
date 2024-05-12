@@ -13,6 +13,15 @@
 #define	LT_OPCODE	5  /* "<" */
 #define	GT_OPCODE	6  /* ">" */
 
+/* Special value returned by the _Compare_sv1_zero() or _Compare_sv1_scalar()
+   functions below to indicate that the result of the 'Commpare' operation
+   is a logical sparse vector where all the nonzero values are TRUEs and the
+   corresponding offsets are the same as the input ones ('sv1->nzoffs').
+   IMPORTANT: If this is the case then the functions don't even write anything
+   to output buffers 'out_nzvals' or 'out_nzoffs' so the caller should ignore
+   them. */
+#define	COMPARE_IS_NOOP -1  /* make sure to use a **negative** int */
+
 static inline int flip_opcode(int opcode)
 {
 	switch (opcode) {

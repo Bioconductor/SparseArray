@@ -214,20 +214,30 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 
 
 /****************************************************************************
- * Two macros to generate the Compare_<Ltype>SV_<Rtype>()
- * and Compare_<Ltype>SV_<Rtype>SV() functions (20 functions in total)
+ * Two macros to generate the code (arg list + body) of the following
+ * functions:
+ *   - Compare_<Ltype>SV_<Rtype>() (10 functions)
+ *   - Compare_<Ltype>SV_<Rtype>SV() (10 functions)
  */
 
-/* Generate def of Compare_<Ltype>SV_<Rtype>() functions. */
+/* Generate code of Compare_<Ltype>SV_<Rtype>() functions.
+   Should be used in a context where 'y' cannot be NA or NaN. */
 #define FUNDEF_Compare_LtypeSV_Rtype(Ltype, Rtype)(int opcode,		\
 		const SparseVec *sv1, Rtype y,				\
 		int *out_nzvals, int *out_nzoffs)			\
 {									\
-	const Ltype *nzvals1 = get_ ## Ltype ## SV_nzvals(sv1);		\
+	if (sv1->nzvals == R_NilValue) {				\
+		int v = Compare_ ## Ltype ## _ ## Rtype			\
+					(opcode, Ltype ## 1, y);	\
+		/* It is assumed that 'y' is not NA or NaN so 'v' */	\
+		/* must be TRUE or FALSE (cannot be NA_INTEGER). */	\
+		return v ? COMPARE_IS_NOOP : 0;				\
+	}								\
+	const Ltype *nzvals1_p = get_ ## Ltype ## SV_nzvals_p(sv1);	\
 	int nzcount1 = get_SV_nzcount(sv1);				\
 	int out_nzcount = 0;						\
 	for (int k = 0; k < nzcount1; k++) {				\
-		Ltype x = nzvals1[k];					\
+		Ltype x = nzvals1_p[k];					\
 		int v = Compare_ ## Ltype ## _ ## Rtype			\
 					(opcode, x, y);			\
 		if (v != int0) {					\
@@ -239,7 +249,7 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 	return out_nzcount;						\
 }
 
-/* Generate def of Compare_<Ltype>SV_<Rtype>SV() functions. */
+/* Generate code of Compare_<Ltype>SV_<Rtype>SV() functions. */
 #define FUNDEF_Compare_LtypeSV_RtypeSV(Ltype, Rtype)(int opcode,	\
 		const SparseVec *sv1, const SparseVec *sv2,		\
 		int *out_nzvals, int *out_nzoffs)			\
@@ -539,8 +549,6 @@ static int Compare_RcomplexSV_SV(int opcode,
 int _Compare_sv1_zero(int opcode, const SparseVec *sv1,
 		int *out_nzvals, int *out_nzoffs)
 {
-	if (sv1->nzvals == R_NilValue)
-		error("_Compare_sv1_zero() not ready on a lacunar SparseVec");
 	SEXPTYPE Rtype1 = get_SV_Rtype(sv1);
 	switch (Rtype1) {
 	    case RAWSXP:
@@ -567,8 +575,6 @@ int _Compare_sv1_zero(int opcode, const SparseVec *sv1,
 int _Compare_sv1_scalar(int opcode, const SparseVec *sv1, SEXP scalar,
 		int *out_nzvals, int *out_nzoffs)
 {
-	if (sv1->nzvals == R_NilValue)
-		error("_Compare_sv1_scalar() not ready on a lacunar SparseVec");
 	SEXPTYPE Rtype1 = get_SV_Rtype(sv1);
 	switch (Rtype1) {
 	    case RAWSXP:
@@ -593,8 +599,6 @@ int _Compare_sv1_scalar(int opcode, const SparseVec *sv1, SEXP scalar,
 int _Compare_sv1_sv2(int opcode, const SparseVec *sv1, const SparseVec *sv2,
 		int *out_nzvals, int *out_nzoffs)
 {
-	if (sv1->nzvals == R_NilValue || sv2->nzvals == R_NilValue)
-		error("_Compare_sv1_sv2() not ready when 'sv1' or 'sv2' is lacunar");
 	SEXPTYPE Rtype1 = get_SV_Rtype(sv1);
 	switch (Rtype1) {
 	    case RAWSXP:

@@ -75,7 +75,8 @@ void _expand_leaf(SEXP leaf, SEXP out_Rvector, R_xlen_t out_offset)
  */
 
 /* Does NOT work if 'Rtype' is STRSXP or VECSXP.
-   The 'nzvals_p' array is **trusted** to not contain any zeros. This is NOT
+   Each of 'nzvals_p' and 'nzoffs_p' must be a pointer to an array of length
+   'nzcount'. 'nzvals_p' is **trusted** to not contain any zeros. This is NOT
    checked! The returned leaf can be lacunar. */
 SEXP _make_leaf_from_two_arrays(SEXPTYPE Rtype,
 		const void *nzvals_p, const int *nzoffs_p, int nzcount)

@@ -144,11 +144,11 @@ static int Arith_intSV_int(int opcode,
 		const SparseVec *sv1, int y,
 		int *out_nzvals, int *out_nzoffs, int *ovflow)
 {
-	const int *nzvals1 = get_intSV_nzvals(sv1);
+	const int *nzvals1_p = get_intSV_nzvals_p(sv1);
 	int nzcount1 = get_SV_nzcount(sv1);
 	int out_nzcount = 0;
 	for (int k = 0; k < nzcount1; k++) {
-		int v = Arith_int(opcode, nzvals1[k], y, ovflow);
+		int v = Arith_int(opcode, nzvals1_p[k], y, ovflow);
 		if (v != int0) {
 			out_nzvals[out_nzcount] = v;
 			out_nzoffs[out_nzcount] = sv1->nzoffs[k];
@@ -183,12 +183,12 @@ static int Arith_intSV_double(int opcode,
                 const SparseVec *sv1, double y,
 		double *out_nzvals, int *out_nzoffs)
 {
-	const int *nzvals1 = get_intSV_nzvals(sv1);
+	const int *nzvals1_p = get_intSV_nzvals_p(sv1);
 	int nzcount1 = get_SV_nzcount(sv1);
 	int out_nzcount = 0;
 	for (int k = 0; k < nzcount1; k++) {
 		double v;
-		int x = nzvals1[k];
+		int x = nzvals1_p[k];
 		if (x == NA_INTEGER) {
 			v = NA_REAL;
 		} else {
@@ -261,11 +261,11 @@ static int Arith_doubleSV_double(int opcode,
 		const SparseVec *sv1, double y,
 		double *out_nzvals, int *out_nzoffs)
 {
-	const double *nzvals1 = get_doubleSV_nzvals(sv1);
+	const double *nzvals1_p = get_doubleSV_nzvals_p(sv1);
 	int nzcount1 = get_SV_nzcount(sv1);
 	int out_nzcount = 0;
 	for (int k = 0; k < nzcount1; k++) {
-		double v = Arith_double(opcode, nzvals1[k], y);
+		double v = Arith_double(opcode, nzvals1_p[k], y);
 		if (v != double0) {
 			out_nzvals[out_nzcount] = v;
 			out_nzoffs[out_nzcount] = sv1->nzoffs[k];
@@ -356,13 +356,13 @@ int _mult_SV_zero(const SparseVec *sv,
 	int nzcount = -1;
 	SEXPTYPE Rtype = get_SV_Rtype(sv);
 	if (Rtype == INTSXP) {
-		const int *nzvals = get_intSV_nzvals(sv);
+		const int *nzvals_p = get_intSV_nzvals_p(sv);
 		int in_nzcount = get_SV_nzcount(sv);
 		if (outRtype == INTSXP) {
 			/* We only keep NAs. */
 			int *out_nzvals_p = (int *) out_nzvals;
 			for (int k = nzcount = 0; k < in_nzcount; k++) {
-				int x = nzvals[k];
+				int x = nzvals_p[k];
 				if (x == NA_INTEGER) {
 					out_nzvals_p[nzcount] = NA_INTEGER;
 					out_nzoffs[nzcount] = sv->nzoffs[k];
@@ -373,7 +373,7 @@ int _mult_SV_zero(const SparseVec *sv,
 			/* We only keep NAs. */
 			double *out_nzvals_p = (double *) out_nzvals;
 			for (int k = nzcount = 0; k < in_nzcount; k++) {
-				int x = nzvals[k];
+				int x = nzvals_p[k];
 				if (x == NA_INTEGER) {
 					out_nzvals_p[nzcount] = NA_REAL;
 					out_nzoffs[nzcount] = sv->nzoffs[k];

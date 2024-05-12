@@ -8,36 +8,11 @@
 
 double _dotprod_doubleSV_doubleSV(const SparseVec *sv1, const SparseVec *sv2)
 {
-	const double *nzvals1_p =
-		sv1->nzvals == R_NilValue ? NULL : get_doubleSV_nzvals(sv1);
-	const double *nzvals2_p =
-		sv2->nzvals == R_NilValue ? NULL : get_doubleSV_nzvals(sv2);
-	double ans = 0.0;
-	int ret, k1 = 0, k2 = 0, off;
-	while ((ret = smallest_offset(sv1->nzoffs, get_SV_nzcount(sv1),
-				      sv2->nzoffs, get_SV_nzcount(sv2),
-				      k1, k2, &off)))
+	double ans = 0.0, val1, val2;
+	int k1 = 0, k2 = 0, off;
+	while (next_2SV_vals_double_double(sv1, sv2,
+				&k1, &k2, &off, &val1, &val2))
 	{
-		double val1 = double0, val2 = double0;
-		switch (ret) {
-		    case 1: {
-			val1 = nzvals1_p == NULL ? double1 : nzvals1_p[k1];
-			k1++;
-			break;
-		    }
-		    case 2: {
-			val2 = nzvals2_p == NULL ? double1 : nzvals2_p[k2];
-			k2++;
-			break;
-		    }
-		    case 3: {
-			val1 = nzvals1_p == NULL ? double1 : nzvals1_p[k1];
-			val2 = nzvals2_p == NULL ? double1 : nzvals2_p[k2];
-			k1++;
-			k2++;
-			break;
-		    }
-		}
 		if (R_IsNA(val1) || R_IsNA(val2))
 			return NA_REAL;
 		ans += val1 * val2;
@@ -60,7 +35,7 @@ double _dotprod_doubleSV_finite_doubles(const SparseVec *sv1, const double *x2)
 		for (int k1 = 0; k1 < nzcount1; k1++)
 			ans += x2[sv1->nzoffs[k1]];
 	} else {
-		const double *nzvals1_p = get_doubleSV_nzvals(sv1);
+		const double *nzvals1_p = get_doubleSV_nzvals_p(sv1);
 		for (int k1 = 0; k1 < nzcount1; k1++)
 			ans += nzvals1_p[k1] * x2[sv1->nzoffs[k1]];
 	}
@@ -72,8 +47,6 @@ double _dotprod_doubleSV_finite_doubles(const SparseVec *sv1, const double *x2)
    Significantly slower than _dotprod_doubleSV_finite_doubles(). */
 double _dotprod_doubleSV_doubles(const SparseVec *sv1, const double *x2)
 {
-	const double *nzvals1_p =
-		sv1->nzvals == R_NilValue ? NULL : get_doubleSV_nzvals(sv1);
 	double ans = 0.0;
 	int k1 = 0;
 	for (int i2 = 0; i2 < sv1->len; i2++) {
@@ -81,7 +54,7 @@ double _dotprod_doubleSV_doubles(const SparseVec *sv1, const double *x2)
 		if (R_IsNA(val2))
 			return NA_REAL;
 		if (k1 < get_SV_nzcount(sv1) && sv1->nzoffs[k1] == i2) {
-			val1 = nzvals1_p == NULL ? double1 : nzvals1_p[k1];
+			val1 = get_doubleSV_nzval(sv1, k1);
 			if (R_IsNA(val1))
 				return NA_REAL;
 			k1++;
@@ -106,7 +79,7 @@ double _dotprod_intSV_noNA_ints(const SparseVec *sv1, const int *x2)
 		for (int k1 = 0; k1 < nzcount1; k1++)
 			ans += (double) x2[sv1->nzoffs[k1]];
 	} else {
-		const int *nzvals1_p = get_intSV_nzvals(sv1);
+		const int *nzvals1_p = get_intSV_nzvals_p(sv1);
 		for (int k1 = 0; k1 < nzcount1; k1++) {
 			int v1 = nzvals1_p[k1];
 			if (v1 == NA_INTEGER)
@@ -122,8 +95,6 @@ double _dotprod_intSV_noNA_ints(const SparseVec *sv1, const int *x2)
    content of 'x2'. Significantly slower than _dotprod_intSV_noNA_ints(). */
 double _dotprod_intSV_ints(const SparseVec *sv1, const int *x2)
 {
-	const int *nzvals1_p =
-		sv1->nzvals == R_NilValue ? NULL : get_intSV_nzvals(sv1);
 	double ans = 0.0;
 	int k1 = 0;
 	for (int i2 = 0; i2 < sv1->len; i2++) {
@@ -131,7 +102,7 @@ double _dotprod_intSV_ints(const SparseVec *sv1, const int *x2)
 		if (val2 == NA_INTEGER)
 			return NA_REAL;
 		if (k1 < get_SV_nzcount(sv1) && sv1->nzoffs[k1] == i2) {
-			val1 = nzvals1_p == NULL ? int1 : nzvals1_p[k1];
+			val1 = get_intSV_nzval(sv1, k1);
 			if (val1 == NA_INTEGER)
 				return NA_REAL;
 			k1++;
@@ -169,7 +140,7 @@ double _dotprod_doubleSV_zero(const SparseVec *sv)
 {
 	if (sv->nzvals == R_NilValue)  /* lacunar SparseVec */
 		return 0.0;
-	return _dotprod_doubles_zero(get_doubleSV_nzvals(sv),
+	return _dotprod_doubles_zero(get_doubleSV_nzvals_p(sv),
 				     get_SV_nzcount(sv));
 }
 
@@ -177,6 +148,6 @@ double _dotprod_intSV_zero(const SparseVec *sv)
 {
 	if (sv->nzvals == R_NilValue)  /* lacunar SparseVec */
 		return 0.0;
-	return _dotprod_ints_zero(get_intSV_nzvals(sv), get_SV_nzcount(sv));
+	return _dotprod_ints_zero(get_intSV_nzvals_p(sv), get_SV_nzcount(sv));
 }
 

@@ -59,7 +59,7 @@ size_t _get_Rtype_size(SEXPTYPE Rtype)
  * _set_Rsubvec_to_one()
  */
 
-#define	DEFINE_set_elts_FUN(type)					\
+#define	DEFINE_set_TYPE_elts_FUN(type)					\
 static void set_ ## type ## _elts					\
 	(type *x, R_xlen_t n, type val)					\
 {									\
@@ -68,12 +68,12 @@ static void set_ ## type ## _elts					\
 	return;								\
 }
 
-DEFINE_set_elts_FUN(int)
-DEFINE_set_elts_FUN(double)
-DEFINE_set_elts_FUN(Rcomplex)
-DEFINE_set_elts_FUN(Rbyte)
+DEFINE_set_TYPE_elts_FUN(int)
+DEFINE_set_TYPE_elts_FUN(double)
+DEFINE_set_TYPE_elts_FUN(Rcomplex)
+DEFINE_set_TYPE_elts_FUN(Rbyte)
 
-#define	CALL_set_elts_FUN(type, x, offset, n, val) \
+#define	CALL_set_TYPE_elts_FUN(type, x, offset, n, val) \
 	set_ ## type ## _elts((type *) (x) + (offset), (n), (val))
 
 /* Restricted to types "logical", "integer", "double", "complex", and "raw". */
@@ -95,16 +95,16 @@ void _set_elts_to_one(SEXPTYPE Rtype, void *x, R_xlen_t offset, R_xlen_t n)
 {
 	switch (Rtype) {
 	    case INTSXP: case LGLSXP:
-		CALL_set_elts_FUN(int,      x, offset, n, int1);
+		CALL_set_TYPE_elts_FUN(int,      x, offset, n, int1);
 		return;
 	    case REALSXP:
-		CALL_set_elts_FUN(double,   x, offset, n, double1);
+		CALL_set_TYPE_elts_FUN(double,   x, offset, n, double1);
 		return;
 	    case CPLXSXP:
-		CALL_set_elts_FUN(Rcomplex, x, offset, n, Rcomplex1);
+		CALL_set_TYPE_elts_FUN(Rcomplex, x, offset, n, Rcomplex1);
 		return;
 	    case RAWSXP:
-		CALL_set_elts_FUN(Rbyte,    x, offset, n, Rbyte1);
+		CALL_set_TYPE_elts_FUN(Rbyte,    x, offset, n, Rbyte1);
 		return;
 	}
 	error("SparseArray internal error in _set_elts_to_one():\n"
@@ -166,7 +166,7 @@ void _set_Rsubvec_to_one(SEXP Rvector,
  * _set_selected_Rvector_elts_to_one()
  */
 
-#define	DEFINE_set_selected_elts_FUN(type)				\
+#define	DEFINE_set_selected_TYPE_elts_FUN(type)				\
 static void set_selected_ ## type ## _elts				\
 	(type *x, const int *selection, int n, type val)		\
 {									\
@@ -175,13 +175,13 @@ static void set_selected_ ## type ## _elts				\
 	return;								\
 }
 
-DEFINE_set_selected_elts_FUN(int)
-DEFINE_set_selected_elts_FUN(double)
-DEFINE_set_selected_elts_FUN(Rcomplex)
-DEFINE_set_selected_elts_FUN(Rbyte)
+DEFINE_set_selected_TYPE_elts_FUN(int)
+DEFINE_set_selected_TYPE_elts_FUN(double)
+DEFINE_set_selected_TYPE_elts_FUN(Rcomplex)
+DEFINE_set_selected_TYPE_elts_FUN(Rbyte)
 
-#define	CALL_set_selected_elts_FUN(type, x, offset, selecttion, n, val) \
-	set_selected_ ## type ## _elts((type *) (x) + (offset),		\
+#define	CALL_set_selected_TYPE_elts_FUN(type, x, offset, selecttion, n, val) \
+	set_selected_ ## type ## _elts((type *) (x) + (offset), \
 					(selection), (n), (val))
 
 /* Restricted to types "logical", "integer", "double", "complex", and "raw". */
@@ -190,20 +190,20 @@ void _set_selected_elts_to_zero(SEXPTYPE Rtype, void *x, R_xlen_t offset,
 {
 	switch (Rtype) {
 	    case INTSXP: case LGLSXP:
-		CALL_set_selected_elts_FUN(int, x, offset,
-					   selection, n, int0);
+		CALL_set_selected_TYPE_elts_FUN(int, x, offset,
+						selection, n, int0);
 		return;
 	    case REALSXP:
-		CALL_set_selected_elts_FUN(double, x, offset,
-					   selection, n, double0);
+		CALL_set_selected_TYPE_elts_FUN(double, x, offset,
+						selection, n, double0);
 		return;
 	    case CPLXSXP:
-		CALL_set_selected_elts_FUN(Rcomplex, x, offset,
-					   selection, n, Rcomplex0);
+		CALL_set_selected_TYPE_elts_FUN(Rcomplex, x, offset,
+						selection, n, Rcomplex0);
 		return;
 	    case RAWSXP:
-		CALL_set_selected_elts_FUN(Rbyte, x, offset,
-					   selection, n, Rbyte0);
+		CALL_set_selected_TYPE_elts_FUN(Rbyte, x, offset,
+						selection, n, Rbyte0);
 		return;
 	}
 	error("SparseArray internal error in _set_selected_elts_to_zero():\n"
@@ -217,20 +217,20 @@ void _set_selected_elts_to_one(SEXPTYPE Rtype, void *x, R_xlen_t offset,
 {
 	switch (Rtype) {
 	    case INTSXP: case LGLSXP:
-		CALL_set_selected_elts_FUN(int, x, offset,
-					   selection, n, int1);
+		CALL_set_selected_TYPE_elts_FUN(int, x, offset,
+						selection, n, int1);
 		return;
 	    case REALSXP:
-		CALL_set_selected_elts_FUN(double, x, offset,
-					   selection, n, double1);
+		CALL_set_selected_TYPE_elts_FUN(double, x, offset,
+						selection, n, double1);
 		return;
 	    case CPLXSXP:
-		CALL_set_selected_elts_FUN(Rcomplex, x, offset,
-					   selection, n, Rcomplex1);
+		CALL_set_selected_TYPE_elts_FUN(Rcomplex, x, offset,
+						selection, n, Rcomplex1);
 		return;
 	    case RAWSXP:
-		CALL_set_selected_elts_FUN(Rbyte, x, offset,
-					   selection, n, Rbyte1);
+		CALL_set_selected_TYPE_elts_FUN(Rbyte, x, offset,
+						selection, n, Rbyte1);
 		return;
 	}
 	error("SparseArray internal error in _set_selected_elts_to_one():\n"
@@ -335,8 +335,8 @@ SEXP _new_Rarray0(SEXPTYPE Rtype, SEXP dim, SEXP dimnames)
 
 /* Like _new_Rvector0() but:
    - initializes the vector elements to 1;
-   - 'len' must be int, not R_xlen_t (i.e. long vectors not supported)
-   Restricted to types "logical", "integer", "double", "complex", and "raw". */
+   - restricted to types "logical", "integer", "double", "complex", and "raw";
+   - 'len' must be int, not R_xlen_t (i.e. long vectors not supported). */
 SEXP _new_Rvector1(SEXPTYPE Rtype, int len)
 {
 	SEXP ans = PROTECT(allocVector(Rtype, (R_xlen_t) len));
