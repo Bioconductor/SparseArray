@@ -112,6 +112,16 @@ static SEXP Arith_leaf1_leaf2(int opcode,
  * 'Compare' operations on the tree leaves
  */
 
+static SEXP make_noNA_logical_leaf(SEXP nzoffs)
+{
+	if (LACUNAR_MODE_IS_ON)
+		return zip_leaf(R_NilValue, nzoffs);
+	SEXP nzvals = PROTECT(_new_Rvector1(LGLSXP, LENGTH(nzoffs)));
+	SEXP ans = zip_leaf(nzvals, nzoffs);
+	UNPROTECT(1);
+	return ans;
+}
+
 static SEXP Compare_leaf1_zero(int opcode,
 		SEXP leaf1, SEXPTYPE Rtype1,
 		int dim0,
@@ -120,6 +130,8 @@ static SEXP Compare_leaf1_zero(int opcode,
 	const SparseVec sv1 = leaf2SV(leaf1, Rtype1, dim0);
 	int buf_len = _Compare_sv1_zero(opcode, &sv1,
 					nzvals_buf, nzoffs_buf);
+	if (buf_len == COMPARE_IS_NOOP)
+		return make_noNA_logical_leaf(get_leaf_nzoffs(leaf1));
 	return _make_leaf_from_two_arrays(LGLSXP,
 					  nzvals_buf, nzoffs_buf, buf_len);
 }
@@ -132,6 +144,8 @@ static SEXP Compare_leaf1_scalar(int opcode,
 	const SparseVec sv1 = leaf2SV(leaf1, Rtype1, dim0);
 	int buf_len = _Compare_sv1_scalar(opcode, &sv1, scalar,
 					  nzvals_buf, nzoffs_buf);
+	if (buf_len == COMPARE_IS_NOOP)
+		return make_noNA_logical_leaf(get_leaf_nzoffs(leaf1));
 	return _make_leaf_from_two_arrays(LGLSXP,
 					  nzvals_buf, nzoffs_buf, buf_len);
 }

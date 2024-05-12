@@ -734,7 +734,7 @@ static inline int sum_X_X2_doubles(const double *x, int n,
  * _summarize_Rvector()
  */
 
-static int summarize_ones(int x_len,
+static int summarize_ones(SEXPTYPE x_Rtype, int x_len,
 		int opcode, double center, SummarizeResult *res)
 {
 	if (x_len == 0)
@@ -748,27 +748,56 @@ static int summarize_ones(int x_len,
 		res->outbuf.one_int[0] = 1;
 		return OUTBUF_IS_SET_WITH_BREAKING_VALUE;
 	    case MIN_OPCODE:
-		if (res->outbuf_status == OUTBUF_IS_NOT_SET ||
-		    1 < res->outbuf.one_int[0])
-		{
-			res->outbuf.one_int[0] = 1;
+		if (x_Rtype == INTSXP || x_Rtype == LGLSXP) {
+			if (res->outbuf_status == OUTBUF_IS_NOT_SET ||
+			    res->outbuf.one_int[0] > int1)
+			{
+				res->outbuf.one_int[0] = int1;
+			}
+		} else {
+			if (res->outbuf_status == OUTBUF_IS_NOT_SET ||
+			    res->outbuf.one_double[0] > double1)
+			{
+				res->outbuf.one_double[0] = double1;
+			}
 		}
 		return OUTBUF_IS_SET;
 	    case MAX_OPCODE:
-		if (res->outbuf_status == OUTBUF_IS_NOT_SET ||
-		    1 > res->outbuf.one_int[0])
-		{
-			res->outbuf.one_int[0] = 1;
+		if (x_Rtype == INTSXP || x_Rtype == LGLSXP) {
+			if (res->outbuf_status == OUTBUF_IS_NOT_SET ||
+			    res->outbuf.one_int[0] < int1)
+			{
+				res->outbuf.one_int[0] = int1;
+			}
+		} else {
+			if (res->outbuf_status == OUTBUF_IS_NOT_SET ||
+			    res->outbuf.one_double[0] < double1)
+			{
+				res->outbuf.one_double[0] = double1;
+			}
 		}
 		return OUTBUF_IS_SET;
 	    case RANGE_OPCODE:
-		if (res->outbuf_status == OUTBUF_IS_NOT_SET) {
-			res->outbuf.two_ints[0] = res->outbuf.two_ints[1] = 1;
+		if (x_Rtype == INTSXP || x_Rtype == LGLSXP) {
+			if (res->outbuf_status == OUTBUF_IS_NOT_SET) {
+				res->outbuf.two_ints[0] =
+				res->outbuf.two_ints[1] = int1;
+			} else {
+				if (res->outbuf.two_ints[0] > int1)
+					res->outbuf.two_ints[0] = int1;
+				if (res->outbuf.two_ints[1] < int1)
+					res->outbuf.two_ints[1] = int1;
+			}
 		} else {
-			if (1 < res->outbuf.two_ints[0])
-				res->outbuf.two_ints[0] = 1;
-			if (1 > res->outbuf.two_ints[1])
-				res->outbuf.two_ints[1] = 1;
+			if (res->outbuf_status == OUTBUF_IS_NOT_SET) {
+				res->outbuf.two_doubles[0] =
+				res->outbuf.two_doubles[1] = double1;
+			} else {
+				if (res->outbuf.two_doubles[0] > double1)
+					res->outbuf.two_doubles[0] = double1;
+				if (res->outbuf.two_doubles[1] < double1)
+					res->outbuf.two_doubles[1] = double1;
+			}
 		}
 		return OUTBUF_IS_SET;
 	    case SUM_OPCODE: case MEAN_OPCODE:
@@ -908,8 +937,9 @@ void _summarize_ones(int x_len, const SummarizeOp *summarize_op,
 		error("SparseArray internal error in _summarize_ones():\n"
 		      "    outbuf already set with breaking value");
 	res->in_length += x_len;
-	int new_status = summarize_ones(x_len, summarize_op->opcode,
-				summarize_op->center, res);
+	int new_status = summarize_ones(summarize_op->in_Rtype, x_len,
+					summarize_op->opcode,
+					summarize_op->center, res);
 	res->outbuf_status = new_status;
 	if (new_status == OUTBUF_IS_SET_WITH_BREAKING_VALUE)
 		res->postprocess_one_zero = 0;

@@ -62,24 +62,44 @@ static inline int get_SV_nzcount(const SparseVec *sv)
 	return sv->nzcount;
 }
 
-static inline const Rbyte *get_RbyteSV_nzvals(const SparseVec *sv)
+static inline const Rbyte *get_RbyteSV_nzvals_p(const SparseVec *sv)
 {
 	return RAW(sv->nzvals);
 }
 
-static inline const int *get_intSV_nzvals(const SparseVec *sv)
+static inline const int *get_intSV_nzvals_p(const SparseVec *sv)
 {
 	return INTEGER(sv->nzvals);
 }
 
-static inline const double *get_doubleSV_nzvals(const SparseVec *sv)
+static inline const double *get_doubleSV_nzvals_p(const SparseVec *sv)
 {
 	return REAL(sv->nzvals);
 }
 
-static inline const Rcomplex *get_RcomplexSV_nzvals(const SparseVec *sv)
+static inline const Rcomplex *get_RcomplexSV_nzvals_p(const SparseVec *sv)
 {
 	return COMPLEX(sv->nzvals);
+}
+
+static inline Rbyte get_RbyteSV_nzval(const SparseVec *sv, int k)
+{
+	return sv->nzvals == R_NilValue ? Rbyte1 : RAW(sv->nzvals)[k];
+}
+
+static inline int get_intSV_nzval(const SparseVec *sv, int k)
+{
+	return sv->nzvals == R_NilValue ? int1 : INTEGER(sv->nzvals)[k];
+}
+
+static inline double get_doubleSV_nzval(const SparseVec *sv, int k)
+{
+	return sv->nzvals == R_NilValue ? double1 : REAL(sv->nzvals)[k];
+}
+
+static inline Rcomplex get_RcomplexSV_nzval(const SparseVec *sv, int k)
+{
+	return sv->nzvals == R_NilValue ? Rcomplex1 : COMPLEX(sv->nzvals)[k];
 }
 
 static inline int smallest_offset(
@@ -112,21 +132,6 @@ static inline int smallest_offset(
 	return 0;
 }
 
-static inline int next_2SV_off(
-	const SparseVec *sv1, const SparseVec *sv2,
-	int *k1, int *k2, int *off)
-{
-	int ret = smallest_offset(sv1->nzoffs, get_SV_nzcount(sv1),
-				  sv2->nzoffs, get_SV_nzcount(sv2),
-				  *k1, *k2, off);
-	switch (ret) {
-	    case 1: (*k1)++;          break;
-	    case 2: (*k2)++;          break;
-	    case 3: (*k1)++; (*k2)++; break;
-	}
-	return ret;
-}
-
 #define FUNDEF_next_2SV_vals(Ltype, Rtype)				\
 	(const SparseVec *sv1,						\
 	 const SparseVec *sv2,						\
@@ -137,20 +142,20 @@ static inline int next_2SV_off(
 				  *k1, *k2, off);			\
 	switch (ret) {							\
 	    case 1: {							\
-		*val1 = get_ ## Ltype  ## SV_nzvals(sv1)[*k1];		\
+		*val1 = get_ ## Ltype  ## SV_nzval(sv1, *k1);		\
 		*val2 = Rtype ## 0;					\
 		(*k1)++;						\
 		break;							\
 	    }								\
 	    case 2: {							\
 		*val1 = Ltype ## 0;					\
-		*val2 = get_ ## Rtype  ## SV_nzvals(sv2)[*k2];		\
+		*val2 = get_ ## Rtype  ## SV_nzval(sv2, *k2);		\
 		(*k2)++;						\
 		break;							\
 	    }								\
 	    case 3: {							\
-		*val1 = get_ ## Ltype  ## SV_nzvals(sv1)[*k1];		\
-		*val2 = get_ ## Rtype  ## SV_nzvals(sv2)[*k2];		\
+		*val1 = get_ ## Ltype  ## SV_nzval(sv1, *k1);		\
+		*val2 = get_ ## Rtype  ## SV_nzval(sv2, *k2);		\
 		(*k1)++;						\
 		(*k2)++;						\
 		break;							\

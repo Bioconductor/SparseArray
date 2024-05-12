@@ -123,11 +123,11 @@ int _Math_doubleSV(MathFUN fun, const SparseVec *sv, double digits,
 		error("_Math_doubleSV() not ready on a lacunar SparseVec");
 	set_NaNs_produced_flag(0);
 	digits0 = digits;
-	const double *nzvals = get_doubleSV_nzvals(sv);
+	const double *nzvals_p = get_doubleSV_nzvals_p(sv);
 	int nzcount = get_SV_nzcount(sv);
 	int buf_len = 0;
 	for (int k = 0; k < nzcount; k++) {
-		double v = fun(nzvals[k]);
+		double v = fun(nzvals_p[k]);
 		if (v != 0.0) {
 			nzvals_buf[buf_len] = v;
 			nzoffs_buf[buf_len] = sv->nzoffs[k];

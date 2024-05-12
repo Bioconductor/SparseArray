@@ -32,7 +32,7 @@ static int doubleSV_has_no_NaN_or_Inf(const SparseVec *sv)
 {
 	if (sv->nzvals == R_NilValue)  /* lacunar SparseVec */
 		return 1;
-	return has_no_NaN_or_Inf(get_doubleSV_nzvals(sv),
+	return has_no_NaN_or_Inf(get_doubleSV_nzvals_p(sv),
 				 get_SV_nzcount(sv));
 }
 
@@ -40,7 +40,7 @@ static int intSV_has_no_NA(const SparseVec *sv)
 {
 	if (sv->nzvals == R_NilValue)  /* lacunar SparseVec */
 		return 1;
-	return has_no_NA(get_intSV_nzvals(sv),
+	return has_no_NA(get_intSV_nzvals_p(sv),
 			 get_SV_nzcount(sv));
 }
 
@@ -76,7 +76,7 @@ static void expand_doubleSV(const SparseVec *sv, double *out)
 		_set_selected_elts_to_one(REALSXP, out, 0,
 				sv->nzoffs, get_SV_nzcount(sv));
 	} else {
-		_copy_doubles_to_offsets(get_doubleSV_nzvals(sv),
+		_copy_doubles_to_offsets(get_doubleSV_nzvals_p(sv),
 				sv->nzoffs, get_SV_nzcount(sv), out);
 	}
 	return;
@@ -90,7 +90,7 @@ static void expand_intSV(const SparseVec *sv, int *out)
 		_set_selected_elts_to_one(INTSXP, out, 0,
 				sv->nzoffs, get_SV_nzcount(sv));
 	} else {
-		_copy_ints_to_offsets(get_intSV_nzvals(sv),
+		_copy_ints_to_offsets(get_intSV_nzvals_p(sv),
 				sv->nzoffs, get_SV_nzcount(sv), out);
 	}
 	return;
