@@ -18,7 +18,7 @@
 #include <string.h>  /* for memset() */
 
 
-static void *alloc_quick_out_nzvals_p(unsigned long long int n, SEXPTYPE Rtype)
+static void *alloc_quick_out_nzvals_p(R_xlen_t n, SEXPTYPE Rtype)
 {
 	switch (Rtype) {
 	    case INTSXP: case LGLSXP: return R_alloc(n, sizeof(int *));
@@ -28,48 +28,62 @@ static void *alloc_quick_out_nzvals_p(unsigned long long int n, SEXPTYPE Rtype)
 	    case STRSXP: case VECSXP: return R_alloc(n, sizeof(SEXP));
 	}
 	error("SparseArray internal error in alloc_quick_out_nzvals_p():\n"
-	      "    type \"%s\" is not supported", type2char(Rtype));
+	      "    unsupported SparseArray type: \"%s\"", type2char(Rtype));
 	return NULL;  /* will never reach this */
 }
 
-static inline void set_quick_out_nzvals_p(void *quick_out_nzvals_p,
+static inline void *shift_quick_out_nzvals_p(const void **p,
+		SEXPTYPE Rtype, R_xlen_t by)
+{
+	switch (Rtype) {
+	    case INTSXP: case LGLSXP: return ((int      **) p) + by;
+	    case REALSXP:             return ((double   **) p) + by;
+	    case CPLXSXP:             return ((Rcomplex **) p) + by;
+	    case RAWSXP:              return ((Rbyte    **) p) + by;
+	    case STRSXP: case VECSXP: return ((SEXP      *) p) + by;
+	}
+	error("SparseArray internal error in shift_quick_out_nzvals_p():\n"
+	      "    unsupported SparseArray type: \"%s\"", type2char(Rtype));
+	return NULL;  /* will never reach this */
+}
+
+static inline void set_quick_out_nzvals_p(const void **quick_out_nzvals_p,
 					  SEXPTYPE Rtype, SEXP nzvals)
 {
 	switch (Rtype) {
 	    case INTSXP: case LGLSXP: {
-		int      **p = quick_out_nzvals_p;
+		const int      **p = (const int **) quick_out_nzvals_p;
 		*p = nzvals == R_NilValue ? NULL : INTEGER(nzvals);
 		return;
 	    }
 	    case REALSXP: {
-		double   **p = quick_out_nzvals_p;
+		const double   **p = (const double **) quick_out_nzvals_p;
 		*p = nzvals == R_NilValue ? NULL : REAL(nzvals);
 		return;
 	    }
 	    case CPLXSXP: {
-		Rcomplex **p = quick_out_nzvals_p;
+		const Rcomplex **p = (const Rcomplex **) quick_out_nzvals_p;
 		*p = nzvals == R_NilValue ? NULL : COMPLEX(nzvals);
 		return;
 	    }
 	    case RAWSXP: {
-		Rbyte    **p = quick_out_nzvals_p;
+		const Rbyte    **p = (const Rbyte **) quick_out_nzvals_p;
 		*p = nzvals == R_NilValue ? NULL : RAW(nzvals);
 		return;
 	    }
 	    case STRSXP: case VECSXP: {
-		SEXP      *p = quick_out_nzvals_p;
+		SEXP            *p = (SEXP *) quick_out_nzvals_p;
 		*p = nzvals;
 		return;
 	    }
 	}
-	error("SparseArray internal error in "
-	      "set_quick_out_nzvals_p():\n"
+	error("SparseArray internal error in set_quick_out_nzvals_p():\n"
 	      "    unsupported SparseArray type: \"%s\"", type2char(Rtype));
 }
 
 static SEXP alloc_output_leaf(SEXPTYPE Rtype, int nzcount,
 		const int *onecount_buf,
-		void *quick_out_nzvals_p, int **quick_out_nzoffs_p)
+		const void **quick_out_nzvals_p, const int **quick_out_nzoffs_p)
 {
 	if (nzcount == 0)
 		return R_NilValue;
@@ -345,14 +359,17 @@ static SEXP transpose_2D_SVT(SEXP SVT, int nrow, int ncol, SEXPTYPE Rtype,
 
 	/* 2nd pass: Allocate transposed SVT. */
 	void **quick_out_nzvals_p =
-		alloc_quick_out_nzvals_p((unsigned long long int) nrow, Rtype);
+			alloc_quick_out_nzvals_p((R_xlen_t) nrow, Rtype);
 	int **quick_out_nzoffs_p = (int **) R_alloc(nrow, sizeof(int *));
 	SEXP ans = PROTECT(NEW_LIST(nrow));
 	for (int i = 0; i < nrow; i++) {
+		const void **p = shift_quick_out_nzvals_p(
+					(const void **) quick_out_nzvals_p,
+					Rtype, (R_xlen_t) i);
 		SEXP ans_elt = alloc_output_leaf(Rtype, nzcount_buf[i],
-						 onecount_buf + i,
-						 quick_out_nzvals_p + i,
-						 quick_out_nzoffs_p + i);
+					onecount_buf + i,
+					p,
+					(const int **) quick_out_nzoffs_p + i);
 		if (ans_elt != R_NilValue) {
 			PROTECT(ans_elt);
 			SET_VECTOR_ELT(ans, i, ans_elt);
@@ -487,19 +504,6 @@ static void compute_ans_dim_and_perm_margins(
  * Buffers used by aperm_SVT_shattering_leaves()
  */
 
-static inline void *shift_quick_out_nzvals_p(const void *p, SEXPTYPE Rtype,
-					     unsigned long long int by)
-{
-	switch (Rtype) {
-	    case INTSXP: case LGLSXP: return ((int      **) p) + by;
-	    case REALSXP:             return ((double   **) p) + by;
-	    case CPLXSXP:             return ((Rcomplex **) p) + by;
-	    case RAWSXP:              return ((Rbyte    **) p) + by;
-	    case STRSXP: case VECSXP: return ((SEXP      *) p) + by;
-	}
-	return NULL;
-}
-
 typedef struct aperm0_bufs_t {
 	/* 'nzcount_buf' must be an array of dimensions 'dim(out_array)[-1]'
 	   where 'out_array' is the array produced by permuting the
@@ -507,10 +511,10 @@ typedef struct aperm0_bufs_t {
 	   will be 'dim(in_array)[perm]'. */
 	int *nzcount_buf;
 	int *onecount_buf;  /* same as 'nzcount_buf' or NULL */
-	unsigned long long int nzcount_buf_len;  /* prod(dim(out_array)[-1]) */
-	unsigned long long int *nzcount_buf_incs;
-	unsigned long long int *outer_incs;
-	void *quick_out_nzvals_p;
+	R_xlen_t nzcount_buf_len;  /* prod(dim(out_array)[-1]) */
+	R_xlen_t *nzcount_buf_incs;
+	R_xlen_t *outer_incs;
+	void **quick_out_nzvals_p;
 	int **quick_out_nzoffs_p;
 } Aperm0Bufs;
 
@@ -518,12 +522,12 @@ typedef struct aperm0_bufs_t {
 static void init_A0Bufs(Aperm0Bufs *A0Bufs, const int *dim, int ndim,
 			const int *perm, SEXPTYPE Rtype)
 {
-	unsigned long long int *nzcount_buf_incs = (unsigned long long int *)
-		R_alloc(ndim - 1, sizeof(unsigned long long int));
-	unsigned long long int *outer_incs = (unsigned long long int *)
-		R_alloc(ndim, sizeof(unsigned long long int));
+	R_xlen_t *nzcount_buf_incs = (R_xlen_t *)
+		R_alloc(ndim - 1, sizeof(R_xlen_t));
+	R_xlen_t *outer_incs = (R_xlen_t *)
+		R_alloc(ndim, sizeof(R_xlen_t));
 	outer_incs[perm[0] - 1] = 0;
-	unsigned long long int nzcount_buf_len = 1;
+	R_xlen_t nzcount_buf_len = 1;
 	for (int along = 1; along < ndim; along++) {
 		int p = perm[along] - 1;
 		nzcount_buf_incs[along - 1] = nzcount_buf_len;
@@ -531,12 +535,12 @@ static void init_A0Bufs(Aperm0Bufs *A0Bufs, const int *dim, int ndim,
 		nzcount_buf_len *= dim[p];
 	}
 /*
-	printf("nzcount_buf_len = %llu\n", nzcount_buf_len);
+	printf("nzcount_buf_len = %lu\n", nzcount_buf_len);
 	for (int along = 0; along < ndim - 1; along++)
-		printf("nzcount_buf_incs[%d] = %llu\n",
+		printf("nzcount_buf_incs[%d] = %lu\n",
 			along, nzcount_buf_incs[along]);
 	for (int along = 0; along < ndim; along++)
-		printf("outer_incs[%d] = %llu\n",
+		printf("outer_incs[%d] = %lu\n",
 			along, outer_incs[along]);
 */
 	A0Bufs->nzcount_buf = (int *)
@@ -662,16 +666,14 @@ static SEXP aperm_SVT_preserving_leaves(
  */
 
 static inline void scan_input_leaf(SEXP leaf,
-		unsigned long long int outer_inc0,
-		unsigned long long int outer_offset0,
+		R_xlen_t outer_inc0, R_xlen_t outer_offset0,
 		int *nzcount_buf, int *onecount_buf)
 {
 	SEXP nzvals, nzoffs;
 	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
 	const int *nzoffs_p = INTEGER(nzoffs);
 	for (int k = 0; k < nzcount; k++, nzoffs_p++) {
-		unsigned long long int outer_idx = outer_offset0 +
-						   outer_inc0 * *nzoffs_p;
+		R_xlen_t outer_idx = outer_offset0 + outer_inc0 * *nzoffs_p;
 		nzcount_buf[outer_idx]++;
 		if (onecount_buf == NULL)
 			continue;
@@ -684,25 +686,20 @@ static inline void scan_input_leaf(SEXP leaf,
 
 /* Recursive. */
 static void REC_collect_stats_on_output_leaves(SEXP SVT, int ndim,
-		const unsigned long long int *outer_incs,
-		unsigned long long int outer_offset0,
+		const R_xlen_t *outer_incs, R_xlen_t outer_offset0,
 		int *nzcount_buf, int *onecount_buf)
 {
-	unsigned long long int outer_inc;
-	int SVT_len, i;
-	SEXP subSVT;
-
 	if (SVT == R_NilValue)
 		return;
-	outer_inc = outer_incs[ndim - 1];
+	R_xlen_t outer_inc = outer_incs[ndim - 1];
 	if (ndim == 1) {
 		scan_input_leaf(SVT, outer_inc, outer_offset0,
 				nzcount_buf, onecount_buf);
 		return;
 	}
-	SVT_len = LENGTH(SVT);
-	for (i = 0; i < SVT_len; i++, outer_offset0 += outer_inc) {
-		subSVT = VECTOR_ELT(SVT, i);
+	int SVT_len = LENGTH(SVT);
+	for (int i = 0; i < SVT_len; i++, outer_offset0 += outer_inc) {
+		SEXP subSVT = VECTOR_ELT(SVT, i);
 		REC_collect_stats_on_output_leaves(subSVT, ndim - 1,
 						   outer_incs, outer_offset0,
 						   nzcount_buf, onecount_buf);
@@ -713,9 +710,10 @@ static void REC_collect_stats_on_output_leaves(SEXP SVT, int ndim,
 /* Recursive. */
 static SEXP REC_grow_output_tree(const int *dim, int ndim,
 		SEXPTYPE Rtype,
-		const unsigned long long int *nzcount_buf_incs,
+		const R_xlen_t *nzcount_buf_incs,
 		const int *nzcount_buf, const int *onecount_buf,
-		void *quick_out_nzvals_p, int **quick_out_nzoffs_p)
+		const void **quick_out_nzvals_p,
+		const int **quick_out_nzoffs_p)
 {
 	if (ndim == 1)
 		return alloc_output_leaf(Rtype, *nzcount_buf,
@@ -723,7 +721,7 @@ static SEXP REC_grow_output_tree(const int *dim, int ndim,
 					 quick_out_nzvals_p,
 					 quick_out_nzoffs_p);
 	int ans_len = dim[ndim - 1];
-	unsigned long long int buf_inc = nzcount_buf_incs[ndim - 2];
+	R_xlen_t buf_inc = nzcount_buf_incs[ndim - 2];
 	SEXP ans = PROTECT(NEW_LIST(ans_len));
 	int is_empty = 1;
 	for (int i = 0; i < ans_len; i++) {
@@ -751,8 +749,7 @@ static SEXP REC_grow_output_tree(const int *dim, int ndim,
 
 #define	FUNDEF_spray_leaf(type)						\
 	(SEXP leaf, int inner_idx,					\
-	 unsigned long long int outer_inc0,				\
-	 unsigned long long int outer_offset0,				\
+	 R_xlen_t outer_inc0, R_xlen_t outer_offset0,			\
 	 int *nzcount_buf,						\
 	 void *quick_out_nzvals_p, int **quick_out_nzoffs_p)		\
 {									\
@@ -768,8 +765,8 @@ static SEXP REC_grow_output_tree(const int *dim, int ndim,
 	const int *nzoffs_p = INTEGER(nzoffs);				\
 	type **out_nzvals_p = (type **) quick_out_nzvals_p;		\
 	for (int k = 0; k < n; k++) {					\
-		unsigned long long int outer_idx =			\
-				outer_offset0 +	outer_inc0 * *nzoffs_p;	\
+		R_xlen_t outer_idx = outer_offset0 +			\
+				     outer_inc0 * *nzoffs_p;		\
 		int k2 = nzcount_buf[outer_idx]++;			\
 		type *p = out_nzvals_p[outer_idx];			\
 		if (p != NULL) {					\
@@ -789,8 +786,7 @@ static inline void spray_complex_leaf FUNDEF_spray_leaf(Rcomplex)
 static inline void spray_raw_leaf FUNDEF_spray_leaf(Rbyte)
 
 static inline void spray_character_leaf(SEXP leaf, int inner_idx,
-		unsigned long long int outer_inc0,
-		unsigned long long int outer_offset0,
+		R_xlen_t outer_inc0, R_xlen_t outer_offset0,
 		int *nzcount_buf,
 		void *quick_out_nzvals_p, int **quick_out_nzoffs_p)
 {
@@ -799,8 +795,7 @@ static inline void spray_character_leaf(SEXP leaf, int inner_idx,
 	const int *nzoffs_p = INTEGER(nzoffs);
 	SEXP *out_nzvals_p = (SEXP *) quick_out_nzvals_p;
 	for (int k = 0; k < n; k++) {
-		unsigned long long int outer_idx =
-				outer_offset0 + outer_inc0 * *nzoffs_p;
+		R_xlen_t outer_idx = outer_offset0 + outer_inc0 * *nzoffs_p;
 		int k2 = nzcount_buf[outer_idx]++;
 		SET_STRING_ELT(out_nzvals_p[outer_idx], k2,
 			       STRING_ELT(nzvals, k));
@@ -811,8 +806,7 @@ static inline void spray_character_leaf(SEXP leaf, int inner_idx,
 }
 
 static inline void spray_list_leaf(SEXP leaf, int inner_idx,
-		unsigned long long int outer_inc0,
-		unsigned long long int outer_offset0,
+		R_xlen_t outer_inc0, R_xlen_t outer_offset0,
 		int *nzcount_buf,
 		void *quick_out_nzvals_p, int **quick_out_nzoffs_p)
 {
@@ -821,8 +815,7 @@ static inline void spray_list_leaf(SEXP leaf, int inner_idx,
 	const int *nzoffs_p = INTEGER(nzoffs);
 	SEXP *out_nzvals_p = (SEXP *) quick_out_nzvals_p;
 	for (int k = 0; k < n; k++) {
-		unsigned long long int outer_idx =
-				outer_offset0 + outer_inc0 * *nzoffs_p;
+		R_xlen_t outer_idx = outer_offset0 + outer_inc0 * *nzoffs_p;
 		int k2 = nzcount_buf[outer_idx]++;
 		SET_VECTOR_ELT(out_nzvals_p[outer_idx], k2,
 			       VECTOR_ELT(nzvals, k));
@@ -833,15 +826,13 @@ static inline void spray_list_leaf(SEXP leaf, int inner_idx,
 }
 
 static void spray_input_leaf_on_output_leaves(SEXP leaf, SEXPTYPE Rtype,
-		unsigned long long int outer_inc0,
-		unsigned long long int outer_offset0,
+		R_xlen_t outer_inc0, R_xlen_t outer_offset0,
 		int *nzcount_buf,
 		void *quick_out_nzvals_p, int **quick_out_nzoffs_p,
 		int inner_idx)
 {
 	void (*spray_FUN)(SEXP leaf, int inner_idx,
-			  unsigned long long int outer_inc0,
-			  unsigned long long int outer_offset0,
+			  R_xlen_t outer_inc0, R_xlen_t outer_offset0,
 			  int *nzcount_buf,
 			  void *quick_out_nzvals_p, int **quick_out_nzoffs_p);
 	switch (Rtype) {
@@ -866,8 +857,7 @@ static void spray_input_leaf_on_output_leaves(SEXP leaf, SEXPTYPE Rtype,
 /* Recursive. */
 static void REC_spray_input_leaves_on_output_leaves(
 		SEXP SVT, int ndim, SEXPTYPE Rtype,
-		const unsigned long long int *outer_incs,
-		unsigned long long int outer_offset0,
+		const R_xlen_t *outer_incs, R_xlen_t outer_offset0,
 		int *nzcount_buf,
 		void *quick_out_nzvals_p, int **quick_out_nzoffs_p)
 {
@@ -875,7 +865,7 @@ static void REC_spray_input_leaves_on_output_leaves(
 
 	if (SVT == R_NilValue)
 		return;
-	unsigned long long int outer_inc = outer_incs[ndim - 1];
+	R_xlen_t outer_inc = outer_incs[ndim - 1];
 	if (ndim == 1) {
 		spray_input_leaf_on_output_leaves(SVT, Rtype,
 			outer_inc, outer_offset0,
@@ -913,23 +903,23 @@ static SEXP aperm_SVT_shattering_leaves(
 		memset(A0Bufs->onecount_buf, 0,
 		       sizeof(int) * A0Bufs->nzcount_buf_len);
 	REC_collect_stats_on_output_leaves(SVT, ndim,
-					   A0Bufs->outer_incs, 0,
-					   A0Bufs->nzcount_buf,
-					   A0Bufs->onecount_buf);
+				A0Bufs->outer_incs, 0,
+				A0Bufs->nzcount_buf,
+				A0Bufs->onecount_buf);
 	/* 2nd pass */
 	ans = PROTECT(REC_grow_output_tree(ans_dim, ndim, Rtype,
-					   A0Bufs->nzcount_buf_incs,
-					   A0Bufs->nzcount_buf,
-					   A0Bufs->onecount_buf,
-					   A0Bufs->quick_out_nzvals_p,
-					   A0Bufs->quick_out_nzoffs_p));
+				A0Bufs->nzcount_buf_incs,
+				A0Bufs->nzcount_buf,
+				A0Bufs->onecount_buf,
+				(const void **) A0Bufs->quick_out_nzvals_p,
+				(const int **) A0Bufs->quick_out_nzoffs_p));
 	/* 3rd pass */
 	memset(A0Bufs->nzcount_buf, 0, sizeof(int) * A0Bufs->nzcount_buf_len);
 	REC_spray_input_leaves_on_output_leaves(SVT, ndim, Rtype,
-					   A0Bufs->outer_incs, 0,
-					   A0Bufs->nzcount_buf,
-					   A0Bufs->quick_out_nzvals_p,
-					   A0Bufs->quick_out_nzoffs_p);
+				A0Bufs->outer_incs, 0,
+				A0Bufs->nzcount_buf,
+				A0Bufs->quick_out_nzvals_p,
+				A0Bufs->quick_out_nzoffs_p);
 
 	/* 4th pass */
 	if (A0Bufs->onecount_buf != NULL && LACUNAR_MODE_IS_ON == 0)

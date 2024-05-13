@@ -14,6 +14,30 @@
 #include <string.h>  /* for memcmp() */
 
 
+static SEXP make_leaf_with_single_shared_nzval(SEXPTYPE Rtype,
+		void *shared_nzval, SEXP nzoffs)
+{
+	if (LACUNAR_MODE_IS_ON && _all_elts_equal_one(Rtype, shared_nzval, 1))
+		return zip_leaf(R_NilValue, nzoffs);
+	int nzcount = LENGTH(nzoffs);
+	SEXP nzvals = PROTECT(allocVector(Rtype, nzcount));
+	_set_Rvector_elts_to_val(nzvals, shared_nzval);
+	SEXP ans = zip_leaf(nzvals, nzoffs);
+	UNPROTECT(1);
+	return ans;
+}
+
+static SEXP make_noNA_logical_leaf(SEXP nzoffs)
+{
+	if (LACUNAR_MODE_IS_ON)
+		return zip_leaf(R_NilValue, nzoffs);
+	SEXP nzvals = PROTECT(_new_Rvector1(LGLSXP, LENGTH(nzoffs)));
+	SEXP ans = zip_leaf(nzvals, nzoffs);
+	UNPROTECT(1);
+	return ans;
+}
+
+
 /****************************************************************************
  * 'Arith' operations on the tree leaves
  */
@@ -30,10 +54,21 @@ static SEXP unary_minus_leaf(SEXP leaf, SEXPTYPE Rtype, SEXPTYPE ans_Rtype)
 {
 	SEXP leaf_nzvals, ans_nzvals, nzoffs;
 	int nzcount = unzip_leaf(leaf, &leaf_nzvals, &nzoffs);
-	if (leaf_nzvals == R_NilValue)
-		error("unary_minus_leaf() not ready on a lacunar leaf");
-	if (ans_Rtype == 0) {
-		/* In-place replacement! */
+	if (leaf_nzvals == R_NilValue) {
+		ans_nzvals = PROTECT(
+			allocVector(ans_Rtype == 0 ? Rtype : ans_Rtype, nzcount)
+		);
+		_set_Rvector_elts_to_minus_one(ans_nzvals);
+		if (ans_Rtype == 0) {  /* In-place replacement! */
+			replace_leaf_nzvals(leaf, ans_nzvals);
+			UNPROTECT(1);
+			return leaf;
+		}
+		SEXP ans = zip_leaf(ans_nzvals, nzoffs);
+		UNPROTECT(1);
+		return ans;
+	}
+	if (ans_Rtype == 0) {  /* In-place replacement! */
 		ans_nzvals = leaf_nzvals;
 	} else {
 		ans_nzvals = PROTECT(allocVector(ans_Rtype, nzcount));
@@ -44,8 +79,15 @@ static SEXP unary_minus_leaf(SEXP leaf, SEXPTYPE Rtype, SEXPTYPE ans_Rtype)
 			UNPROTECT(1);
 		error("%s", errmsg);
 	}
-	if (ans_Rtype == 0)
+	int go_lacunar = LACUNAR_MODE_IS_ON &&
+			 _all_Rvector_elts_equal_one(ans_nzvals);
+	if (ans_Rtype == 0) {
+		if (go_lacunar)
+			replace_leaf_nzvals(leaf, R_NilValue);
 		return leaf;
+	}
+	if (go_lacunar)
+		ans_nzvals = R_NilValue;
 	SEXP ans = zip_leaf(ans_nzvals, nzoffs);
 	UNPROTECT(1);
 	return ans;
@@ -59,8 +101,12 @@ static SEXP Arith_leaf1_scalar(int opcode,
 	const SparseVec sv1 = leaf2SV(leaf1, Rtype1, dim0);
 	int buf_len = _Arith_sv1_scalar(opcode, &sv1, scalar, ans_Rtype,
 					nzvals_buf, nzoffs_buf, ovflow);
-	return _make_leaf_from_two_arrays(ans_Rtype,
-					  nzvals_buf, nzoffs_buf, buf_len);
+	if (buf_len == PROPAGATE_NZOFFS)
+		return make_leaf_with_single_shared_nzval(
+					     ans_Rtype, nzvals_buf,
+					     get_leaf_nzoffs(leaf1));
+	return _make_leaf_from_two_arrays(ans_Rtype, nzvals_buf,
+					  nzoffs_buf, buf_len);
 }
 
 static SEXP Arith_leaf1_leaf2(int opcode,
@@ -112,16 +158,6 @@ static SEXP Arith_leaf1_leaf2(int opcode,
  * 'Compare' operations on the tree leaves
  */
 
-static SEXP make_noNA_logical_leaf(SEXP nzoffs)
-{
-	if (LACUNAR_MODE_IS_ON)
-		return zip_leaf(R_NilValue, nzoffs);
-	SEXP nzvals = PROTECT(_new_Rvector1(LGLSXP, LENGTH(nzoffs)));
-	SEXP ans = zip_leaf(nzvals, nzoffs);
-	UNPROTECT(1);
-	return ans;
-}
-
 static SEXP Compare_leaf1_zero(int opcode,
 		SEXP leaf1, SEXPTYPE Rtype1,
 		int dim0,
@@ -130,8 +166,14 @@ static SEXP Compare_leaf1_zero(int opcode,
 	const SparseVec sv1 = leaf2SV(leaf1, Rtype1, dim0);
 	int buf_len = _Compare_sv1_zero(opcode, &sv1,
 					nzvals_buf, nzoffs_buf);
-	if (buf_len == COMPARE_IS_NOOP)
+	if (buf_len == PROPAGATE_NZOFFS) {
+		/* Sanity check. */
+		if (nzvals_buf[0] != int1)
+			error("SparseArray internal error in "
+			      "Compare_leaf1_zero():\n"
+			      "    nzvals_buf[0] != int1");
 		return make_noNA_logical_leaf(get_leaf_nzoffs(leaf1));
+	}
 	return _make_leaf_from_two_arrays(LGLSXP,
 					  nzvals_buf, nzoffs_buf, buf_len);
 }
@@ -144,8 +186,14 @@ static SEXP Compare_leaf1_scalar(int opcode,
 	const SparseVec sv1 = leaf2SV(leaf1, Rtype1, dim0);
 	int buf_len = _Compare_sv1_scalar(opcode, &sv1, scalar,
 					  nzvals_buf, nzoffs_buf);
-	if (buf_len == COMPARE_IS_NOOP)
+	if (buf_len == PROPAGATE_NZOFFS) {
+		/* Sanity check. */
+		if (nzvals_buf[0] != int1)
+			error("SparseArray internal error in "
+			      "Compare_leaf1_scalar():\n"
+			      "    nzvals_buf[0] != int1");
 		return make_noNA_logical_leaf(get_leaf_nzoffs(leaf1));
+	}
 	return _make_leaf_from_two_arrays(LGLSXP,
 					  nzvals_buf, nzoffs_buf, buf_len);
 }

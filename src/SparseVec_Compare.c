@@ -229,9 +229,12 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 	if (sv1->nzvals == R_NilValue) {				\
 		int v = Compare_ ## Ltype ## _ ## Rtype			\
 					(opcode, Ltype ## 1, y);	\
+		if (v == int0)						\
+			return 0;					\
 		/* It is assumed that 'y' is not NA or NaN so 'v' */	\
-		/* must be TRUE or FALSE (cannot be NA_INTEGER). */	\
-		return v ? COMPARE_IS_NOOP : 0;				\
+		/* can only be 'int1' here (cannot be NA_INTEGER). */	\
+		out_nzvals[0] = v;					\
+		return PROPAGATE_NZOFFS;				\
 	}								\
 	const Ltype *nzvals1_p = get_ ## Ltype ## SV_nzvals_p(sv1);	\
 	int nzcount1 = get_SV_nzcount(sv1);				\
