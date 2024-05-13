@@ -197,5 +197,18 @@ static inline int next_2SV_vals_double_Rcomplex
 static inline int next_2SV_vals_Rcomplex_Rcomplex
 	FUNDEF_next_2SV_vals(Rcomplex, Rcomplex)
 
+/* PROPAGATE_NZOFFS is a special value returned by _Arith_sv1_scalar(),
+   _Compare_sv1_scalar(), and other functions that take a single input
+   SparseVec to indicate that the result of the operation is a sparse vector
+   with the same nzoffs as the input ones and with a single nzval shared by
+   all the nzoffs.
+   IMPORTANT: If this is the case then the function doesn't write anything
+   to output buffer 'out_nzoffs' and writes the single shared nzval to
+   'out_nzvals[0]'. */
+#define	PROPAGATE_NZOFFS   -1  /* must be a **negative** int */
+
+/* Another special value used in SparseVec_Arith.c. */
+#define	NZCOUNT_IS_NOT_SET -2  /* must be < 0 and != PROPAGATE_NZOFFS */
+
 #endif  /* _SPARSEVEC_H_ */
 

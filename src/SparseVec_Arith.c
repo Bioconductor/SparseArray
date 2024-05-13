@@ -144,6 +144,13 @@ static int Arith_intSV_int(int opcode,
 		const SparseVec *sv1, int y,
 		int *out_nzvals, int *out_nzoffs, int *ovflow)
 {
+	if (sv1->nzvals == R_NilValue) {
+		int v = Arith_int(opcode, int1, y, ovflow);
+		if (v == int0)
+			return 0;
+		out_nzvals[0] = v;
+		return PROPAGATE_NZOFFS;
+	}
 	const int *nzvals1_p = get_intSV_nzvals_p(sv1);
 	int nzcount1 = get_SV_nzcount(sv1);
 	int out_nzcount = 0;
@@ -183,6 +190,13 @@ static int Arith_intSV_double(int opcode,
                 const SparseVec *sv1, double y,
 		double *out_nzvals, int *out_nzoffs)
 {
+	if (sv1->nzvals == R_NilValue) {
+		double v = Arith_double(opcode, double1, y);
+		if (v == double0)
+			return 0;
+		out_nzvals[0] = v;
+		return PROPAGATE_NZOFFS;
+	}
 	const int *nzvals1_p = get_intSV_nzvals_p(sv1);
 	int nzcount1 = get_SV_nzcount(sv1);
 	int out_nzcount = 0;
@@ -261,6 +275,13 @@ static int Arith_doubleSV_double(int opcode,
 		const SparseVec *sv1, double y,
 		double *out_nzvals, int *out_nzoffs)
 {
+	if (sv1->nzvals == R_NilValue) {
+		double v = Arith_double(opcode, double1, y);
+		if (v == double0)
+			return 0;
+		out_nzvals[0] = v;
+		return PROPAGATE_NZOFFS;
+	}
 	const double *nzvals1_p = get_doubleSV_nzvals_p(sv1);
 	int nzcount1 = get_SV_nzcount(sv1);
 	int out_nzcount = 0;
@@ -303,10 +324,8 @@ int _Arith_sv1_scalar(int opcode, const SparseVec *sv1, SEXP scalar,
 		SEXPTYPE expected_outRtype,
 		void *out_nzvals, int *out_nzoffs, int *ovflow)
 {
-	if (sv1->nzvals == R_NilValue)
-		error("_Arith_sv1_scalar() not ready on a lacunar SparseVec");
 	SEXPTYPE effective_outRtype = REALSXP;
-	int nzcount = -1;
+	int nzcount = NZCOUNT_IS_NOT_SET;
 	SEXPTYPE Rtype1 = get_SV_Rtype(sv1);
 	switch (Rtype1) {
 	    case INTSXP:
@@ -329,7 +348,7 @@ int _Arith_sv1_scalar(int opcode, const SparseVec *sv1, SEXP scalar,
 		}
 	    break;
 	}
-	if (nzcount == -1)
+	if (nzcount == NZCOUNT_IS_NOT_SET)
 		error("_Arith_sv1_scalar() only supports input of "
 		      "type \"integer\" or \"double\" at the moment");
 	if (expected_outRtype != effective_outRtype)
@@ -352,8 +371,8 @@ int _mult_SV_zero(const SparseVec *sv,
 		SEXPTYPE outRtype, void *out_nzvals, int *out_nzoffs)
 {
 	if (sv->nzvals == R_NilValue)
-		error("_mult_SV_zero() not ready on a lacunar SparseVec");
-	int nzcount = -1;
+		return 0;
+	int nzcount = NZCOUNT_IS_NOT_SET;
 	SEXPTYPE Rtype = get_SV_Rtype(sv);
 	if (Rtype == INTSXP) {
 		const int *nzvals_p = get_intSV_nzvals_p(sv);
@@ -388,9 +407,9 @@ int _mult_SV_zero(const SparseVec *sv,
 					(double *) out_nzvals, out_nzoffs);
 		}
 	}
-	if (nzcount == -1)
-		error("_mult_SV_zero() only supports input "
-		      "of type \"integer\" or \"double\" at the moment");
+	if (nzcount == NZCOUNT_IS_NOT_SET)
+		error("_mult_SV_zero() only supports input of "
+		      "type \"integer\" or \"double\" at the moment");
 	return nzcount;
 }
 
@@ -398,10 +417,8 @@ int _Arith_sv1_sv2(int opcode, const SparseVec *sv1, const SparseVec *sv2,
 		SEXPTYPE expected_outRtype,
 		void *out_nzvals, int *out_nzoffs, int *ovflow)
 {
-	if (sv1->nzvals == R_NilValue || sv2->nzvals == R_NilValue)
-		error("_Arith_sv1_sv2() not ready when 'sv1' or 'sv2' is lacunar");
 	SEXPTYPE effective_outRtype = REALSXP;
-	int nzcount = -1;
+	int nzcount = NZCOUNT_IS_NOT_SET;
 	SEXPTYPE Rtype1 = get_SV_Rtype(sv1);
 	SEXPTYPE Rtype2 = get_SV_Rtype(sv2);
 	if (Rtype1 == INTSXP) {
@@ -423,7 +440,7 @@ int _Arith_sv1_sv2(int opcode, const SparseVec *sv1, const SparseVec *sv2,
 					(double *) out_nzvals, out_nzoffs);
 		}
 	}
-	if (nzcount == -1)
+	if (nzcount == NZCOUNT_IS_NOT_SET)
 		error("_Arith_sv1_sv2() only supports input of "
 		      "type \"integer\" or \"double\" at the moment");
 	if (expected_outRtype != effective_outRtype)

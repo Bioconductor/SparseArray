@@ -34,6 +34,22 @@ typedef void (*CopyRVectorElts_FUNType)(
  * Inline functions
  */
 
+#define SHIFT_DATAPTR(type, x, offset) (type *) (x) + (offset)
+
+/* Restricted to types "logical", "integer", "double", "complex", and "raw". */
+static inline void *shift_dataptr(SEXPTYPE Rtype, void *x, R_xlen_t offset)
+{
+	switch (Rtype) {
+	    case INTSXP: case LGLSXP: return SHIFT_DATAPTR(int, x, offset);
+	    case REALSXP:             return SHIFT_DATAPTR(double, x, offset);
+	    case CPLXSXP:             return SHIFT_DATAPTR(Rcomplex, x, offset);
+	    case RAWSXP:              return SHIFT_DATAPTR(Rbyte, x, offset);
+	}
+	error("SparseArray internal error in shift_dataptr():\n"
+	      "    type \"%s\" is not supported", type2char(Rtype));
+	return NULL;  /* will never reach this */
+}
+
 static inline void _copy_INTEGER_elt(
 		SEXP in,  R_xlen_t in_offset,
 		SEXP out, R_xlen_t out_offset)
@@ -157,6 +173,14 @@ SEXPTYPE _get_Rtype_from_Rstring(SEXP type);
 
 size_t _get_Rtype_size(SEXPTYPE Rtype);
 
+void _set_elts_to_val(
+	SEXPTYPE Rtype,
+	void *x,
+	R_xlen_t offset,
+	R_xlen_t n,
+	const void *val
+);
+
 void _set_elts_to_zero(
 	SEXPTYPE Rtype,
 	void *x,
@@ -171,17 +195,45 @@ void _set_elts_to_one(
 	R_xlen_t n
 );
 
-void _set_Rsubvec_to_zero(
+void _set_elts_to_minus_one(
+	SEXPTYPE Rtype,
+	void *x,
+	R_xlen_t offset,
+	R_xlen_t n
+);
+
+void _set_Rsubvec_elts_to_val(
+	SEXP Rvector,
+	R_xlen_t subvec_offset,
+	R_xlen_t subvec_len,
+	const void *val
+);
+
+void _set_Rsubvec_elts_to_zero(
 	SEXP Rvector,
 	R_xlen_t subvec_offset,
 	R_xlen_t subvec_len
 );
 
-void _set_Rsubvec_to_one(
+void _set_Rsubvec_elts_to_one(
 	SEXP Rvector,
 	R_xlen_t subvec_offset,
 	R_xlen_t subvec_len
 );
+
+void _set_Rsubvec_elts_to_minus_one(
+	SEXP Rvector,
+	R_xlen_t subvec_offset,
+	R_xlen_t subvec_len
+);
+
+void _set_Rvector_elts_to_val(SEXP Rvector, const void *val);
+
+void _set_Rvector_elts_to_zero(SEXP Rvector);
+
+void _set_Rvector_elts_to_one(SEXP Rvector);
+
+void _set_Rvector_elts_to_minus_one(SEXP Rvector);
 
 void _set_selected_elts_to_zero(
 	SEXPTYPE Rtype,
@@ -258,6 +310,8 @@ int _all_Rsubvec_elts_equal_one(
 	R_xlen_t subvec_offset,
 	int subvec_len
 );
+
+int _all_Rvector_elts_equal_one(SEXP Rvector);
 
 int _all_selected_Rsubvec_elts_equal_one(
 	SEXP Rvector,
