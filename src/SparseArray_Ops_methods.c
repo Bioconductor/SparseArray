@@ -14,23 +14,10 @@
 #include <string.h>  /* for memcmp() */
 
 
-static SEXP make_leaf_with_single_shared_nzval(SEXPTYPE Rtype,
-		void *shared_nzval, SEXP nzoffs)
-{
-	if (LACUNAR_MODE_IS_ON && _all_elts_equal_one(Rtype, shared_nzval, 1))
-		return zip_leaf(R_NilValue, nzoffs);
-	int nzcount = LENGTH(nzoffs);
-	SEXP nzvals = PROTECT(allocVector(Rtype, nzcount));
-	_set_Rvector_elts_to_val(nzvals, shared_nzval);
-	SEXP ans = zip_leaf(nzvals, nzoffs);
-	UNPROTECT(1);
-	return ans;
-}
-
 static SEXP make_noNA_logical_leaf(SEXP nzoffs)
 {
 	if (LACUNAR_MODE_IS_ON)
-		return zip_leaf(R_NilValue, nzoffs);
+		return _make_lacunar_leaf(nzoffs);
 	SEXP nzvals = PROTECT(_new_Rvector1(LGLSXP, LENGTH(nzoffs)));
 	SEXP ans = zip_leaf(nzvals, nzoffs);
 	UNPROTECT(1);
@@ -73,12 +60,7 @@ static SEXP unary_minus_leaf(SEXP leaf, SEXPTYPE Rtype, SEXPTYPE ans_Rtype)
 	} else {
 		ans_nzvals = PROTECT(allocVector(ans_Rtype, nzcount));
 	}
-	const char *errmsg = _unary_minus_Rvector(leaf_nzvals, ans_nzvals);
-	if (errmsg != NULL) {
-		if (ans_Rtype != 0)
-			UNPROTECT(1);
-		error("%s", errmsg);
-	}
+	_unary_minus_Rvector(leaf_nzvals, ans_nzvals);
 	int go_lacunar = LACUNAR_MODE_IS_ON &&
 			 _all_Rvector_elts_equal_one(ans_nzvals);
 	if (ans_Rtype == 0) {
@@ -102,9 +84,9 @@ static SEXP Arith_leaf1_scalar(int opcode,
 	int buf_len = _Arith_sv1_scalar(opcode, &sv1, scalar, ans_Rtype,
 					nzvals_buf, nzoffs_buf, ovflow);
 	if (buf_len == PROPAGATE_NZOFFS)
-		return make_leaf_with_single_shared_nzval(
-					     ans_Rtype, nzvals_buf,
-					     get_leaf_nzoffs(leaf1));
+		return _make_leaf_with_single_shared_nzval(
+					      ans_Rtype, nzvals_buf,
+					      get_leaf_nzoffs(leaf1));
 	return _make_leaf_from_two_arrays(ans_Rtype, nzvals_buf,
 					  nzoffs_buf, buf_len);
 }

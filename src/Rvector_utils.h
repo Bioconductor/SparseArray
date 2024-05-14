@@ -34,9 +34,11 @@ typedef void (*CopyRVectorElts_FUNType)(
  * Inline functions
  */
 
+/* Should be the same as doing (char *) (x) + sizeof(type) * (offset). */
 #define SHIFT_DATAPTR(type, x, offset) (type *) (x) + (offset)
 
-/* Restricted to types "logical", "integer", "double", "complex", and "raw". */
+/* Restricted to types "logical", "integer", "double", "complex", and "raw".
+   Should be the same as doing (char *) x + _get_Rtype_size(Rtype) * offset. */
 static inline void *shift_dataptr(SEXPTYPE Rtype, void *x, R_xlen_t offset)
 {
 	switch (Rtype) {
@@ -411,7 +413,7 @@ void _copy_Rvector_elts_from_selected_lloffsets(
 	SEXP out_Rvector
 );
 
-const char *_unary_minus_Rvector(
+void _unary_minus_Rvector(
 	SEXP in_Rvector,
 	SEXP out_Rvector
 );

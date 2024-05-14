@@ -169,10 +169,7 @@ static int Arith_intSV_intSV(int opcode,
 		const SparseVec *sv1, const SparseVec *sv2,
 		int *out_nzvals, int *out_nzoffs, int *ovflow)
 {
-	int k1, k2, off, x, y;
-
-	int out_nzcount = 0;
-	k1 = k2 = 0;
+	int out_nzcount = 0, k1 = 0, k2 = 0, off, x, y;
 	while (next_2SV_vals_int_int(sv1, sv2,
 				&k1, &k2, &off, &x, &y))
 	{
@@ -221,11 +218,9 @@ static int Arith_intSV_doubleSV(int opcode,
 		const SparseVec *sv1, const SparseVec *sv2,
 		double *out_nzvals, int *out_nzoffs)
 {
-	int k1, k2, off, x;
-	double y;
 
-	int out_nzcount = 0;
-	k1 = k2 = 0;
+	int out_nzcount = 0, k1 = 0, k2 = 0, off, x;
+	double y;
 	while (next_2SV_vals_int_double(sv1, sv2,
 				&k1, &k2, &off, &x, &y))
 	{
@@ -248,11 +243,8 @@ static int Arith_doubleSV_intSV(int opcode,
 		const SparseVec *sv1, const SparseVec *sv2,
 		double *out_nzvals, int *out_nzoffs)
 {
-	int k1, k2, off, y;
+	int out_nzcount = 0, k1 = 0, k2 = 0, off, y;
 	double x;
-
-	int out_nzcount = 0;
-	k1 = k2 = 0;
 	while (next_2SV_vals_double_int(sv1, sv2,
 				&k1, &k2, &off, &x, &y))
 	{
@@ -300,11 +292,8 @@ static int Arith_doubleSV_doubleSV(int opcode,
 		const SparseVec *sv1, const SparseVec *sv2,
 		double *out_nzvals, int *out_nzoffs)
 {
-	int k1, k2, off;
+	int out_nzcount = 0, k1 = 0, k2 = 0, off;
 	double x, y;
-
-	int out_nzcount = 0;
-	k1 = k2 = 0;
 	while (next_2SV_vals_double_double(sv1, sv2,
 				&k1, &k2, &off, &x, &y))
 	{

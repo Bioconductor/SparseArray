@@ -35,7 +35,7 @@ test_that("subassign an SVT_SparseArray object by an Mindex or Lindex", {
                                                          "SVT_SparseArray")
 
     ## Add some nonzero elements.
-    a0 <- make_3D_test_array()
+    a0 <- make_3D_double_array()
     Mindex23 <- rbind(cbind(Mindex2, 1L), Mindex3)
     vals2 <- c(vals, vals)
     Mindex0 <- nzwhich(a0, arr.ind=TRUE)
@@ -51,7 +51,7 @@ test_that("subassign an SVT_SparseArray object by an Mindex or Lindex", {
                                                          "SVT_SparseArray")
 
     ## Integer array.
-    a0 <- make_3D_test_array()
+    a0 <- make_3D_double_array()
     suppressWarnings(storage.mode(a0) <- "integer")
     .test_SparseArray_subassignment_by_Mindex_and_Lindex(a0, Mindex23, vals2,
                                                          "SVT_SparseArray")
@@ -59,7 +59,7 @@ test_that("subassign an SVT_SparseArray object by an Mindex or Lindex", {
                                                          "SVT_SparseArray")
 
     ## Array type changed by subassignment.
-    a0 <- make_3D_test_array()
+    a0 <- make_3D_double_array()
     vals2 <- complex(real=vals2, imaginary=-0.75)
     .test_SparseArray_subassignment_by_Mindex_and_Lindex(a0, Mindex23, vals2,
                                                          "SVT_SparseArray")
