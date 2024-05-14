@@ -13,20 +13,25 @@
    the first dimension (a.k.a. innermost or fastest moving dimension) of the
    sparse array. They contain a collection of offset/value pairs sorted by
    strictly ascending offset.
-   A leaf is represented by an R_NilValue if it's empty, or by a list of 2
-   parallel dense vectors:
+   A leaf is represented by an SEXP that is either R_NilValue or a list of
+   length 2. R_NilValue is used to represent an empty leaf. Otherwise, a
+   list of 2 parallel dense vectors is used:
      - nzvals: a vector (atomic or list) of nonzero values (zeros are
                not allowed).
      - nzoffs: an integer vector of offsets (i.e. 0-based positions);
    The common length of 'nzvals' and 'nzoffs' is called the "nonzero count"
-   (nzcount) and is guaranteed to be >= 1. Also we don't support "long leaves"
-   so 'nzcount' must always be <= INT_MAX.
-   Note that a leaf represents a 1D SVT. */
+   (a.k.a. nzcount) and it should always be >= 1. Note that we do not
+   support "long leaves" so 'nzcount' will always be <= INT_MAX.
 
-/* Is it ok to produce lacunar leaves? Proper handling of lacunar leaves
-   is still work-in-progress so we can turn this off any time if things
-   go wrong. */
-#define LACUNAR_MODE_IS_ON 0
+   In SparseArray 1.5.4 a new type of leaf was introduced called "lacunar
+   leaf". A lacunar leaf is a non-empty leaf where the nzvals component is
+   set to R_NilValue. In this case the nonzero values are implicit: they're
+   all considered to be equal to one.
+
+   It's useful to realize that a leaf simply represents a 1D SVT. */
+
+/* Support for "lacunar leaves" was completed in SparseArray 1.5.4. */
+#define LACUNAR_MODE_IS_ON 1  /* turned on in SparseArray 1.5.4 */
 
 /* In-place replacement. Supplied 'nzvals' is trusted! */
 static inline void replace_leaf_nzvals(SEXP leaf, SEXP nzvals)
