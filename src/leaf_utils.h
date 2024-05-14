@@ -145,6 +145,14 @@ void _expand_leaf(
 	R_xlen_t out_offset
 );
 
+SEXP _make_lacunar_leaf(SEXP nzoffs);
+
+SEXP _make_leaf_with_single_shared_nzval(
+	SEXPTYPE Rtype,
+	void *shared_nzval,
+	SEXP nzoffs
+);
+
 SEXP _make_leaf_from_two_arrays(
 	SEXPTYPE Rtype,
 	const void *nzvals_p,

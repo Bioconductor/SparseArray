@@ -574,7 +574,7 @@ int _Compare_sv1_zero(int opcode, const SparseVec *sv1,
 }
 
 /* 'scalar' is assumed to be an atomic vector of length 1. This is NOT checked!
-   Also its type is expected to be the same size as sv1's type or bigger. */
+   Also its type is expected to be the same as sv1's type or bigger. */
 int _Compare_sv1_scalar(int opcode, const SparseVec *sv1, SEXP scalar,
 		int *out_nzvals, int *out_nzoffs)
 {

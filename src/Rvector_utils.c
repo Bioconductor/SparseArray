@@ -117,10 +117,7 @@ void _set_elts_to_zero(SEXPTYPE Rtype, void *x, R_xlen_t offset, R_xlen_t n)
 	if (Rtype_size == 0)
 		error("SparseArray internal error in _set_elts_to_zero():\n"
 		      "    type \"%s\" is not supported", type2char(Rtype));
-	if (offset != 0)
-		error("SparseArray internal error in _set_elts_to_zero():\n"
-		      "    offset != 0 not handled yet");
-	memset(x, 0, Rtype_size * n);
+	memset(shift_dataptr(Rtype, x, offset), 0, Rtype_size * n);
 	return;
 }
 
@@ -1157,57 +1154,117 @@ void _copy_Rvector_elts_from_selected_lloffsets(SEXP Rvector,
  * _unary_minus_Rvector()
  */
 
-/* 'out_Rvector' must be already allocated to the length of 'Rvector'.
-   Types of 'Rvector' and 'out_Rvector' are expected to be the same but
-   some exceptions are supported (e.g. if input type is "integer" then output
-   type can be "double"). More exceptions could be added if needed.
+static void unary_minus_int(const int *x, SEXP out_Rvector)
+{
+	R_xlen_t n = XLENGTH(out_Rvector);
+	SEXPTYPE out_Rtype = TYPEOF(out_Rvector);
+	int val;
+	switch (out_Rtype) {
+	    case INTSXP: {
+		int *out = INTEGER(out_Rvector);
+		for (R_xlen_t i = 0; i < n; i++) {
+			val = x[i];
+			if (val != NA_INTEGER)
+				val = - val;
+			out[i] = val;
+		}
+		return;
+	    }
+	    case REALSXP: {
+		double *out = REAL(out_Rvector);
+		for (R_xlen_t i = 0; i < n; i++) {
+			val = x[i];
+			if (val == NA_INTEGER) {
+				out[i] = NA_REAL;
+			} else {
+				val = - val;
+				out[i] = (double) val;
+			}
+		}
+		return;
+	    }
+	    case CPLXSXP: {
+		Rcomplex *out = COMPLEX(out_Rvector);
+		for (R_xlen_t i = 0; i < n; i++, out++) {
+			val = x[i];
+			if (val == NA_INTEGER) {
+				out->r = NA_REAL;
+			} else {
+				val = - val;
+				out->r = (double) val;
+			}
+			out->i = double0;
+		}
+		return;
+	    }
+	}
+	error("SparseArray internal error in unary_minus_int():\n"
+	      "    output type \"%s\" is not supported", type2char(out_Rtype));
+}
+
+static void unary_minus_double(const double *x, SEXP out_Rvector)
+{
+	R_xlen_t n = XLENGTH(out_Rvector);
+	SEXPTYPE out_Rtype = TYPEOF(out_Rvector);
+	switch (out_Rtype) {
+	    case REALSXP: {
+		double *out = REAL(out_Rvector);
+		for (R_xlen_t i = 0; i < n; i++)
+			out[i] = - x[i];
+		return;
+	    }
+	    case CPLXSXP: {
+		Rcomplex *out = COMPLEX(out_Rvector);
+		for (R_xlen_t i = 0; i < n; i++, out++) {
+			out->r = - x[i];
+			out->i = double0;
+		}
+		return;
+	    }
+	}
+	error("SparseArray internal error in unary_minus_double():\n"
+	      "    output type \"%s\" is not supported", type2char(out_Rtype));
+}
+
+static void unary_minus_Rcomplex(const Rcomplex *x, SEXP out_Rvector)
+{
+	R_xlen_t n = XLENGTH(out_Rvector);
+	SEXPTYPE out_Rtype = TYPEOF(out_Rvector);
+	if (out_Rtype == CPLXSXP) {
+		Rcomplex *out = COMPLEX(out_Rvector);
+		for (R_xlen_t i = 0; i < n; i++, x++, out++) {
+			out->r = - x->r;
+			out->i = - x->i;
+		}
+		return;
+	}
+	error("SparseArray internal error in unary_minus_Rcomplex():\n"
+	      "    output type \"%s\" is not supported", type2char(out_Rtype));
+}
+
+/* 'out_Rvector' must be already allocated to the length of 'Rvector' and its
+   type must be 'TYPEOF(Rvector)' or a bigger type.
    Use '_unary_minus_Rvector(x, x)' for **in-place** replacement. */
-const char *_unary_minus_Rvector(SEXP Rvector, SEXP out_Rvector)
+void _unary_minus_Rvector(SEXP Rvector, SEXP out_Rvector)
 {
 	R_xlen_t in_len = XLENGTH(Rvector);
 	if (XLENGTH(out_Rvector) != in_len)
-		error("SparseArray internal error in "
-		      "_unary_minus_Rvector():\n"
+		error("SparseArray internal error in _unary_minus_Rvector():\n"
 		      "    XLENGTH(out_Rvector) != in_len");
-	SEXPTYPE in_Rtype = TYPEOF(Rvector);
-	SEXPTYPE out_Rtype = TYPEOF(out_Rvector);
-	int supported = 0;
-	if (in_Rtype == INTSXP) {
-		const int *in = INTEGER(Rvector);
-		if (out_Rtype == INTSXP) {
-			int *out = INTEGER(out_Rvector);
-			for (R_xlen_t i = 0; i < in_len; i++) {
-				int v = in[i];
-				if (v != NA_INTEGER)
-					v = -v;
-				out[i] = v;
-			}
-			supported = 1;
-		} else if (out_Rtype == REALSXP) {
-			double *out = REAL(out_Rvector);
-			for (R_xlen_t i = 0; i < in_len; i++) {
-				int v = in[i];
-				if (v == NA_INTEGER) {
-					out[i] = NA_REAL;
-				} else {
-					v = -v;
-					out[i] = (double) v;
-				}
-			}
-			supported = 1;
-		}
-	} else if (in_Rtype == REALSXP) {
-		const double *in = REAL(Rvector);
-		if (out_Rtype == REALSXP) {
-			double *out = REAL(out_Rvector);
-			for (R_xlen_t i = 0; i < in_len; i++)
-				out[i] = - in[i];
-			supported = 1;
-		}
+	SEXPTYPE Rtype = TYPEOF(Rvector);
+	switch (Rtype) {
+	    case INTSXP:
+		unary_minus_int(INTEGER(Rvector), out_Rvector);
+		return;
+	    case REALSXP:
+		unary_minus_double(REAL(Rvector), out_Rvector);
+		return;
+	    case CPLXSXP:
+		unary_minus_Rcomplex(COMPLEX(Rvector), out_Rvector);
+		return;
 	}
-	if (!supported)
-		return "_unary_minus_Rvector() only supports input "
-		       "of type \"integer\" or \"double\" at the moment";
-        return NULL;
+	error("SparseArray internal error in _unary_minus_Rvector():\n"
+	      "    input type \"%s\" is not supported", type2char(Rtype));
+        return;
 }
 

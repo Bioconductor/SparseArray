@@ -56,7 +56,7 @@ static inline double Rasinh_double	FUNDEF_Rmath_double(asinh)
 static inline double Rtanh_double	FUNDEF_Rmath_double(tanh)
 static inline double Ratanh_double	FUNDEF_Rmath_double(atanh)
 
-static double digits0;  /* yes double! don't ask me why */
+static double digits0;  /* yes, double! don't ask me why */
 static inline double Rround_double(double x) { return fround(x, digits0); }
 static inline double Rsignif_double(double x) { return fprec(x, digits0); }
 
@@ -117,25 +117,30 @@ MathFUN _get_MathFUN(const char *op)
  */
 
 int _Math_doubleSV(MathFUN fun, const SparseVec *sv, double digits,
-		double *nzvals_buf, int *nzoffs_buf, int *newNaNs)
+		double *out_nzvals, int *out_nzoffs, int *newNaNs)
 {
-	if (sv->nzvals == R_NilValue)
-		error("_Math_doubleSV() not ready on a lacunar SparseVec");
 	set_NaNs_produced_flag(0);
 	digits0 = digits;
+	if (sv->nzvals == R_NilValue) {
+		double v = fun(1.0);
+		if (v == double0)
+			return 0;
+		out_nzvals[0] = v;
+		return PROPAGATE_NZOFFS;
+	}
 	const double *nzvals_p = get_doubleSV_nzvals_p(sv);
 	int nzcount = get_SV_nzcount(sv);
-	int buf_len = 0;
+	int out_nzcount = 0;
 	for (int k = 0; k < nzcount; k++) {
 		double v = fun(nzvals_p[k]);
-		if (v != 0.0) {
-			nzvals_buf[buf_len] = v;
-			nzoffs_buf[buf_len] = sv->nzoffs[k];
-			buf_len++;
+		if (v != double0) {
+			out_nzvals[out_nzcount] = v;
+			out_nzoffs[out_nzcount] = sv->nzoffs[k];
+			out_nzcount++;
 		}
 	}
 	if (get_NaNs_produced_flag())
 		*newNaNs = 1;
-	return buf_len;
+	return out_nzcount;
 }
 

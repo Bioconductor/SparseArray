@@ -71,7 +71,7 @@
 .unary_plus_SparseArray <- function(x)
 {
     .check_Arith_input_type(type(x))
-    x
+    x  # no-op
 }
 
 .unary_minus_SparseArray <- function(x)
@@ -81,9 +81,6 @@
         ans <- BiocGenerics:::replaceSlots(x, nzdata=-x@nzdata, check=FALSE)
     } else if (is(x, "SVT_SparseArray")) {
         check_svt_version(x)
-        if (type(x) == "complex")
-            stop(wmsg("unary \"-\" is not implemented yet on an ",
-                      "SVT_SparseArray object of type \"", type(x), "\""))
         new_SVT <- SparseArray.Call("C_unary_minus_SVT", x@dim, x@type, x@SVT)
         ans <- BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
     } else {

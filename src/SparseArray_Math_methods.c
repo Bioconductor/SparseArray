@@ -15,6 +15,10 @@ static SEXP Math_leaf(MathFUN fun, SEXP leaf, double digits, int dim0,
 	const SparseVec sv = leaf2SV(leaf, REALSXP, dim0);
 	int buf_len = _Math_doubleSV(fun, &sv, digits,
 				     nzvals_buf, nzoffs_buf, newNaNs);
+	if (buf_len == PROPAGATE_NZOFFS)
+		return _make_leaf_with_single_shared_nzval(
+					      REALSXP, nzvals_buf,
+					      get_leaf_nzoffs(leaf));
 	return _make_leaf_from_two_arrays(REALSXP,
 					  nzvals_buf, nzoffs_buf, buf_len);
 }

@@ -70,9 +70,31 @@ void _expand_leaf(SEXP leaf, SEXP out_Rvector, R_xlen_t out_offset)
 
 
 /****************************************************************************
+ * _make_lacunar_leaf()
+ * _make_leaf_with_single_shared_nzval()
  * _make_leaf_from_two_arrays()
  * _make_leaf_from_Rsubvec()
  */
+
+SEXP _make_lacunar_leaf(SEXP nzoffs)
+{
+	return zip_leaf(R_NilValue, nzoffs);
+}
+
+/* When 'Rtype' is STRSXP or VECSXP, 'shared_nzval' must be an SEXP.
+   Otherwise, it must be a pointer to an int, double, Rcomplex, or Rbyte. */
+SEXP _make_leaf_with_single_shared_nzval(SEXPTYPE Rtype,
+		void *shared_nzval, SEXP nzoffs)
+{
+	if (LACUNAR_MODE_IS_ON && _all_elts_equal_one(Rtype, shared_nzval, 1))
+		return _make_lacunar_leaf(nzoffs);
+	int nzcount = LENGTH(nzoffs);
+	SEXP nzvals = PROTECT(allocVector(Rtype, nzcount));
+	_set_Rvector_elts_to_val(nzvals, shared_nzval);
+	SEXP ans = zip_leaf(nzvals, nzoffs);
+	UNPROTECT(1);
+	return ans;
+}
 
 /* Does NOT work if 'Rtype' is STRSXP or VECSXP.
    Each of 'nzvals_p' and 'nzoffs_p' must be a pointer to an array of length
@@ -96,7 +118,7 @@ SEXP _make_leaf_from_two_arrays(SEXPTYPE Rtype,
 	if (LACUNAR_MODE_IS_ON) {
 		int all_ones = _all_elts_equal_one(Rtype, nzvals_p, nzcount);
 		if (all_ones) {
-			SEXP ans = zip_leaf(R_NilValue, ans_nzoffs);
+			SEXP ans = _make_lacunar_leaf(ans_nzoffs);
 			UNPROTECT(1);
 			return ans;
 		}
@@ -128,7 +150,7 @@ SEXP _make_leaf_from_Rsubvec(
 		int all_ones = _all_selected_Rsubvec_elts_equal_one(Rvector,
 					subvec_offset, selection_buf, n);
 		if (all_ones) {
-			SEXP ans = zip_leaf(R_NilValue, ans_nzoffs);
+			SEXP ans = _make_lacunar_leaf(ans_nzoffs);
 			UNPROTECT(1);
 			return ans;
 		}

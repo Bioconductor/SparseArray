@@ -4,7 +4,7 @@
 #include "SparseArray_subsetting.h"
 
 #include "Rvector_utils.h"
-#include "leaf_utils.h"  /* for unzip_leaf() */
+#include "leaf_utils.h"
 
 #include <limits.h>  /* for INT_MAX */
 #include <string.h>  /* for memcpy() */
@@ -157,7 +157,7 @@ static SEXP subset_leaf(SEXP leaf, SEXP idx, int i2max,
 	memcpy(INTEGER(ans_nzoffs), i1_buf, sizeof(int) * ans_nzcount);
 	if (nzvals == R_NilValue) {
 		/* Leaf to subset is lacunar --> subsetting preserves that. */
-		SEXP ans = zip_leaf(R_NilValue, ans_nzoffs);
+		SEXP ans = _make_lacunar_leaf(ans_nzoffs);
 		UNPROTECT(1);
 		return ans;
 	}
@@ -165,7 +165,7 @@ static SEXP subset_leaf(SEXP leaf, SEXP idx, int i2max,
 		int all_ones = _all_selected_Rsubvec_elts_equal_one(nzvals, 0,
 						     k2_buf, ans_nzcount);
 		if (all_ones) {
-			SEXP ans = zip_leaf(R_NilValue, ans_nzoffs);
+			SEXP ans = _make_lacunar_leaf(ans_nzoffs);
 			UNPROTECT(1);
 			return ans;
 		}

@@ -102,14 +102,7 @@ test_that("'Arith' ops between SVT_SparseArray object and single value", {
 
     ## --- 3D ---
 
-    a1 <- array(0L, 6:4)
-    dimnames(a1) <- list(letters[1:6], NULL, LETTERS[1:4])
-    a1[c(2:3, 6), 2, 1] <- 101:103
-    a1[c(1, 6), 1 , 2] <- 201:202
-    a1[c(3:4, 6), c(2, 5), 2] <- a1[ , 3, 2] <- a1[6, 4, 2] <- 1L
-    a1[4, 5, 2] <- NA
-    a1[1:5, 5, 3] <- -(301:305)
-    a1[6, 5, 4] <- NA
+    a1 <- make_3D_integer_array()
     svt1 <- as(a1, "SVT_SparseArray")
 
     .test_Arith_SVT1_v2(a1, svt1, 0L)
@@ -165,7 +158,8 @@ test_that("'Arith' ops between SVT_SparseArray object and single value", {
     .test_Arith_SVT1_v2(m2, svt2, Inf)
     .test_Arith_SVT1_v2(m2, svt2, -Inf)
 
-    ## Not expected to work.
+    ## --- Not expected to work ---
+
     expect_error(5 / svt2, "not supported")
     expect_error(5 ^ svt2, "not supported")
     expect_error(svt2 + "A", "not supported")
@@ -243,7 +237,8 @@ test_that("'Arith' ops between 2 SVT_SparseArray objects", {
     .test_Arith_SVT1_SVT2(a0, unname(a0), svt0, unname(svt0))
     .test_Arith_SVT1_SVT2(unname(a0), a0, unname(svt0), svt0)
 
-    ## Not expected to work.
+    ## --- Not expected to work ---
+
     expect_error(svt1 + svt2[ , , -1], "non-conformable")
     expect_error(svt1 - svt2[ , , -1], "non-conformable")
     expect_error(svt1 * svt2[ , , -1], "non-conformable")
@@ -251,6 +246,26 @@ test_that("'Arith' ops between 2 SVT_SparseArray objects", {
     expect_error(svt1 ^ svt2, "not supported")
     expect_error(svt1 %% svt2, "not supported")
     expect_error(svt1 %/% svt2, "not supported")
+})
+
+test_that("unary minus on a SVT_SparseArray object", {
+    a1 <- make_3D_integer_array()
+    svt1 <- as(a1, "SVT_SparseArray")
+    check_SparseArray_object(- svt1, "SVT_SparseArray", - a1)
+    expect_identical(- svt1, as(- a1, "SVT_SparseArray"))
+    expect_identical(- (- svt1), svt1)
+
+    a2 <- make_3D_double_array()
+    svt2 <- as(a2, "SVT_SparseArray")
+    check_SparseArray_object(- svt2, "SVT_SparseArray", - a2)
+    expect_identical(- svt2, as(- a2, "SVT_SparseArray"))
+    expect_identical(- (- svt2), svt2)
+
+    a3 <- make_3D_complex_array()
+    svt3 <- as(a3, "SVT_SparseArray")
+    check_SparseArray_object(- svt3, "SVT_SparseArray", - a3)
+    expect_identical(- svt3, as(- a3, "SVT_SparseArray"))
+    expect_identical(- (- svt3), svt3)
 })
 
 
