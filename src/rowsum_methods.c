@@ -8,18 +8,17 @@
 #include "Rvector_utils.h"
 #include "leaf_utils.h"
 
+
 static void check_group(SEXP group, int x_nrow, int ngroup)
 {
-	int i, g;
-
 	if (!IS_INTEGER(group))
 		error("the grouping vector must be "
 		      "an integer vector or factor");
 	if (LENGTH(group) != x_nrow)
 		error("the grouping vector must have "
 		      "one element per row in 'x'");
-	for (i = 0; i < x_nrow; i++) {
-		g = INTEGER(group)[i];
+	for (int i = 0; i < x_nrow; i++) {
+		int g = INTEGER(group)[i];
 		if (g == NA_INTEGER) {
 			if (ngroup < 1)
 				error("'ngroup' must be >= 1 when 'group' "
@@ -36,18 +35,19 @@ static void check_group(SEXP group, int x_nrow, int ngroup)
 static void compute_rowsum_doubles(const double *vals, const int *offs, int n,
 		const int *groups, double *out, int out_len, int narm)
 {
-	int k, g;
-	double v;
-
-	for (k = 0; k < n; k++) {
-		g = groups[offs[k]];
+	for (int k = 0; k < n; k++) {
+		int g = groups[offs[k]];
 		if (g == NA_INTEGER)
 			g = out_len;
 		g--;  // from 1-base to 0-base
-		v = vals[k];
-		/* ISNAN(): True for *both* NA and NaN. See <R_ext/Arith.h> */
-		if (narm && ISNAN(v))
-			continue;
+		double v = double1;
+		if (vals != NULL) {
+			v = vals[k];
+			/* ISNAN(): True for *both* NA and NaN.
+			   See <R_ext/Arith.h> */
+			if (narm && ISNAN(v))
+				continue;
+		}
 		out[g] += v;
 	}
 	return;
@@ -56,16 +56,17 @@ static void compute_rowsum_doubles(const double *vals, const int *offs, int n,
 static void compute_rowsum_ints(const int *vals, const int *offs, int n,
 		const int *groups, int *out, int out_len, int narm)
 {
-	int k, g, v;
-
-	for (k = 0; k < n; k++) {
-		g = groups[offs[k]];
+	for (int k = 0; k < n; k++) {
+		int g = groups[offs[k]];
 		if (g == NA_INTEGER)
 			g = out_len;
 		g--;  // from 1-base to 0-base
-		v = vals[k];
-		if (narm && v == NA_INTEGER)
-			continue;
+		int v = int1;
+		if (vals != NULL) {
+			v = vals[k];
+			if (narm && v == NA_INTEGER)
+				continue;
+		}
 		out[g] = safe_int_add(out[g], v);
 	}
 	return;
@@ -83,7 +84,8 @@ static void rowsum_SVT_double(int x_nrow, int x_ncol, SEXP x_SVT,
 		SEXP nzvals, nzoffs;
 		int nzcount = unzip_leaf(subSVT, &nzvals, &nzoffs);
 		compute_rowsum_doubles(
-			REAL(nzvals), INTEGER(nzoffs), nzcount,
+			nzvals == R_NilValue ? NULL : REAL(nzvals),
+			INTEGER(nzoffs), nzcount,
 			groups, out, ngroup, narm);
 	}
 	return;
@@ -102,7 +104,8 @@ static void rowsum_SVT_int(int x_nrow, int x_ncol, SEXP x_SVT,
 		SEXP nzvals, nzoffs;
 		int nzcount = unzip_leaf(subSVT, &nzvals, &nzoffs);
 		compute_rowsum_ints(
-			INTEGER(nzvals), INTEGER(nzoffs), nzcount,
+			nzvals == R_NilValue ? NULL : INTEGER(nzvals),
+			INTEGER(nzoffs), nzcount,
 			groups, out, ngroup, narm);
 	}
 	if (get_ovflow_flag())
@@ -111,16 +114,14 @@ static void rowsum_SVT_int(int x_nrow, int x_ncol, SEXP x_SVT,
 }
 
 static void rowsum_dgCMatrix(int x_nrow, int x_ncol,
-		const double *x_x, const int *x_i, const int *x_p,
+		const double *x_slotx, const int *x_sloti, const int *x_slotp,
 		const int *groups, int ngroup, int narm, double *out)
 {
-	int j, offset, nzcount;
-
-	for (j = 0; j < x_ncol; j++, out += ngroup) {
-		offset = x_p[j];
-		nzcount = x_p[j + 1] - offset;
+	for (int j = 0; j < x_ncol; j++, out += ngroup) {
+		int offset = x_slotp[j];
+		int nzcount = x_slotp[j + 1] - offset;
 		compute_rowsum_doubles(
-			x_x + offset, x_i + offset, nzcount,
+			x_slotx + offset, x_sloti + offset, nzcount,
 			groups, out, ngroup, narm);
 	}
 	return;
@@ -130,23 +131,19 @@ static void rowsum_dgCMatrix(int x_nrow, int x_ncol,
 SEXP C_rowsum_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		  SEXP group, SEXP ngroup, SEXP na_rm)
 {
-	int x_nrow, x_ncol, narm, ans_nrow;
-	SEXPTYPE x_Rtype;
-	SEXP ans;
-
 	if (LENGTH(x_dim) != 2)
 		error("input object must have 2 dimensions");
-	x_nrow = INTEGER(x_dim)[0];
-	x_ncol = INTEGER(x_dim)[1];
-	narm = LOGICAL(na_rm)[0];
+	int x_nrow = INTEGER(x_dim)[0];
+	int x_ncol = INTEGER(x_dim)[1];
+	int narm = LOGICAL(na_rm)[0];
 
-	x_Rtype = _get_Rtype_from_Rstring(x_type);
+	SEXPTYPE x_Rtype = _get_Rtype_from_Rstring(x_type);
 	if (x_Rtype == 0)
 		error("SparseArray internal error in "
 		      "C_rowsum_SVT():\n"
 		      "    invalid 'x_type' value");
 
-	ans_nrow = INTEGER(ngroup)[0];
+	int ans_nrow = INTEGER(ngroup)[0];
 	check_group(group, x_nrow, ans_nrow);
 
 	reset_ovflow_flag();
@@ -158,6 +155,7 @@ SEXP C_rowsum_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 
 	/* Note that base::rowsum() only supports numeric matrices i.e.
 	   matrices of type() "double" or "integer", so we do the same. */
+	SEXP ans;
 	if (x_Rtype == REALSXP) {
 		ans = PROTECT(_new_Rmatrix0(REALSXP, ans_nrow, x_ncol,
 					    R_NilValue));
@@ -182,18 +180,15 @@ SEXP C_rowsum_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 /* --- .Call ENTRY POINT --- */
 SEXP C_rowsum_dgCMatrix(SEXP x, SEXP group, SEXP ngroup, SEXP na_rm)
 {
-	SEXP x_Dim, x_x, x_i, x_p, ans;
-	int x_nrow, x_ncol, narm, ans_nrow;
+	SEXP x_Dim = GET_SLOT(x, install("Dim"));
+	int x_nrow = INTEGER(x_Dim)[0];
+	int x_ncol = INTEGER(x_Dim)[1];
+	SEXP x_slotx = GET_SLOT(x, install("x"));
+	SEXP x_sloti = GET_SLOT(x, install("i"));
+	SEXP x_slotp = GET_SLOT(x, install("p"));
+	int narm = LOGICAL(na_rm)[0];
 
-	x_Dim = GET_SLOT(x, install("Dim"));
-	x_nrow = INTEGER(x_Dim)[0];
-	x_ncol = INTEGER(x_Dim)[1];
-	x_x = GET_SLOT(x, install("x"));
-	x_i = GET_SLOT(x, install("i"));
-	x_p = GET_SLOT(x, install("p"));
-	narm = LOGICAL(na_rm)[0];
-
-	ans_nrow = INTEGER(ngroup)[0];
+	int ans_nrow = INTEGER(ngroup)[0];
 	check_group(group, x_nrow, ans_nrow);
 
 	reset_ovflow_flag();
@@ -202,10 +197,11 @@ SEXP C_rowsum_dgCMatrix(SEXP x, SEXP group, SEXP ngroup, SEXP na_rm)
 	safe_int_mult(ans_nrow, x_ncol);
 	if (get_ovflow_flag())
 		error("too many groups (matrix of sums will be too big)");
-	ans = PROTECT(_new_Rmatrix0(REALSXP, ans_nrow, x_ncol, R_NilValue));
+	SEXP ans =
+		PROTECT(_new_Rmatrix0(REALSXP, ans_nrow, x_ncol, R_NilValue));
 
 	rowsum_dgCMatrix(x_nrow, x_ncol,
-			 REAL(x_x), INTEGER(x_i), INTEGER(x_p),
+			 REAL(x_slotx), INTEGER(x_sloti), INTEGER(x_slotp),
 			 INTEGER(group), ans_nrow, narm, REAL(ans));
 
 	UNPROTECT(1);
