@@ -4,31 +4,52 @@
 ###
 
 
-.subassign_SVT_SparseArray_by_logical_array <- function(x, y, value)
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### .subassign_SVT_by_logical_array()
+###
+
+.subassign_SVT_by_logical_array <- function(x, y, value)
     stop("subassignment operation not supported yet")
 
-.subassign_SVT_SparseArray_by_Mindex <- function(x, Mindex, value)
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### .subassign_SVT_by_Mindex()
+### .subassign_SVT_by_Lindex()
+###
+
+.adjust_left_type <- function(x, value)
 {
-    stopifnot(is(x, "SVT_SparseArray"),
-              is.matrix(Mindex), is.numeric(Mindex))
+    stopifnot(is(x, "SVT_SparseArray"))
     check_svt_version(x)
     if (!is.vector(value))
         stop(wmsg("the supplied value must be a vector for this form ",
                   "of subassignment to an SVT_SparseArray object"))
-
-    ## Change 'x' type if necessary. */
+    ## Change 'x' type if necessary.
     new_type <- type(c(vector(type(x)), vector(type(value))))
     type(x) <- new_type
+    x
+}
 
-    ## No-op (except for type change above) if selection if empty. */
+### Adjust the type of 'value' and recycle it to the length of the
+### subassignment index.
+.normalize_right_value <- function(value, left_type, index_len)
+{
+    if (length(value) == 0L)
+        stop(wmsg("replacement has length zero"))
+    storage.mode(value) <- left_type
+    S4Vectors:::recycleVector(value, index_len)
+}
+
+.subassign_SVT_by_Mindex <- function(x, Mindex, value)
+{
+    stopifnot(is.matrix(Mindex), is.numeric(Mindex))
+    x <- .adjust_left_type(x, value)
+
+    ## No-op (except for type adjustment above) if selection if empty.
     if (nrow(Mindex) == 0L)
         return(x)
 
-    ## Normalize 'value'. */
-    if (length(value) == 0L)
-        stop(wmsg("replacement has length zero"))
-    storage.mode(value) <- new_type
-    value <- S4Vectors:::recycleVector(value, nrow(Mindex))
+    value <- .normalize_right_value(value, type(x), nrow(Mindex))
 
     if (storage.mode(Mindex) != "integer")
         storage.mode(Mindex) <- "integer"
@@ -37,34 +58,26 @@
     BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
 }
 
-.subassign_SVT_SparseArray_by_Lindex <- function(x, Lindex, value)
+.subassign_SVT_by_Lindex <- function(x, Lindex, value)
 {
-    stopifnot(is(x, "SVT_SparseArray"),
-              is.vector(Lindex), is.numeric(Lindex))
-    check_svt_version(x)
-    if (!is.vector(value))
-        stop(wmsg("the supplied value must be a vector for this form ",
-                  "of subassignment to an SVT_SparseArray object"))
+    stopifnot(is.vector(Lindex), is.numeric(Lindex))
+    x <- .adjust_left_type(x, value)
 
-    ## Change 'x' type if necessary. */
-    new_type <- type(c(vector(type(x)), vector(type(value))))
-    type(x) <- new_type
-
-    ## No-op (except for type change above) if selection if empty. */
+    ## No-op (except for type adjustment above) if selection if empty.
     if (length(Lindex) == 0L)
         return(x)
 
-    ## Normalize 'value'. */
-    if (length(value) == 0L)
-        stop(wmsg("replacement has length zero"))
-    storage.mode(value) <- new_type
-    value <- S4Vectors:::recycleVector(value, length(Lindex))
+    value <- .normalize_right_value(value, type(x), length(Lindex))
 
     new_SVT <- SparseArray.Call("C_subassign_SVT_by_Lindex",
                                 x@dim, x@type, x@SVT, Lindex, value)
     BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
 }
 
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### .subassign_SVT_by_index()
+###
 
 .subassign_SVT_with_short_Rvector <- function(x, index, Rvector)
 {
@@ -92,7 +105,7 @@
 ### one list element per dimension in 'x'. Each list element must be an
 ### integer vector of valid indices along the corresponding dimension
 ### in 'x', or a NULL.
-.subassign_SVT_SparseArray_by_index <- function(x, index, value)
+.subassign_SVT_by_index <- function(x, index, value)
 {
     stopifnot(is(x, "SVT_SparseArray"), is.list(index))
     check_svt_version(x)
@@ -146,6 +159,11 @@
     BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
 }
 
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Subassignment method (`[<-`) for SVT_SparseArray objects
+###
+
 .subassign_SVT_SparseArray <- function(x, i, j, ..., value)
 {
     if (missing(x))
@@ -157,16 +175,16 @@
     if (nsubscript == 1L) {
         i <- Nindex[[1L]]
         if (type(i) == "logical" && identical(x_dim, dim(i)))
-            return(.subassign_SVT_SparseArray_by_logical_array(x, i, value))
+            return(.subassign_SVT_by_logical_array(x, i, value))
         if (is.matrix(i) && is.numeric(i))
-            return(.subassign_SVT_SparseArray_by_Mindex(x, i, value))
+            return(.subassign_SVT_by_Mindex(x, i, value))
         ## Linear single bracket subassignment e.g. x[5:2] <- 4.
-        return(.subassign_SVT_SparseArray_by_Lindex(x, i, value))
+        return(.subassign_SVT_by_Lindex(x, i, value))
     }
     if (nsubscript != x_ndim)
         stop(wmsg("incorrect number of subscripts"))
     index <- S4Arrays:::normalize_Nindex(Nindex, x)
-    .subassign_SVT_SparseArray_by_index(x, index, value)
+    .subassign_SVT_by_index(x, index, value)
 }
 
 setReplaceMethod("[", "SVT_SparseArray", .subassign_SVT_SparseArray)

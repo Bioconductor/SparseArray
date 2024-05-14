@@ -209,10 +209,12 @@ setAs("Array", "sparseMatrix",
 ###
 ### NOT exported
 ###
-### Don't turn these into formal S4 methods for dgCMatrix objects to avoid
-### conflict with the methods defined in the sparseMatrixStats package!
-### They do NOT propagate the colnames (the methods defined in matrixStats
-### don't either).
+### IMPORTANT NOTE: The functions below precede the sparseMatrixStats package
+### so we probaby don't need them anymore. Do NOT turn them into formal S4
+### methods for dgCMatrix objects to avoid conflicts with the methods defined
+### in the sparseMatrixStats package!
+### They do NOT propagate the colnames. The corresponding methods defined in
+### matrixStats didn't either at the time this was implemented.
 
 colMins_dgCMatrix <- function (x, na.rm=FALSE)
 {
