@@ -164,6 +164,40 @@ test_that("acbind() on 3D SVT_SparseArray objects", {
     expect_identical(svt, as(a, "SVT_SparseArray"))
 })
 
+test_that("handling of lacunar leaves in .abind_SVT_SparseArray_objects()", {
+    m1 <- matrix(c(0:2, 0L, 0L, 0L, 0L, 1L, 0L), ncol=3)
+    m2 <- matrix(c(1L, 1L, 0L, 1L, 0L, 1L, 3:2, 0L), ncol=3)
+    svt1 <- as(m1, "SVT_SparseMatrix")
+    svt2 <- as(m2, "SVT_SparseMatrix")
+
+    m <- rbind(m1, m1)
+    svt <- rbind(svt1, svt1)
+    check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+    expect_identical(svt@SVT[[3L]], make_lacunar_leaf("integer", c(1L, 4L)))
+    expect_identical(svt, as(m, "SVT_SparseMatrix"))
+
+    m <- rbind(m2, m2)
+    svt <- rbind(svt2, svt2)
+    check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+    expect_identical(svt@SVT[[1L]], make_lacunar_leaf("integer",
+                                                      c(0:1, 3:4)))
+    expect_identical(svt@SVT[[2L]], make_lacunar_leaf("integer",
+                                                      c(0L, 2:3, 5L)))
+    expect_identical(svt, as(m, "SVT_SparseMatrix"))
+
+    m <- rbind(m1, m2)
+    svt <- rbind(svt1, svt2)
+    check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+    expect_identical(svt@SVT[[2L]], make_lacunar_leaf("integer", c(3L, 5L)))
+    expect_identical(svt, as(m, "SVT_SparseMatrix"))
+
+    m <- rbind(m2, m1)
+    svt <- rbind(svt2, svt1)
+    check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+    expect_identical(svt@SVT[[2L]], make_lacunar_leaf("integer", c(0L, 2L)))
+    expect_identical(svt, as(m, "SVT_SparseMatrix"))
+})
+
 test_that("abind() default method on SparseArray objects", {
     a1 <- .TEST_arrays[[1]]
     a2 <- .TEST_arrays[[2]]
