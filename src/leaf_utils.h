@@ -13,15 +13,17 @@
    the first dimension (a.k.a. innermost or fastest moving dimension) of the
    sparse array. They contain a collection of offset/value pairs sorted by
    strictly ascending offset.
-   A leaf is represented by an R_NilValue if it's empty, or by a list of 2
-   parallel dense vectors:
+   A leaf is represented by an SEXP that is either R_NilValue or a list of
+   length 2. R_NilValue is used to represent an empty leaf. Otherwise, a
+   list of 2 parallel dense vectors is used:
      - nzvals: a vector (atomic or list) of nonzero values (zeros are
                not allowed).
      - nzoffs: an integer vector of offsets (i.e. 0-based positions);
    The common length of 'nzvals' and 'nzoffs' is called the "nonzero count"
-   (nzcount) and is guaranteed to be >= 1. Also we don't support "long leaves"
-   so 'nzcount' must always be <= INT_MAX.
-   Note that a leaf represents a 1D SVT. */
+   (a.k.a. nzcount) and it should always be >= 1. Note that we do not
+   support "long leaves" so 'nzcount' will always be <= INT_MAX.
+
+   It's useful to realize that a leaf simply represents a 1D SVT. */
 
 /* Is it ok to produce lacunar leaves? Proper handling of lacunar leaves
    is still work-in-progress so we can turn this off any time if things
