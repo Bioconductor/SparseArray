@@ -1,5 +1,9 @@
 /****************************************************************************
- *                  Subassignment to a SparseArray object                   *
+ ****************************************************************************
+ **									   **
+ **             Subassignment (`[<-`) to a SparseArray object              **
+ **									   **
+ ****************************************************************************
  ****************************************************************************/
 #include "SparseArray_subassignment.h"
 
@@ -52,7 +56,8 @@ static inline R_xlen_t get_Lidx(SEXP Lindex, long long atid_lloff)
  *           change when we start supporting _long_ incoming data e.g. when
  *           C_subassign_SVT_by_Lindex() will get passed a _long_ linear index.
  *
- * - type 2: Just a regular leaf so not really "extended" in that case.
+ * - type 2: Just a regular leaf (possibly lacunar) so not really "extended"
+ *           in that case.
  *
  * - type 3: A regular leaf with an IDS on it. This is represented by a
  *           list of length 3: the 2 list elements of a regular leaf (nzvals
@@ -290,16 +295,12 @@ static inline int descend_to_bottom_by_Lidx(SEXP SVT, SEXP SVT0,
 		R_xlen_t Lidx,
 		SEXP *leaf_parent, int *idx, SEXP *leaf)
 {
-	SEXP subSVT0, subSVT;
-	R_xlen_t idx0, p;
-	int along, i;
-
-	subSVT0 = R_NilValue;
-	idx0 = Lidx - 1;
-	along = ndim - 1;
+	SEXP subSVT0 = R_NilValue, subSVT;
+	R_xlen_t idx0 = Lidx - 1;
+	int along = ndim - 1, i;
 	do {
-		p = dimcumprod[along - 1];
-		i = idx0 / p;  /* guaranteed to be >= 0 and < 'dim[along]'. */
+		R_xlen_t p = dimcumprod[along - 1];
+		i = idx0 / p;  /* always >= 0 and < 'dim[along]' */
 		subSVT = VECTOR_ELT(SVT, i);
 		if (along == 1)
 			break;
@@ -857,12 +858,10 @@ static SEXP subassign_leaf_by_Lindex(SEXP leaf, int dim0,
  * C_subassign_SVT_by_[M|L]index()
  */
 
-static SEXP check_Mindex_dim(SEXP Mindex, R_xlen_t nvals, int ndim,
+static void check_Mindex_dim(SEXP Mindex, R_xlen_t nvals, int ndim,
 		const char *what1, const char *what2, const char *what3)
 {
-	SEXP Mindex_dim;
-
-	Mindex_dim = GET_DIM(Mindex);
+	SEXP Mindex_dim = GET_DIM(Mindex);
 	if (Mindex_dim == R_NilValue || LENGTH(Mindex_dim) != 2)
 		error("'%s' must be a matrix", what1);
 	if (!IS_INTEGER(Mindex))
@@ -871,21 +870,14 @@ static SEXP check_Mindex_dim(SEXP Mindex, R_xlen_t nvals, int ndim,
 		error("nrow(%s) != %s", what1, what2);
 	if (INTEGER(Mindex_dim)[1] != ndim)
 		error("ncol(%s) != %s", what1, what3);
-	return Mindex_dim;
+	return;
 }
 
 /* --- .Call ENTRY POINT --- */
 SEXP C_subassign_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		SEXP Mindex, SEXP vals)
 {
-	SEXPTYPE Rtype;
-	int x_ndim, d1, max_postsubassign_nzcount, ret;
-	R_xlen_t nvals;
-	SEXP ans;
-	size_t max_IDS_len;
-	SortBufs sort_bufs;
-
-	Rtype = _get_Rtype_from_Rstring(x_type);
+	SEXPTYPE Rtype = _get_Rtype_from_Rstring(x_type);
 	if (Rtype == 0)
 		error("SparseArray internal error in "
 		      "C_subassign_SVT_by_Mindex():\n"
@@ -896,8 +888,8 @@ SEXP C_subassign_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		      "    SVT_SparseArray object and 'vals' "
 		      "must have the same type");
 
-	x_ndim = LENGTH(x_dim);
-	nvals = XLENGTH(vals);
+	int x_ndim = LENGTH(x_dim);
+	R_xlen_t nvals = XLENGTH(vals);
 	check_Mindex_dim(Mindex, nvals, x_ndim,
 			 "Mindex", "length(vals)", "length(dim(x))");
 	if (nvals == 0)
@@ -911,14 +903,14 @@ SEXP C_subassign_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 
 	/* 1st pass */
 	//clock_t t0 = clock();
-	d1 = INTEGER(x_dim)[x_ndim - 1];
-	ans = PROTECT(make_SVT_node(x_SVT, d1, x_SVT));
-	max_IDS_len = 0;
-	max_postsubassign_nzcount = 0;
-	ret = dispatch_vals_by_Mindex(ans, x_SVT,
-			INTEGER(x_dim), LENGTH(x_dim),
-			INTEGER(Mindex), vals,
-			&max_IDS_len, &max_postsubassign_nzcount);
+	int d1 = INTEGER(x_dim)[x_ndim - 1];
+	SEXP ans = PROTECT(make_SVT_node(x_SVT, d1, x_SVT));
+	size_t max_IDS_len = 0;
+	int max_postsubassign_nzcount = 0;
+	int ret = dispatch_vals_by_Mindex(ans, x_SVT,
+				INTEGER(x_dim), x_ndim,
+				INTEGER(Mindex), vals,
+				&max_IDS_len, &max_postsubassign_nzcount);
 	if (ret < 0) {
 		UNPROTECT(1);
 		error("SparseArray internal error in "
@@ -938,11 +930,11 @@ SEXP C_subassign_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 
 	/* 2nd pass */
 	//t0 = clock();
-	sort_bufs = alloc_sort_bufs((int) max_IDS_len,
-				    max_postsubassign_nzcount);
+	SortBufs sort_bufs = alloc_sort_bufs((int) max_IDS_len,
+					     max_postsubassign_nzcount);
 	ans = REC_postprocess_SVT_using_Mindex(ans,
-			INTEGER(x_dim), LENGTH(x_dim), Mindex, vals,
-			&sort_bufs);
+				INTEGER(x_dim), LENGTH(x_dim), Mindex, vals,
+				&sort_bufs);
 	//dt = (1.0 * clock() - t0) * 1000.0 / CLOCKS_PER_SEC;
 	//printf("2nd pass: %2.3f ms\n", dt);
 	UNPROTECT(1);
@@ -953,14 +945,7 @@ SEXP C_subassign_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 SEXP C_subassign_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		SEXP Lindex, SEXP vals)
 {
-	SEXPTYPE Rtype;
-	int x_ndim, along, d1, max_postsubassign_nzcount, ret;
-	R_xlen_t nvals, *dimcumprod, p;
-	SEXP ans;
-	size_t max_IDS_len;
-	SortBufs sort_bufs;
-
-	Rtype = _get_Rtype_from_Rstring(x_type);
+	SEXPTYPE Rtype = _get_Rtype_from_Rstring(x_type);
 	if (Rtype == 0)
 		error("SparseArray internal error in "
 		      "C_subassign_SVT_by_Lindex():\n"
@@ -971,8 +956,8 @@ SEXP C_subassign_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		      "    SVT_SparseArray object and 'vals' "
 		      "must have the same type");
 
-	x_ndim = LENGTH(x_dim);
-	nvals = XLENGTH(vals);
+	int x_ndim = LENGTH(x_dim);
+	R_xlen_t nvals = XLENGTH(vals);
 	if (!IS_INTEGER(Lindex) && !IS_NUMERIC(Lindex))
 		error("'Lindex' must be an integer or numeric vector");
 	if (XLENGTH(Lindex) != nvals)
@@ -984,9 +969,9 @@ SEXP C_subassign_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		return subassign_leaf_by_Lindex(x_SVT, INTEGER(x_dim)[0],
 						Lindex, vals);
 
-	dimcumprod = (R_xlen_t *) R_alloc(x_ndim, sizeof(R_xlen_t));
-	p = 1;
-	for (along = 0; along < x_ndim; along++) {
+	R_xlen_t *dimcumprod = (R_xlen_t *) R_alloc(x_ndim, sizeof(R_xlen_t));
+	R_xlen_t p = 1;
+	for (int along = 0; along < x_ndim; along++) {
 		p *= INTEGER(x_dim)[along];
 		dimcumprod[along] = p;
 	}
@@ -996,14 +981,14 @@ SEXP C_subassign_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 
 	/* 1st pass */
 	//clock_t t0 = clock();
-	d1 = INTEGER(x_dim)[x_ndim - 1];
-	ans = PROTECT(make_SVT_node(x_SVT, d1, x_SVT));
-	max_IDS_len = 0;
-	max_postsubassign_nzcount = 0;
-	ret = dispatch_vals_by_Lindex(ans, x_SVT,
-			INTEGER(x_dim), dimcumprod, LENGTH(x_dim),
-			Lindex, vals,
-			&max_IDS_len, &max_postsubassign_nzcount);
+	int d1 = INTEGER(x_dim)[x_ndim - 1];
+	SEXP ans = PROTECT(make_SVT_node(x_SVT, d1, x_SVT));
+	size_t max_IDS_len = 0;
+	int max_postsubassign_nzcount = 0;
+	int ret = dispatch_vals_by_Lindex(ans, x_SVT,
+				INTEGER(x_dim), dimcumprod, x_ndim,
+				Lindex, vals,
+				&max_IDS_len, &max_postsubassign_nzcount);
 	if (ret < 0) {
 		UNPROTECT(1);
 		error("SparseArray internal error in "
@@ -1023,11 +1008,11 @@ SEXP C_subassign_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 
 	/* 2nd pass */
 	//t0 = clock();
-	sort_bufs = alloc_sort_bufs((int) max_IDS_len,
-				    max_postsubassign_nzcount);
+	SortBufs sort_bufs = alloc_sort_bufs((int) max_IDS_len,
+					     max_postsubassign_nzcount);
 	ans = REC_postprocess_SVT_using_Lindex(ans,
-			dimcumprod, LENGTH(x_dim), Lindex, vals,
-			&sort_bufs);
+				dimcumprod, LENGTH(x_dim), Lindex, vals,
+				&sort_bufs);
 	//dt = (1.0 * clock() - t0) * 1000.0 / CLOCKS_PER_SEC;
 	//printf("2nd pass: %2.3f ms\n", dt);
 	UNPROTECT(1);
@@ -1169,20 +1154,20 @@ static SEXP subassign_leaf_with_short_Rvector(SEXP leaf, int dim0,
 
 /* Recursive. 'ndim' must be >= 2. */
 static SEXP REC_subassign_SVT_with_short_Rvector(SEXP SVT, SEXP SVT0,
-		const int *dim, int ndim, SEXP index,
+		const int *dim, int ndim, SEXP Nindex,
 		SEXP short_Rvector, LeftBufs *left_bufs)
 {
 	SEXP subSVT0 = R_NilValue;
 	int d1 = dim[ndim - 1];
-	SEXP index_elt = VECTOR_ELT(index, ndim - 1);
-	int d2 = index_elt == R_NilValue ? d1 : LENGTH(index_elt);
+	SEXP Nindex_elt = VECTOR_ELT(Nindex, ndim - 1);
+	int d2 = Nindex_elt == R_NilValue ? d1 : LENGTH(Nindex_elt);
 	//printf("ndim = %d: d2 = %d\n", ndim, d2);
 	for (int i2 = 0; i2 < d2; i2++) {
 		int i1;
-		if (index_elt == R_NilValue) {
+		if (Nindex_elt == R_NilValue) {
 			i1 = i2;
 		} else {
-			int coord = INTEGER(index_elt)[i2];
+			int coord = INTEGER(Nindex_elt)[i2];
 			if (INVALID_COORD(coord, d1))
 				error("subscript contains "
 				      "out-of-bound indices or NAs");
@@ -1194,7 +1179,7 @@ static SEXP REC_subassign_SVT_with_short_Rvector(SEXP SVT, SEXP SVT0,
 			subSVT = PROTECT(
 				subassign_leaf_with_short_Rvector(
 					subSVT, dim[0],
-					VECTOR_ELT(index, 0), short_Rvector,
+					VECTOR_ELT(Nindex, 0), short_Rvector,
 					left_bufs)
 			);
 		} else {
@@ -1206,7 +1191,7 @@ static SEXP REC_subassign_SVT_with_short_Rvector(SEXP SVT, SEXP SVT0,
 			subSVT = PROTECT(
 				REC_subassign_SVT_with_short_Rvector(
 					subSVT, subSVT0,
-					dim, ndim - 1, index,
+					dim, ndim - 1, Nindex,
 					short_Rvector, left_bufs)
 			);
 		}
@@ -1224,10 +1209,10 @@ static SEXP REC_subassign_SVT_with_short_Rvector(SEXP SVT, SEXP SVT0,
 }
 
 /* --- .Call ENTRY POINT ---
-   'index' must be an N-index, that is, a list of integer vectors (or NULLs),
+   'Nindex' must be an N-index, that is, a list of integer vectors (or NULLs),
    one along each dimension in the array. */
 SEXP C_subassign_SVT_with_short_Rvector(SEXP x_dim, SEXP x_type, SEXP x_SVT,
-		SEXP index, SEXP Rvector)
+		SEXP Nindex, SEXP Rvector)
 {
 	SEXPTYPE Rtype = _get_Rtype_from_Rstring(x_type);
 	if (Rtype == 0)
@@ -1247,7 +1232,7 @@ SEXP C_subassign_SVT_with_short_Rvector(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 			return x_SVT;  /* no-op */
 
 	int dim0 = dim[0];
-	SEXP index0 = VECTOR_ELT(index, 0);
+	SEXP index0 = VECTOR_ELT(Nindex, 0);
 
 	LeftBufs left_bufs = init_left_bufs(dim0, index0, Rvector);
 	PROTECT(left_bufs.Rvector);
@@ -1263,7 +1248,7 @@ SEXP C_subassign_SVT_with_short_Rvector(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 
 	SEXP ans = PROTECT(make_SVT_node(x_SVT, dim[ndim - 1], x_SVT));
 	ans = REC_subassign_SVT_with_short_Rvector(ans, x_SVT,
-					dim, ndim, index,
+					dim, ndim, Nindex,
 					Rvector, &left_bufs);
 	UNPROTECT(3);
 	return ans;
@@ -1277,10 +1262,10 @@ SEXP C_subassign_SVT_with_short_Rvector(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 /* --- .Call ENTRY POINT ---
    The left and right arrays ('x' and 'Rarray') must have the same number
    of dimensions.
-   'index' must be an N-index, that is, a list of integer vectors (or NULLs),
+   'Nindex' must be an N-index, that is, a list of integer vectors (or NULLs),
    one along each dimension in the arrays. */
 SEXP C_subassign_SVT_with_Rarray(SEXP x_dim, SEXP x_type, SEXP x_SVT,
-		SEXP index, SEXP Rarray)
+		SEXP Nindex, SEXP Rarray)
 {
 	error("not ready yet");
 	return R_NilValue;
@@ -1289,10 +1274,10 @@ SEXP C_subassign_SVT_with_Rarray(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 /* --- .Call ENTRY POINT ---
    The left and right arrays ('x' and 'v') must have the same number
    of dimensions.
-  'index' must be an N-index, that is, a list of integer vectors (or NULLs),
+  'Nindex' must be an N-index, that is, a list of integer vectors (or NULLs),
    one along each dimension in the arrays. */
 SEXP C_subassign_SVT_with_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
-		SEXP index, SEXP v_dim, SEXP v_type, SEXP v_SVT)
+		SEXP Nindex, SEXP v_dim, SEXP v_type, SEXP v_SVT)
 {
 	error("not ready yet");
 	return R_NilValue;
@@ -1316,7 +1301,7 @@ SEXP C_subassign_SVT_with_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 typedef struct Nindex_iterator_t {
 	int ndim;
 	const int *dim;
-	SEXP index;
+	SEXP Nindex;
 	int margin;
 	int *selection_dim;       /* of length 'ndim - margin' */
 	int *selection_midx_buf;  /* of length 'ndim - margin' */
@@ -1326,17 +1311,17 @@ typedef struct Nindex_iterator_t {
 } NindexIterator;
 
 static long long init_NindexIterator(NindexIterator *Nindex_iter,
-		const int *dim, int ndim, SEXP index, int margin)
+		const int *dim, int ndim, SEXP Nindex, int margin)
 {
 	long long selection_len;
 	int along, sd;
-	SEXP index_elt;
+	SEXP Nindex_elt;
 
-	if (!isVectorList(index) || LENGTH(index) != ndim)
+	if (!isVectorList(Nindex) || LENGTH(Nindex) != ndim)
 		error("incorrect number of subscripts");
 	Nindex_iter->ndim = ndim;
 	Nindex_iter->dim = dim;
-	Nindex_iter->index = index;
+	Nindex_iter->Nindex = Nindex;
 	Nindex_iter->margin = margin;
 	Nindex_iter->selection_dim =
 		(int *) R_alloc(ndim - margin, sizeof(int));
@@ -1344,11 +1329,11 @@ static long long init_NindexIterator(NindexIterator *Nindex_iter,
 		(int *) R_alloc(ndim - margin, sizeof(int));
 	selection_len = 1;
 	for (along = 0; along < ndim; along++) {
-		index_elt = VECTOR_ELT(index, along);
-		if (index_elt == R_NilValue) {
+		Nindex_elt = VECTOR_ELT(Nindex, along);
+		if (Nindex_elt == R_NilValue) {
 			sd = dim[along];
-		} else if (IS_INTEGER(index_elt)) {
-			sd = LENGTH(index_elt);
+		} else if (IS_INTEGER(Nindex_elt)) {
+			sd = LENGTH(Nindex_elt);
 		} else {
 			error("subscripts must be integer vectors");
 		}
@@ -1399,7 +1384,7 @@ static inline int next_coords0(NindexIterator *Nindex_iter)
 {
 	int moved_along, along, *coords0_p, coord;
 	const int *midx_p;
-	SEXP index_elt;
+	SEXP Nindex_elt;
 
 	if (Nindex_iter->selection_len == 0)
 		return 0;
@@ -1424,11 +1409,11 @@ static inline int next_coords0(NindexIterator *Nindex_iter)
 	for (along = Nindex_iter->margin; along < Nindex_iter->ndim; along++) {
 		if (along > moved_along)
                         break;
-		index_elt = VECTOR_ELT(Nindex_iter->index, along);
-		if (index_elt == R_NilValue) {
+		Nindex_elt = VECTOR_ELT(Nindex_iter->Nindex, along);
+		if (Nindex_elt == R_NilValue) {
 			*coords0_p = *midx_p;
 		} else {
-			coord = INTEGER(index_elt)[*midx_p];
+			coord = INTEGER(Nindex_elt)[*midx_p];
 			if (INVALID_COORD(coord, Nindex_iter->dim[along]))
 				error("subscript contains "
 				      "out-of-bound indices or NAs");

@@ -27,7 +27,7 @@ SEXP C_subassign_SVT_with_short_Rvector(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT,
-	SEXP index,
+	SEXP Nindex,
 	SEXP Rvector
 );
 
@@ -35,7 +35,7 @@ SEXP C_subassign_SVT_with_Rarray(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT,
-	SEXP index,
+	SEXP Nindex,
 	SEXP Rarray
 );
 
@@ -43,7 +43,7 @@ SEXP C_subassign_SVT_with_SVT(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT,
-	SEXP index,
+	SEXP Nindex,
 	SEXP v_dim,
 	SEXP v_type,
 	SEXP v_SVT

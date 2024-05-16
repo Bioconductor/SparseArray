@@ -1,5 +1,12 @@
 /****************************************************************************
- *        crossprod(), tcrossprod(), and %*% of SparseMatrix objects        *
+ ****************************************************************************
+ **									   **
+ **                  crossprod() of SparseMatrix objects                   **
+ **									   **
+ **                This is the workhorse behind tcrossprod()               **
+ **           and multiplication (`%*%`) of SparseMatrix objects           **
+ **									   **
+ ****************************************************************************
  ****************************************************************************/
 #include "SparseMatrix_mult.h"
 

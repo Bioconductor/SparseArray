@@ -4,6 +4,152 @@
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### .subset_SVT_by_logical_array()
+###
+### Returns a vector (atomic or list) of the same type() as 'x'.
+###
+
+.subset_SVT_by_logical_array <- function(x, y, drop=TRUE)
+    stop("subsetting operation not supported yet")
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### .subset_SVT_by_Mindex()
+### .subset_SVT_by_Lindex()
+###
+### Both return a vector (atomic or list) of the same type() as 'x'.
+###
+
+.subset_SVT_by_Mindex <- function(x, Mindex, drop=FALSE)
+{
+    stopifnot(is(x, "SVT_SparseArray"))
+    check_svt_version(x)
+    stopifnot(is.matrix(Mindex), is.numeric(Mindex))
+    if (storage.mode(Mindex) != "integer")
+        storage.mode(Mindex) <- "integer"
+    on.exit(free_global_OPBufTree())
+    SparseArray.Call("C_subset_SVT_by_Mindex",
+                     x@dim, x@type, x@SVT, Mindex)
+}
+
+.subset_SVT_by_Lindex <- function(x, Lindex)
+{
+    stopifnot(is(x, "SVT_SparseArray"))
+    check_svt_version(x)
+    stopifnot(is.vector(Lindex), is.numeric(Lindex))
+    on.exit(free_global_OPBufTree())
+    SparseArray.Call("C_subset_SVT_by_Lindex",
+                     x@dim, x@type, x@SVT, Lindex)
+}
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### subset_SVT_by_Nindex()
+###
+### Returns an SVT_SparseArray object of the same type() as 'x' (endomorphism).
+###
+### Like the 'index' argument in 'extract_array()', the 'Nindex' argument in
+### subset_SVT_by_Nindex() must be an N-index, that is, a list with one list
+### element per dimension in 'x'. Each list element must be an integer vector
+### of valid indices along the corresponding dimension in 'x', or a NULL.
+###
+### Note that in addition to being one of the workhorses behind `[` on an
+### SVT_SparseArray object (see below), this is **the** workhorse behind the
+### extract_sparse_array() and extract_array() methods for SVT_SparseArray
+### objects.
+###
+
+subset_SVT_by_Nindex <- function(x, Nindex, ignore.dimnames=FALSE)
+{
+    stopifnot(is(x, "SVT_SparseArray"),
+              is.list(Nindex),
+              length(Nindex) == length(x@dim),
+              isTRUEorFALSE(ignore.dimnames))
+    check_svt_version(x)
+
+    ## Returns 'new_dim' and 'new_SVT' in a list of length 2.
+    C_ans <- SparseArray.Call("C_subset_SVT_by_Nindex",
+                              x@dim, x@type, x@SVT, Nindex)
+    new_dim <- C_ans[[1L]]
+    new_SVT <- C_ans[[2L]]
+
+    ## Compute 'new_dimnames'.
+    if (is.null(dimnames(x)) || ignore.dimnames) {
+        new_dimnames <- vector("list", length(x@dim))
+    } else {
+        new_dimnames <- S4Arrays:::subset_dimnames_by_Nindex(x@dimnames, Nindex)
+    }
+    BiocGenerics:::replaceSlots(x, dim=new_dim,
+                                   dimnames=new_dimnames,
+                                   SVT=new_SVT,
+                                   check=FALSE)
+}
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Single-bracket subsetting method (`[`) for SVT_SparseArray objects
+###
+
+.subset_SVT_SparseArray <- function(x, i, j, ..., drop=TRUE)
+{
+    if (missing(x))
+        stop(wmsg("'x' is missing"))
+    if (!isTRUEorFALSE(drop))
+        stop(wmsg("'drop' must be TRUE or FALSE"))
+    Nindex <- S4Arrays:::extract_Nindex_from_syscall(sys.call(), parent.frame())
+    nsubscript <- length(Nindex)
+    if (nsubscript == 0L)
+        return(x)  # no-op
+    x_dim <- dim(x)
+    x_ndim <- length(x_dim)
+    if (nsubscript == 1L) {
+        i <- Nindex[[1L]]
+        if (type(i) == "logical" && identical(x_dim, dim(i)))
+            return(.subset_SVT_by_logical_array(x, i, drop=drop))
+        if (is.matrix(i) && is.numeric(i))
+            return(.subset_SVT_by_Mindex(x, i, drop=drop))
+        ## Linear single bracket subsetting e.g. x[5:2].
+        ## If 'x' is monodimensional and 'drop' is FALSE, we fallback
+        ## to "multidimensional single bracket subsetting" which is an
+        ## endomorphism.
+        if (x_ndim != 1L || drop)
+            return(.subset_SVT_by_Lindex(x, i))
+    }
+    if (nsubscript != x_ndim)
+        stop(wmsg("incorrect number of subscripts"))
+    Nindex <- S4Arrays:::normalize_Nindex(Nindex, x)
+    ans <- subset_SVT_by_Nindex(x, Nindex)
+    if (drop)
+        ans <- drop(ans)
+    ans
+}
+
+setMethod("[", "SVT_SparseArray", .subset_SVT_SparseArray)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### extract_sparse_array() and extract_array() methods for SVT_SparseArray
+### objects
+###
+
+### No need to propagate the dimnames.
+setMethod("extract_sparse_array", "SVT_SparseArray",
+    function(x, index) subset_SVT_by_Nindex(x, index, ignore.dimnames=TRUE)
+)
+
+### Note that the default extract_array() method would do the job but it
+### relies on single-bracket subsetting so would needlessly go thru the
+### complex .subset_SVT_SparseArray() machinery above to finally call
+### subset_SVT_by_Nindex(). It would also propagate the dimnames which
+### extract_array() does not need to do. The method below completely bypasses
+### all this complexity by calling subset_SVT_by_Nindex() directly.
+setMethod("extract_array", "SVT_SparseArray",
+    function(x, index)
+        as.array(subset_SVT_by_Nindex(x, index, ignore.dimnames=TRUE))
+)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### extract_sparse_array() and extract_array() methods for COO_SparseArray
 ### objects
 ###
@@ -77,107 +223,5 @@ setMethod("extract_sparse_array", "COO_SparseArray",
 }
 setMethod("extract_array", "COO_SparseArray",
     .extract_array_from_COO_SparseArray
-)
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### extract_sparse_array() method for SVT_SparseArray objects
-###
-
-### This is the workhorse behind the extract_sparse_array(), extract_array(),
-### and `[` methods for SVT_SparseArray objects.
-### Like for 'extract_array()', the supplied 'index' must be a list with
-### one list element per dimension in 'x'. Each list element must be an
-### integer vector of valid indices along the corresponding dimension
-### in 'x', or a NULL.
-subset_SVT_SparseArray <- function(x, index, ignore.dimnames=FALSE)
-{
-    stopifnot(is(x, "SVT_SparseArray"),
-              is.list(index),
-              length(index) == length(x@dim),
-              isTRUEorFALSE(ignore.dimnames))
-    check_svt_version(x)
-
-    ## Returns 'new_dim' and 'new_SVT' in a list of length 2.
-    C_ans <- SparseArray.Call("C_subset_SVT_SparseArray",
-                              x@dim, x@type, x@SVT, index)
-    new_dim <- C_ans[[1L]]
-    new_SVT <- C_ans[[2L]]
-
-    ## Compute 'new_dimnames'.
-    if (is.null(dimnames(x)) || ignore.dimnames) {
-        new_dimnames <- vector("list", length(x@dim))
-    } else {
-        new_dimnames <- S4Arrays:::subset_dimnames_by_Nindex(x@dimnames, index)
-    }
-    BiocGenerics:::replaceSlots(x, dim=new_dim,
-                                   dimnames=new_dimnames,
-                                   SVT=new_SVT,
-                                   check=FALSE)
-}
-
-### No need to propagate the dimnames.
-setMethod("extract_sparse_array", "SVT_SparseArray",
-    function(x, index) subset_SVT_SparseArray(x, index, ignore.dimnames=TRUE)
-)
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### SVT_SparseArray single-bracket subsetting
-###
-
-.subset_SVT_SparseArray_by_logical_array <- function(x, y, drop=TRUE)
-    stop("subsetting operation not supported yet")
-
-.subset_SVT_SparseArray_by_Mindex <- function(x, Mindex, drop=FALSE)
-    stop("subsetting operation not supported yet")
-
-.subset_SVT_SparseArray_by_Lindex <- function(x, Lindex)
-    stop("subsetting operation not supported yet")
-
-.single_bracket_SVT_SparseArray <- function(x, i, j, ..., drop=TRUE)
-{
-    if (missing(x))
-        stop(wmsg("'x' is missing"))
-    if (!isTRUEorFALSE(drop))
-        stop(wmsg("'drop' must be TRUE or FALSE"))
-    Nindex <- S4Arrays:::extract_Nindex_from_syscall(sys.call(), parent.frame())
-    nsubscript <- length(Nindex)
-    if (nsubscript == 0L)
-        return(x)  # no-op
-    x_dim <- dim(x)
-    x_ndim <- length(x_dim)
-    if (nsubscript == 1L) {
-        i <- Nindex[[1L]]
-        if (type(i) == "logical" && identical(x_dim, dim(i)))
-            return(.subset_SVT_SparseArray_by_logical_array(x, i, drop=drop))
-        if (is.matrix(i) && is.numeric(i))
-            return(.subset_SVT_SparseArray_by_Mindex(x, i, drop=drop))
-        ## Linear single bracket subsetting e.g. x[5:2].
-        ## If 'x' is monodimensional and 'drop' is FALSE, we fallback
-        ## to "multidimensional single bracket subsetting" which is an
-        ## endomorphism.
-        if (x_ndim != 1L || drop)
-            return(.subset_SVT_SparseArray_by_Lindex(x, i))
-    }
-    if (nsubscript != x_ndim)
-        stop(wmsg("incorrect number of subscripts"))
-    index <- S4Arrays:::normalize_Nindex(Nindex, x)
-    ans <- subset_SVT_SparseArray(x, index)
-    if (drop)
-        ans <- drop(ans)
-    ans
-}
-
-setMethod("[", "SVT_SparseArray", .single_bracket_SVT_SparseArray)
-
-### Note that the default extract_array() method would do the job but it
-### relies on single-bracket subsetting so would needlessly go thru the
-### complex .single_bracket_SVT_SparseArray() machinery above. It would
-### also propagate the dimnames which extract_array() does not need to do.
-### The method below completely bypasses all this complexity.
-setMethod("extract_array", "SVT_SparseArray",
-    function(x, index)
-        as.array(subset_SVT_SparseArray(x, index, ignore.dimnames=TRUE))
 )
 
