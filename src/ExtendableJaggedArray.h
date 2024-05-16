@@ -3,7 +3,7 @@
 
 #include <Rdefines.h>
 
-typedef struct extendable_jagged_array {
+typedef struct extendable_jagged_array_t {
 	size_t _ncol;
 	int **_cols;
 	size_t *_buflengths;

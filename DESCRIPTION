@@ -32,6 +32,7 @@ Suggests: DelayedArray, testthat, knitr, rmarkdown, BiocStyle
 VignetteBuilder: knitr
 Collate: utils.R
 	options.R
+	OPBufTree.R
 	thread-control.R
 	sparseMatrix-utils.R
 	SparseArray-class.R

@@ -583,9 +583,7 @@ int _collect_offsets_of_nonzero_Rsubvec_elts(
 		SEXP Rvector, R_xlen_t subvec_offset, int subvec_len,
 		int *out)
 {
-	SEXPTYPE Rtype;
-
-	Rtype = TYPEOF(Rvector);
+	SEXPTYPE Rtype = TYPEOF(Rvector);
 	switch (Rtype) {
 	    case INTSXP: case LGLSXP:
 		return collect_offsets_of_nonzero_int_elts(

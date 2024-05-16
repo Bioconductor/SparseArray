@@ -31,7 +31,7 @@
 }
 
 ### Adjust the type of 'value' and recycle it to the length of the
-### subassignment index.
+### subassignment M/L-index.
 .normalize_right_value <- function(value, left_type, index_len)
 {
     if (length(value) == 0L)
@@ -42,8 +42,8 @@
 
 .subassign_SVT_by_Mindex <- function(x, Mindex, value)
 {
-    stopifnot(is.matrix(Mindex), is.numeric(Mindex))
     x <- .adjust_left_type(x, value)
+    stopifnot(is.matrix(Mindex), is.numeric(Mindex))
 
     ## No-op (except for type adjustment above) if selection if empty.
     if (nrow(Mindex) == 0L)
@@ -60,8 +60,8 @@
 
 .subassign_SVT_by_Lindex <- function(x, Lindex, value)
 {
-    stopifnot(is.vector(Lindex), is.numeric(Lindex))
     x <- .adjust_left_type(x, value)
+    stopifnot(is.vector(Lindex), is.numeric(Lindex))
 
     ## No-op (except for type adjustment above) if selection if empty.
     if (length(Lindex) == 0L)
@@ -76,38 +76,38 @@
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### .subassign_SVT_by_index()
+### .subassign_SVT_by_Nindex()
 ###
+### Like the 'index' argument in 'extract_array()', the 'Nindex' argument in
+### all the functions below must be an N-index, that is, a list with one list
+### element per dimension in 'x'. Each list element must be an integer vector
+### of valid indices along the corresponding dimension in 'x', or a NULL.
 
-.subassign_SVT_with_short_Rvector <- function(x, index, Rvector)
+.subassign_SVT_with_short_Rvector <- function(x, Nindex, Rvector)
 {
     stopifnot(is.vector(Rvector))
     SparseArray.Call("C_subassign_SVT_with_short_Rvector",
-                     x@dim, x@type, x@SVT, index, Rvector)
+                     x@dim, x@type, x@SVT, Nindex, Rvector)
 }
 
-.subassign_SVT_with_Rarray <- function(x, index, Rarray)
+.subassign_SVT_with_Rarray <- function(x, Nindex, Rarray)
 {
     stopifnot(is.array(Rarray))
     SparseArray.Call("C_subassign_SVT_with_Rarray",
-                     x@dim, x@type, x@SVT, index, Rarray)
+                     x@dim, x@type, x@SVT, Nindex, Rarray)
 }
 
-.subassign_SVT_with_SVT <- function(x, index, v)
+.subassign_SVT_with_SVT <- function(x, Nindex, v)
 {
     stopifnot(is(v, "SVT_SparseArray"))
     check_svt_version(v)
     SparseArray.Call("C_subassign_SVT_with_SVT",
-                     x@dim, x@type, x@SVT, index, v@dim, v@type, v@SVT)
+                     x@dim, x@type, x@SVT, Nindex, v@dim, v@type, v@SVT)
 }
 
-### Like for 'extract_array()', the supplied 'index' must be a list with
-### one list element per dimension in 'x'. Each list element must be an
-### integer vector of valid indices along the corresponding dimension
-### in 'x', or a NULL.
-.subassign_SVT_by_index <- function(x, index, value)
+.subassign_SVT_by_Nindex <- function(x, Nindex, value)
 {
-    stopifnot(is(x, "SVT_SparseArray"), is.list(index))
+    stopifnot(is(x, "SVT_SparseArray"), is.list(Nindex))
     check_svt_version(x)
     if (!is.vector(value) && !is.array(value) && !is(value, "SVT_SparseArray"))
         stop(wmsg("the supplied value must be an ordinary vector or array, ",
@@ -118,7 +118,7 @@
     type(x) <- new_type
 
     ## No-op (except for type change above) if selection if empty. */
-    selection_dim <- S4Arrays:::get_Nindex_lengths(index, x@dim)
+    selection_dim <- S4Arrays:::get_Nindex_lengths(Nindex, x@dim)
     if (any(selection_dim == 0L))
         return(x)
 
@@ -136,13 +136,13 @@
             ## We want to support things like 'x[ , 1:2] <- 0'
             ## or 'x[1:12, ] <- c(0.6, 0, 2.5)' in the most efficient
             ## way so no recycling of 'value' at the R level.
-            new_SVT <- .subassign_SVT_with_short_Rvector(x, index, value)
+            new_SVT <- .subassign_SVT_with_short_Rvector(x, Nindex, value)
         } else {
             ## Turn 'value' into an ordinary array of the same dimensions
             ## as the selection, with recycling if necessary.
             a <- array(vector(typeof(value), 1L), dim=selection_dim)
             a[] <- value
-            new_SVT <- .subassign_SVT_with_Rarray(x, index, value)
+            new_SVT <- .subassign_SVT_with_Rarray(x, Nindex, value)
         }
     } else {
         if (!identical(selection_dim, unname(dim(value))))
@@ -150,10 +150,10 @@
                       "the same dimensions"))
         if (is.array(value)) {
             storage.mode(value) <- new_type
-            new_SVT <- .subassign_SVT_with_Rarray(x, index, value)
+            new_SVT <- .subassign_SVT_with_Rarray(x, Nindex, value)
         } else {
             type(value) <- new_type
-            new_SVT <- .subassign_SVT_with_SVT(x, index, value)
+            new_SVT <- .subassign_SVT_with_SVT(x, Nindex, value)
         }
     }
     BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
@@ -183,8 +183,8 @@
     }
     if (nsubscript != x_ndim)
         stop(wmsg("incorrect number of subscripts"))
-    index <- S4Arrays:::normalize_Nindex(Nindex, x)
-    .subassign_SVT_by_index(x, index, value)
+    Nindex <- S4Arrays:::normalize_Nindex(Nindex, x)
+    .subassign_SVT_by_Nindex(x, Nindex, value)
 }
 
 setReplaceMethod("[", "SVT_SparseArray", .subassign_SVT_SparseArray)
