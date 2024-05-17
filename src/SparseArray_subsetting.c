@@ -55,23 +55,6 @@ static inline void set_Rvector_elt_to_NA(SEXP Rvector, R_xlen_t i)
  * subset_leaf2()
  */
 
-static inline int get_i2(const int *idx, int i1, int dim0)
-{
-	int i2;
-
-	i2 = idx[i1];
-	if (i2 == NA_INTEGER) {
-		UNPROTECT(1);
-		error("'Nindex' cannot contain NAs");
-	}
-	if (i2 < 1 || i2 > dim0) {
-		UNPROTECT(1);
-		error("'Nindex' contains out-of-bound "
-		      "indices");
-	}
-	return --i2;
-}
-
 static void build_lookup_table(int *lookup_table,
 		const int *nzoffs, int nzcount)
 {
@@ -132,14 +115,58 @@ static inline int map_i2_to_k2_with_bsearch(int i2,
 	return -1;
 }
 
-static void subset_leaf1(SEXP leaf, int dim0,
+static void subset_leaf1(SEXP leaf,
 		const int *from_offs, const R_xlen_t *to_offs, int noffs,
 		SEXP ans,
-		int *i1_buf, int *k2_buf, int *lookup_table)
+		int *lookup_table, CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
 {
-	error("subsetting operation not supported yet "
-	      "(subset_leaf1() not ready)");
+	if (leaf == R_NilValue || noffs == 0)
+		return;
+	SEXP nzvals, nzoffs;
+	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
+	/* TODO: Try to use map_i2_to_k2_with_bsearch() instead of the lookup
+	   table if the vector of from_off/to_off pairs is "short" (e.g.
+	   noffs < 5). This would avoid the overhead of building the lookup
+	   table and so might be slightly more efficient. */
+	build_lookup_table(lookup_table, INTEGER(nzoffs), nzcount);
+	/* Walk on the vector of from_off/to_off pairs. */
+	for (int k1 = 0; k1 < noffs; k1++) {
+		int from_off = from_offs[k1];
+		//k2 = map_i2_to_k2_with_bsearch(from_off,
+		//			INTEGER(nzoffs), nzcount);
+		//k2 = map_i2_to_k2_with_lookup_table(from_off, lookup_table);
+		int k2 = lookup_table[from_off];
+		if (k2 >= 0) {
+			if (nzvals == R_NilValue) {
+				/* lacunar leaf */
+				_set_Rsubvec_elts_to_one(ans,
+					to_offs[k1], (R_xlen_t) 1);
+			} else {
+				/* standard leaf */
+				copy_Rvector_elt_FUN(nzvals, (R_xlen_t) k2,
+						     ans, to_offs[k1]);
+			}
+		}
+	}
+	reset_lookup_table(lookup_table, INTEGER(nzoffs), nzcount);
 	return;
+}
+
+static inline int get_i2(const int *idx, int i1, int dim0)
+{
+	int i2;
+
+	i2 = idx[i1];
+	if (i2 == NA_INTEGER) {
+		UNPROTECT(1);
+		error("'Nindex' cannot contain NAs");
+	}
+	if (i2 < 1 || i2 > dim0) {
+		UNPROTECT(1);
+		error("'Nindex' contains out-of-bound "
+		      "indices");
+	}
+	return --i2;
 }
 
 /* Takes a non-NULL leaf (standard or lacunar), and returns a leaf that can
@@ -215,7 +242,9 @@ static int check_Mindex_dim(SEXP Mindex, int ndim,
 	return INTEGER(Mindex_dim)[0];
 }
 
-#define	INVALID_LINEAR_INDEX_VALUE -1
+/* MAX_OPBUF_LEN_REACHED is set to -1 in OPBufTree.h so make sure to use
+   a different negative value for INVALID_LINEAR_INDEX_VALUE. */
+#define	INVALID_LINEAR_INDEX_VALUE -2
 #define	LINEAR_INDEX_VALUE_IS_NA    1
 
 static inline int get_Lindex_elt(SEXP Lindex, R_xlen_t i, R_xlen_t *out)
@@ -267,16 +296,37 @@ static int attach_Lindex_elt_to_OPBufTree(R_xlen_t Lindex_elt, R_xlen_t loff,
 	if (opbuf_tree->node_type == NULL_NODE)
 		_alloc_OPBufTree_leaf(opbuf_tree);
 	OPBuf *opbuf = get_OPBufTree_leaf(opbuf_tree);
+	/* If 'opbuf->nelt' is INT_MAX then _append_to_OPBuf() will return
+	   MAX_OPBUF_LEN_REACHED (negative value, see OPBufTree.h). Note that
+	   this will only happen if 'Lindex' is a long vector and more than
+	   INT_MAX in it hit the same leaf in 'SVT'. A rather crazy and
+	   unlikely situation! */
 	return _append_to_OPBuf(opbuf, loff, (int) idx0);
 }
 
-/* Returns the length of the biggest leaf or < 0 in case of an error. */
+/* Returns the length of the longest leaf in the output tree (i.e. the
+   resulting OPBufTree), or < 0 in case of an error. Therefore a returned
+   value of 0 means that no leaves in the input tree ('x_SVT') are touched by
+   the subsetting operation (i.e. no leaves in 'x_SVT' are "hit" by 'Lindex').
+
+   IMPORTANT: The output tree will have the same morphology as the input tree
+   except that not all nodes in the latter are necessarily mapped to a node
+   in the former. In particular the output tree will only have leaves that
+   correspond to leaves in the input tree that are touched by the subsetting
+   operation.
+   In other words, the output tree will be a pruned version of the input tree,
+   unless all the leaves in the latter are touched by the subsetting operation,
+   in which case the two trees will have identical morphologies. This means
+   that all the nodes in the resulting OPBufTree will have a corresponding
+   node in the input SVT. This is the reason why the recursive tree traversal
+   in REC_subset_SVT_by_OPBufTree() below is guided by 'opbuf_tree' and not
+   by 'SVT'. */
 static int build_OPBufTree_from_Lindex(OPBufTree *opbuf_tree, SEXP Lindex,
 		SEXP x_SVT, const int *x_dim, int x_ndim, SEXP ans,
 		const R_xlen_t *dimcumprod)
 {
-	_free_OPBufTree(opbuf_tree);
-	int max_leaf_len = 0;
+	_free_OPBufTree(opbuf_tree);  /* reset 'opbuf_tree' to NULL_NODE */
+	int max_outleaf_len = 0;
 	R_xlen_t out_len = XLENGTH(Lindex);
 	/* Walk along 'Lindex'. */
 	int ret = 0;
@@ -295,16 +345,17 @@ static int build_OPBufTree_from_Lindex(OPBufTree *opbuf_tree, SEXP Lindex,
 					opbuf_tree);
 		if (ret < 0)
 			return ret;
-		if (ret > max_leaf_len)
-			max_leaf_len = ret;
+		if (ret > max_outleaf_len)
+			max_outleaf_len = ret;
 	}
-	return max_leaf_len;
+	return max_outleaf_len;
 }
 
-/* Recursive tree traversal. */
+/* Recursive tree traversal must be guided by 'opbuf_tree', not by 'SVT'. See
+   long comment above why. */
 static void REC_subset_SVT_by_OPBufTree(OPBufTree *opbuf_tree,
 		SEXP SVT, const int *dim, int ndim, SEXP ans,
-		int *i1_buf, int *k2_buf, int *lookup_table)
+		int *lookup_table, CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
 {
 	if (opbuf_tree->node_type == NULL_NODE)
 		return;
@@ -312,22 +363,22 @@ static void REC_subset_SVT_by_OPBufTree(OPBufTree *opbuf_tree,
 	if (ndim == 1) {
 		/* 'opbuf_tree' and 'SVT' are leaves. */
 		OPBuf *opbuf = get_OPBufTree_leaf(opbuf_tree);
-		subset_leaf1(SVT, dim[0],
-			     opbuf->soffs, opbuf->loffs, opbuf->nelt,
-			     ans,
-			     i1_buf, k2_buf, lookup_table);
+		subset_leaf1(SVT,
+			     opbuf->soffs, opbuf->loffs, opbuf->nelt, ans,
+			     lookup_table, copy_Rvector_elt_FUN);
 		_free_OPBufTree(opbuf_tree);
 		return;
 	}
 
 	/* 'opbuf_tree' and 'SVT' are inner nodes. */
-	int SVT_len = LENGTH(SVT);
-	for (int i = 0; i < SVT_len; i++) {
+	int n = get_OPBufTree_nchildren(opbuf_tree);  /* same as dim[ndim - 1]
+							 or LENGTH(SVT) */
+	for (int i = 0; i < n; i++) {
 		OPBufTree *child = get_OPBufTree_child(opbuf_tree, i);
 		SEXP subSVT = VECTOR_ELT(SVT, i);
 		REC_subset_SVT_by_OPBufTree(child,
 				subSVT, dim, ndim - 1, ans,
-				i1_buf, k2_buf, lookup_table);
+				lookup_table, copy_Rvector_elt_FUN);
 	}
 	_free_OPBufTree(opbuf_tree);
 	return;
@@ -358,6 +409,7 @@ SEXP C_subset_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Lindex)
 		error("SparseArray internal error in "
 		      "C_subset_SVT_by_Lindex():\n"
 		      "    SVT_SparseArray object has invalid type");
+
 	int x_ndim = LENGTH(x_dim);
 	if (!IS_INTEGER(Lindex) && !IS_NUMERIC(Lindex))
 		error("'Lindex' must be an integer or numeric vector");
@@ -380,29 +432,33 @@ SEXP C_subset_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Lindex)
 		dimcumprod[along] = p;
 	}
 	OPBufTree *opbuf_tree = _get_global_opbuf_tree();
-	int max_leaf_len = build_OPBufTree_from_Lindex(opbuf_tree, Lindex,
+	int max_outleaf_len =
+		build_OPBufTree_from_Lindex(opbuf_tree, Lindex,
 				x_SVT, INTEGER(x_dim), x_ndim, ans,
 				dimcumprod);
-	if (max_leaf_len < 0) {
+	if (max_outleaf_len < 0) {
 		UNPROTECT(1);
-		if (max_leaf_len == INVALID_LINEAR_INDEX_VALUE)
+		if (max_outleaf_len == INVALID_LINEAR_INDEX_VALUE)
 			error("'Lindex' contains invalid linear indices");
+		if (max_outleaf_len == MAX_OPBUF_LEN_REACHED)
+			error("too many indices in 'Lindex' hit the same "
+			      "leaf in the Sparse Vector Tree representation");
 		error("SparseArray internal error in "
 		      "C_subset_SVT_by_Lindex():\n"
-		      "    unexpected error code %d", max_leaf_len);
+		      "    unexpected error code %d", max_outleaf_len);
 	}
 
 	/* 2nd pass: Subset SVT by OPBufTree. */
-	if (max_leaf_len > 0) {
+	if (max_outleaf_len > 0) {
 		int x_dim0 = INTEGER(x_dim)[0];
 		int *lookup_table = (int *) R_alloc(x_dim0, sizeof(int));
-		int *i1_buf = (int *) R_alloc(max_leaf_len, sizeof(int));
-		int *k2_buf = (int *) R_alloc(max_leaf_len, sizeof(int));
 		for (int i = 0; i < x_dim0; i++)
 			lookup_table[i] = -1;
+		CopyRVectorElt_FUNType fun =
+			_select_copy_Rvector_elt_FUN(Rtype);
 		REC_subset_SVT_by_OPBufTree(opbuf_tree,
 				x_SVT, INTEGER(x_dim), x_ndim, ans,
-				i1_buf, k2_buf, lookup_table);
+				lookup_table, fun);
 	}
 
 	UNPROTECT(1);

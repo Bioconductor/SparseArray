@@ -244,22 +244,19 @@ static SEXP REC_tune_SVT(SEXP SVT, const int *dim, int ndim,
 		const int *cumallKEEP, const int *cumallDROP,
 		SEXPTYPE Rtype, CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
 {
-	int op, ans_len, i;
-	SEXP ans_elt, ans, subSVT;
-
 	if (SVT == R_NilValue || (nops == ndim && cumallKEEP[ndim - 1]))
 		return SVT;
 
-	op = ops[nops - 1];
+	int op = ops[nops - 1];
 	if (op == ADD_DIM) {
 		/* Add ineffective dimension (as outermost dimension). */
-		ans_elt = PROTECT(
+		SEXP ans_elt = PROTECT(
 			REC_tune_SVT(SVT, dim, ndim,
 				     ops, nops - 1,
 				     cumallKEEP, cumallDROP,
 				     Rtype, copy_Rvector_elt_FUN)
 		);
-		ans = PROTECT(add_outermost_dims(ans_elt, 1));
+		SEXP ans = PROTECT(add_outermost_dims(ans_elt, 1));
 		UNPROTECT(2);
 		return ans;
 	}
@@ -276,11 +273,11 @@ static SEXP REC_tune_SVT(SEXP SVT, const int *dim, int ndim,
 			return roll_SVT_into_leaf(SVT, ndim, Rtype,
 						  copy_Rvector_elt_FUN);
 		}
-		ans_len = dim[ndim - 1];
-		ans = PROTECT(NEW_LIST(ans_len));
-		for (i = 0; i < ans_len; i++) {
-			subSVT = VECTOR_ELT(SVT, i);
-			ans_elt = PROTECT(
+		int ans_len = dim[ndim - 1];
+		SEXP ans = PROTECT(NEW_LIST(ans_len));
+		for (int i = 0; i < ans_len; i++) {
+			SEXP subSVT = VECTOR_ELT(SVT, i);
+			SEXP ans_elt = PROTECT(
 				REC_tune_SVT(subSVT, dim, ndim - 1,
 					     ops, nops - 1,
 					     cumallKEEP, cumallDROP,
@@ -313,31 +310,26 @@ static SEXP REC_tune_SVT(SEXP SVT, const int *dim, int ndim,
    in the S4Arrays package for a description of the 'dim_tuner' argument. */
 SEXP C_tune_SVT_dims(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP dim_tuner)
 {
-	SEXPTYPE Rtype;
-	CopyRVectorElt_FUNType copy_Rvector_elt_FUN;
-	int ndim, nops, *cumallKEEP, *cumallDROP;
-	const int *dim, *ops;
-
-	Rtype = _get_Rtype_from_Rstring(x_type);
-	copy_Rvector_elt_FUN = _select_copy_Rvector_elt_FUN(Rtype);
-	if (copy_Rvector_elt_FUN == NULL)
+	SEXPTYPE Rtype = _get_Rtype_from_Rstring(x_type);
+	CopyRVectorElt_FUNType fun = _select_copy_Rvector_elt_FUN(Rtype);
+	if (fun == NULL)
 		error("SparseArray internal error in "
 		      "C_tune_SVT_dims():\n"
 		      "    SVT_SparseArray object has invalid type");
 
 	/* Make sure that: 1 <= ndim <= nops. */
-	ndim = LENGTH(x_dim);
+	int ndim = LENGTH(x_dim);
 	if (ndim == 0)
 		error("SparseArray internal error in "
 		      "C_tune_SVT_dims():\n"
 		      "    'dim(x)' cannot be empty");
-	nops = LENGTH(dim_tuner);
+	int nops = LENGTH(dim_tuner);
 	if (nops < ndim)
 		error("SparseArray internal error in "
 		      "C_tune_SVT_dims():\n"
 		      "    length(dim_tuner) < length(dim(x))");
 
-	ops = INTEGER(dim_tuner);
+	const int *ops = INTEGER(dim_tuner);
 	/* REC_tune_SVT() assumes that the 'ops' vector is normalized.
 	   Note that we have no use case for an 'ops' vector that is not
 	   normalized at the moment. */
@@ -346,15 +338,15 @@ SEXP C_tune_SVT_dims(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP dim_tuner)
 		      "C_tune_SVT_dims():\n"
 		      "    'dim_tuner' is not normalized");
 
-	dim = INTEGER(x_dim);
-	cumallKEEP = (int *) R_alloc(ndim, sizeof(int));
-	cumallDROP = (int *) R_alloc(ndim, sizeof(int));
+	const int *dim = INTEGER(x_dim);
+	int *cumallKEEP = (int *) R_alloc(ndim, sizeof(int));
+	int *cumallDROP = (int *) R_alloc(ndim, sizeof(int));
 	set_cumallKEEP_cumallDROP(cumallKEEP, cumallDROP,
 				  ops, nops, dim, ndim);
 
 	/* Compute tuned 'SVT'. */
 	return REC_tune_SVT(x_SVT, dim, ndim, ops, nops,
 			    cumallKEEP, cumallDROP,
-			    Rtype, copy_Rvector_elt_FUN);
+			    Rtype, fun);
 }
 

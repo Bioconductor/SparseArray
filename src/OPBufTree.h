@@ -4,6 +4,8 @@
 #include <Rdefines.h>
 
 
+#define	MAX_OPBUF_LEN_REACHED -1
+
 /* Buffer of Offset Pairs. Each pair is made of a "long offset" (R_xlen_t)
    and a "short offset" (int). */
 typedef struct opbuf_t {
@@ -30,6 +32,15 @@ typedef struct opbuf_tree_t {
 typedef struct inner_node_t InnerNode;
 
 static const OPBufTree OPBufTree0 = { NULL_NODE, {NULL}};
+
+static inline int get_OPBufTree_nchildren(const OPBufTree *opbuf_tree)
+{
+	if (opbuf_tree->node_type != INNER_NODE)
+		error("SparseArray internal error in "
+		      "get_OPBufTree_nchildren():\n"
+		      "    opbuf_tree->node_type != INNER_NODE");
+	return opbuf_tree->node.inner_node_p->n;
+}
 
 static inline OPBufTree *get_OPBufTree_child(const OPBufTree *opbuf_tree, int i)
 {
