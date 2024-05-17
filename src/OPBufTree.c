@@ -33,9 +33,10 @@ static void free_OPBuf(OPBuf *opbuf)
 	free(opbuf);
 }
 
-/* Supplied 'buflen' should never be INT_MAX. */
 static int increase_buflen(int buflen)
 {
+	if (buflen == INT_MAX)
+		return -1;
 	if (buflen == 0)
 		return 1;
 	if (buflen <= 2)
@@ -51,9 +52,11 @@ static int increase_buflen(int buflen)
 	return INT_MAX;
 }
 
-static void extend_OPBuf(OPBuf *opbuf)
+static int extend_OPBuf(OPBuf *opbuf)
 {
 	int new_buflen = increase_buflen(opbuf->buflen);
+	if (new_buflen < 0)
+		return MAX_OPBUF_LEN_REACHED;
 	if (opbuf->buflen == 0) {
 		opbuf->loffs = (R_xlen_t *)
 			malloc(sizeof(R_xlen_t) * new_buflen);
@@ -75,14 +78,16 @@ static void extend_OPBuf(OPBuf *opbuf)
 			alloc_error(errno);
 		opbuf->soffs = new_soffs;
 	}
-	opbuf->buflen = new_buflen;
-	return;
+	return opbuf->buflen = new_buflen;
 }
 
 int _append_to_OPBuf(OPBuf *opbuf, R_xlen_t loff, int soff)
 {
-	if (opbuf->nelt >= opbuf->buflen)
-		extend_OPBuf(opbuf);
+	if (opbuf->nelt >= opbuf->buflen) {
+		int ret = extend_OPBuf(opbuf);
+		if (ret < 0)
+			return ret;
+	}
 	opbuf->loffs[opbuf->nelt] = loff;
 	opbuf->soffs[opbuf->nelt] = soff;
 	return ++(opbuf->nelt);
