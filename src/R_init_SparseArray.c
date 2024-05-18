@@ -1,8 +1,8 @@
 #include <R_ext/Rdynload.h>
 
 #include "OPBufTree.h"
-#include "leaf_utils.h"
 #include "thread_control.h"
+#include "leaf_utils.h"
 #include "sparseMatrix_utils.h"
 #include "SparseArray_class.h"
 #include "SVT_SparseArray_class.h"
@@ -29,13 +29,13 @@ static const R_CallMethodDef callMethods[] = {
 /* OPBufTree.c */
 	CALLMETHOD_DEF(C_free_global_OPBufTree, 0),
 
-/* leaf_utils.c */
-	CALLMETHOD_DEF(C_lacunar_mode_is_on, 0),
-
 /* thread_control.c */
 	CALLMETHOD_DEF(C_get_num_procs, 0),
 	CALLMETHOD_DEF(C_get_max_threads, 0),
 	CALLMETHOD_DEF(C_set_max_threads, 1),
+
+/* leaf_utils.c */
+	CALLMETHOD_DEF(C_lacunar_mode_is_on, 0),
 
 /* sparseMatrix_utils.c */
 	CALLMETHOD_DEF(C_colMins_dgCMatrix, 2),

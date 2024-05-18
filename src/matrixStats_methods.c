@@ -3,6 +3,7 @@
  ****************************************************************************/
 #include "matrixStats_methods.h"
 
+#include "thread_control.h"  /* for which_max() */
 #include "Rvector_utils.h"
 #include "Rvector_summarization.h"
 #include "SparseArray_summarization.h"
@@ -32,20 +33,6 @@ static SEXP compute_ans_dim(SEXP x_dim, SEXP dims)
 	memcpy(INTEGER(ans_dim), INTEGER(x_dim) + d, sizeof(int) * ans_ndim);
 	UNPROTECT(1);
 	return ans_dim;
-}
-
-/* Returns 0-based index of max value in 'x' (greatest index if max is found
-   in more than one element in 'x'). */
-static int which_max(const int *x, int x_len)
-{
-	if (x_len == 0)
-		return -1;
-	int max_idx = x_len - 1;
-	for (int i = max_idx - 1; i >= 0; i--) {
-		if (x[i] > x[max_idx])
-			max_idx = i;
-	}
-	return max_idx;
 }
 
 /* Returns 'S4Arrays:::simplify_NULL_dimnames(tail(dimnames(x), n=-dims))'. */
@@ -144,7 +131,7 @@ static inline void copy_result_to_out(const SummarizeResult *res,
 static void REC_colStats_SVT(SEXP SVT, const int *dims, int ndim,
 		const SummarizeOp *summarize_op,
 		void *out, SEXPTYPE out_Rtype,
-		const R_xlen_t *out_incs, int out_ndim, int out_pdim,
+		const R_xlen_t *out_incs, int out_ndim, int pardim,
 		int *warn)
 {
 	if (out_ndim == 0) {
@@ -158,7 +145,7 @@ static void REC_colStats_SVT(SEXP SVT, const int *dims, int ndim,
 	int SVT_len = dims[ndim - 1];
 	R_xlen_t out_inc = out_incs[out_ndim - 1];
 	/* Parallel execution along the biggest dimension only. */
-	#pragma omp parallel for schedule(static) if(out_ndim == out_pdim)
+	#pragma omp parallel for schedule(static) if(out_ndim == pardim)
 	for (int i = 0; i < SVT_len; i++) {
 		SEXP subSVT = SVT == R_NilValue ? R_NilValue
 						: VECTOR_ELT(SVT, i);
@@ -166,7 +153,7 @@ static void REC_colStats_SVT(SEXP SVT, const int *dims, int ndim,
 		REC_colStats_SVT(subSVT, dims, ndim - 1,
 				 summarize_op,
 				 subout, out_Rtype,
-				 out_incs, out_ndim - 1, out_pdim,
+				 out_incs, out_ndim - 1, pardim,
 				 warn);
 	}
 	return;
@@ -200,9 +187,9 @@ SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
 
 	SEXP ans_dim = PROTECT(compute_ans_dim(x_dim, dims));
 	int ans_ndim = LENGTH(ans_dim);  /* x_ndim - dims */
-	/* Get 1-based index of biggest dimension. Parallel execution will
+	/* Get 1-based rank of biggest dimension. Parallel execution will
 	   be along that dimension. */
-	int ans_pdim = which_max(INTEGER(ans_dim), ans_ndim) + 1;
+	int pardim = which_max(INTEGER(ans_dim), ans_ndim) + 1;
 
 	R_xlen_t *out_incs = (R_xlen_t *) R_alloc(ans_ndim, sizeof(R_xlen_t));
 
@@ -213,7 +200,7 @@ SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
 	REC_colStats_SVT(x_SVT, INTEGER(x_dim), LENGTH(x_dim),
 			 &summarize_op,
 			 DATAPTR(ans), ans_Rtype,
-			 out_incs, ans_ndim, ans_pdim,
+			 out_incs, ans_ndim, pardim,
 			 &warn);
 	if (warn)
 		warning("NAs introduced by coercion of "
