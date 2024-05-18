@@ -398,7 +398,7 @@ static int REC_unroll_SVT_into_Rarray(SEXP SVT,
 		return 0;
 
 	if (ndim == 1) {
-		/* 'SVT' is a leaf. */
+		/* 'SVT' is a leaf (i.e. a 1D SVT). */
 		_expand_leaf(SVT, Rarray, arr_offset);
 		return 0;
 	}

@@ -36,7 +36,7 @@ static SEXP REC_Math_SVT(MathFUN fun, SEXP SVT, double digits,
 		return R_NilValue;
 
 	if (ndim == 1) {
-		/* 'SVT' is a leaf. */
+		/* 'SVT' is a leaf (i.e. 1D SVT). */
 		return Math_leaf(fun, SVT, digits, dim[0],
 				 nzvals_buf, nzoffs_buf, newNaNs);
 	}

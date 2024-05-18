@@ -870,6 +870,8 @@ void _copy_selected_Rsubvec_elts(
  * _subset_Rsubvec()
  */
 
+/* WARNING: 'selection' cannot contain NAs or bad things will happen. This
+   is NOT checked! */
 SEXP _subset_Rsubvec(SEXP Rvector, R_xlen_t subvec_offset,
 		const int *selection, int n)
 {
