@@ -164,6 +164,8 @@ test_that("acbind() on 3D SVT_SparseArray objects", {
     expect_identical(svt, as(a, "SVT_SparseArray"))
 })
 
+if (SparseArray:::.SVT_VERSION != 0L) {
+
 test_that("handling of lacunar leaves in .abind_SVT_SparseArray_objects()", {
     m1 <- matrix(c(0:2, 0L, 0L, 0L, 0L, 1L, 0L), ncol=3)
     m2 <- matrix(c(1L, 1L, 0L, 1L, 0L, 1L, 3:2, 0L), ncol=3)
@@ -197,6 +199,8 @@ test_that("handling of lacunar leaves in .abind_SVT_SparseArray_objects()", {
     expect_identical(svt@SVT[[2L]], make_lacunar_leaf("integer", c(0L, 2L)))
     expect_identical(svt, as(m, "SVT_SparseMatrix"))
 })
+
+}  # ----- end if (SparseArray:::.SVT_VERSION != 0L) -----
 
 test_that("abind() default method on SparseArray objects", {
     a1 <- .TEST_arrays[[1]]
