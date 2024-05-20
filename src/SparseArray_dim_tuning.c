@@ -138,13 +138,30 @@ static SEXP drop_outermost_dims(SEXP SVT, int ndim_to_drop)
  * Go back and forth between a leaf and a 1x1x..xN SVT
  */
 
+static SEXP make_scalar_lacunar_leaf(SEXPTYPE Rtype)
+{
+	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(1));
+	INTEGER(ans_nzoffs)[0] = 0;
+	SEXP ans = zip_leaf(R_NilValue, ans_nzoffs);
+	UNPROTECT(1);
+	return ans;
+}
+
 /* Returns a leaf representing a single nonzero value ("scalar leaf"). */
 static SEXP wrap_Rvector_elt_in_scalar_leaf(SEXP in_Rvector, int k,
 		CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
 {
-	SEXP ans_nzvals = PROTECT(allocVector(TYPEOF(in_Rvector), 1));
 	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(1));
 	INTEGER(ans_nzoffs)[0] = 0;
+	if (LACUNAR_MODE_IS_ON) {
+		int elt_is_one = _all_Rsubvec_elts_equal_one(in_Rvector, k, 1);
+		if (elt_is_one) {
+			SEXP ans = _make_lacunar_leaf(ans_nzoffs);
+			UNPROTECT(1);
+			return ans;
+		}
+	}
+	SEXP ans_nzvals = PROTECT(allocVector(TYPEOF(in_Rvector), 1));
 	copy_Rvector_elt_FUN(in_Rvector, k, ans_nzvals, 0);
 	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs);
 	UNPROTECT(2);
@@ -166,24 +183,23 @@ static void copy_scalar_leaf_val_to_Rvector(SEXP scalar_leaf,
 	return;
 }
 
-
 /* Transform leaf into 1x1x..xN SVT.
    'leaf' is assumed to represent a sparse vector of length N (i.e. its dense
    form would be of length N). unroll_leaf_as_SVT() turns it into an SVT that
    represents a 1x1x..xN array.
    'ans_ndim' is the number of dimensions of the result. It must be >= 2. */
 static SEXP unroll_leaf_as_SVT(SEXP leaf, int N, int ans_ndim,
-		CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
+		SEXPTYPE Rtype, CopyRVectorElt_FUNType fun)
 {
 	SEXP nzvals, nzoffs;
 	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
 	SEXP ans = PROTECT(NEW_LIST(N));
 	for (int k = 0; k < nzcount; k++) {
 		int i = INTEGER(nzoffs)[k];
-		SEXP ans_elt = PROTECT(
-			wrap_Rvector_elt_in_scalar_leaf(nzvals, k,
-							copy_Rvector_elt_FUN)
-		);
+		SEXP ans_elt = nzvals == R_NilValue ?
+				make_scalar_lacunar_leaf(Rtype) :
+				wrap_Rvector_elt_in_scalar_leaf(nzvals, k, fun);
+		PROTECT(ans_elt);
 		ans_elt = PROTECT(add_outermost_dims(ans_elt, ans_ndim - 2));
 		SET_VECTOR_ELT(ans, i, ans_elt);
 		UNPROTECT(2);
@@ -199,8 +215,8 @@ static SEXP unroll_leaf_as_SVT(SEXP leaf, int N, int ans_ndim,
    ineffective.
    roll_SVT_into_leaf() turns 'SVT' into a leaf that represents a
    sparse vector of length N (i.e. its dense form would be of length N). */
-static SEXP roll_SVT_into_leaf(SEXP SVT, int ndim, SEXPTYPE Rtype,
-		CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
+static SEXP roll_SVT_into_leaf(SEXP SVT, int ndim,
+		SEXPTYPE Rtype, CopyRVectorElt_FUNType fun)
 {
 	int N = LENGTH(SVT);
 	int ans_nzcount = 0;
@@ -223,11 +239,13 @@ static SEXP roll_SVT_into_leaf(SEXP SVT, int ndim, SEXPTYPE Rtype,
 			continue;
 		subSVT = drop_outermost_dims(subSVT, ndim - 2);
 		/* 'subSVT' must be a scalar leaf or this will fail. */
-		copy_scalar_leaf_val_to_Rvector(subSVT, ans_nzvals, ans_nzcount,
-						copy_Rvector_elt_FUN);
+		copy_scalar_leaf_val_to_Rvector(subSVT,
+						ans_nzvals, ans_nzcount, fun);
 		INTEGER(ans_nzoffs)[ans_nzcount] = i;
 		ans_nzcount++;
 	}
+	if (LACUNAR_MODE_IS_ON && _all_Rvector_elts_equal_one(ans_nzvals))
+		replace_leaf_nzvals(ans, R_NilValue);
 	UNPROTECT(1);
 	return ans;
 }
@@ -242,7 +260,7 @@ static SEXP roll_SVT_into_leaf(SEXP SVT, int ndim, SEXPTYPE Rtype,
 static SEXP REC_tune_SVT(SEXP SVT, const int *dim, int ndim,
 		const int *ops, int nops,
 		const int *cumallKEEP, const int *cumallDROP,
-		SEXPTYPE Rtype, CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
+		SEXPTYPE Rtype, CopyRVectorElt_FUNType fun)
 {
 	if (SVT == R_NilValue || (nops == ndim && cumallKEEP[ndim - 1]))
 		return SVT;
@@ -254,7 +272,7 @@ static SEXP REC_tune_SVT(SEXP SVT, const int *dim, int ndim,
 			REC_tune_SVT(SVT, dim, ndim,
 				     ops, nops - 1,
 				     cumallKEEP, cumallDROP,
-				     Rtype, copy_Rvector_elt_FUN)
+				     Rtype, fun)
 		);
 		SEXP ans = PROTECT(add_outermost_dims(ans_elt, 1));
 		UNPROTECT(2);
@@ -265,13 +283,12 @@ static SEXP REC_tune_SVT(SEXP SVT, const int *dim, int ndim,
 			/* 'ops[nops - 1]' is KEEP_DIM, with only ADD_DIM ops
 			   on its left. 'SVT' is a leaf (i.e. 1D SVT). */
 			return unroll_leaf_as_SVT(SVT, dim[0], nops,
-						  copy_Rvector_elt_FUN);
+						  Rtype, fun);
 		}
 		if (nops == ndim && cumallDROP[ndim - 2]) {
 			/* 'ops[nops - 1]' is KEEP_DIM, with only DROP_DIM ops
 			   on its left. Returns a leaf (i.e. 1D SVT). */
-			return roll_SVT_into_leaf(SVT, ndim, Rtype,
-						  copy_Rvector_elt_FUN);
+			return roll_SVT_into_leaf(SVT, ndim, Rtype, fun);
 		}
 		int ans_len = dim[ndim - 1];
 		SEXP ans = PROTECT(NEW_LIST(ans_len));
@@ -281,7 +298,7 @@ static SEXP REC_tune_SVT(SEXP SVT, const int *dim, int ndim,
 				REC_tune_SVT(subSVT, dim, ndim - 1,
 					     ops, nops - 1,
 					     cumallKEEP, cumallDROP,
-					     Rtype, copy_Rvector_elt_FUN)
+					     Rtype, fun)
 			);
 			SET_VECTOR_ELT(ans, i, ans_elt);
 			UNPROTECT(1);
@@ -302,7 +319,7 @@ static SEXP REC_tune_SVT(SEXP SVT, const int *dim, int ndim,
 	return REC_tune_SVT(VECTOR_ELT(SVT, 0), dim, ndim - 1,
 			    ops, nops - 1,
 			    cumallKEEP, cumallDROP,
-			    Rtype, copy_Rvector_elt_FUN);
+			    Rtype, fun);
 }
 
 /* --- .Call ENTRY POINT ---

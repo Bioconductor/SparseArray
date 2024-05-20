@@ -9,7 +9,7 @@
 ### Returns a vector (atomic or list) of the same type() as 'x'.
 ###
 
-.subset_SVT_by_logical_array <- function(x, y, drop=TRUE)
+.subset_SVT_by_logical_array <- function(x, y)
     stop("subsetting operation not supported yet")
 
 
@@ -20,44 +20,68 @@
 ### Both return a vector (atomic or list) of the same type() as 'x'.
 ###
 
-.subset_SVT_by_Mindex <- function(x, Mindex, drop=FALSE)
+.propagate_names_if_1D <- function(ans, x_dimnames, index)
+{
+    stopifnot(identical(length(ans), length(index)))
+    if (length(x_dimnames) != 1L)
+        return(ans)
+    stopifnot(is.list(x_dimnames))
+    x_names <- x_dimnames[[1L]]
+    if (is.null(x_names))
+        return(ans)
+    stopifnot(is.character(x_names))
+    setNames(ans, x_names[index])
+}
+
+.subset_SVT_by_Mindex <- function(x, Mindex)
 {
     stopifnot(is(x, "SVT_SparseArray"))
     check_svt_version(x)
-    stopifnot(is.matrix(Mindex), is.numeric(Mindex))
+    stopifnot(is.matrix(Mindex))
+    ## Subsetting an ordinary arrays with dimnames on it by a character
+    ## matrix is supported in R base but we don't support this yet for
+    ## SparseArray objects.
+    if (!is.numeric(Mindex))
+        stop("subsetting a SparseArray object by a non-numeric matrix ",
+             "is not supported at the moment")
     if (storage.mode(Mindex) != "integer")
         storage.mode(Mindex) <- "integer"
     on.exit(free_global_OPBufTree())
-    SparseArray.Call("C_subset_SVT_by_Mindex",
-                     x@dim, x@type, x@SVT, Mindex)
+    ans <- SparseArray.Call("C_subset_SVT_by_Mindex",
+                            x@dim, x@type, x@SVT, Mindex)
+    .propagate_names_if_1D(ans, dimnames(x), Mindex)
 }
 
+### 'Lindex' must be a numeric vector (integer or double), possibly a long one.
+### NA indices are accepted.
 .subset_SVT_by_Lindex <- function(x, Lindex)
 {
     stopifnot(is(x, "SVT_SparseArray"))
     check_svt_version(x)
     stopifnot(is.vector(Lindex), is.numeric(Lindex))
     on.exit(free_global_OPBufTree())
-    SparseArray.Call("C_subset_SVT_by_Lindex",
-                     x@dim, x@type, x@SVT, Lindex)
+    ans <- SparseArray.Call("C_subset_SVT_by_Lindex",
+                            x@dim, x@type, x@SVT, Lindex)
+    .propagate_names_if_1D(ans, dimnames(x), Lindex)
 }
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### subset_SVT_by_Nindex()
 ###
-### Returns an SVT_SparseArray object of the same type() as 'x' (endomorphism).
-###
-### Like the 'index' argument in 'extract_array()', the 'Nindex' argument in
-### subset_SVT_by_Nindex() must be an N-index, that is, a list with one list
-### element per dimension in 'x'. Each list element must be an integer vector
-### of valid indices along the corresponding dimension in 'x', or a NULL.
-###
-### Note that in addition to being one of the workhorses behind `[` on an
+### In addition to being one of the workhorses behind `[` on an
 ### SVT_SparseArray object (see below), this is **the** workhorse behind the
 ### extract_sparse_array() and extract_array() methods for SVT_SparseArray
 ### objects.
 ###
+### 'Nindex' must be an N-index, that is, a list of numeric vectors (or NULLs),
+### one along each dimension in the array to subset. Note that, strictly
+### speaking, the vectors in an N-index are expected to be integer vectors,
+### but subset_SVT_by_Nindex() can handle subscripts of type "double".
+### This differs from the 'index' argument in 'extract_array()' where the
+### subscripts **must** be integer vectors.
+###
+### Returns an SVT_SparseArray object of the same type() as 'x' (endomorphism).
 
 subset_SVT_by_Nindex <- function(x, Nindex, ignore.dimnames=FALSE)
 {
@@ -101,22 +125,23 @@ subset_SVT_by_Nindex <- function(x, Nindex, ignore.dimnames=FALSE)
     if (nsubscript == 0L)
         return(x)  # no-op
     x_dim <- dim(x)
-    x_ndim <- length(x_dim)
-    if (nsubscript == 1L) {
+    if (nsubscript == 1L && drop) {
         i <- Nindex[[1L]]
         if (type(i) == "logical" && identical(x_dim, dim(i)))
-            return(.subset_SVT_by_logical_array(x, i, drop=drop))
-        if (is.matrix(i) && is.numeric(i))
-            return(.subset_SVT_by_Mindex(x, i, drop=drop))
-        ## Linear single bracket subsetting e.g. x[5:2].
-        ## If 'x' is monodimensional and 'drop' is FALSE, we fallback
-        ## to "multidimensional single bracket subsetting" which is an
-        ## endomorphism.
-        if (x_ndim != 1L || drop)
+            return(.subset_SVT_by_logical_array(x, i))
+        if (is.matrix(i))
+            return(.subset_SVT_by_Mindex(x, i))
+        if (is.numeric(i))
             return(.subset_SVT_by_Lindex(x, i))
     }
-    if (nsubscript != x_ndim)
+    if (nsubscript != length(x_dim))
         stop(wmsg("incorrect number of subscripts"))
+    ## Note that this normalization will coerce the numeric subscripts
+    ## in 'Nindex' to integer. This no longer necessary because now
+    ## subset_SVT_by_Nindex() can handle subscripts of type "double" at
+    ## the C level.
+    ## TODO: Consider using a normalization process here that preserves
+    ## the numeric subscripts.
     Nindex <- S4Arrays:::normalize_Nindex(Nindex, x)
     ans <- subset_SVT_by_Nindex(x, Nindex)
     if (drop)

@@ -41,12 +41,12 @@ static SEXP unary_minus_leaf(SEXP leaf, SEXPTYPE Rtype, SEXPTYPE ans_Rtype)
 {
 	SEXP leaf_nzvals, ans_nzvals, nzoffs;
 	int nzcount = unzip_leaf(leaf, &leaf_nzvals, &nzoffs);
-	if (leaf_nzvals == R_NilValue) {
+	if (leaf_nzvals == R_NilValue) {  /* input leaf is lacunar */
 		ans_nzvals = PROTECT(
 			allocVector(ans_Rtype == 0 ? Rtype : ans_Rtype, nzcount)
 		);
 		_set_Rvector_elts_to_minus_one(ans_nzvals);
-		if (ans_Rtype == 0) {  /* In-place replacement! */
+		if (ans_Rtype == 0) {  /* in-place replacement! */
 			replace_leaf_nzvals(leaf, ans_nzvals);
 			UNPROTECT(1);
 			return leaf;
@@ -55,7 +55,8 @@ static SEXP unary_minus_leaf(SEXP leaf, SEXPTYPE Rtype, SEXPTYPE ans_Rtype)
 		UNPROTECT(1);
 		return ans;
 	}
-	if (ans_Rtype == 0) {  /* In-place replacement! */
+	/* input leaf is standard */
+	if (ans_Rtype == 0) {  /* in-place replacement! */
 		ans_nzvals = leaf_nzvals;
 	} else {
 		ans_nzvals = PROTECT(allocVector(ans_Rtype, nzcount));

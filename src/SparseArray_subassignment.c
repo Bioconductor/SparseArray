@@ -506,7 +506,7 @@ static SEXP make_offval_pairs_from_sorted_offsets(
 		const int *atid_offs, SEXP vals)
 {
 	SEXP ans_offs = PROTECT(NEW_INTEGER(n));
-	_copy_selected_ints(offs, order, n, INTEGER(ans_offs));
+	_copy_selected_int_elts(offs, order, n, INTEGER(ans_offs));
 	SEXP ans_vals = PROTECT(allocVector(TYPEOF(vals), n));
 	_copy_Rvector_elts_from_selected_offsets(vals, atid_offs, order,
 						 ans_vals);
@@ -521,7 +521,7 @@ static SEXP make_offval_pairs_from_sorted_lloffsets(
 		const long long *atid_lloffs, SEXP vals)
 {
 	SEXP ans_offs = PROTECT(NEW_INTEGER(n));
-	_copy_selected_ints(offs, order, n, INTEGER(ans_offs));
+	_copy_selected_int_elts(offs, order, n, INTEGER(ans_offs));
 	SEXP ans_vals = PROTECT(allocVector(TYPEOF(vals), n));
 	_copy_Rvector_elts_from_selected_lloffsets(vals, atid_lloffs, order,
 						   ans_vals);
@@ -799,8 +799,8 @@ static SEXP make_offval_pairs_from_Lindex_vals(SEXP Lindex, SEXP vals,
 	int num_pairs = remove_offs_dups(sort_bufs->order, nvals,
 					 sort_bufs->offs);
 	SEXP ans_offs = PROTECT(NEW_INTEGER(num_pairs));
-	_copy_selected_ints(sort_bufs->offs, sort_bufs->order, num_pairs,
-			    INTEGER(ans_offs));
+	_copy_selected_int_elts(sort_bufs->offs, sort_bufs->order, num_pairs,
+				INTEGER(ans_offs));
 	SEXP ans_vals = PROTECT(allocVector(TYPEOF(vals), num_pairs));
 	_copy_selected_Rsubvec_elts(vals, 0, sort_bufs->order, ans_vals);
 	/* Use the "leaf representation" even though this is NOT a 1D SVT!

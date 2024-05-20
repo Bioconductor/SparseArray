@@ -114,8 +114,9 @@ static void REC_replace_lacunar_leaves_with_standard_leaves(
 		/* 'SVT' is a leaf (i.e. a 1D SVT). */
 		SEXP nzvals, nzoffs;
 		int nzcount = unzip_leaf(SVT, &nzvals, &nzoffs);
-		if (nzvals != R_NilValue)
+		if (nzvals != R_NilValue)  /* standard leaf */
 			return;
+		/* lacunar leaf */
 		nzvals = PROTECT(_new_Rvector1(Rtype, nzcount));
 		replace_leaf_nzvals(SVT, nzvals);
 		UNPROTECT(1);
@@ -182,9 +183,9 @@ static void transpose_integer_col(int col_idx, SEXP col,
 	int n = unzip_leaf(col, &nzvals, &nzoffs);
 	const int *nzvals_p = NULL;  /* -Wmaybe-uninitialized */
 	int v;
-	if (nzvals != R_NilValue) {
+	if (nzvals != R_NilValue) {  /* standard leaf */
 		nzvals_p = INTEGER(nzvals);
-	} else {
+	} else {  /* lacunar leaf */
 		v = int1;
 	}
 	const int *nzoffs_p = INTEGER(nzoffs);
@@ -212,9 +213,9 @@ static void transpose_double_col(int col_idx, SEXP col,
 	int n = unzip_leaf(col, &nzvals, &nzoffs);
 	const double *nzvals_p = NULL;  /* -Wmaybe-uninitialized */
 	double v;
-	if (nzvals != R_NilValue) {
+	if (nzvals != R_NilValue) {  /* standard leaf */
 		nzvals_p = REAL(nzvals);
-	} else {
+	} else {  /* lacunar leaf */
 		v = double1;
 	}
 	const int *nzoffs_p = INTEGER(nzoffs);
@@ -242,10 +243,10 @@ static void transpose_complex_col(int col_idx, SEXP col,
 	int n = unzip_leaf(col, &nzvals, &nzoffs);
 	const Rcomplex *nzvals_p = NULL;  /* -Wmaybe-uninitialized */
 	Rcomplex v;
-	if (nzvals != R_NilValue) {
+	if (nzvals != R_NilValue) {  /* standard leaf */
 		nzvals_p = COMPLEX(nzvals);
 	} else {
-		v = Rcomplex1;
+		v = Rcomplex1;  /* lacunar leaf */
 	}
 	const int *nzoffs_p = INTEGER(nzoffs);
 	Rcomplex **out_nzvals_p = (Rcomplex **) quick_out_nzvals_p;
@@ -272,10 +273,10 @@ static void transpose_raw_col(int col_idx, SEXP col,
 	int n = unzip_leaf(col, &nzvals, &nzoffs);
 	const Rbyte *nzvals_p = NULL;  /* -Wmaybe-uninitialized */
 	Rbyte v;
-	if (nzvals != R_NilValue) {
+	if (nzvals != R_NilValue) {  /* standard leaf */
 		nzvals_p = RAW(nzvals);
 	} else {
-		v = Rbyte1;
+		v = Rbyte1;  /* lacunar leaf */
 	}
 	const int *nzoffs_p = INTEGER(nzoffs);
 	Rbyte **out_nzvals_p = (Rbyte **) quick_out_nzvals_p;
@@ -757,9 +758,9 @@ static SEXP REC_grow_output_tree(const int *dim, int ndim,
 	int n = unzip_leaf(leaf, &nzvals, &nzoffs);			\
 	const type *nzvals_p = NULL;  /* -Wmaybe-uninitialized */	\
 	type v;								\
-	if (nzvals != R_NilValue) {					\
+	if (nzvals != R_NilValue) {  /* standard leaf */		\
 		nzvals_p = (const type *) DATAPTR(nzvals);		\
-	} else {							\
+	} else {  /* lacunar leaf */					\
 		v = type ## 1;						\
 	}								\
 	const int *nzoffs_p = INTEGER(nzoffs);				\

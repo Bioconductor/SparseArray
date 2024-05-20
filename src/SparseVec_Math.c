@@ -121,13 +121,14 @@ int _Math_doubleSV(MathFUN fun, const SparseVec *sv, double digits,
 {
 	set_NaNs_produced_flag(0);
 	digits0 = digits;
-	if (sv->nzvals == R_NilValue) {
+	if (sv->nzvals == R_NilValue) {  /* lacunar SparseVec */
 		double v = fun(1.0);
 		if (v == double0)
 			return 0;
 		out_nzvals[0] = v;
 		return PROPAGATE_NZOFFS;
 	}
+	/* regular SparseVec */
 	const double *nzvals_p = get_doubleSV_nzvals_p(sv);
 	int nzcount = get_SV_nzcount(sv);
 	int out_nzcount = 0;
