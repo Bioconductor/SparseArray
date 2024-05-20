@@ -112,9 +112,9 @@ static inline int extract_long_idx0(SEXP subscript, R_xlen_t i,
    nor can it contain values > INT_MAX ('max' must be supplied as an 'int'). */
 static inline int extract_idx0(SEXP subscript, int i, int max, int *idx0)
 {
-	if (XLENGTH(subscript) > INT_MAX)
+	if (XLENGTH(subscript) > (R_xlen_t) INT_MAX)
 		return SUBSCRIPT_IS_TOO_LONG;
-	R_xlen_t lidx0 = 0;
+	R_xlen_t lidx0;
 	int ret = extract_long_idx0(subscript, (R_xlen_t) i,
 				    (R_xlen_t) max, &lidx0);
 	if (ret != 0)
@@ -123,15 +123,34 @@ static inline int extract_idx0(SEXP subscript, int i, int max, int *idx0)
 	return 0;
 }
 
-/* 'ret_code' must be a **non-zero** code returned by extract_idx0() above.
-   All of them are considered errors regardless of their sign. */
+/* 'ret_code' must be a **negative** code (error code) returned by
+   extract_long_idx0() or extract_idx0() above. */
+static void bad_Lindex_error(int ret_code)
+{
+	if (ret_code == BAD_SUBSCRIPT_TYPE)
+		error("'Lindex' must be a numeric vector");
+	if (ret_code == SUBSCRIPT_IS_TOO_LONG)
+		error("'Lindex' is too long");
+	if (ret_code == SUBSCRIPT_ELT_IS_LESS_THAN_ONE ||
+	    ret_code == SUBSCRIPT_ELT_IS_BEYOND_MAX)
+		error("'Lindex' contains out-of-bound indices");
+	if (ret_code == MAX_OPBUF_LEN_REACHED)
+		error("too many indices in 'Lindex' hit the same "
+		      "leaf in the Sparse Vector Tree representation");
+	error("SparseArray internal error in bad_Lindex_error():\n"
+	      "    unexpected error code %d", ret_code);
+}
+
+/* 'ret_code' must be a **non-zero** code (positive or negative) returned
+   by extract_idx0() above. Any code is considered an error regardless of
+   its sign. */
 static void bad_Nindex_error(int ret_code, int along1)
 {
 	if (ret_code == BAD_SUBSCRIPT_TYPE)
 		error("'Nindex[[%d]]' is not a numeric vector (or a NULL)",
 		      along1);
 	if (ret_code == SUBSCRIPT_IS_TOO_LONG)
-		error("'Nindex[[%d]]' is a long vector", along1);
+		error("'Nindex[[%d]]' is too long", along1);
 	if (ret_code == SUBSCRIPT_ELT_IS_NA)
 		error("'Nindex[[%d]]' contains NAs", along1);
 	error("'Nindex[[%d]]' contains out-of-bound indices", along1);
@@ -139,6 +158,7 @@ static void bad_Nindex_error(int ret_code, int along1)
 
 
 /****************************************************************************
+ * subset_NULL_by_Lindex()
  * subset_leaf_by_Lindex()
  * subset_leaf_by_OPBuf()
  * subset_leaf_as_sparse()
@@ -161,11 +181,11 @@ static void reset_lookup_table(int *lookup_table,
 }
 
 /* Returns a value >= 0 and < 'nzcount' if success, or -1 if failure. */
-static inline int bsearch_idx0_to_k2(int idx0, const int *nzoffs, int nzcount)
+static inline int bsearch_idx0_to_k2(int idx0, const int *nzoffs_p, int nzcount)
 {
 	/* Compare with first offset. */
 	int k1 = 0;
-	int nzoff = nzoffs[k1];
+	int nzoff = nzoffs_p[k1];
 	if (idx0 < nzoff)
 		return -1;
 	if (idx0 == nzoff)
@@ -173,7 +193,7 @@ static inline int bsearch_idx0_to_k2(int idx0, const int *nzoffs, int nzcount)
 
 	/* Compare with last offset. */
 	int k2 = nzcount - 1;
-	nzoff = nzoffs[k2];
+	nzoff = nzoffs_p[k2];
 	if (idx0 > nzoff)
 		return -1;
 	if (idx0 == nzoff)
@@ -185,7 +205,7 @@ static inline int bsearch_idx0_to_k2(int idx0, const int *nzoffs, int nzcount)
 	   kind of optimization). */
 	int k;
 	while ((k = (k1 + k2) >> 1) != k1) {
-		nzoff = nzoffs[k];
+		nzoff = nzoffs_p[k];
 		if (idx0 == nzoff)
 			return k;
 		if (idx0 > nzoff)
@@ -196,43 +216,50 @@ static inline int bsearch_idx0_to_k2(int idx0, const int *nzoffs, int nzcount)
 	return -1;
 }
 
-static inline void copy_nzval_elt(SEXP nzvals, int k,
-		SEXP out, R_xlen_t out_offset,
-		CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
-{
-	if (nzvals == R_NilValue) {
-		/* lacunar leaf */
-		_set_Rsubvec_elts_to_one(out, out_offset, (R_xlen_t) 1);
-	} else {
-		/* standard leaf */
-		copy_Rvector_elt_FUN(nzvals, (R_xlen_t) k, out, out_offset);
-	}
-	return;
-}
+/* Mapping 'idx0' to k thru the lookup table is always faster than using a
+   binary search. However building the lookup table has a small cost so is
+   only worth it if we're going to use it to map more than one 'idx0' value.
+   TODO: Right now we use a cutoff value of 10 but this needs to be refined.
+   The overhead of building the lookup table depends on the value of 'nzcount'
+   so the cutoff value should be a function of 'nzcount'. */
+#define	MAP_IDX0_TO_K(idx0, nzoffs_p, nzcount) \
+	use_lookup_table ? lookup_table[(idx0)] \
+			 : bsearch_idx0_to_k2((idx0), (nzoffs_p), (nzcount))
 
-/* 'Lindex' must be a numeric vector. It should not be a long one!
-   It is expected to contain 1-based indices that are >= 1 and <= 'dim0'.
-   NA indices are ok. */
-static int subset_leaf_by_Lindex(SEXP leaf, int dim0, SEXP Lindex,
-		SEXP ans, CopyRVectorElt_FUNType fun, int *lookup_table)
+static int subset_NULL_by_Lindex(int dim0, SEXP Lindex, SEXP ans)
 {
 	int n = LENGTH(Lindex);
-	if (leaf == R_NilValue || n == 0)
-		return 0;
 
+	/* We only care about NAs or NaNs in 'Lindex'. */
+	for (int k1 = 0; k1 < n; k1++) {
+		int idx0;
+		int ret = extract_idx0(Lindex, k1, dim0, &idx0);
+		if (ret < 0)
+			return ret;
+		if (ret != SUBSCRIPT_ELT_IS_NA)
+			continue;
+		/* 'Lindex[k1]' is NA or NaN. */
+		set_Rvector_elt_to_NA(ans, (R_xlen_t) k1);
+	}
+	return 0;
+}
+
+/* Used for linear subsetting of a 1D SVT_SparseArray object.
+   'Lindex' must be a numeric vector. It cannot be a long one! It is expected
+   to contain 1-based indices that are >= 1 and <= 'dim0' (in the case of a
+   1D SVT_SparseArray object, 'dim0' is also the length of the object).
+   NA indices are ok. */
+static int subset_leaf_by_Lindex(SEXP leaf, int dim0, SEXP Lindex, SEXP ans,
+		CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
+{
+	if (leaf == R_NilValue)
+		return subset_NULL_by_Lindex(dim0, Lindex, ans);
+
+	int n = LENGTH(Lindex);
 	SEXP nzvals, nzoffs;
 	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
+	const int *nzoffs_p = INTEGER(nzoffs);
 
-	/* We use bsearch_idx0_to_k2() instead of the lookup table if 'Lindex'
-	   is short. This avoids the overhead of building the lookup table and
-	   so should be slightly more efficient.
-	   TODO: Right now we use a cutoff value of 10 but this needs to be
-	   refined. The overhead of building the lookup table depends on the
-	   value of 'nzcount' so the cutoff value should be a function
-	   of 'nzcount'. */
-	int use_lookup_table = n > 10;
-	if (use_lookup_table)
-		build_lookup_table(lookup_table, INTEGER(nzoffs), nzcount);
 	/* Walk on 'Lindex'. */
 	for (int k1 = 0; k1 < n; k1++) {
 		int idx0;
@@ -241,94 +268,80 @@ static int subset_leaf_by_Lindex(SEXP leaf, int dim0, SEXP Lindex,
 			return ret;
 		if (ret == SUBSCRIPT_ELT_IS_NA) {
 			/* 'Lindex[k1]' is NA or NaN. */
-			set_Rvector_elt_to_NA(ans, (R_xlen_t) idx0);
+			set_Rvector_elt_to_NA(ans, (R_xlen_t) k1);
 			continue;
 		}
-		int k2;
-		if (use_lookup_table) {
-			k2 = lookup_table[idx0];
-		} else {
-			k2 = bsearch_idx0_to_k2(idx0, INTEGER(nzoffs), nzcount);
-		}
+		int k2 = bsearch_idx0_to_k2(idx0, nzoffs_p, nzcount);
 		if (k2 >= 0)
-			copy_nzval_elt(nzvals, k2, ans, (R_xlen_t) k1, fun);
+			copy_Rvector_elt_FUN(nzvals, (R_xlen_t) k2,
+					     ans, (R_xlen_t) k1);
 	}
-	if (use_lookup_table)
-		reset_lookup_table(lookup_table, INTEGER(nzoffs), nzcount);
 	return 0;
 }
 
 static void subset_leaf_by_OPBuf(SEXP leaf, const OPBuf *opbuf, SEXP ans,
-		CopyRVectorElt_FUNType fun, int *lookup_table)
+		CopyRVectorElt_FUNType copy_Rvector_elt_FUN, int *lookup_table)
 {
 	if (leaf == R_NilValue || opbuf->nelt == 0)
 		return;
 
 	SEXP nzvals, nzoffs;
 	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
+	const int *nzoffs_p = INTEGER(nzoffs);
 	const int *from_offs = opbuf->soffs;
 	const R_xlen_t *to_offs = opbuf->loffs;
 
-	/* We use bsearch_idx0_to_k2() instead of the lookup table if
-	   the number of (from_off,to_off) pairs is small. This avoids the
-	   overhead of building the lookup table and so should be slightly
-	   more efficient.
-	   TODO: Right now we use a cutoff value of 10 but this needs to be
-	   refined. The overhead of building the lookup table depends on the
-	   value of 'nzcount' so the cutoff value should be a function
-	   of 'nzcount'. */
+	/* See comment preceding MAP_IDX0_TO_K() definition above. */
 	int use_lookup_table = opbuf->nelt > 10;
 	if (use_lookup_table)
-		build_lookup_table(lookup_table, INTEGER(nzoffs), nzcount);
+		build_lookup_table(lookup_table, nzoffs_p, nzcount);
 	/* Walk on the (from_off,to_off) pairs. */
 	for (int k1 = 0; k1 < opbuf->nelt; k1++) {
 		int from_off = from_offs[k1];
-		int k2;
-		if (use_lookup_table) {
-			k2 = lookup_table[from_off];
-		} else {
-			k2 = bsearch_idx0_to_k2(from_off,
-						INTEGER(nzoffs), nzcount);
-		}
+		int k2 = MAP_IDX0_TO_K(from_off, nzoffs_p, nzcount);
 		if (k2 >= 0)
-			copy_nzval_elt(nzvals, k2,
-				       ans, to_offs[k1], fun);
+			copy_Rvector_elt_FUN(nzvals, (R_xlen_t) k2,
+					     ans, to_offs[k1]);
 	}
 	if (use_lookup_table)
-		reset_lookup_table(lookup_table, INTEGER(nzoffs), nzcount);
+		reset_lookup_table(lookup_table, nzoffs_p, nzcount);
 	return;
 }
 
 /* 'subscript' must be a numeric vector. It cannot be a long one! It is
    expected to contain 1-based indices that are >= 1 and <= 'sv->len'.
    NA indices will trigger an error.
-   'sv_selection' and 'out_nzoffs' must be arrays that are long enough to
-   hold at least 'LENGTH(subscript)' ints. */
+   'sv_selection' and 'out_nzoffs' must be arrays that are long enough
+   to hold at least 'LENGTH(subscript)' ints. */
 static int subset_SV(const SparseVec *sv, SEXP subscript,
-		     int *sv_selection, int *out_nzoffs,
-		     int *lookup_table)
+		     int *sv_selection, int *out_nzoffs, int *lookup_table)
 {
 	int out_nzcount = 0;
 	int n = LENGTH(subscript);
 	if (n == 0)
 		return out_nzcount;
+
 	int sv_nzcount = get_SV_nzcount(sv);
-	build_lookup_table(lookup_table, sv->nzoffs, sv_nzcount);
+
+	/* See comment preceding MAP_IDX0_TO_K() definition above. */
+	int use_lookup_table = n > 10;
+	if (use_lookup_table)
+		build_lookup_table(lookup_table, sv->nzoffs, sv_nzcount);
 	/* Walk on 'subscript'. */
 	for (int i1 = 0; i1 < n; i1++) {
 		int idx0;
 		int ret = extract_idx0(subscript, i1, sv->len, &idx0);
 		if (ret != 0)
 			bad_Nindex_error(ret, 1);
-		//k2 = bsearch_idx0_to_k2(idx0, sv->nzoffs, sv_nzcount);
-		int k2 = lookup_table[idx0];
+		int k2 = MAP_IDX0_TO_K(idx0, sv->nzoffs, sv_nzcount);
 		if (k2 >= 0) {
 			sv_selection[out_nzcount] = k2;
 			out_nzoffs[out_nzcount] = i1;
 			out_nzcount++;
 		}
 	}
-	reset_lookup_table(lookup_table, sv->nzoffs, sv_nzcount);
+	if (use_lookup_table)
+		reset_lookup_table(lookup_table, sv->nzoffs, sv_nzcount);
 	return out_nzcount;
 }
 
@@ -352,12 +365,12 @@ static SEXP subset_leaf_as_sparse(SEXP leaf, int dim0, SEXP subscript,
 
 	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(ans_nzcount));
 	memcpy(INTEGER(ans_nzoffs), nzoffs_buf, sizeof(int) * ans_nzcount);
-	if (leaf_nzvals == R_NilValue) {
-		/* Leaf to subset is lacunar --> subsetting preserves that. */
+	if (leaf_nzvals == R_NilValue) {  /* input leaf is lacunar */
 		SEXP ans = _make_lacunar_leaf(ans_nzoffs);
 		UNPROTECT(1);
 		return ans;
 	}
+	/* input leaf is standard */
 	if (LACUNAR_MODE_IS_ON) {
 		int all_ones = _all_selected_Rsubvec_elts_equal_one(
 						leaf_nzvals, 0,
@@ -381,7 +394,7 @@ static SEXP subset_leaf_as_sparse(SEXP leaf, int dim0, SEXP subscript,
  * C_subset_SVT_by_[M|L]index()
  */
 
-static int check_Mindex_dim(SEXP Mindex, int ndim,
+static int check_Mindex(SEXP Mindex, int ndim,
 		const char *what1, const char *what2)
 {
 	SEXP Mindex_dim = GET_DIM(Mindex);
@@ -466,6 +479,8 @@ static int build_OPBufTree_from_Lindex(OPBufTree *opbuf_tree, SEXP Lindex,
 			set_Rvector_elt_to_NA(ans, loff);
 			continue;
 		}
+		if (x_SVT == R_NilValue)
+			continue;
 		ret = add_offset_pair_to_OPBufTree(loff, idx0,
 					x_SVT, x_dim, dimcumprod, x_ndim,
 					opbuf_tree);
@@ -522,15 +537,17 @@ SEXP C_subset_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Mindex)
 		      "C_subset_SVT_by_Mindex():\n"
 		      "    SVT_SparseArray object has invalid type");
 	int x_ndim = LENGTH(x_dim);
-	int ans_len = check_Mindex_dim(Mindex, x_ndim,
-				       "Mindex", "length(dim(x))");
+	int ans_len = check_Mindex(Mindex, x_ndim, "Mindex", "length(dim(x))");
+	error("C_subset_SVT_by_Mindex() is not ready yet");
 	SEXP ans = PROTECT(_new_Rvector0(Rtype, (R_xlen_t) ans_len));
 
 	UNPROTECT(1);
 	return ans;
 }
 
-/* --- .Call ENTRY POINT --- */
+/* --- .Call ENTRY POINT ---
+   'Lindex' must be a numeric vector (integer or double), possibly a long one.
+   NA indices are accepted. */
 SEXP C_subset_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Lindex)
 {
 	SEXPTYPE Rtype = _get_Rtype_from_Rstring(x_type);
@@ -538,20 +555,24 @@ SEXP C_subset_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Lindex)
 		error("SparseArray internal error in "
 		      "C_subset_SVT_by_Lindex():\n"
 		      "    SVT_SparseArray object has invalid type");
+	CopyRVectorElt_FUNType fun = _select_copy_Rvector_elt_FUN(Rtype);
 
 	int x_ndim = LENGTH(x_dim);
+	int x_dim0 = INTEGER(x_dim)[0];
 	if (!IS_INTEGER(Lindex) && !IS_NUMERIC(Lindex))
 		error("'Lindex' must be an integer or numeric vector");
 
 	R_xlen_t ans_len = XLENGTH(Lindex);
 	SEXP ans = PROTECT(_new_Rvector0(Rtype, ans_len));
-	if (x_SVT == R_NilValue) {
+
+	if (x_ndim == 1) {
+		int ret = subset_leaf_by_Lindex(x_SVT, x_dim0, Lindex, ans,
+						fun);
 		UNPROTECT(1);
+		if (ret < 0)
+			bad_Lindex_error(ret);
 		return ans;
 	}
-
-	if (x_ndim == 1)
-		error("x_ndim == 1 not ready yet");
 
 	/* 1st pass: Build OPBufTree. */
 	//clock_t t0 = clock();
@@ -568,17 +589,11 @@ SEXP C_subset_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Lindex)
 				dimcumprod);
 	if (max_outleaf_len < 0) {
 		UNPROTECT(1);
-		if (max_outleaf_len == BAD_SUBSCRIPT_TYPE)
-			error("'Lindex' must be a numeric vector");
-		if (max_outleaf_len == SUBSCRIPT_ELT_IS_LESS_THAN_ONE ||
-		    max_outleaf_len == SUBSCRIPT_ELT_IS_BEYOND_MAX)
-			error("'Lindex' contains out-of-bound indices");
-		if (max_outleaf_len == MAX_OPBUF_LEN_REACHED)
-			error("too many indices in 'Lindex' hit the same "
-			      "leaf in the Sparse Vector Tree representation");
-		error("SparseArray internal error in "
-		      "C_subset_SVT_by_Lindex():\n"
-		      "    unexpected error code %d", max_outleaf_len);
+		bad_Lindex_error(max_outleaf_len);
+	}
+	if (x_SVT == R_NilValue) {
+		UNPROTECT(1);
+		return ans;
 	}
 	//double dt = (1.0 * clock() - t0) * 1000.0 / CLOCKS_PER_SEC;
 	//printf("1st pass: %2.3f ms\n", dt);
@@ -588,9 +603,6 @@ SEXP C_subset_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Lindex)
 	/* 2nd pass: Subset SVT by OPBufTree. */
 	if (max_outleaf_len > 0) {
 		//clock_t t0 = clock();
-		CopyRVectorElt_FUNType fun =
-			_select_copy_Rvector_elt_FUN(Rtype);
-		int x_dim0 = INTEGER(x_dim)[0];
 		int *lookup_table = (int *) R_alloc(x_dim0, sizeof(int));
 		for (int i = 0; i < x_dim0; i++)
 			lookup_table[i] = -1;
@@ -630,7 +642,7 @@ static SEXP compute_subset_dim(SEXP Nindex, SEXP x_dim)
 			bad_Nindex_error(BAD_SUBSCRIPT_TYPE, along + 1);
 		}
 		R_xlen_t d = XLENGTH(subscript);
-		if (d > INT_MAX) {
+		if (d > (R_xlen_t) INT_MAX) {
 			UNPROTECT(1);
 			bad_Nindex_error(SUBSCRIPT_IS_TOO_LONG, along + 1);
 		}
@@ -694,8 +706,11 @@ static SEXP REC_subset_SVT_by_Nindex(SEXP SVT, SEXP Nindex,
 }
 
 /* --- .Call ENTRY POINT ---
-   'Nindex' must be an N-index, that is, a list of integer vectors (or NULLs),
-   one along each dimension in the array. */
+   'Nindex' must be an N-index, that is, a list of numeric vectors (or NULLs),
+   one along each dimension in the array to subset. Note that, strictly
+   speaking, the vectors in an N-index are expected to be integer vectors,
+   but C_subset_SVT_by_Nindex() can handle subscripts of type "double".
+   NAs in the subscripts are forbidden (they'll trigger an error).  */
 SEXP C_subset_SVT_by_Nindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Nindex)
 {
 	SEXPTYPE Rtype = _get_Rtype_from_Rstring(x_type);

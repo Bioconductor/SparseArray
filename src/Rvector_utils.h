@@ -2,8 +2,6 @@
 #define _RVECTOR_UTILS_H_
 
 #include <Rdefines.h>
-#include <string.h>  /* for memcpy() */
-
 
 static const Rbyte Rbyte0 = 0;
 static const int int0 = 0;
@@ -15,19 +13,9 @@ static const int int1 = 1;
 static const double double1 = 1.0;
 static const Rcomplex Rcomplex1 = {{double1, double0}};
 
-
-/****************************************************************************
- * typedefs
- */
-
 typedef void (*CopyRVectorElt_FUNType)(
 	SEXP in,  R_xlen_t in_offset,
 	SEXP out, R_xlen_t out_offset);
-
-typedef void (*CopyRVectorElts_FUNType)(
-	SEXP in,  R_xlen_t in_offset,
-	SEXP out, R_xlen_t out_offset,
-	R_xlen_t nelt);
 
 
 /****************************************************************************
@@ -52,117 +40,63 @@ static inline void *shift_dataptr(SEXPTYPE Rtype, void *x, R_xlen_t offset)
 	return NULL;  /* will never reach this */
 }
 
-static inline void _copy_INTEGER_elt(
+static inline void copy_INTEGER_elt(
 		SEXP in,  R_xlen_t in_offset,
 		SEXP out, R_xlen_t out_offset)
 {
-	INTEGER(out)[out_offset] = INTEGER(in)[in_offset];
+	INTEGER(out)[out_offset] =
+		in == R_NilValue ? int1 : INTEGER(in)[in_offset];
 	return;
 }
 
-static inline void _copy_INTEGER_elts(
-		SEXP in,  R_xlen_t in_offset,
-		SEXP out, R_xlen_t out_offset,
-		R_xlen_t nelt)
-{
-	void *dest, *src;
-
-	dest = INTEGER(out) + out_offset;
-	src  = INTEGER(in)  + in_offset;
-	memcpy(dest, src, sizeof(int) * nelt);
-	return;
-}
-
-static inline void _copy_NUMERIC_elt(
+static inline void copy_NUMERIC_elt(
 		SEXP in,  R_xlen_t in_offset,
 		SEXP out, R_xlen_t out_offset)
 {
-	REAL(out)[out_offset] = REAL(in)[in_offset];
+	REAL(out)[out_offset] =
+		in == R_NilValue ? double1 : REAL(in)[in_offset];
 	return;
 }
 
-static inline void _copy_NUMERIC_elts(
-		SEXP in,  R_xlen_t in_offset,
-		SEXP out, R_xlen_t out_offset,
-		R_xlen_t nelt)
-{
-	void *dest = REAL(out) + out_offset;
-	void *src  = REAL(in)  + in_offset;
-	memcpy(dest, src, sizeof(double) * nelt);
-	return;
-}
-
-static inline void _copy_COMPLEX_elt(
+static inline void copy_COMPLEX_elt(
 		SEXP in,  R_xlen_t in_offset,
 		SEXP out, R_xlen_t out_offset)
 {
-	COMPLEX(out)[out_offset] = COMPLEX(in)[in_offset];
+	COMPLEX(out)[out_offset] =
+		in == R_NilValue ? Rcomplex1 : COMPLEX(in)[in_offset];
 	return;
 }
 
-static inline void _copy_COMPLEX_elts(
-		SEXP in,  R_xlen_t in_offset,
-		SEXP out, R_xlen_t out_offset,
-		R_xlen_t nelt)
-{
-	void *dest = COMPLEX(out) + out_offset;
-	void *src  = COMPLEX(in)  + in_offset;
-	memcpy(dest, src, sizeof(Rcomplex) * nelt);
-	return;
-}
-
-static inline void _copy_RAW_elt(
+static inline void copy_RAW_elt(
 		SEXP in,  R_xlen_t in_offset,
 		SEXP out, R_xlen_t out_offset)
 {
-	RAW(out)[out_offset] = RAW(in)[in_offset];
+	RAW(out)[out_offset] =
+		in == R_NilValue ? Rbyte1 : RAW(in)[in_offset];
 	return;
 }
 
-static inline void _copy_RAW_elts(
-		SEXP in,  R_xlen_t in_offset,
-		SEXP out, R_xlen_t out_offset,
-		R_xlen_t nelt)
-{
-	void *dest = RAW(out) + out_offset;
-	void *src  = RAW(in)  + in_offset;
-	memcpy(dest, src, sizeof(Rbyte) * nelt);
-	return;
-}
-
-static inline void _copy_CHARACTER_elt(
+static inline void copy_CHARACTER_elt(
 		SEXP in,  R_xlen_t in_offset,
 		SEXP out, R_xlen_t out_offset)
 {
+	if (in == R_NilValue)
+		error("SparseArray internal error in copy_CHARACTER_elt():\n"
+		      "    lacunar leaf found in an SVT_SparseArray object "
+		      "of type \"character\"");
 	SET_STRING_ELT(out, out_offset, STRING_ELT(in, in_offset));
 	return;
 }
 
-static inline void _copy_CHARACTER_elts(
-		SEXP in,  R_xlen_t in_offset,
-		SEXP out, R_xlen_t out_offset,
-		R_xlen_t nelt)
-{
-	for (R_xlen_t k = 0; k < nelt; k++)
-		_copy_CHARACTER_elt(in, in_offset + k, out, out_offset + k);
-	return;
-}
-
-static inline void _copy_LIST_elt(
+static inline void copy_LIST_elt(
 		SEXP in,  R_xlen_t in_offset,
 		SEXP out, R_xlen_t out_offset)
 {
+	if (in == R_NilValue)
+		error("SparseArray internal error in copy_LIST_elt():\n"
+		      "    lacunar leaf found in an SVT_SparseArray object "
+		      "of type \"list\"");
 	SET_VECTOR_ELT(out, out_offset, VECTOR_ELT(in, in_offset));
-	return;
-}
-
-static inline void _copy_LIST_elts(
-		SEXP in,  R_xlen_t in_offset,
-		SEXP out, R_xlen_t out_offset,
-		R_xlen_t nelt)
-{
-	for (R_xlen_t k = 0; k < nelt; k++)
-		_copy_LIST_elt(in, in_offset + k, out, out_offset + k);
 	return;
 }
 
@@ -290,10 +224,6 @@ SEXP _new_Rvector1(
 	int len
 );
 
-CopyRVectorElt_FUNType _select_copy_Rvector_elt_FUN(SEXPTYPE Rtype);
-
-CopyRVectorElts_FUNType _select_copy_Rvector_elts_FUN(SEXPTYPE Rtype);
-
 int _collect_offsets_of_nonzero_Rsubvec_elts(
 	SEXP Rvector,
 	R_xlen_t subvec_offset,
@@ -322,32 +252,58 @@ int _all_selected_Rsubvec_elts_equal_one(
 	int n
 );
 
-void _copy_selected_ints(
+CopyRVectorElt_FUNType _select_copy_Rvector_elt_FUN(SEXPTYPE Rtype);
+
+void _copy_Rvector_elts(
+	SEXP in,
+	R_xlen_t in_offset,
+	SEXP out,
+	R_xlen_t out_offset,
+	R_xlen_t nelt
+);
+
+void _copy_selected_int_elts(
 	const int *in,
 	const int *selection,
 	int n,
 	int *out
 );
 
-void _copy_selected_doubles(
+void _copy_selected_double_elts(
 	const double *in,
 	const int *selection,
 	int n,
 	double *out
 );
 
-void _copy_selected_Rcomplexes(
+void _copy_selected_Rcomplex_elts(
 	const Rcomplex *in,
 	const int *selection,
 	int n,
 	Rcomplex *out
 );
 
-void _copy_selected_Rbytes(
+void _copy_selected_Rbyte_elts(
 	const Rbyte *in,
 	const int *selection,
 	int n,
 	Rbyte *out
+);
+
+void _copy_selected_character_elts(
+	SEXP in,
+	R_xlen_t in_offset,
+	const int *selection,
+	int n,
+	SEXP out
+);
+
+void _copy_selected_list_elts(
+	SEXP in,
+	R_xlen_t in_offset,
+	const int *selection,
+	int n,
+	SEXP out
 );
 
 void _copy_selected_Rsubvec_elts(
@@ -364,32 +320,48 @@ SEXP _subset_Rsubvec(
 	int n
 );
 
-void _copy_ints_to_offsets(
+void _copy_int_elts_to_offsets(
 	const int *in,
 	const int *selection,
 	int n,
 	int *out
 );
 
-void _copy_doubles_to_offsets(
+void _copy_double_elts_to_offsets(
 	const double *in,
 	const int *selection,
 	int n,
 	double *out
 );
 
-void _copy_Rcomplexes_to_offsets(
+void _copy_Rcomplex_elts_to_offsets(
 	const Rcomplex *in,
 	const int *selection,
 	int n,
 	Rcomplex *out
 );
 
-void _copy_Rbytes_to_offsets(
+void _copy_Rbyte_elts_to_offsets(
 	const Rbyte *in,
 	const int *selection,
 	int n,
 	Rbyte *out
+);
+
+void _copy_character_elts_to_offsets(
+	SEXP in,
+	const int *selection,
+	int n,
+	SEXP out,
+	R_xlen_t out_offset
+);
+
+void _copy_list_elts_to_offsets(
+	SEXP in,
+	const int *selection,
+	int n,
+	SEXP out,
+	R_xlen_t out_offset
 );
 
 void _copy_Rvector_elts_to_offsets(

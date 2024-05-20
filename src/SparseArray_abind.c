@@ -120,8 +120,7 @@ static SEXP concatenate_SVTs(SEXP *SVTs, int nb_objects,
    'sum_dims_along' is used for a sanity check only so is not strictly needed */
 static SEXP concatenate_leaves(SEXP *leaves, int nb_objects,
 		const int *dims_along, int sum_dims_along,
-		SEXPTYPE ans_Rtype,
-		CopyRVectorElts_FUNType copy_Rvector_elts_FUN)
+		SEXPTYPE ans_Rtype)
 {
 	int ans_nzcount = 0, ans_is_lacunar = 1;
 	for (int n = 0; n < nb_objects; n++) {
@@ -151,8 +150,8 @@ static SEXP concatenate_leaves(SEXP *leaves, int nb_objects,
 			SEXP nzvals, nzoffs;
 			int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
 			if (ans_nzvals != R_NilValue && nzvals != R_NilValue)
-				copy_Rvector_elts_FUN(nzvals, 0,
-						      ans_nzvals, k1, nzcount);
+				_copy_Rvector_elts(nzvals, 0,
+						   ans_nzvals, k1, nzcount);
 			for (int k2 = 0; k2 < nzcount; k2++, k1++)
 				INTEGER(ans_nzoffs)[k1] = INTEGER(nzoffs)[k2] +
 							  offset;
@@ -178,8 +177,7 @@ static SEXP concatenate_leaves(SEXP *leaves, int nb_objects,
    Returns R_NilValue or a list of length 'ans_dim[ndim - 1]'. */
 static SEXP REC_abind_SVTs(SEXP *SVTs, int nb_objects,
 		const int *ans_dim, int ndim, int along0, const int *dims_along,
-		SEXPTYPE ans_Rtype,
-		CopyRVectorElts_FUNType copy_Rvector_elts_FUN)
+		SEXPTYPE ans_Rtype)
 {
 	if (all_NULLs(SVTs, nb_objects))
 		return R_NilValue;
@@ -189,8 +187,7 @@ static SEXP REC_abind_SVTs(SEXP *SVTs, int nb_objects,
 		   objects along their first dimension. */
 		return concatenate_leaves(SVTs, nb_objects,
 					dims_along, ans_dim[along0],
-					ans_Rtype,
-					copy_Rvector_elts_FUN);
+					ans_Rtype);
 	}
 
 	if (along0 == ndim - 1)
@@ -212,7 +209,7 @@ static SEXP REC_abind_SVTs(SEXP *SVTs, int nb_objects,
 		}
 		SEXP ans_elt = REC_abind_SVTs(subSVTs_buf, nb_objects,
 					ans_dim, ndim - 1, along0, dims_along,
-					ans_Rtype, copy_Rvector_elts_FUN);
+					ans_Rtype);
 		if (ans_elt != R_NilValue) {
 			PROTECT(ans_elt);
 			SET_VECTOR_ELT(ans, i, ans_elt);
@@ -231,8 +228,7 @@ SEXP C_abind_SVT_SparseArray_objects(SEXP objects, SEXP along, SEXP ans_type)
 		error("'objects' must be a list of SVT_SparseArray objects");
 
 	SEXPTYPE ans_Rtype = _get_Rtype_from_Rstring(ans_type);
-	CopyRVectorElts_FUNType fun = _select_copy_Rvector_elts_FUN(ans_Rtype);
-	if (fun == NULL)
+	if (ans_Rtype == 0)
 		error("invalid requested type");
 
 	if (!IS_INTEGER(along) || XLENGTH(along) != 1)
@@ -252,7 +248,7 @@ SEXP C_abind_SVT_SparseArray_objects(SEXP objects, SEXP along, SEXP ans_type)
 	SEXP *SVTs_buf = prepare_SVTs_buf(objects, ndim, along0);
 	SEXP ans_SVT = REC_abind_SVTs(SVTs_buf, nb_objects,
 				INTEGER(ans_dim), ndim, along0, dims_along,
-				ans_Rtype, fun);
+				ans_Rtype);
 	if (ans_SVT != R_NilValue)
 		PROTECT(ans_SVT);
 

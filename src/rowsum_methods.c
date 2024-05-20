@@ -32,17 +32,18 @@ static void check_group(SEXP group, int x_nrow, int ngroup)
 	return;
 }
 
-static void compute_rowsum_doubles(const double *vals, const int *offs, int n,
+static void compute_rowsum_doubles(
+		const double *nzvals, const int *nzoffs, int nzcount,
 		const int *groups, double *out, int out_len, int narm)
 {
-	for (int k = 0; k < n; k++) {
-		int g = groups[offs[k]];
+	for (int k = 0; k < nzcount; k++) {
+		int g = groups[nzoffs[k]];
 		if (g == NA_INTEGER)
 			g = out_len;
 		g--;  // from 1-base to 0-base
 		double v = double1;
-		if (vals != NULL) {
-			v = vals[k];
+		if (nzvals != NULL) {
+			v = nzvals[k];
 			/* ISNAN(): True for *both* NA and NaN.
 			   See <R_ext/Arith.h> */
 			if (narm && ISNAN(v))
@@ -53,17 +54,18 @@ static void compute_rowsum_doubles(const double *vals, const int *offs, int n,
 	return;
 }
 
-static void compute_rowsum_ints(const int *vals, const int *offs, int n,
+static void compute_rowsum_ints(
+		const int *nzvals, const int *nzoffs, int nzcount,
 		const int *groups, int *out, int out_len, int narm)
 {
-	for (int k = 0; k < n; k++) {
-		int g = groups[offs[k]];
+	for (int k = 0; k < nzcount; k++) {
+		int g = groups[nzoffs[k]];
 		if (g == NA_INTEGER)
 			g = out_len;
 		g--;  // from 1-base to 0-base
 		int v = int1;
-		if (vals != NULL) {
-			v = vals[k];
+		if (nzvals != NULL) {
+			v = nzvals[k];
 			if (narm && v == NA_INTEGER)
 				continue;
 		}
@@ -72,7 +74,7 @@ static void compute_rowsum_ints(const int *vals, const int *offs, int n,
 	return;
 }
 
-static void rowsum_SVT_double(int x_nrow, int x_ncol, SEXP x_SVT,
+static void rowsum_SVT_double(SEXP x_SVT, int x_nrow, int x_ncol,
 		const int *groups, int ngroup, int narm, double *out)
 {
 	if (x_SVT == R_NilValue)
@@ -91,7 +93,7 @@ static void rowsum_SVT_double(int x_nrow, int x_ncol, SEXP x_SVT,
 	return;
 }
 
-static void rowsum_SVT_int(int x_nrow, int x_ncol, SEXP x_SVT,
+static void rowsum_SVT_int(SEXP x_SVT, int x_nrow, int x_ncol,
 		const int *groups, int ngroup, int narm, int *out)
 {
 	if (x_SVT == R_NilValue)
@@ -159,12 +161,12 @@ SEXP C_rowsum_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	if (x_Rtype == REALSXP) {
 		ans = PROTECT(_new_Rmatrix0(REALSXP, ans_nrow, x_ncol,
 					    R_NilValue));
-		rowsum_SVT_double(x_nrow, x_ncol, x_SVT,
+		rowsum_SVT_double(x_SVT, x_nrow, x_ncol,
 			INTEGER(group), ans_nrow, narm, REAL(ans));
 	} else if (x_Rtype == INTSXP) {
 		ans = PROTECT(_new_Rmatrix0(INTSXP, ans_nrow, x_ncol,
 					    R_NilValue));
-		rowsum_SVT_int(x_nrow, x_ncol, x_SVT,
+		rowsum_SVT_int(x_SVT, x_nrow, x_ncol,
 			INTEGER(group), ans_nrow, narm, INTEGER(ans));
 	} else {
 		error("rowsum() or colsum() does not support "

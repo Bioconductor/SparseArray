@@ -10,27 +10,23 @@
 #include "leaf_utils.h"
 
 #include <limits.h>  /* for INT_MAX */
-#include <string.h>  /* for strcmp() */
+#include <string.h>  /* for strcmp() and memcpy() */
 
 
-/* General purpose copy function. */
-static inline int copy_Rvector_elts(
-		SEXP in,  R_xlen_t in_offset,
-		SEXP out, R_xlen_t out_offset,
-		R_xlen_t nelt)
+static void copy_nzvals_elts_to_Rsubvec(SEXP nzvals,
+		SEXP out, int out_offset, int nelt)
 {
-	SEXPTYPE Rtype = TYPEOF(in);
-	CopyRVectorElts_FUNType fun = _select_copy_Rvector_elts_FUN(Rtype);
-	if (fun == NULL)
-		return -1;
-	if (TYPEOF(out) != Rtype)
-		return -1;
-	if (in_offset + nelt > XLENGTH(in))
-		return -1;
-	if (out_offset + nelt > XLENGTH(out))
-		return -1;
-	fun(in, in_offset, out, out_offset, nelt);
-	return 0;
+	if (nzvals == R_NilValue) {
+		/* lacunar leaf */
+		_set_Rsubvec_elts_to_one(out, (R_xlen_t) out_offset,
+					 (R_xlen_t) nelt);
+	} else {
+		/* regular leaf */
+		_copy_Rvector_elts(nzvals, 0,
+				   out, (R_xlen_t) out_offset,
+				   (R_xlen_t) nelt);
+	}
+	return;
 }
 
 
@@ -279,9 +275,9 @@ static SEXP nzwhich_SVT_as_Lindex(SEXP SVT, const int *dim, int ndim,
 
 /* Recursive. */
 static int REC_extract_nzcoo_and_nzvals_from_SVT(SEXP SVT,
-		int *nzcoo, int nzcoo_nrow, int nzcoo_ncol,
+		int *out_nzcoo, int nzcoo_nrow, int nzcoo_ncol,
 		int *rowbuf, int rowbuf_offset,
-		SEXP nzvals, int *nzvals_offset)
+		SEXP out_nzvals, int *nzvals_offset)
 {
 	if (SVT == R_NilValue)
 		return 0;
@@ -294,9 +290,9 @@ static int REC_extract_nzcoo_and_nzvals_from_SVT(SEXP SVT,
 			SEXP subSVT = VECTOR_ELT(SVT, i);
 			rowbuf[rowbuf_offset] = i + 1;
 			int ret = REC_extract_nzcoo_and_nzvals_from_SVT(subSVT,
-					nzcoo, nzcoo_nrow, nzcoo_ncol,
+					out_nzcoo, nzcoo_nrow, nzcoo_ncol,
 					rowbuf, rowbuf_offset - 1,
-					nzvals, nzvals_offset);
+					out_nzvals, nzvals_offset);
 			if (ret < 0)
 				return -1;
 		}
@@ -307,19 +303,16 @@ static int REC_extract_nzcoo_and_nzvals_from_SVT(SEXP SVT,
 	SEXP leaf_nzvals, leaf_nzoffs;
 	int leaf_nzcount = unzip_leaf(SVT, &leaf_nzvals, &leaf_nzoffs);
 
-	if (nzvals != R_NilValue) {
-		int ret = copy_Rvector_elts(leaf_nzvals, (R_xlen_t) 0,
-					nzvals, (R_xlen_t) *nzvals_offset,
-					XLENGTH(leaf_nzvals));
-		if (ret < 0)
-			return -1;
-	}
+	if (out_nzvals != R_NilValue)
+		copy_nzvals_elts_to_Rsubvec(leaf_nzvals,
+					    out_nzvals, *nzvals_offset,
+					    leaf_nzcount);
 
 	for (int k = 0; k < leaf_nzcount; k++) {
 		rowbuf[0] = INTEGER(leaf_nzoffs)[k] + 1;
 
 		/* Copy 'rowbuf' to 'nzcoo'. */
-		int *p = nzcoo + *nzvals_offset;
+		int *p = out_nzcoo + *nzvals_offset;
 		for (int j = 0; j < nzcoo_ncol; j++) {
 			*p = rowbuf[j];
 			p += nzcoo_nrow;
@@ -332,16 +325,16 @@ static int REC_extract_nzcoo_and_nzvals_from_SVT(SEXP SVT,
 
 static SEXP extract_nzcoo_and_nzvals_from_SVT(SEXP SVT,
 		int nzcoo_nrow, int nzcoo_ncol,
-		SEXP nzvals)
+		SEXP out_nzvals)
 {
 	int *rowbuf = (int *) R_alloc(nzcoo_ncol, sizeof(int));
-	SEXP nzcoo = PROTECT(allocMatrix(INTSXP, nzcoo_nrow, nzcoo_ncol));
+	SEXP out_nzcoo = PROTECT(allocMatrix(INTSXP, nzcoo_nrow, nzcoo_ncol));
 
 	int nzvals_offset = 0;
 	int ret = REC_extract_nzcoo_and_nzvals_from_SVT(SVT,
-			INTEGER(nzcoo), nzcoo_nrow, nzcoo_ncol,
+			INTEGER(out_nzcoo), nzcoo_nrow, nzcoo_ncol,
 			rowbuf, nzcoo_ncol - 1,
-			nzvals, &nzvals_offset);
+			out_nzvals, &nzvals_offset);
 	if (ret < 0) {
 		UNPROTECT(1);
 		error("SparseArray internal error in "
@@ -358,7 +351,7 @@ static SEXP extract_nzcoo_and_nzvals_from_SVT(SEXP SVT,
 	}
 
 	UNPROTECT(1);
-	return nzcoo;
+	return out_nzcoo;
 }
 
 /* --- .Call ENTRY POINT --- */
@@ -537,26 +530,14 @@ static int dump_leaf_to_ix(SEXP leaf,
 	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
 
 	/* Copy 0-based row indices from 'nzoffs' to 'sloti'. */
-	_copy_INTEGER_elts(nzoffs, (R_xlen_t) 0,
-			   sloti, (R_xlen_t) ix_offset,
-			   (R_xlen_t) nzcount);
+	memcpy(INTEGER(sloti) + ix_offset, INTEGER(nzoffs),
+	       sizeof(int) * nzcount);
 
 	if (slotx == R_NilValue)
 		return nzcount;
 
 	/* Copy 'nzvals' to 'slotx'. */
-	if (nzvals == R_NilValue) {
-		/* lacunar leaf */
-		_set_Rsubvec_elts_to_one(slotx, (R_xlen_t) ix_offset,
-					 (R_xlen_t) nzcount);
-	} else {
-		/* regular leaf */
-		int ret = copy_Rvector_elts(nzvals, (R_xlen_t) 0,
-					    slotx, (R_xlen_t) ix_offset,
-					    (R_xlen_t) nzcount);
-		if (ret < 0)
-			return -1;
-	}
+	copy_nzvals_elts_to_Rsubvec(nzvals, slotx, ix_offset, nzcount);
 	return nzcount;
 }
 
@@ -647,8 +628,8 @@ static SEXP build_leaf_from_ngCsparseMatrix_col(SEXP x_sloti,
 		int ix_offset, int col_nzcount, SEXPTYPE ans_Rtype)
 {
 	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(col_nzcount));
-	_copy_INTEGER_elts(x_sloti, (R_xlen_t) ix_offset,
-			   ans_nzoffs, 0, (R_xlen_t) col_nzcount);
+	memcpy(INTEGER(ans_nzoffs), INTEGER(x_sloti) + ix_offset,
+	       sizeof(int) * col_nzcount);
 	SEXP ans_nzvals = LACUNAR_MODE_IS_ON ?
 		R_NilValue : PROTECT(_new_Rvector1(ans_Rtype, col_nzcount));
 	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs);
@@ -722,8 +703,9 @@ static SEXP build_leaf_from_CsparseMatrix_col(SEXP x_sloti, SEXP x_slotx,
 	/* Replace offsets in 'ans_nzoffs' with offsets from 'x_sloti'. */
 	SEXP ans_nzoffs = get_leaf_nzoffs(ans);
 	int ans_nzcount = LENGTH(ans_nzoffs);  /* always <= 'col_nzcount' */
-	_copy_selected_ints(INTEGER(x_sloti) + ix_offset, INTEGER(ans_nzoffs),
-			    ans_nzcount, INTEGER(ans_nzoffs));
+	_copy_selected_int_elts(INTEGER(x_sloti) + ix_offset,
+				INTEGER(ans_nzoffs), ans_nzcount,
+				INTEGER(ans_nzoffs));
 	if (ans_Rtype != TYPEOF(x_slotx))
 		ans = _coerce_leaf(ans, ans_Rtype, warn, nzoffs_buf);
 
@@ -802,12 +784,14 @@ SEXP C_from_SVT_SparseArray_to_COO_SparseArray(SEXP x_dim,
 	if (nzcount > INT_MAX)
 		error("SVT_SparseArray object contains too many nonzero "
 		      "values to be turned into a COO_SparseArray object");
-	SEXP nzvals = PROTECT(alloc_nzvals(x_type, nzcount));
-	SEXP nzcoo = PROTECT(extract_nzcoo_and_nzvals_from_SVT(x_SVT,
-					(int) nzcount, LENGTH(x_dim), nzvals));
+	SEXP ans_nzvals = PROTECT(alloc_nzvals(x_type, nzcount));
+	SEXP ans_nzcoo = PROTECT(
+		extract_nzcoo_and_nzvals_from_SVT(x_SVT,
+				(int) nzcount, LENGTH(x_dim), ans_nzvals)
+	);
 	SEXP ans = PROTECT(NEW_LIST(2));
-	SET_VECTOR_ELT(ans, 0, nzcoo);
-	SET_VECTOR_ELT(ans, 1, nzvals);
+	SET_VECTOR_ELT(ans, 0, ans_nzcoo);
+	SET_VECTOR_ELT(ans, 1, ans_nzvals);
 	UNPROTECT(3);
 	return ans;
 }

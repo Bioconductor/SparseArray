@@ -55,13 +55,11 @@ void _expand_leaf(SEXP leaf, SEXP out_Rvector, R_xlen_t out_offset)
 {
 	SEXP nzvals, nzoffs;
 	unzip_leaf(leaf, &nzvals, &nzoffs);  /* ignore returned nzcount */
-	if (nzvals == R_NilValue) {
-		/* lacunar leaf */
+	if (nzvals == R_NilValue) {  /* lacunar leaf */
 		_set_selected_Rsubvec_elts_to_one(out_Rvector, out_offset,
 					INTEGER(nzoffs), LENGTH(nzoffs));
 
-	} else {
-		/* standard leaf */
+	} else {  /* standard leaf */
 		_copy_Rvector_elts_to_offsets(nzvals, INTEGER(nzoffs),
 					out_Rvector, out_offset);
 	}
@@ -245,6 +243,7 @@ SEXP _coerce_leaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn, int *selection_buf)
 	unzip_leaf(leaf, &nzvals, &nzoffs);  /* ignore returned nzcount */
 	if (nzvals == R_NilValue)  /* lacunar leaf */
 		return coerce_lacunar_leaf(leaf, new_Rtype);
+	/* standard leaf */
 	SEXP ans_nzvals = PROTECT(_coerceVector2(nzvals, new_Rtype, warn));
 	SEXP ans = PROTECT(zip_leaf(ans_nzvals, nzoffs));
 	/* The above coercion can introduce zeros in 'ans_nzvals' e.g. when
@@ -318,9 +317,7 @@ SEXP _subassign_leaf_with_Rvector(SEXP leaf, SEXP index, SEXP Rvector)
 
 	CopyRVectorElt_FUNType copy_Rvector_elt_FUN =
 		_select_copy_Rvector_elt_FUN(Rtype);
-	CopyRVectorElts_FUNType copy_Rvector_elts_FUN =
-		_select_copy_Rvector_elts_FUN(Rtype);
-	if (copy_Rvector_elt_FUN == NULL || copy_Rvector_elts_FUN == NULL)
+	if (copy_Rvector_elt_FUN == NULL)
 		error("SparseArray internal error in "
 		      "_subassign_leaf_with_Rvector():\n"
 		      "    type \"%s\" is not supported", type2char(Rtype));
@@ -338,14 +335,8 @@ SEXP _subassign_leaf_with_Rvector(SEXP leaf, SEXP index, SEXP Rvector)
 	while (k1 < nzcount && k2 < index_len) {
 		if (*nzoffs_p < *index_p) {
 			*ans_nzoffs_p = *nzoffs_p;
-			if (nzvals == R_NilValue) {
-				/* lacunar leaf */
-				_set_selected_Rsubvec_elts_to_one(
-						     ans_nzvals, 0, &k, 1);
-			} else {
-				copy_Rvector_elt_FUN(nzvals, (R_xlen_t) k1,
-						     ans_nzvals, (R_xlen_t) k);
-			}
+			copy_Rvector_elt_FUN(nzvals, (R_xlen_t) k1,
+					     ans_nzvals, (R_xlen_t) k);
 			nzoffs_p++;
 			k1++;
 		} else if (*nzoffs_p > *index_p) {
@@ -371,21 +362,20 @@ SEXP _subassign_leaf_with_Rvector(SEXP leaf, SEXP index, SEXP Rvector)
 	if (k1 < nzcount) {
 		n = nzcount - k1;
 		memcpy(ans_nzoffs_p, nzoffs_p, sizeof(int) * n);
-		if (nzvals == R_NilValue) {
-			/* lacunar leaf */
+		if (nzvals == R_NilValue) {  /* lacunar leaf */
 			_set_Rsubvec_elts_to_one(ans_nzvals, (R_xlen_t) k,
 						 (R_xlen_t) n);
-		} else {
-			copy_Rvector_elts_FUN(nzvals, (R_xlen_t) k1,
-					      ans_nzvals, (R_xlen_t) k,
-					      (R_xlen_t) n);
+		} else {  /* standard leaf */
+			_copy_Rvector_elts(nzvals, (R_xlen_t) k1,
+					   ans_nzvals, (R_xlen_t) k,
+					   (R_xlen_t) n);
 		}
 	} else if (k2 < index_len) {
 		n = index_len - k2;
 		memcpy(ans_nzoffs_p, index_p, sizeof(int) * n);
-		copy_Rvector_elts_FUN(Rvector, (R_xlen_t) k2,
-				      ans_nzvals, (R_xlen_t) k,
-				      (R_xlen_t) n);
+		_copy_Rvector_elts(Rvector, (R_xlen_t) k2,
+				   ans_nzvals, (R_xlen_t) k,
+				   (R_xlen_t) n);
 	}
 	UNPROTECT(1);
 	return ans;

@@ -21,9 +21,9 @@ static void summarize_leaf(SEXP leaf, int dim0,
 	   _summarize_ones() and _summarize_Rvector() will add 'nzcount'. */
 	res->in_length += dim0 - nzcount;
 	res->in_nzcount += nzcount; /* assuming 'nzvals' contains no zeros! */
-	if (nzvals == R_NilValue) {
+	if (nzvals == R_NilValue) {  /* lacunar leaf */
 		_summarize_ones(nzcount, summarize_op, res);
-	} else {
+	} else {  /* standard leaf */
 		_summarize_Rvector(nzvals, summarize_op, res);
 	}
 	return;

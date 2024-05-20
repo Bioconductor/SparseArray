@@ -1,3 +1,7 @@
+- Support names() getter and setter on a 1D SparseArray array as a shortcut
+  for 'dimnames()[[1L]]' and 'dimnames()[[1L]] <- value' respectively.
+  This is to mimic the R base array API.
+
 - Add is.nonzero() generic with methods for SparseArray objects and other
   sparseMatrix derivatives from the Matrix package ([d|l|n]g[C|R]Matrix
   objects).
@@ -41,6 +45,15 @@
 - Subassignments like this need to work:
       svt[ , , 1] <- svt[ , , 3, drop=FALSE]
       svt[ , , 1] <- svt[ , , 3]
+
+- Implement C_subassign_SVT_with_Rarray() and C_subassign_SVT_with_SVT().
+
+- Speed up row selection: x[row_idx, ]
+
+- Support subsetting by a character matrix in .subset_SVT_by_Mindex().
+
+- Support subsetting by a character vector in .subset_SVT_by_Lindex() in
+  the 1D case.
 
 - Implement table() method for SVT_SparseArray objects of type logical,
   integer, or raw (should it go in R/SparseArray-summarization.R?)
@@ -187,10 +200,6 @@
 
 - Support 'match(svt, table)' where 'svt' is an SVT_SparseArray object
   and 'table' an atomic vector. This will give us 'svt %in% table' for free.
-
-- Implement C_subassign_SVT_with_Rarray() and C_subassign_SVT_with_SVT().
-
-- Speed up row selection: x[row_idx, ]
 
 - Implement more matrixStats methods for SVT_SparseMatrix objects. Those
   that are still missing and are actually used in Bioconductor are:
