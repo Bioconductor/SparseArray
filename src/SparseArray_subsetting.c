@@ -57,20 +57,16 @@ static inline void set_Rvector_elt_to_NA(SEXP Rvector, R_xlen_t i)
  */
 
 /* In addition to 0, extract_long_idx0() and extract_idx0() can return one
-   of the five values defined below. Negative values are always considered
-   errors. Note that this could change for SUBSCRIPT_ELT_IS_BEYOND_MAX if we
-   decided to strictly mimic subsetting in R base, in which case we would need
-   to set its value to a positive one. SUBSCRIPT_ELT_IS_NA is set to a positive
-   value because this is sometimes considered an error (by subset_SV() and
-   REC_subset_SVT_by_Nindex()) and sometimes not (by subset_leaf_by_Lindex()
-   and build_OPBufTree_from_Lindex()).
+   of the five negative values defined below. Note that these are typically
+   considered errors but not always. For example, some functions in this file
+   treat SUBSCRIPT_ELT_IS_NA as an error but others don't.
    Be aware that MAX_OPBUF_LEN_REACHED is set to -1 (see OPBufTree.h) so
    do **not** use that value. */
 #define	BAD_SUBSCRIPT_TYPE             -2
 #define	SUBSCRIPT_IS_TOO_LONG          -3  /* returned by extract_idx0() only */
 #define	SUBSCRIPT_ELT_IS_LESS_THAN_ONE -4
 #define	SUBSCRIPT_ELT_IS_BEYOND_MAX    -5
-#define	SUBSCRIPT_ELT_IS_NA             1
+#define	SUBSCRIPT_ELT_IS_NA            -6
 
 /* 'subscript' must be a numeric vector, possibly a long one. It is expected
    to contain 1-based indices that are >= 1 and <= 'max'.
@@ -117,13 +113,28 @@ static inline int extract_idx0(SEXP subscript, int i, int max, int *idx0)
 	R_xlen_t lidx0;
 	int ret = extract_long_idx0(subscript, (R_xlen_t) i,
 				    (R_xlen_t) max, &lidx0);
-	if (ret != 0)
+	if (ret < 0)
 		return ret;
 	*idx0 = (int) lidx0;
 	return 0;
 }
 
-/* 'ret_code' must be a **negative** code (error code) returned by
+/* 'ret_code' must be a negative code (error code) as returned by
+   extract_long_idx0() or extract_idx0() above. */
+static void bad_Mindex_error(int ret_code)
+{
+	if (ret_code == BAD_SUBSCRIPT_TYPE)
+		error("'Mindex' must be a numeric matrix");
+	if (ret_code == SUBSCRIPT_ELT_IS_LESS_THAN_ONE ||
+	    ret_code == SUBSCRIPT_ELT_IS_BEYOND_MAX)
+		error("'Mindex' contains out-of-bound indices");
+	if (ret_code == SUBSCRIPT_ELT_IS_NA)
+		error("'Mindex' contains NAs");
+	error("SparseArray internal error in bad_Mindex_error():\n"
+	      "    unexpected error code %d", ret_code);
+}
+
+/* 'ret_code' must be a negative code (error code) as returned by
    extract_long_idx0() or extract_idx0() above. */
 static void bad_Lindex_error(int ret_code)
 {
@@ -141,9 +152,8 @@ static void bad_Lindex_error(int ret_code)
 	      "    unexpected error code %d", ret_code);
 }
 
-/* 'ret_code' must be a **non-zero** code (positive or negative) returned
-   by extract_idx0() above. Any code is considered an error regardless of
-   its sign. */
+/* 'ret_code' must be a negative code (error code) as returned by
+   extract_idx0() above. */
 static void bad_Nindex_error(int ret_code, int along1)
 {
 	if (ret_code == BAD_SUBSCRIPT_TYPE)
@@ -234,12 +244,13 @@ static int subset_NULL_by_Lindex(int dim0, SEXP Lindex, SEXP ans)
 	for (int k1 = 0; k1 < n; k1++) {
 		int idx0;
 		int ret = extract_idx0(Lindex, k1, dim0, &idx0);
+		if (ret == SUBSCRIPT_ELT_IS_NA) {
+			/* 'Lindex[k1]' is NA or NaN. */
+			set_Rvector_elt_to_NA(ans, (R_xlen_t) k1);
+			continue;
+		}
 		if (ret < 0)
 			return ret;
-		if (ret != SUBSCRIPT_ELT_IS_NA)
-			continue;
-		/* 'Lindex[k1]' is NA or NaN. */
-		set_Rvector_elt_to_NA(ans, (R_xlen_t) k1);
 	}
 	return 0;
 }
@@ -264,13 +275,13 @@ static int subset_leaf_by_Lindex(SEXP leaf, int dim0, SEXP Lindex, SEXP ans,
 	for (int k1 = 0; k1 < n; k1++) {
 		int idx0;
 		int ret = extract_idx0(Lindex, k1, dim0, &idx0);
-		if (ret < 0)
-			return ret;
 		if (ret == SUBSCRIPT_ELT_IS_NA) {
 			/* 'Lindex[k1]' is NA or NaN. */
 			set_Rvector_elt_to_NA(ans, (R_xlen_t) k1);
 			continue;
 		}
+		if (ret < 0)
+			return ret;
 		int k2 = bsearch_idx0_to_k2(idx0, nzoffs_p, nzcount);
 		if (k2 >= 0)
 			copy_Rvector_elt_FUN(nzvals, (R_xlen_t) k2,
@@ -342,7 +353,7 @@ static int subset_SV(const SparseVec *sv, SEXP subscript,
 	for (int i1 = 0; i1 < n; i1++) {
 		int idx0;
 		int ret = extract_idx0(subscript, i1, sv->len, &idx0);
-		if (ret != 0)
+		if (ret < 0)
 			bad_Nindex_error(ret, 1);
 		int k2 = MAP_IDX0_TO_K(idx0, sv->nzoffs, sv_nzcount);
 		if (k2 >= 0) {
@@ -418,63 +429,192 @@ static int check_Mindex(SEXP Mindex, int ndim,
 	return INTEGER(Mindex_dim)[0];
 }
 
-/* Based on **unsafe** _append_idx0Loff_to_OPBufTree_leaf().
-   See comments for _append_idx0Loff_to_OPBufTree_leaf() and
-   append_idx0Loff_to_OPBuf() in OPBufTree.c for the details. */
-static int add_idx0Loff_to_OPBufTree(R_xlen_t idx0, int Loff,
-		SEXP SVT, const int *dim, const R_xlen_t *dimcumprod, int ndim,
-		OPBufTree *opbuf_tree)
+/* 'SVT' is trusted to not be NULL.
+   Returns NULL if we didn't land anywhere. */
+static OPBufTree *find_host_node_for_Mindex_row(OPBufTree *opbuf_tree,
+		SEXP Mindex, int Loff,
+		SEXP SVT, const int *dim, int ndim,
+		int *idx0, int *ret_code)
 {
+	*ret_code = 0;
+#if 0
 	for (int along = ndim - 1; along >= 1; along--) {
-		R_xlen_t p = dimcumprod[along - 1];
-		int i = idx0 / p;  /* always >= 0 and < 'dim[along]' */
-		SVT = VECTOR_ELT(SVT, i);
+		int d = dim[along];  /* = LENGTH(SVT) */
+		*ret_code = extract_idx0(Mindex, Moff, d, idx0);
+		if (*ret_code != 0)
+			return NULL;
+		SVT = VECTOR_ELT(SVT, idx0);
 		if (SVT == R_NilValue)
-			return 0;
-		idx0 %= p;
+			return NULL;
 		if (opbuf_tree->node_type == NULL_NODE)
-			_alloc_OPBufTree_children(opbuf_tree, dim[along]);
-		opbuf_tree = get_OPBufTree_child(opbuf_tree, i);
+			_alloc_OPBufTree_children(opbuf_tree, d);
+		opbuf_tree = get_OPBufTree_child(opbuf_tree, idx0);
 	}
-	return _append_idx0Loff_to_OPBufTree_leaf(opbuf_tree,
-						  (int) idx0, Loff);
+	/* At this point 'opbuf_tree' is guaranteed to be a node of type
+	   NULL_NODE or LEAF_NODE. */
+	return opbuf_tree;
+#endif
+	return NULL;
 }
 
-/* Three possible outcomes:
-   (1) We land on a leaf node (OPBuf), in which case we append the (idx0,Loff)
-       pair to the leaf node and return the new length of the node, that is,
-       the new nb of (idx0,Loff) pairs in it. This will always be > 0.
-   (2) We didn't land anywhere, in which case we return 0.
-   (3) We encountered an error, in which case we return a negative value. */
-static int add_idx0xLoff_to_OPBufTree(R_xlen_t idx0, R_xlen_t Loff,
-		SEXP SVT, const int *dim, const R_xlen_t *dimcumprod, int ndim,
-		OPBufTree *opbuf_tree)
+/* 'Lidx0' is trusted to be a non-NA value >= 0 and < 'dimcumprod[ndim - 1]'.
+   'SVT' is trusted to not be NULL.
+   Returns NULL if we didn't land anywhere. */
+static OPBufTree *find_host_node_for_Lidx0(OPBufTree *opbuf_tree,
+		R_xlen_t Lidx0,
+		SEXP SVT, const int *dim, int ndim,
+		const R_xlen_t *dimcumprod, int *idx0)
 {
-	/* Find the receiving leaf node. */
 	for (int along = ndim - 1; along >= 1; along--) {
 		R_xlen_t p = dimcumprod[along - 1];
-		int i = idx0 / p;  /* always >= 0 and < 'dim[along]' */
+		int i = Lidx0 / p;  /* always >= 0 and < 'dim[along]' */
 		SVT = VECTOR_ELT(SVT, i);
 		if (SVT == R_NilValue)
-			return 0;
-		idx0 %= p;
+			return NULL;
+		Lidx0 %= p;
 		if (opbuf_tree->node_type == NULL_NODE)
 			_alloc_OPBufTree_children(opbuf_tree, dim[along]);
 		opbuf_tree = get_OPBufTree_child(opbuf_tree, i);
 	}
-	/* Append the (idx0,Loff) pair to the receiving leaf node.
-	   At this point:
-	     - 'idx0' is guaranteed to be < dimcumprod[0] = dim[0] <= INT_MAX;
-	     - 'opbuf_tree' is guaranteed to be a node of type NULL_NODE or
-	       LEAF_NODE.
-	   If 'opbuf_tree' is a leaf node (type LEAF_NODE) and contains INT_MAX
-	   (idx0,Loff) pairs, then _append_Loff_to_OPBufTree_leaf() will
-	   return error code MAX_OPBUF_LEN_REACHED (negative value, see
-	   OPBufTree.h). Note that this will only happen if 'Lindex' is a
-	   long vector and more than INT_MAX indices in it hit the same leaf
-	   in 'SVT'. A rather crazy and unlikely situation! */
-	return _append_idx0xLoff_to_OPBufTree_leaf(opbuf_tree,
-						   (int) idx0, Loff);
+	/* At this point:
+	   - 'Lidx0' is guaranteed to be < 'dimcumprod[0]' (note that
+             'dimcumprod[0]' should always be = 'dim[0]' and <= INT_MAX);
+	   - 'opbuf_tree' is guaranteed to be a node of type NULL_NODE or
+	     LEAF_NODE. */
+	*idx0 = (int) Lidx0;
+	return opbuf_tree;
+}
+
+static int build_OPBufTree_from_Mindex(OPBufTree *opbuf_tree, SEXP Mindex,
+		SEXP x_SVT, const int *x_dim, int x_ndim, SEXP ans)
+{
+	/* _free_OPBufTree(opbuf_tree) resets 'opbuf_tree->node_type'
+	   to NULL_NODE. */
+	_free_OPBufTree(opbuf_tree);
+	int out_len = LENGTH(ans);  /* = nrow(Mindex) */
+	/* Walk along 'ans'. Direction of the walk doesn't matter. */
+	for (int Loff = 0; Loff < out_len; Loff++) {
+		int ret, idx0;
+		OPBufTree *host_node = find_host_node_for_Mindex_row(
+						opbuf_tree, Mindex, Loff,
+						x_SVT, x_dim, x_ndim,
+						&idx0, &ret);
+		if (ret < 0)
+			return ret;
+		if (host_node == NULL)  /* we didn't land anywhere */
+			continue;
+		/* Turn 'host_node' into a leaf node (LEAF_NODE) if it is
+		   not one already, and append the (idx0,Loff) pair to it.
+		   _append_idx0Loff_to_host_node() will return the new
+		   length of the leaf node, that is, the new nb of pairs
+		   in it (this will always be > 0), or a negative value in
+		   case of error. */
+		ret = _append_idx0Loff_to_host_node(host_node, idx0, Loff);
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
+}
+
+/* To use on an 'Lindex' that has a length <= INT_MAX.
+   Based on **unsafe** _append_idx0Loff_to_host_node().
+   See comments for _append_idx0Loff_to_host_node() and
+   append_idx0Loff_to_OPBuf() in OPBufTree.c for the details.
+   Returns a negative value in case of error. */
+static int build_OPBufTree_from_Lindex1(OPBufTree *opbuf_tree, SEXP Lindex,
+		SEXP x_SVT, const int *x_dim, int x_ndim, SEXP ans,
+		const R_xlen_t *dimcumprod)
+{
+	int max_outleaf_len = 0;
+	int out_len = LENGTH(Lindex);  /* = LENGTH(ans) */
+	R_xlen_t x_len = dimcumprod[x_ndim - 1];
+	/* Walk along 'Lindex' (and 'ans').
+	   Direction of the walk doesn't matter. */
+	for (int Loff = 0; Loff < out_len; Loff++) {
+		R_xlen_t Lidx0;
+		int ret = extract_long_idx0(Lindex, (R_xlen_t) Loff, x_len,
+					    &Lidx0);
+		if (ret == SUBSCRIPT_ELT_IS_NA) {
+			/* 'Lindex[Loff]' is NA or NaN. */
+			set_Rvector_elt_to_NA(ans, (R_xlen_t) Loff);
+			continue;
+		}
+		if (ret < 0)
+			return ret;
+		if (x_SVT == R_NilValue)
+			continue;
+		int idx0;
+		OPBufTree *host_node = find_host_node_for_Lidx0(
+						opbuf_tree, Lidx0,
+						x_SVT, x_dim, x_ndim,
+						dimcumprod, &idx0);
+		if (host_node == NULL)  /* we didn't land anywhere */
+			continue;
+		/* Turn 'host_node' into a leaf node (LEAF_NODE) if it is
+		   not one already, and append the (idx0,Loff) pair to it.
+		   _append_idx0Loff_to_host_node() will return the new
+		   length of the leaf node, that is, the new nb of pairs
+		   in it (this will always be > 0), or a negative value in
+		   case of error. */
+		ret = _append_idx0Loff_to_host_node(host_node, idx0, Loff);
+		if (ret < 0)
+			return ret;
+		if (ret > max_outleaf_len)
+			max_outleaf_len = ret;
+	}
+	return max_outleaf_len;
+}
+
+/* To use on an 'Lindex' that has a length > INT_MAX (long vector).
+   Returns a negative value in case of error. */
+static int build_OPBufTree_from_Lindex2(OPBufTree *opbuf_tree, SEXP Lindex,
+		SEXP x_SVT, const int *x_dim, int x_ndim, SEXP ans,
+		const R_xlen_t *dimcumprod)
+{
+	int max_outleaf_len = 0;
+	R_xlen_t out_len = XLENGTH(Lindex);  /* = XLENGTH(ans) */
+	R_xlen_t x_len = dimcumprod[x_ndim - 1];
+	/* Walk along 'Lindex' (and 'ans').
+	   Direction of the walk doesn't matter. */
+	//for (R_xlen_t Loff = 0; Loff < out_len; Loff++) {
+	for (R_xlen_t Loff = out_len - 1; Loff >= 0; Loff--) {
+		R_xlen_t Lidx0;
+		int ret = extract_long_idx0(Lindex, Loff, x_len, &Lidx0);
+		if (ret == SUBSCRIPT_ELT_IS_NA) {
+			/* 'Lindex[Loff]' is NA or NaN. */
+			set_Rvector_elt_to_NA(ans, Loff);
+			continue;
+		}
+		if (ret < 0)
+			return ret;
+		if (x_SVT == R_NilValue)
+			continue;
+		int idx0;
+		OPBufTree *host_node = find_host_node_for_Lidx0(
+						opbuf_tree, Lidx0,
+						x_SVT, x_dim, x_ndim,
+						dimcumprod, &idx0);
+		if (host_node == NULL)  /* we didn't land anywhere */
+			continue;
+		/* Turn 'host_node' into a leaf node (LEAF_NODE) if it is
+		   not one already, and append the (idx0,Loff) pair to it.
+		   _append_idx0Loff_to_host_node() will return the new
+		   length of the leaf node, that is, the new nb of pairs
+		   in it (this will always be > 0), or a negative value in
+		   case of error.
+		   Note that the only possible error code at the moment is
+		   MAX_OPBUF_LEN_REACHED (defined in OPBufTree.h), which
+		   indicates that 'host_node' is already at its max length
+		   (INT_MAX). This can only happen if 'Lindex' is a long
+		   vector and more than INT_MAX indices in it hit the same
+		   leaf in 'SVT'. A rather crazy and unlikely situation! */
+		ret = _append_idx0xLoff_to_host_node(host_node, idx0, Loff);
+		if (ret < 0)
+			return ret;
+		if (ret > max_outleaf_len)
+			max_outleaf_len = ret;
+	}
+	return max_outleaf_len;
 }
 
 /* Returns the length of the longest leaf in the output tree (i.e. the
@@ -501,57 +641,11 @@ static int build_OPBufTree_from_Lindex(OPBufTree *opbuf_tree, SEXP Lindex,
 	/* _free_OPBufTree(opbuf_tree) resets 'opbuf_tree->node_type'
 	   to NULL_NODE. */
 	_free_OPBufTree(opbuf_tree);
-	int max_outleaf_len = 0;
-	R_xlen_t out_len = XLENGTH(Lindex);
-	/* Walk along 'Lindex'. Direction of the walk doesn't matter. */
-	if (out_len <= (R_xlen_t) INT_MAX) {
-		for (int Loff = 0; Loff < out_len; Loff++) {
-			R_xlen_t idx0;
-			int ret = extract_long_idx0(Lindex, Loff,
-						dimcumprod[x_ndim - 1], &idx0);
-			if (ret < 0)
-				return ret;
-			if (ret == SUBSCRIPT_ELT_IS_NA) {
-				/* 'Lindex[Loff]' is NA or NaN. */
-				set_Rvector_elt_to_NA(ans, (R_xlen_t) Loff);
-				continue;
-			}
-			if (x_SVT == R_NilValue)
-				continue;
-			ret = add_idx0Loff_to_OPBufTree(idx0, Loff,
-					x_SVT, x_dim, dimcumprod, x_ndim,
-					opbuf_tree);
-			if (ret < 0)
-				return ret;
-			if (ret > max_outleaf_len)
-				max_outleaf_len = ret;
-		}
-	} else {
-		/* Long 'Lindex'. */
-		//for (R_xlen_t Loff = 0; Loff < out_len; Loff++) {
-		for (R_xlen_t Loff = out_len - 1; Loff >= 0; Loff--) {
-			R_xlen_t idx0;
-			int ret = extract_long_idx0(Lindex, Loff,
-						dimcumprod[x_ndim - 1], &idx0);
-			if (ret < 0)
-				return ret;
-			if (ret == SUBSCRIPT_ELT_IS_NA) {
-				/* 'Lindex[Loff]' is NA or NaN. */
-				set_Rvector_elt_to_NA(ans, Loff);
-				continue;
-			}
-			if (x_SVT == R_NilValue)
-				continue;
-			ret = add_idx0xLoff_to_OPBufTree(idx0, Loff,
-					x_SVT, x_dim, dimcumprod, x_ndim,
-					opbuf_tree);
-			if (ret < 0)
-				return ret;
-			if (ret > max_outleaf_len)
-				max_outleaf_len = ret;
-		}
-	}
-	return max_outleaf_len;
+	return XLENGTH(Lindex) <= (R_xlen_t) INT_MAX ?
+		build_OPBufTree_from_Lindex1(opbuf_tree, Lindex,
+			x_SVT, x_dim, x_ndim, ans, dimcumprod) :
+		build_OPBufTree_from_Lindex2(opbuf_tree, Lindex,
+			x_SVT, x_dim, x_ndim, ans, dimcumprod);
 }
 
 /* Recursive tree traversal must be guided by 'opbuf_tree', not by 'SVT'. See
@@ -590,7 +684,10 @@ static void REC_subset_SVT_by_OPBufTree(OPBufTree *opbuf_tree,
 	return;
 }
 
-/* --- .Call ENTRY POINT --- */
+/* --- .Call ENTRY POINT ---
+   'Mindex' must be a numeric matrix (integer or double) with one column per
+   dimension in the array to subset. NAs in the matrix are forbidden (they'll
+   trigger an error), except in the 1D case. */
 SEXP C_subset_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Mindex)
 {
 	SEXPTYPE Rtype = _get_Rtype_from_Rstring(x_type);
@@ -598,10 +695,49 @@ SEXP C_subset_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Mindex)
 		error("SparseArray internal error in "
 		      "C_subset_SVT_by_Mindex():\n"
 		      "    SVT_SparseArray object has invalid type");
+	CopyRVectorElt_FUNType fun = _select_copy_Rvector_elt_FUN(Rtype);
+
 	int x_ndim = LENGTH(x_dim);
+	int x_dim0 = INTEGER(x_dim)[0];
 	int ans_len = check_Mindex(Mindex, x_ndim, "Mindex", "length(dim(x))");
 	error("C_subset_SVT_by_Mindex() is not ready yet");
 	SEXP ans = PROTECT(_new_Rvector0(Rtype, (R_xlen_t) ans_len));
+
+	if (x_ndim == 1) {
+		int ret = subset_leaf_by_Lindex(x_SVT, x_dim0, Mindex, ans,
+						fun);
+		UNPROTECT(1);
+		if (ret < 0)
+			bad_Mindex_error(ret);
+		return ans;
+	}
+	if (x_SVT == R_NilValue) {
+		UNPROTECT(1);
+		return ans;
+	}
+
+	/* 1st pass: Build OPBufTree. */
+	OPBufTree *opbuf_tree = _get_global_opbuf_tree();
+	int max_outleaf_len =
+		build_OPBufTree_from_Mindex(opbuf_tree, Mindex,
+					    x_SVT, INTEGER(x_dim), x_ndim, ans);
+	if (max_outleaf_len < 0) {
+		UNPROTECT(1);
+		bad_Mindex_error(max_outleaf_len);
+	}
+
+	/* 2nd pass: Subset SVT by OPBufTree. */
+	if (max_outleaf_len > 0) {
+		int *lookup_table = (int *) R_alloc(x_dim0, sizeof(int));
+		for (int i = 0; i < x_dim0; i++)
+			lookup_table[i] = -1;
+		/* Get 1-based rank of biggest dimension (ignoring the 1st
+		   dim). Parallel execution will be along that dimension. */
+		int pardim = which_max(INTEGER(x_dim) + 1, x_ndim - 1) + 2;
+		REC_subset_SVT_by_OPBufTree(opbuf_tree,
+				x_SVT, INTEGER(x_dim), x_ndim, ans,
+				fun, lookup_table, pardim);
+	}
 
 	UNPROTECT(1);
 	return ans;
@@ -619,11 +755,11 @@ SEXP C_subset_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Lindex)
 		      "    SVT_SparseArray object has invalid type");
 	CopyRVectorElt_FUNType fun = _select_copy_Rvector_elt_FUN(Rtype);
 
-	int x_ndim = LENGTH(x_dim);
-	int x_dim0 = INTEGER(x_dim)[0];
 	if (!IS_INTEGER(Lindex) && !IS_NUMERIC(Lindex))
 		error("'Lindex' must be an integer or numeric vector");
 
+	int x_ndim = LENGTH(x_dim);
+	int x_dim0 = INTEGER(x_dim)[0];
 	R_xlen_t ans_len = XLENGTH(Lindex);
 	SEXP ans = PROTECT(_new_Rvector0(Rtype, ans_len));
 
@@ -636,7 +772,7 @@ SEXP C_subset_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Lindex)
 		return ans;
 	}
 
-	/* 1st pass: Build OPBufTree. */
+	/* 1st pass: Build the OPBufTree. */
 	//clock_t t0 = clock();
 	OPBufTree *opbuf_tree = _get_global_opbuf_tree();
 	R_xlen_t *dimcumprod = (R_xlen_t *) R_alloc(x_ndim, sizeof(R_xlen_t));
@@ -748,7 +884,7 @@ static SEXP REC_subset_SVT_by_Nindex(SEXP SVT, SEXP Nindex,
 			idx0 = i;
 		} else {
 			int ret = extract_idx0(subscript, i, SVT_len, &idx0);
-			if (ret != 0)
+			if (ret < 0)
 				bad_Nindex_error(ret, ndim);
 		}
 		SEXP subSVT = VECTOR_ELT(SVT, idx0);

@@ -38,8 +38,6 @@ typedef struct opbuf_tree_t {
 
 typedef struct inner_node_t InnerNode;
 
-static const OPBufTree OPBufTree0 = { NULL_NODE, {NULL}};
-
 static inline int get_OPBufTree_nchildren(const OPBufTree *opbuf_tree)
 {
 	if (opbuf_tree->node_type != INNER_NODE)
@@ -72,14 +70,14 @@ void _alloc_OPBufTree_children(
 	int n
 );
 
-int _append_idx0Loff_to_OPBufTree_leaf(
-	OPBufTree *opbuf_tree,
+int _append_idx0Loff_to_host_node(
+	OPBufTree *host_node,
 	int idx0,
 	int Loff
 );
 
-int _append_idx0xLoff_to_OPBufTree_leaf(
-	OPBufTree *opbuf_tree,
+int _append_idx0xLoff_to_host_node(
+	OPBufTree *host_node,
 	int idx0,
 	R_xlen_t Loff
 );

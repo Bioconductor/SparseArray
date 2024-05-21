@@ -180,49 +180,52 @@ static void free_InnerNode(InnerNode *inner_node)
 	return;
 }
 
-void _alloc_OPBufTree_children(OPBufTree *opbuf_tree, int n)
+void _alloc_OPBufTree_children(OPBufTree *node, int n)
 {
-	if (opbuf_tree->node_type != NULL_NODE)
+	if (node->node_type != NULL_NODE)
 		error("SparseArray internal error in "
 		      "_alloc_OPBufTree_children():\n"
-		      "    opbuf_tree->node_type != NULL_NODE");
-	opbuf_tree->node.inner_node_p = alloc_InnerNode(n);
-	opbuf_tree->node_type = INNER_NODE;  /* must be last */
+		      "    node->node_type != NULL_NODE");
+	node->node.inner_node_p = alloc_InnerNode(n);
+	node->node_type = INNER_NODE;  /* must be last */
 	return;
 }
 
-static void alloc_OPBufTree_leaf(OPBufTree *opbuf_tree)
+static void alloc_OPBufTree_leaf(OPBufTree *node)
 {
-	if (opbuf_tree->node_type != NULL_NODE)
+	if (node->node_type != NULL_NODE)
 		error("SparseArray internal error in "
 		      "alloc_OPBufTree_leaf():\n"
-		      "    opbuf_tree->node_type != NULL_NODE");
-	opbuf_tree->node.opbuf_p = alloc_empty_OPBuf();
-	opbuf_tree->node_type = LEAF_NODE;  /* must be last */
+		      "    node->node_type != NULL_NODE");
+	node->node.opbuf_p = alloc_empty_OPBuf();
+	node->node_type = LEAF_NODE;  /* must be last */
 	return;
 }
 
-/* 'opbuf_tree' must be a node of type NULL_NODE or LEAF_NODE.
+/* 'host_node' must be a node of type NULL_NODE or LEAF_NODE.
    Based on **unsafe** append_idx0Loff_to_OPBuf().
    See append_idx0Loff_to_OPBuf() above for the details. */
-int _append_idx0Loff_to_OPBufTree_leaf(OPBufTree *opbuf_tree,
+int _append_idx0Loff_to_host_node(OPBufTree *host_node,
 		int idx0, int Loff)
 {
-	if (opbuf_tree->node_type == NULL_NODE)
-		alloc_OPBufTree_leaf(opbuf_tree);
-	OPBuf *opbuf = get_OPBufTree_leaf(opbuf_tree);
+	if (host_node->node_type == NULL_NODE)
+		alloc_OPBufTree_leaf(host_node);
+	OPBuf *opbuf = get_OPBufTree_leaf(host_node);
 	return append_idx0Loff_to_OPBuf(opbuf, idx0, Loff);
 }
 
-/* 'opbuf_tree' must be a node of type NULL_NODE or LEAF_NODE. */
-int _append_idx0xLoff_to_OPBufTree_leaf(OPBufTree *opbuf_tree,
+/* 'host_node' must be a node of type NULL_NODE or LEAF_NODE. */
+int _append_idx0xLoff_to_host_node(OPBufTree *host_node,
 		int idx0, R_xlen_t Loff)
 {
-	if (opbuf_tree->node_type == NULL_NODE)
-		alloc_OPBufTree_leaf(opbuf_tree);
-	OPBuf *opbuf = get_OPBufTree_leaf(opbuf_tree);
+	if (host_node->node_type == NULL_NODE)
+		alloc_OPBufTree_leaf(host_node);
+	OPBuf *opbuf = get_OPBufTree_leaf(host_node);
 	return append_idx0xLoff_to_OPBuf(opbuf, idx0, Loff);
 }
+
+#define	OPBUFTREE0 { NULL_NODE, {NULL}}
+static const OPBufTree OPBufTree0 = OPBUFTREE0;
 
 void _free_OPBufTree(OPBufTree *opbuf_tree)
 {
@@ -302,7 +305,7 @@ void _print_OPBufTree(const OPBufTree *opbuf_tree, int depth)
  * Manipulation of the global OPBufTree
  */
 
-static OPBufTree global_opbuf_tree = OPBufTree0;
+static OPBufTree global_opbuf_tree = OPBUFTREE0;
 
 OPBufTree *_get_global_opbuf_tree(void)
 {
