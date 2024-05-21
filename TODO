@@ -49,11 +49,32 @@
 - Implement C_subassign_SVT_with_Rarray() and C_subassign_SVT_with_SVT().
 
 - Speed up row selection: x[row_idx, ]
+  THIS in particular is VERY slow on a SVT_SparseArray object:
+      set.seed(123)
+      svt2 <- 0.5 * poissonSparseMatrix(170000, 5800, density=0.1)
+      dgcm2 <- as(svt2, "dgCMatrix")
+      system.time(svt2[-2, ])    # arghhh!!
+      #   user  system elapsed
+      #  4.606   0.180   4.804
+      system.time(dgcm2[-2, ])
+      #   user  system elapsed
+      #  0.267   0.244   0.513
+  Good news is that this is very fast:
+      system.time(svt2[2, ])
+      #   user  system elapsed
+      #  0.001   0.000   0.002
+      system.time(dgcm2[2, ])
+      #   user  system elapsed
+      #  0.165   0.000   0.165
 
 - Support subsetting by a character matrix in .subset_SVT_by_Mindex().
 
 - Support subsetting by a character vector in .subset_SVT_by_Lindex() in
   the 1D case.
+
+- Implement double-bracket subsetting of SVT_SparseArray objects. Both,
+  the 1D-style form (e.g. 'svt[[8]]') and the N-dimensional form (e.g.
+  'svt[[2,5,1]]' for a 3D object).
 
 - Implement table() method for SVT_SparseArray objects of type logical,
   integer, or raw (should it go in R/SparseArray-summarization.R?)
