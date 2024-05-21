@@ -6,12 +6,19 @@
 
 #define	MAX_OPBUF_LEN_REACHED -1
 
-/* Buffer of Offset Pairs. Each pair is made of a "long offset" (R_xlen_t)
-   and a "short offset" (int). */
+/* Buffer of Offset Pairs. Each (idx0,Loff) pair is made of:
+   - idx0: an offset along the first dimension of the array to subset or
+           subassign;
+   - Loff: an offset along the L-index used for the subsetting or
+           subassignment. */
 typedef struct opbuf_t {
 	int buflen;
-	R_xlen_t *loffs;  /* array of long offsets */
-	int *soffs;       /* array of short offsets */
+	int *idx0s;        /* Array of offsets < dim(<array>)[0]  */
+	int *Loffs;        /* Array of offsets < length(<L-index>).
+			      Note that we could use unsigned int instead of
+			      int to delay the switch to 'xLoffs' as much
+			      as possible. */
+	R_xlen_t *xLoffs;  /* Use instead of 'Loffs' to store "long offsets" */
 	int nelt;
 } OPBuf;
 
@@ -60,18 +67,22 @@ static inline OPBuf *get_OPBufTree_leaf(const OPBufTree *opbuf_tree)
 	return opbuf_tree->node.opbuf_p;
 }
 
-int _append_to_OPBuf(
-	OPBuf *opbuf,
-	R_xlen_t loff,
-	int soff
-);
-
 void _alloc_OPBufTree_children(
 	OPBufTree *opbuf_tree,
 	int n
 );
 
-void _alloc_OPBufTree_leaf(OPBufTree *opbuf_tree);
+int _append_idx0Loff_to_OPBufTree_leaf(
+	OPBufTree *opbuf_tree,
+	int idx0,
+	int Loff
+);
+
+int _append_idx0xLoff_to_OPBufTree_leaf(
+	OPBufTree *opbuf_tree,
+	int idx0,
+	R_xlen_t Loff
+);
 
 void _free_OPBufTree(OPBufTree *opbuf_tree);
 

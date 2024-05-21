@@ -13,23 +13,26 @@ static void alloc_error(int errnum)
 	error("SparseArray internal error: %s", strerror(errnum));
 }
 
-OPBuf *new_empty_OPBuf(void)
+static OPBuf *alloc_empty_OPBuf(void)
 {
 	OPBuf *opbuf = (OPBuf *) malloc(sizeof(OPBuf));
 	if (opbuf == NULL)
 		alloc_error(errno);
 	opbuf->buflen = opbuf->nelt = 0;
-	opbuf->loffs = NULL;
-	opbuf->soffs = NULL;
+	opbuf->idx0s = NULL;
+	opbuf->Loffs = NULL;
+	opbuf->xLoffs = NULL;
 	return opbuf;
 }
 
 static void free_OPBuf(OPBuf *opbuf)
 {
-	if (opbuf->loffs != NULL)
-		free(opbuf->loffs);
-	if (opbuf->soffs != NULL)
-		free(opbuf->soffs);
+	if (opbuf->idx0s != NULL)
+		free(opbuf->idx0s);
+	if (opbuf->Loffs != NULL)
+		free(opbuf->Loffs);
+	if (opbuf->xLoffs != NULL)
+		free(opbuf->xLoffs);
 	free(opbuf);
 }
 
@@ -52,44 +55,105 @@ static int increase_buflen(int buflen)
 	return INT_MAX;
 }
 
-static int extend_OPBuf(OPBuf *opbuf)
+static R_xlen_t *alloc_xLoffs_and_init_with_Loffs(int buflen,
+						  int *Loffs, int nelt)
+{
+	R_xlen_t *xLoffs = (R_xlen_t *) malloc(sizeof(R_xlen_t) * buflen);
+	if (xLoffs == NULL)
+		alloc_error(errno);
+	if (Loffs != NULL) {
+		for (int k = 0; k < nelt; k++)
+			xLoffs[k] = (R_xlen_t) Loffs[k];
+		free(Loffs);
+	}
+	return xLoffs;
+}
+
+static int extend_OPBuf(OPBuf *opbuf, int extend_xLoffs)
 {
 	int new_buflen = increase_buflen(opbuf->buflen);
 	if (new_buflen < 0)
 		return MAX_OPBUF_LEN_REACHED;
 	if (opbuf->buflen == 0) {
-		opbuf->loffs = (R_xlen_t *)
-			malloc(sizeof(R_xlen_t) * new_buflen);
-		if (opbuf->loffs == NULL)
-			alloc_error(errno);
-		opbuf->soffs = (int *)
+		opbuf->idx0s = (int *)
 			malloc(sizeof(int) * new_buflen);
-		if (opbuf->soffs == NULL)
+		if (opbuf->idx0s == NULL)
 			alloc_error(errno);
+		if (extend_xLoffs) {
+			opbuf->xLoffs = (R_xlen_t *)
+				malloc(sizeof(R_xlen_t) * new_buflen);
+			if (opbuf->xLoffs == NULL)
+				alloc_error(errno);
+		} else {
+			opbuf->Loffs = (int *)
+				malloc(sizeof(int) * new_buflen);
+			if (opbuf->Loffs == NULL)
+				alloc_error(errno);
+		}
 	} else {
-		R_xlen_t *new_loffs = (R_xlen_t *)
-			realloc(opbuf->loffs, sizeof(R_xlen_t) * new_buflen);
-		if (new_loffs == NULL)
+		int *new_idx0s = (int *)
+			realloc(opbuf->idx0s, sizeof(int) * new_buflen);
+		if (new_idx0s == NULL)
 			alloc_error(errno);
-		opbuf->loffs = new_loffs;
-		int *new_soffs = (int *)
-			realloc(opbuf->soffs, sizeof(int) * new_buflen);
-		if (new_soffs == NULL)
-			alloc_error(errno);
-		opbuf->soffs = new_soffs;
+		opbuf->idx0s = new_idx0s;
+		if (opbuf->xLoffs != NULL) {
+			R_xlen_t *new_xLoffs = (R_xlen_t *)
+				realloc(opbuf->xLoffs,
+					sizeof(R_xlen_t) * new_buflen);
+			if (new_xLoffs == NULL)
+				alloc_error(errno);
+			opbuf->xLoffs = new_xLoffs;
+		} else if (extend_xLoffs) {
+			opbuf->xLoffs = alloc_xLoffs_and_init_with_Loffs(
+						new_buflen,
+						opbuf->Loffs, opbuf->nelt);
+			opbuf->Loffs = NULL;
+		} else {
+			int *new_Loffs = (int *)
+				realloc(opbuf->Loffs, sizeof(int) * new_buflen);
+			if (new_Loffs == NULL)
+				alloc_error(errno);
+			opbuf->Loffs = new_Loffs;
+		}
 	}
 	return opbuf->buflen = new_buflen;
 }
 
-int _append_to_OPBuf(OPBuf *opbuf, R_xlen_t loff, int soff)
+/* This is the **unsafe** version of append_idx0xLoff_to_OPBuf() below.
+   It assumes that 'opbuf' has not been switched from using 'opbuf->Loffs'
+   to using 'opbuf->xLoffs' yet (i.e. that 'opbuf->xLoffs' is NULL). This
+   is NOT checked! Slightly faster than append_idx0xLoff_to_OPBuf(). */
+static int append_idx0Loff_to_OPBuf(OPBuf *opbuf, int idx0, int Loff)
 {
 	if (opbuf->nelt >= opbuf->buflen) {
-		int ret = extend_OPBuf(opbuf);
+		int ret = extend_OPBuf(opbuf, 0);
 		if (ret < 0)
 			return ret;
 	}
-	opbuf->loffs[opbuf->nelt] = loff;
-	opbuf->soffs[opbuf->nelt] = soff;
+	opbuf->idx0s[opbuf->nelt] = idx0;
+	opbuf->Loffs[opbuf->nelt] = Loff;
+	return ++(opbuf->nelt);
+}
+
+/* Safe version of append_idx0Loff_to_OPBuf(). Will switch 'opbuf' from
+   using 'opbuf->Loffs' to using 'opbuf->xLoffs' if necessary. Note that
+   the switch is irreversible. */
+static int append_idx0xLoff_to_OPBuf(OPBuf *opbuf, int idx0, R_xlen_t Loff)
+{
+	if (opbuf->xLoffs == NULL && Loff <= INT_MAX)
+		return append_idx0Loff_to_OPBuf(opbuf, idx0, (int) Loff);
+	if (opbuf->nelt >= opbuf->buflen) {
+		int ret = extend_OPBuf(opbuf, 1);
+		if (ret < 0)
+			return ret;
+	} else if (opbuf->xLoffs == NULL) {
+		opbuf->xLoffs = alloc_xLoffs_and_init_with_Loffs(
+					opbuf->buflen,
+					opbuf->Loffs, opbuf->nelt);
+		opbuf->Loffs = NULL;
+	}
+	opbuf->idx0s[opbuf->nelt] = idx0;
+	opbuf->xLoffs[opbuf->nelt] = Loff;
 	return ++(opbuf->nelt);
 }
 
@@ -122,22 +186,42 @@ void _alloc_OPBufTree_children(OPBufTree *opbuf_tree, int n)
 		error("SparseArray internal error in "
 		      "_alloc_OPBufTree_children():\n"
 		      "    opbuf_tree->node_type != NULL_NODE");
-	InnerNode *inner_node = alloc_InnerNode(n);
-	opbuf_tree->node.inner_node_p = inner_node;
-	opbuf_tree->node_type = INNER_NODE;
+	opbuf_tree->node.inner_node_p = alloc_InnerNode(n);
+	opbuf_tree->node_type = INNER_NODE;  /* must be last */
 	return;
 }
 
-void _alloc_OPBufTree_leaf(OPBufTree *opbuf_tree)
+static void alloc_OPBufTree_leaf(OPBufTree *opbuf_tree)
 {
 	if (opbuf_tree->node_type != NULL_NODE)
 		error("SparseArray internal error in "
-		      "_alloc_OPBufTree_leaf():\n"
+		      "alloc_OPBufTree_leaf():\n"
 		      "    opbuf_tree->node_type != NULL_NODE");
-	OPBuf *opbuf = new_empty_OPBuf();
-	opbuf_tree->node.opbuf_p = opbuf;
-	opbuf_tree->node_type = LEAF_NODE;
+	opbuf_tree->node.opbuf_p = alloc_empty_OPBuf();
+	opbuf_tree->node_type = LEAF_NODE;  /* must be last */
 	return;
+}
+
+/* 'opbuf_tree' must be a node of type NULL_NODE or LEAF_NODE.
+   Based on **unsafe** append_idx0Loff_to_OPBuf().
+   See append_idx0Loff_to_OPBuf() above for the details. */
+int _append_idx0Loff_to_OPBufTree_leaf(OPBufTree *opbuf_tree,
+		int idx0, int Loff)
+{
+	if (opbuf_tree->node_type == NULL_NODE)
+		alloc_OPBufTree_leaf(opbuf_tree);
+	OPBuf *opbuf = get_OPBufTree_leaf(opbuf_tree);
+	return append_idx0Loff_to_OPBuf(opbuf, idx0, Loff);
+}
+
+/* 'opbuf_tree' must be a node of type NULL_NODE or LEAF_NODE. */
+int _append_idx0xLoff_to_OPBufTree_leaf(OPBufTree *opbuf_tree,
+		int idx0, R_xlen_t Loff)
+{
+	if (opbuf_tree->node_type == NULL_NODE)
+		alloc_OPBufTree_leaf(opbuf_tree);
+	OPBuf *opbuf = get_OPBufTree_leaf(opbuf_tree);
+	return append_idx0xLoff_to_OPBuf(opbuf, idx0, Loff);
 }
 
 void _free_OPBufTree(OPBufTree *opbuf_tree)
@@ -155,13 +239,34 @@ void _free_OPBufTree(OPBufTree *opbuf_tree)
 
 static void print_OPBuf(OPBuf *opbuf, const char *margin)
 {
-	Rprintf("%sloffs: ", margin);
-	for (int k = 0; k < opbuf->nelt; k++)
-		Rprintf("%4lu", opbuf->loffs[k]);
+	/* Print 'opbuf->idx0s'. */
+	Rprintf("%sidx0s : ", margin);
+	if (opbuf->idx0s == NULL) {
+		Rprintf("NULL");
+	} else {
+		for (int k = 0; k < opbuf->nelt; k++)
+			Rprintf("%4d", opbuf->idx0s[k]);
+	}
 	Rprintf("\n");
-	Rprintf("%ssoffs: ", margin);
-	for (int k = 0; k < opbuf->nelt; k++)
-		Rprintf("%4d", opbuf->soffs[k]);
+
+	/* Print 'opbuf->Loffs'. */
+	Rprintf("%sLoffs : ", margin);
+	if (opbuf->Loffs == NULL) {
+		Rprintf("NULL");
+	} else {
+		for (int k = 0; k < opbuf->nelt; k++)
+			Rprintf("%4d", opbuf->Loffs[k]);
+	}
+	Rprintf("\n");
+
+	/* Print 'opbuf->xLoffs'. */
+	Rprintf("%sxLoffs: ", margin);
+	if (opbuf->xLoffs == NULL) {
+		Rprintf("NULL");
+	} else {
+		for (int k = 0; k < opbuf->nelt; k++)
+			Rprintf("%4lu", opbuf->xLoffs[k]);
+	}
 	Rprintf("\n");
 	return;
 }
@@ -172,7 +277,7 @@ void _print_OPBufTree(const OPBufTree *opbuf_tree, int depth)
 		Rprintf("NULL\n");
 		return;
 	}
-	char format[10], margin[100];
+	char format[14], margin[100];
 	if (opbuf_tree->node_type == LEAF_NODE) {
 		OPBuf *opbuf = get_OPBufTree_leaf(opbuf_tree);
 		Rprintf("OPBuf (buflen=%d)\n", opbuf->buflen);
@@ -183,9 +288,9 @@ void _print_OPBufTree(const OPBufTree *opbuf_tree, int depth)
 	}
 	InnerNode *inner_node = opbuf_tree->node.inner_node_p;
 	Rprintf("InnerNode\n");
+	snprintf(format, sizeof(format), "%%%ds", 2 * depth);
+	snprintf(margin, sizeof(margin), format, "");
 	for (int i = 0; i < inner_node->n; i++) {
-		snprintf(format, sizeof(format), "%%%ds", 2 * depth);
-		snprintf(margin, sizeof(margin), format, "");
 		Rprintf("%so child %d/%d: ", margin, i + 1, inner_node->n);
 		_print_OPBufTree(inner_node->children + i, depth + 1);
 	}
