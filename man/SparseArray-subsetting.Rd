@@ -19,14 +19,17 @@
 
 \seealso{
   \itemize{
-    \item \code{\link[base]{[}} in base R.
-
     \item \code{SparseArray::\link[SparseArray]{drop}} to drop
           \emph{ineffective dimensions}.
 
+    \item \code{\link[S4Arrays]{Lindex2Mindex}} in the \pkg{S4Arrays}
+          package for how to convert an \emph{L-index} to an \emph{M-index}
+          and vice-versa.
+
     \item \link{SparseArray} objects.
 
-    \item Ordinary \link[base]{array} objects in base R.
+    \item \code{\link[base]{[}} and ordinary \link[base]{array} objects
+          in base R.
   }
 }
 
@@ -36,12 +39,12 @@ a[c(1:2, 8, 10, 15:17, 20, 24, 40, 56:60)] <- (1:15)*10L
 svt <- SparseArray(a)
 svt
 
+## ---------------------------------------------------------------------
+## N-dimensional subsetting
+## ---------------------------------------------------------------------
 svt[5:3, c(4,2,4), 2:3]
-
 svt[ , c(4,2,4), 2:3]
-
 svt[ , c(4,2,4), -1]
-
 svt[ , c(4,2,4), 1]
 
 svt2 <- svt[ , c(4,2,4), 1, drop=FALSE]
@@ -62,7 +65,23 @@ svt2
 
 drop(svt2)
 
-## Sanity checks:
+## ---------------------------------------------------------------------
+## 1D-style subsetting (a.k.a. linear subsetting)
+## ---------------------------------------------------------------------
+
+## Using a numeric vector (L-index):
+svt[c(60,24,56)]
+
+## Using a matrix subscript (M-index):
+m <- rbind(c(5,4,3),c(4,1,2),c(1,4,3))
+svt[m]
+
+## See '?Lindex2Mindex' in the S4Arrays package for how to convert an
+## L-index to an M-index and vice-versa.
+
+## ---------------------------------------------------------------------
+## Sanity checks
+## ---------------------------------------------------------------------
 svt2 <- svt[5:3, c(4,2,4), 2:3]
 a2   <- a  [5:3, c(4,2,4), 2:3]
 stopifnot(identical(as.array(svt2), a2), identical(svt2, SparseArray(a2)))
@@ -94,6 +113,7 @@ stopifnot(identical(as.array(svt2), a2), identical(svt2, SparseArray(a2)))
 svt2 <- drop(svt2)
 a2 <- drop(a2)
 stopifnot(identical(as.array(svt2), a2), identical(svt2, SparseArray(a2)))
+stopifnot(identical(svt[c(60,24,56)], svt[m]))
 }
 \keyword{array}
 \keyword{methods}

@@ -13,8 +13,8 @@
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### .subassign_SVT_by_Mindex()
 ### .subassign_SVT_by_Lindex()
+### .subassign_SVT_by_Mindex()
 ###
 
 .adjust_left_type <- function(x, value)
@@ -40,6 +40,22 @@
     S4Vectors:::recycleVector(value, index_len)
 }
 
+.subassign_SVT_by_Lindex <- function(x, Lindex, value)
+{
+    x <- .adjust_left_type(x, value)
+    stopifnot(is.vector(Lindex), is.numeric(Lindex))
+
+    ## No-op (except for type adjustment above) if selection if empty.
+    if (length(Lindex) == 0L)
+        return(x)
+
+    value <- .normalize_right_value(value, type(x), length(Lindex))
+
+    new_SVT <- SparseArray.Call("C_subassign_SVT_by_Lindex",
+                                x@dim, x@type, x@SVT, Lindex, value)
+    BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
+}
+
 .subassign_SVT_by_Mindex <- function(x, Mindex, value)
 {
     x <- .adjust_left_type(x, value)
@@ -55,22 +71,6 @@
         storage.mode(Mindex) <- "integer"
     new_SVT <- SparseArray.Call("C_subassign_SVT_by_Mindex",
                                 x@dim, x@type, x@SVT, Mindex, value)
-    BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
-}
-
-.subassign_SVT_by_Lindex <- function(x, Lindex, value)
-{
-    x <- .adjust_left_type(x, value)
-    stopifnot(is.vector(Lindex), is.numeric(Lindex))
-
-    ## No-op (except for type adjustment above) if selection if empty.
-    if (length(Lindex) == 0L)
-        return(x)
-
-    value <- .normalize_right_value(value, type(x), length(Lindex))
-
-    new_SVT <- SparseArray.Call("C_subassign_SVT_by_Lindex",
-                                x@dim, x@type, x@SVT, Lindex, value)
     BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
 }
 
