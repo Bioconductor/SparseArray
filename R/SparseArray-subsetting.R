@@ -46,23 +46,36 @@
     .propagate_names_if_1D(ans, dimnames(x), Lindex)
 }
 
+### Alright, '.subset_SVT_by_Mindex(x, Mindex)' could just have done:
+###
+###     .subset_SVT_by_Lindex(x, Mindex2Lindex(Mindex, dim(x)))
+###
+### However, the C code in C_subset_SVT_by_Mindex() avoids the Mindex2Lindex()
+### step and so should be slightly more efficient, at least in theory. But is
+### it? Some quick testing suggests that there's actually no significant
+### difference!
+### TODO: Investigate this more.
 .subset_SVT_by_Mindex <- function(x, Mindex)
 {
     stopifnot(is(x, "SVT_SparseArray"))
     check_svt_version(x)
     stopifnot(is.matrix(Mindex))
-    ## Subsetting an ordinary arrays with dimnames on it by a character
-    ## matrix is supported in R base but we don't support this yet for
-    ## SparseArray objects.
-    if (!is.numeric(Mindex))
-        stop("subsetting a SparseArray object by a non-numeric matrix ",
+    x_dimnames <- dimnames(x)
+    if (!is.numeric(Mindex)) {
+        if (!is.character(Mindex))
+            stop(wmsg("invalid matrix subscript type \"", type(Mindex), "\""))
+        if (is.null(x_dimnames))
+            stop(wmsg("SparseArray object to subset has no dimnames"))
+        ## Subsetting an ordinary array with dimnames on it by a character
+        ## matrix is supported in R base but we don't support this yet for
+        ## SparseArray objects.
+        stop("subsetting a SparseArray object by a character matrix ",
              "is not supported at the moment")
-    if (storage.mode(Mindex) != "integer")
-        storage.mode(Mindex) <- "integer"
+    }
     on.exit(free_global_OPBufTree())
     ans <- SparseArray.Call("C_subset_SVT_by_Mindex",
                             x@dim, x@type, x@SVT, Mindex)
-    .propagate_names_if_1D(ans, dimnames(x), Mindex)
+    .propagate_names_if_1D(ans, x_dimnames, Mindex)
 }
 
 
