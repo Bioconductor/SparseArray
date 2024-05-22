@@ -14,23 +14,36 @@
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### .subset_SVT_by_Mindex()
 ### .subset_SVT_by_Lindex()
+### .subset_SVT_by_Mindex()
 ###
 ### Both return a vector (atomic or list) of the same type() as 'x'.
 ###
 
 .propagate_names_if_1D <- function(ans, x_dimnames, index)
 {
-    stopifnot(identical(length(ans), length(index)))
     if (length(x_dimnames) != 1L)
         return(ans)
     stopifnot(is.list(x_dimnames))
     x_names <- x_dimnames[[1L]]
     if (is.null(x_names))
         return(ans)
-    stopifnot(is.character(x_names))
+    stopifnot(is.character(x_names),
+              identical(length(ans), length(index)))
     setNames(ans, x_names[index])
+}
+
+### 'Lindex' must be a numeric vector (integer or double), possibly a long one.
+### NA indices are accepted.
+.subset_SVT_by_Lindex <- function(x, Lindex)
+{
+    stopifnot(is(x, "SVT_SparseArray"))
+    check_svt_version(x)
+    stopifnot(is.vector(Lindex), is.numeric(Lindex))
+    on.exit(free_global_OPBufTree())
+    ans <- SparseArray.Call("C_subset_SVT_by_Lindex",
+                            x@dim, x@type, x@SVT, Lindex)
+    .propagate_names_if_1D(ans, dimnames(x), Lindex)
 }
 
 .subset_SVT_by_Mindex <- function(x, Mindex)
@@ -50,19 +63,6 @@
     ans <- SparseArray.Call("C_subset_SVT_by_Mindex",
                             x@dim, x@type, x@SVT, Mindex)
     .propagate_names_if_1D(ans, dimnames(x), Mindex)
-}
-
-### 'Lindex' must be a numeric vector (integer or double), possibly a long one.
-### NA indices are accepted.
-.subset_SVT_by_Lindex <- function(x, Lindex)
-{
-    stopifnot(is(x, "SVT_SparseArray"))
-    check_svt_version(x)
-    stopifnot(is.vector(Lindex), is.numeric(Lindex))
-    on.exit(free_global_OPBufTree())
-    ans <- SparseArray.Call("C_subset_SVT_by_Lindex",
-                            x@dim, x@type, x@SVT, Lindex)
-    .propagate_names_if_1D(ans, dimnames(x), Lindex)
 }
 
 
