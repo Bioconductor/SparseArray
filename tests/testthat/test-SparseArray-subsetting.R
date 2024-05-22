@@ -7,30 +7,38 @@
 ### in file R/dim-tuning-utils.R). So we "fix" subsetting of a 1D ordinary
 ### array by passing the result of the subsetting operation thru
 ### S4Arrays:::drop_even_if_1D().
-.test_SVT_subset_by_Lindex_and_Mindex <- function(a, Mindex)
+.test_SVT_subset_by_Lindex_and_Mindex <- function(a, Mindex0)
 {
     stopifnot(is.array(a))
     svt <- as(a, "SVT_SparseArray")
-    Lindex <- Mindex2Lindex(Mindex, dim(a))
+    Lindex0 <- Mindex2Lindex(Mindex0, dim(a))
 
-    expected <- S4Arrays:::drop_even_if_1D(a[Mindex])
-    expect_identical(svt[Lindex], expected)
-    expect_identical(svt[Mindex], expected)
+    expected <- S4Arrays:::drop_even_if_1D(a[Mindex0])
+    expect_identical(svt[Lindex0], expected)
+    expect_identical(svt[Mindex0], expected)
+    expect_identical(svt[Lindex0 + 0.99], expected)
+    expect_identical(svt[Mindex0 + 0.99], expected)
 
-    revLindex <- rev(Lindex)
+    revLindex <- rev(Lindex0)
     revMindex <- Lindex2Mindex(revLindex, dim(a))
     expected <- S4Arrays:::drop_even_if_1D(a[revLindex])
     expect_identical(svt[revLindex], expected)
     expect_identical(svt[revMindex], expected)
+    type(revLindex) <- "double"
+    type(revMindex) <- "double"
+    expect_identical(svt[revLindex], expected)
+    expect_identical(svt[revMindex], expected)
+    expect_identical(svt[revLindex + 0.99], expected)
+    expect_identical(svt[revMindex + 0.99], expected)
 
-    Lindex <- c(NA, Lindex, NA, NA, Lindex, NA, revLindex)
+    Lindex <- c(NA, Lindex0, NA, NA, Lindex0, NA, rev(Lindex0))
     ## Lindex2Mindex() and 'svt[Mindex]' don't accept NAs at the moment.
     #Mindex <- Lindex2Mindex(Lindex, dim(a))
     expected <- S4Arrays:::drop_even_if_1D(a[Lindex])
     expect_identical(svt[Lindex], expected)
     #expect_identical(svt[Mindex], expected)
-    Lindex[1L] <- NaN  # will coerce Lindex to "numeric"
-    #Mindex[1L, 1L] <- NaN  # will coerce Mindex to "numeric"
+    Lindex[1L] <- NaN      # this coerces 'Lindex' to "numeric"
+    #Mindex[1L, 1L] <- NaN  # this coerces 'Mindex' to "numeric"
     expect_identical(svt[Lindex], expected)
     #expect_identical(svt[Mindex], expected)
 }

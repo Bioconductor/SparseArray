@@ -80,11 +80,11 @@ static inline int extract_long_idx0(SEXP subscript, R_xlen_t i,
 		int idx = INTEGER(subscript)[i];
 		if (idx == NA_INTEGER)
 			return SUBSCRIPT_ELT_IS_NA;
-		if (idx < 1)
-			return SUBSCRIPT_ELT_IS_LESS_THAN_ONE;
-		if ((R_xlen_t) idx > max)
-			return SUBSCRIPT_ELT_IS_BEYOND_MAX;
 		idx--;	/* from 1-based to 0-based */
+		if (idx < 0)
+			return SUBSCRIPT_ELT_IS_LESS_THAN_ONE;
+		if ((R_xlen_t) idx >= max)  /* >= yes! */
+			return SUBSCRIPT_ELT_IS_BEYOND_MAX;
 		*idx0 = (R_xlen_t) idx;
 		return 0;
 	}
@@ -93,11 +93,11 @@ static inline int extract_long_idx0(SEXP subscript, R_xlen_t i,
 		/* ISNAN(): True for *both* NA and NaN. See <R_ext/Arith.h> */
 		if (ISNAN(idx))
 			return SUBSCRIPT_ELT_IS_NA;
-		if (idx < 1.0)
-			return SUBSCRIPT_ELT_IS_LESS_THAN_ONE;
-		if (idx > (double) max)
-			return SUBSCRIPT_ELT_IS_BEYOND_MAX;
 		idx -= 1.0;  /* from 1-based to 0-based */
+		if (idx < 0.0)
+			return SUBSCRIPT_ELT_IS_LESS_THAN_ONE;
+		if (idx >= (double) max)  /* >= yes! */
+			return SUBSCRIPT_ELT_IS_BEYOND_MAX;
 		*idx0 = (R_xlen_t) idx;
 		return 0;
 	}
@@ -124,15 +124,15 @@ static inline int extract_idx0(SEXP subscript, int i, int max, int *idx0)
 static void bad_Lindex_error(int ret_code)
 {
 	if (ret_code == BAD_SUBSCRIPT_TYPE)
-		error("'Lindex' must be a numeric vector");
+		error("linear index (L-index) must be a numeric vector");
 	if (ret_code == SUBSCRIPT_IS_TOO_LONG)
-		error("'Lindex' is too long");
+		error("linear index (L-index) is too long");
 	if (ret_code == SUBSCRIPT_ELT_IS_LESS_THAN_ONE ||
 	    ret_code == SUBSCRIPT_ELT_IS_BEYOND_MAX)
-		error("'Lindex' contains out-of-bound indices");
+		error("linear index (L-index) contains out-of-bound indices");
 	if (ret_code == MAX_OPBUF_LEN_REACHED)
-		error("too many indices in 'Lindex' hit the same "
-		      "leaf in the Sparse Vector Tree representation");
+		error("too many indices in the linear index (L-index) hit the "
+		      "same leaf in the Sparse Vector Tree representation");
 	error("SparseArray internal error in bad_Lindex_error():\n"
 	      "    unexpected error code %d", ret_code);
 }
@@ -142,12 +142,13 @@ static void bad_Lindex_error(int ret_code)
 static void bad_Mindex_error(int ret_code)
 {
 	if (ret_code == BAD_SUBSCRIPT_TYPE)
-		error("'Mindex' must be a numeric matrix");
+		error("matrix subscript (M-index) must be a numeric matrix");
 	if (ret_code == SUBSCRIPT_ELT_IS_LESS_THAN_ONE ||
 	    ret_code == SUBSCRIPT_ELT_IS_BEYOND_MAX)
-		error("'Mindex' contains out-of-bound indices");
+		error("matrix subscript (M-index) contains "
+		      "out-of-bound indices");
 	if (ret_code == SUBSCRIPT_ELT_IS_NA)
-		error("'Mindex' contains NAs");
+		error("matrix subscript (M-index) contains NAs");
 	error("SparseArray internal error in bad_Mindex_error():\n"
 	      "    unexpected error code %d", ret_code);
 }
@@ -422,7 +423,7 @@ static int check_Mindex(SEXP Mindex, int ndim,
 	SEXP Mindex_dim = GET_DIM(Mindex);
 	if (Mindex_dim == R_NilValue || LENGTH(Mindex_dim) != 2)
 		error("'%s' must be a matrix", what1);
-	if (!IS_INTEGER(Mindex))
+	if (!(IS_INTEGER(Mindex) || IS_NUMERIC(Mindex)))
 		error("'%s' must be an integer matrix", what1);
 	if (INTEGER(Mindex_dim)[1] != ndim)
 		error("ncol(%s) != %s", what1, what2);
@@ -763,8 +764,8 @@ SEXP C_subset_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Lindex)
 
 /* --- .Call ENTRY POINT ---
    'Mindex' must be a numeric matrix (integer or double) with one column per
-   dimension in the array to subset. NAs in the matrix are forbidden (they'll
-   trigger an error), except in the 1D case. */
+   dimension in the array to subset. NAs in the matrix are forbidden at the
+   moment (they'll trigger an error), except in the 1D case. */
 SEXP C_subset_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Mindex)
 {
 	SEXPTYPE Rtype = _get_Rtype_from_Rstring(x_type);
