@@ -6,12 +6,16 @@
 static const Rbyte Rbyte0 = 0;
 static const int int0 = 0;
 static const double double0 = 0.0;
-static const Rcomplex Rcomplex0 = {{double0, double0}};
+/* Some old versions of gcc choke on this:
+static const Rcomplex Rcomplex0 = {{double0, double0}}; */
+static const Rcomplex Rcomplex0 = {{0.0, 0.0}};
 
 static const Rbyte Rbyte1 = 1;
 static const int int1 = 1;
 static const double double1 = 1.0;
-static const Rcomplex Rcomplex1 = {{double1, double0}};
+/* Some old versions of gcc choke on this:
+static const Rcomplex Rcomplex0 = {{double1, double0}}; */
+static const Rcomplex Rcomplex1 = {{1.0, 0.0}};
 
 #define	IS_EMPTY_CHARSXP(x) ((x) != NA_STRING && isBlankString(CHAR(x)))
 
