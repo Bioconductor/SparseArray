@@ -319,3 +319,61 @@ SEXP C_free_global_OPBufTree(void)
 	return R_NilValue;
 }
 
+
+/****************************************************************************
+ * _bad_Lindex_error()
+ * _bad_Mindex_error()
+ * _bad_Nindex_error()
+ *
+ * Additional helper functions also used by the subsetting and subassignment
+ * code in SparseArray_subsetting.c and SparseArray_subassignment.c.
+ */
+
+/* 'ret_code' must be a negative code (error code) as returned by inline
+   functions extract_long_idx0() or extract_idx0() (see OPBufTree.h). */
+void _bad_Lindex_error(int ret_code)
+{
+	if (ret_code == BAD_SUBSCRIPT_TYPE)
+		error("linear index (L-index) must be a numeric vector");
+	if (ret_code == SUBSCRIPT_IS_TOO_LONG)
+		error("linear index (L-index) is too long");
+	if (ret_code == SUBSCRIPT_ELT_IS_LESS_THAN_ONE ||
+	    ret_code == SUBSCRIPT_ELT_IS_BEYOND_MAX)
+		error("linear index (L-index) contains out-of-bound indices");
+	if (ret_code == MAX_OPBUF_LEN_REACHED)
+		error("too many indices in the linear index (L-index) hit the "
+		      "same leaf in the Sparse Vector Tree representation");
+	error("SparseArray internal error in _bad_Lindex_error():\n"
+	      "    unexpected error code %d", ret_code);
+}
+
+/* 'ret_code' must be a negative code (error code) as returned by inline
+   functions extract_long_idx0() or extract_idx0() (see OPBufTree.h). */
+void _bad_Mindex_error(int ret_code)
+{
+	if (ret_code == BAD_SUBSCRIPT_TYPE)
+		error("matrix subscript (M-index) must be a numeric matrix");
+	if (ret_code == SUBSCRIPT_ELT_IS_LESS_THAN_ONE ||
+	    ret_code == SUBSCRIPT_ELT_IS_BEYOND_MAX)
+		error("matrix subscript (M-index) contains "
+		      "out-of-bound indices");
+	if (ret_code == SUBSCRIPT_ELT_IS_NA)
+		error("matrix subscript (M-index) contains NAs");
+	error("SparseArray internal error in _bad_Mindex_error():\n"
+	      "    unexpected error code %d", ret_code);
+}
+
+/* 'ret_code' must be a negative code (error code) as returned by inline
+   functions extract_idx0() (see OPBufTree.h). */
+void _bad_Nindex_error(int ret_code, int along1)
+{
+	if (ret_code == BAD_SUBSCRIPT_TYPE)
+		error("'Nindex[[%d]]' is not a numeric vector (or a NULL)",
+		      along1);
+	if (ret_code == SUBSCRIPT_IS_TOO_LONG)
+		error("'Nindex[[%d]]' is too long", along1);
+	if (ret_code == SUBSCRIPT_ELT_IS_NA)
+		error("'Nindex[[%d]]' contains NAs", along1);
+	error("'Nindex[[%d]]' contains out-of-bound indices", along1);
+}
+

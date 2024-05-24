@@ -229,9 +229,9 @@ static SEXP coerce_lacunar_leaf(SEXP leaf, SEXPTYPE new_Rtype)
 {
 	if (new_Rtype != STRSXP && new_Rtype != VECSXP)
 		return leaf;  /* no-op */
-	error("SparseArray internal error in coerce_lacunar_leaf():"
-	      "    coercing a lacunar leaf to \"character\" or \"double\" "
-	      "    is not supported yet");
+	error("SparseArray internal error in coerce_lacunar_leaf():\n"
+	      "    coercing a lacunar leaf to \"character\" or \"list\" "
+	      "is not supported yet");
 }
 
 /* Note that, in practice, _coerce_leaf() is always called to actually

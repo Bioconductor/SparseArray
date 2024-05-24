@@ -13,6 +13,8 @@ static const int int1 = 1;
 static const double double1 = 1.0;
 static const Rcomplex Rcomplex1 = {{double1, double0}};
 
+#define	IS_EMPTY_CHARSXP(x) ((x) != NA_STRING && isBlankString(CHAR(x)))
+
 typedef void (*CopyRVectorElt_FUNType)(
 	SEXP in,  R_xlen_t in_offset,
 	SEXP out, R_xlen_t out_offset);

@@ -3,10 +3,6 @@
 
 #include <Rdefines.h>
 
-/* Copied from S4Arrays/src/array_selection.h */
-#define	INVALID_COORD(coord, maxcoord) \
-	((coord) == NA_INTEGER || (coord) < 1 || (coord) > (maxcoord))
-
 SEXP C_subassign_SVT_by_Lindex(
 	SEXP x_dim,
 	SEXP x_type,

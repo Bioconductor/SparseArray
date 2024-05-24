@@ -488,13 +488,12 @@ static int collect_offsets_of_nonzero_double_elts(
 	return (int) (out - out0);
 }
 
-#define	IS_NONZERO_RCOMPLEX(x) ((x)->r != double0 || (x)->i != double0)
 static int collect_offsets_of_nonzero_Rcomplex_elts(
 		const Rcomplex *x, int n, int *out)
 {
 	const int *out0 = out;
 	for (int i = 0; i < n; i++, x++) {
-		if (IS_NONZERO_RCOMPLEX(x))
+		if (x->r != Rcomplex0.r || x->i != Rcomplex0.i)
 			*(out++) = i;
 	}
 	return (int) (out - out0);
@@ -510,15 +509,14 @@ static int collect_offsets_of_nonzero_Rbyte_elts(
 	return (int) (out - out0);
 }
 
-#define	IS_NONEMPTY_CHARSXP(x) ((x) == NA_STRING || XLENGTH(x) != 0)
 static int collect_offsets_of_nonempty_character_elts(
 		SEXP Rvector, R_xlen_t subvec_offset, int subvec_len,
 		int *out)
 {
 	const int *out0 = out;
 	for (int i = 0; i < subvec_len; i++, subvec_offset++) {
-		SEXP elt = STRING_ELT(Rvector, subvec_offset);
-		if (IS_NONEMPTY_CHARSXP(elt))
+		SEXP vec_elt = STRING_ELT(Rvector, subvec_offset);
+		if (!IS_EMPTY_CHARSXP(vec_elt))
 			*(out++) = i;
 	}
 	return (int) (out - out0);
@@ -530,8 +528,8 @@ static int collect_offsets_of_nonnull_list_elts(
 {
 	const int *out0 = out;
 	for (int i = 0; i < subvec_len; i++, subvec_offset++) {
-		SEXP elt = VECTOR_ELT(Rvector, subvec_offset);
-		if (elt != R_NilValue)
+		SEXP vec_elt = VECTOR_ELT(Rvector, subvec_offset);
+		if (vec_elt != R_NilValue)
 			*(out++) = i;
 	}
 	return (int) (out - out0);

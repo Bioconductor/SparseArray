@@ -53,122 +53,6 @@ static inline void set_Rvector_elt_to_NA(SEXP Rvector, R_xlen_t i)
 
 
 /****************************************************************************
- * extract_long_idx0() and extract_idx0()
- */
-
-/* In addition to 0, extract_long_idx0() and extract_idx0() can return one
-   of the five negative values defined below. Note that these are typically
-   considered errors but not always. For example, some functions in this file
-   treat SUBSCRIPT_ELT_IS_NA as an error but others don't.
-   Be aware that MAX_OPBUF_LEN_REACHED is set to -1 (see OPBufTree.h) so
-   do **not** use that value. */
-#define	BAD_SUBSCRIPT_TYPE             -2
-#define	SUBSCRIPT_IS_TOO_LONG          -3  /* returned by extract_idx0() only */
-#define	SUBSCRIPT_ELT_IS_LESS_THAN_ONE -4
-#define	SUBSCRIPT_ELT_IS_BEYOND_MAX    -5
-#define	SUBSCRIPT_ELT_IS_NA            -6
-
-/* 'subscript' must be a numeric vector, possibly a long one. It is expected
-   to contain 1-based indices that are >= 1 and <= 'max'.
-   Returns 0 or one of the values defined above. Will set 'idx0' only if
-   returning 0. In other words, caller **must** ignore 'idx0' when a non-zero
-   value is returned. */
-static inline int extract_long_idx0(SEXP subscript, R_xlen_t i,
-				    R_xlen_t max, R_xlen_t *idx0)
-{
-	if (IS_INTEGER(subscript)) {
-		int idx = INTEGER(subscript)[i];
-		if (idx == NA_INTEGER)
-			return SUBSCRIPT_ELT_IS_NA;
-		idx--;	/* from 1-based to 0-based */
-		if (idx < 0)
-			return SUBSCRIPT_ELT_IS_LESS_THAN_ONE;
-		if ((R_xlen_t) idx >= max)  /* >= yes! */
-			return SUBSCRIPT_ELT_IS_BEYOND_MAX;
-		*idx0 = (R_xlen_t) idx;
-		return 0;
-	}
-	if (IS_NUMERIC(subscript)) {
-		double idx = REAL(subscript)[i];
-		/* ISNAN(): True for *both* NA and NaN. See <R_ext/Arith.h> */
-		if (ISNAN(idx))
-			return SUBSCRIPT_ELT_IS_NA;
-		idx -= 1.0;  /* from 1-based to 0-based */
-		if (idx < 0.0)
-			return SUBSCRIPT_ELT_IS_LESS_THAN_ONE;
-		if (idx >= (double) max)  /* >= yes! */
-			return SUBSCRIPT_ELT_IS_BEYOND_MAX;
-		*idx0 = (R_xlen_t) idx;
-		return 0;
-	}
-	return BAD_SUBSCRIPT_TYPE;
-}
-
-/* Like extract_long_idx0(), except that 'subscript' cannot be a long vector
-   nor can it contain values > INT_MAX ('max' must be supplied as an 'int'). */
-static inline int extract_idx0(SEXP subscript, int i, int max, int *idx0)
-{
-	if (XLENGTH(subscript) > (R_xlen_t) INT_MAX)
-		return SUBSCRIPT_IS_TOO_LONG;
-	R_xlen_t lidx0;
-	int ret = extract_long_idx0(subscript, (R_xlen_t) i,
-				    (R_xlen_t) max, &lidx0);
-	if (ret < 0)
-		return ret;
-	*idx0 = (int) lidx0;
-	return 0;
-}
-
-/* 'ret_code' must be a negative code (error code) as returned by
-   extract_long_idx0() or extract_idx0() above. */
-static void bad_Lindex_error(int ret_code)
-{
-	if (ret_code == BAD_SUBSCRIPT_TYPE)
-		error("linear index (L-index) must be a numeric vector");
-	if (ret_code == SUBSCRIPT_IS_TOO_LONG)
-		error("linear index (L-index) is too long");
-	if (ret_code == SUBSCRIPT_ELT_IS_LESS_THAN_ONE ||
-	    ret_code == SUBSCRIPT_ELT_IS_BEYOND_MAX)
-		error("linear index (L-index) contains out-of-bound indices");
-	if (ret_code == MAX_OPBUF_LEN_REACHED)
-		error("too many indices in the linear index (L-index) hit the "
-		      "same leaf in the Sparse Vector Tree representation");
-	error("SparseArray internal error in bad_Lindex_error():\n"
-	      "    unexpected error code %d", ret_code);
-}
-
-/* 'ret_code' must be a negative code (error code) as returned by
-   extract_long_idx0() or extract_idx0() above. */
-static void bad_Mindex_error(int ret_code)
-{
-	if (ret_code == BAD_SUBSCRIPT_TYPE)
-		error("matrix subscript (M-index) must be a numeric matrix");
-	if (ret_code == SUBSCRIPT_ELT_IS_LESS_THAN_ONE ||
-	    ret_code == SUBSCRIPT_ELT_IS_BEYOND_MAX)
-		error("matrix subscript (M-index) contains "
-		      "out-of-bound indices");
-	if (ret_code == SUBSCRIPT_ELT_IS_NA)
-		error("matrix subscript (M-index) contains NAs");
-	error("SparseArray internal error in bad_Mindex_error():\n"
-	      "    unexpected error code %d", ret_code);
-}
-
-/* 'ret_code' must be a negative code (error code) as returned by
-   extract_idx0() above. */
-static void bad_Nindex_error(int ret_code, int along1)
-{
-	if (ret_code == BAD_SUBSCRIPT_TYPE)
-		error("'Nindex[[%d]]' is not a numeric vector (or a NULL)",
-		      along1);
-	if (ret_code == SUBSCRIPT_IS_TOO_LONG)
-		error("'Nindex[[%d]]' is too long", along1);
-	if (ret_code == SUBSCRIPT_ELT_IS_NA)
-		error("'Nindex[[%d]]' contains NAs", along1);
-	error("'Nindex[[%d]]' contains out-of-bound indices", along1);
-}
-
-
-/****************************************************************************
  * subset_NULL_by_Lindex()
  * subset_leaf_by_Lindex()
  * subset_leaf_by_OPBuf()
@@ -351,11 +235,11 @@ static int subset_SV(const SparseVec *sv, SEXP subscript,
 	if (use_lookup_table)
 		build_lookup_table(lookup_table, sv->nzoffs, sv_nzcount);
 	/* Walk on 'subscript'. */
+	int idx0 = 0;  // only for -Wmaybe-uninitialized
 	for (int i1 = 0; i1 < n; i1++) {
-		int idx0;
 		int ret = extract_idx0(subscript, i1, sv->len, &idx0);
 		if (ret < 0)
-			bad_Nindex_error(ret, 1);
+			_bad_Nindex_error(ret, 1);
 		int k2 = MAP_IDX0_TO_K(idx0, sv->nzoffs, sv_nzcount);
 		if (k2 >= 0) {
 			sv_selection[out_nzcount] = k2;
@@ -610,9 +494,9 @@ static int build_OPBufTree_from_Lindex(OPBufTree *opbuf_tree, SEXP Lindex,
 	_free_OPBufTree(opbuf_tree);
 	return XLENGTH(Lindex) <= (R_xlen_t) INT_MAX ?
 		build_OPBufTree_from_Lindex1(opbuf_tree, Lindex,
-			x_SVT, x_dim, x_ndim, ans, dimcumprod) :
+				x_SVT, x_dim, x_ndim, ans, dimcumprod) :
 		build_OPBufTree_from_Lindex2(opbuf_tree, Lindex,
-			x_SVT, x_dim, x_ndim, ans, dimcumprod);
+				x_SVT, x_dim, x_ndim, ans, dimcumprod);
 }
 
 static int build_OPBufTree_from_Mindex(OPBufTree *opbuf_tree, SEXP Mindex,
@@ -699,7 +583,7 @@ SEXP C_subset_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Lindex)
 		      "    SVT_SparseArray object has invalid type");
 	CopyRVectorElt_FUNType fun = _select_copy_Rvector_elt_FUN(Rtype);
 
-	if (!IS_INTEGER(Lindex) && !IS_NUMERIC(Lindex))
+	if (!(IS_INTEGER(Lindex) || IS_NUMERIC(Lindex)))
 		error("'Lindex' must be an integer or numeric vector");
 
 	int x_ndim = LENGTH(x_dim);
@@ -712,7 +596,7 @@ SEXP C_subset_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Lindex)
 						fun);
 		UNPROTECT(1);
 		if (ret < 0)
-			bad_Lindex_error(ret);
+			_bad_Lindex_error(ret);
 		return ans;
 	}
 
@@ -731,7 +615,7 @@ SEXP C_subset_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Lindex)
 				dimcumprod);
 	if (max_outleaf_len < 0) {
 		UNPROTECT(1);
-		bad_Lindex_error(max_outleaf_len);
+		_bad_Lindex_error(max_outleaf_len);
 	}
 	if (x_SVT == R_NilValue) {
 		UNPROTECT(1);
@@ -785,7 +669,7 @@ SEXP C_subset_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Mindex)
 						fun);
 		UNPROTECT(1);
 		if (ret < 0)
-			bad_Mindex_error(ret);
+			_bad_Mindex_error(ret);
 		return ans;
 	}
 	if (x_SVT == R_NilValue) {
@@ -800,7 +684,7 @@ SEXP C_subset_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Mindex)
 					    x_SVT, INTEGER(x_dim), x_ndim, ans);
 	if (max_outleaf_len < 0) {
 		UNPROTECT(1);
-		bad_Mindex_error(max_outleaf_len);
+		_bad_Mindex_error(max_outleaf_len);
 	}
 
 	/* 2nd pass: Subset SVT by OPBufTree. */
@@ -839,12 +723,12 @@ static SEXP compute_subset_dim(SEXP Nindex, SEXP x_dim)
 			continue;
 		if (!(IS_INTEGER(subscript) || IS_NUMERIC(subscript))) {
 			UNPROTECT(1);
-			bad_Nindex_error(BAD_SUBSCRIPT_TYPE, along + 1);
+			_bad_Nindex_error(BAD_SUBSCRIPT_TYPE, along + 1);
 		}
 		R_xlen_t d = XLENGTH(subscript);
 		if (d > (R_xlen_t) INT_MAX) {
 			UNPROTECT(1);
-			bad_Nindex_error(SUBSCRIPT_IS_TOO_LONG, along + 1);
+			_bad_Nindex_error(SUBSCRIPT_IS_TOO_LONG, along + 1);
 		}
 		INTEGER(ans_dim)[along] = (int) d;
 	}
@@ -881,13 +765,11 @@ static SEXP REC_subset_SVT_by_Nindex(SEXP SVT, SEXP Nindex,
 	SEXP ans = PROTECT(NEW_LIST(ans_len));
 	int is_empty = 1;
 	for (int i = 0; i < ans_len; i++) {
-		int idx0;
-		if (subscript == R_NilValue) {
-			idx0 = i;
-		} else {
+		int idx0 = i;
+		if (subscript != R_NilValue) {
 			int ret = extract_idx0(subscript, i, SVT_len, &idx0);
 			if (ret < 0)
-				bad_Nindex_error(ret, ndim);
+				_bad_Nindex_error(ret, ndim);
 		}
 		SEXP subSVT = VECTOR_ELT(SVT, idx0);
 		SEXP ans_elt = REC_subset_SVT_by_Nindex(subSVT, Nindex,
