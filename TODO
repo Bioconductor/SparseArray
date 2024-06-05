@@ -98,7 +98,10 @@
      latter should be 10x or 100x faster when used on big objects.
   2. Just fail with a friendly error message.
 
-- Maybe implement svd() for SVT_SparseArray objects?
+- Maybe implement svd() for SVT_SparseMatrix objects?
+
+- Maybe implement chol() for symmetric positive-definite square
+  SVT_SparseMatrix objects?
 
 - More SBT ("Sparse Buffer Tree") use cases:
 

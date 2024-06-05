@@ -255,82 +255,33 @@ static SEXP subassign_leaf_by_Lindex(SEXP leaf, int dim0,
 
 
 /****************************************************************************
- * C_subassign_SVT_by_Lindex()
+ * subassign_leaf_by_OPBuf()
  */
 
-/* 'Lidx0' is trusted to be a non-NA value >= 0 and < 'dimcumprod[ndim - 1]'.
-   Returns NULL if we didn't land anywhere. */
-static OPBufTree *find_host_node_for_Lidx0(OPBufTree *opbuf_tree,
-		R_xlen_t Lidx0,
-		const int *dim, int ndim,
-		const R_xlen_t *dimcumprod, int *idx0)
+static void init_idx0_to_k_map(int *idx0_to_k_map, const int *idx0s, int nelt)
 {
-	for (int along = ndim - 1; along >= 1; along--) {
-		R_xlen_t p = dimcumprod[along - 1];
-		int i = Lidx0 / p;  /* always >= 0 and < 'dim[along]' */
-		Lidx0 %= p;
-		if (opbuf_tree->node_type == NULL_NODE)
-			_alloc_OPBufTree_children(opbuf_tree, dim[along]);
-		opbuf_tree = get_OPBufTree_child(opbuf_tree, i);
-	}
-	/* At this point:
-	   - 'Lidx0' is guaranteed to be < 'dimcumprod[0]' (note that
-	     'dimcumprod[0]' should always be = 'dim[0]' and <= INT_MAX);
-	   - 'opbuf_tree' is guaranteed to be a node of type NULL_NODE or
-	     LEAF_NODE. */
-	*idx0 = (int) Lidx0;
-	return opbuf_tree;
+	for (int k = 0; k < nelt; k++)
+		idx0_to_k_map[idx0s[k]] = k;
+	return;
 }
 
-static int build_OPBufTree_from_Lindex1(OPBufTree *opbuf_tree, SEXP Lindex,
-		const int *x_dim, int x_ndim,
-		const R_xlen_t *dimcumprod)
+static void reset_idx0_to_k_map(int *idx0_to_k_map, const int *idx0s, int nelt)
 {
-	int max_outleaf_len = 0;
-	int in_len = LENGTH(Lindex);
-	R_xlen_t x_len = dimcumprod[x_ndim - 1];
-	/* Walk along 'Lindex'. */
-	for (int Loff = 0; Loff < in_len; Loff++) {
-		R_xlen_t Lidx0;
-		int ret = extract_long_idx0(Lindex, (R_xlen_t) Loff, x_len,
-					    &Lidx0);
-		if (ret < 0)
-			return ret;
-		int idx0;
-		OPBufTree *host_node = find_host_node_for_Lidx0(
-						opbuf_tree, Lidx0,
-						x_dim, x_ndim,
-						dimcumprod, &idx0);
-		ret = _append_idx0Loff_to_host_node(host_node, idx0, Loff);
-		if (ret < 0)
-			return ret;
-		if (ret > max_outleaf_len)
-			max_outleaf_len = ret;
-	}
-	return max_outleaf_len;
+	for (int k = 0; k < nelt; k++)
+		idx0_to_k_map[idx0s[k]] = -1;
+	return;
 }
 
-static int build_OPBufTree_from_Lindex2(OPBufTree *opbuf_tree, SEXP Lindex,
-		const int *x_dim, int x_ndim,
-		const R_xlen_t *dimcumprod)
+/*
+static void print_idx0_to_k_map(const int *idx0_to_k_map, int dim0)
 {
-	error("build_OPBufTree_from_Lindex2() not ready yet");
-	return 0;
+	printf("idx0_to_k_map:");
+	for (int i = 0; i < dim0; i++)
+		printf(" %4d", idx0_to_k_map[i]);
+	printf("\n");
+	return;
 }
-
-static int build_OPBufTree_from_Lindex(OPBufTree *opbuf_tree, SEXP Lindex,
-		const int *x_dim, int x_ndim,
-		const R_xlen_t *dimcumprod)
-{
-	/* _free_OPBufTree(opbuf_tree) resets 'opbuf_tree->node_type'
-	   to NULL_NODE. */
-	_free_OPBufTree(opbuf_tree);
-	return XLENGTH(Lindex) <= (R_xlen_t) INT_MAX ?
-		build_OPBufTree_from_Lindex1(opbuf_tree, Lindex,
-				x_dim, x_ndim, dimcumprod) :
-		build_OPBufTree_from_Lindex2(opbuf_tree, Lindex,
-				x_dim, x_ndim, dimcumprod);
-}
+*/
 
 /* TODO: Maybe add this to OPBufTree.h as inline functions. */
 #define	GET_LOFF(Loffs, xLoffs, k) \
@@ -473,17 +424,6 @@ static SEXP zip_leaf_and_go_lacunar_if_all_ones(SEXP nzvals, SEXP nzoffs)
 	return ans;
 }
 
-/*
-static void print_idx0_to_k_map(const int *idx0_to_k_map, int dim0)
-{
-	printf("idx0_to_k_map:");
-	for (int i = 0; i < dim0; i++)
-		printf(" %4d", idx0_to_k_map[i]);
-	printf("\n");
-	return;
-}
-*/
-
 static SEXP subassign_NULL_by_OPBuf(int dim0,
 		const OPBuf *opbuf, SEXP vals,
 		RVectorEltIsZero_FUNType Rvector_elt_is_zero_FUN,
@@ -491,16 +431,20 @@ static SEXP subassign_NULL_by_OPBuf(int dim0,
 		int *idx0_to_k_map)
 {
 	int ans_nzcount = 0;
-	for (int i = 0; i < dim0; i++) {
-		int k1 = idx0_to_k_map[i];
-		if (k1 == -1)
-			continue;
-		R_xlen_t Loff = GET_OPBUF_LOFF(opbuf, k1);
-		if (Rvector_elt_is_zero_FUN(vals, Loff)) {
-			idx0_to_k_map[i] = -1;
-			continue;
+	for (int k = 0; k < opbuf->nelt; k++) {
+		int idx0 = opbuf->idx0s[k];
+		R_xlen_t Loff = GET_OPBUF_LOFF(opbuf, k);
+		int val_is_zero = Rvector_elt_is_zero_FUN(vals, Loff);
+		if (val_is_zero) {
+			if (idx0_to_k_map[idx0] == -1)
+				continue;
+			idx0_to_k_map[idx0] = -1;
+			ans_nzcount--;
+		} else {
+			if (idx0_to_k_map[idx0] == -1)
+				ans_nzcount++;
+			idx0_to_k_map[idx0] = k;
 		}
-		ans_nzcount++;
 	}
 	if (ans_nzcount == 0)
 		return R_NilValue;
@@ -519,6 +463,20 @@ static SEXP subassign_NULL_by_OPBuf(int dim0,
 		ans_nzoffs_p[ans_nzcount] = i;
 		ans_nzcount++;
 	}
+/*
+	// NOT READY! The (idx0,Loff) pairs in 'opbuf' first need to be ordered
+	// by ascending 'idx0'.
+	for (int k = 0; k < opbuf->nelt; k++) {
+		int idx0 = opbuf->idx0s[k];
+		if (idx0_to_k_map[idx0] != k)
+			continue;
+		R_xlen_t Loff = GET_OPBUF_LOFF(opbuf, k);
+		copy_Rvector_elt_FUN(vals, Loff,
+				     ans_nzvals, (R_xlen_t) ans_nzcount);
+		ans_nzoffs_p[ans_nzcount] = idx0;
+		ans_nzcount++;
+	}
+*/
 	SEXP ans = zip_leaf_and_go_lacunar_if_all_ones(ans_nzvals, ans_nzoffs);
 	UNPROTECT(2);
 	return ans;
@@ -582,15 +540,13 @@ static int compute_subassignment_nzcount(const SparseVec *sv,
 	return is_noop ? -1 : out_nzcount;
 }
 
-static SEXP subassign_SV_by_OPBuf(const SparseVec *sv,
+static void subassign_SV_by_OPBuf(const SparseVec *sv,
 		const OPBuf *opbuf, SEXP vals,
-		int ans_nzcount,
+		SEXP ans_nzvals, SEXP ans_nzoffs,
 		RVectorEltIsZero_FUNType Rvector_elt_is_zero_FUN,
 		CopyRVectorElt_FUNType copy_Rvector_elt_FUN,
 		const int *idx0_to_k_map)
 {
-	SEXP ans_nzvals = PROTECT(allocVector(TYPEOF(vals), ans_nzcount));
-	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(ans_nzcount));
 	int *ans_nzoffs_p = INTEGER(ans_nzoffs);
 	int nzcount = 0;
 	int k2 = 0, sv_nzoff = sv->nzoffs[0];
@@ -625,10 +581,32 @@ static SEXP subassign_SV_by_OPBuf(const SparseVec *sv,
 		k2++;
 		sv_nzoff = GET_SV_NZOFF(sv, k2);
 	}
-	if (nzcount != ans_nzcount)  /* sanity check */
+	if (nzcount != LENGTH(ans_nzoffs))  /* sanity check */
 		error("SparseArray internal error in "
 		      "subassign_SV_by_OPBuf():\n"
-		      "    nzcount != ans_nzcount");
+		      "    nzcount != LENGTH(ans_nzoffs)");
+	return;
+}
+
+/* 'leaf' cannot be R_NilValue. */
+static SEXP subassign_leaf0_by_OPBuf(SEXP leaf, int dim0,
+		const OPBuf *opbuf, SEXP vals,
+		RVectorEltIsZero_FUNType fun1,
+		SameRVectorVals_FUNType fun2,
+		CopyRVectorElt_FUNType fun3,
+		int *idx0_to_k_map)
+{
+	SparseVec sv = leaf2SV(leaf, TYPEOF(vals), dim0);
+	int nzcount = compute_subassignment_nzcount(&sv, opbuf, vals,
+					fun1, fun2, idx0_to_k_map);
+	if (nzcount == -1)  /* no-op */
+		return leaf;
+	if (nzcount == 0)
+		return R_NilValue;
+	SEXP ans_nzvals = PROTECT(allocVector(TYPEOF(vals), nzcount));
+	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(nzcount));
+	subassign_SV_by_OPBuf(&sv, opbuf, vals, ans_nzvals, ans_nzoffs,
+			      fun1, fun3, idx0_to_k_map);
 	SEXP ans = zip_leaf_and_go_lacunar_if_all_ones(ans_nzvals, ans_nzoffs);
 	UNPROTECT(2);
 	return ans;
@@ -641,34 +619,98 @@ static SEXP subassign_leaf_by_OPBuf(SEXP leaf, int dim0,
 		CopyRVectorElt_FUNType fun3,
 		int *idx0_to_k_map)
 {
-	if (leaf == R_NilValue)
-		return subassign_NULL_by_OPBuf(dim0, opbuf, vals,
-					       fun1, fun3, idx0_to_k_map);
-	SparseVec sv = leaf2SV(leaf, TYPEOF(vals), dim0);
-	int nzcount = compute_subassignment_nzcount(&sv, opbuf, vals,
-				fun1, fun2, idx0_to_k_map);
-	if (nzcount == -1)  /* no-op */
-		return leaf;
-	if (nzcount == 0)
-		return R_NilValue;
-	SEXP ans = PROTECT(subassign_SV_by_OPBuf(&sv, opbuf, vals,
-				nzcount, fun1, fun3, idx0_to_k_map));
-	UNPROTECT(1);
+	SEXP ans;
+	/* PROTECT(ans) not necessary because reset_idx0_to_k_map() won't
+	   trigger R's garbage collector. */
+	if (leaf == R_NilValue) {
+		ans = subassign_NULL_by_OPBuf(dim0, opbuf, vals,
+					fun1, fun3, idx0_to_k_map);
+	} else {
+		init_idx0_to_k_map(idx0_to_k_map, opbuf->idx0s, opbuf->nelt);
+		ans = subassign_leaf0_by_OPBuf(leaf, dim0, opbuf, vals,
+					fun1, fun2, fun3, idx0_to_k_map);
+	}
+	reset_idx0_to_k_map(idx0_to_k_map, opbuf->idx0s, opbuf->nelt);
 	return ans;
 }
 
-static void init_idx0_to_k_map(int *idx0_to_k_map, const int *idx0s, int nelt)
+
+/****************************************************************************
+ * C_subassign_SVT_by_Lindex()
+ */
+
+/* 'Lidx0' is trusted to be a non-NA value >= 0 and < 'dimcumprod[ndim - 1]'.
+   Returns NULL if we didn't land anywhere. */
+static OPBufTree *find_host_node_for_Lidx0(OPBufTree *opbuf_tree,
+		R_xlen_t Lidx0,
+		const int *dim, int ndim,
+		const R_xlen_t *dimcumprod, int *idx0)
 {
-	for (int k = 0; k < nelt; k++)
-		idx0_to_k_map[idx0s[k]] = k;
-	return;
+	for (int along = ndim - 1; along >= 1; along--) {
+		R_xlen_t p = dimcumprod[along - 1];
+		int i = Lidx0 / p;  /* always >= 0 and < 'dim[along]' */
+		Lidx0 %= p;
+		if (opbuf_tree->node_type == NULL_NODE)
+			_alloc_OPBufTree_children(opbuf_tree, dim[along]);
+		opbuf_tree = get_OPBufTree_child(opbuf_tree, i);
+	}
+	/* At this point:
+	   - 'Lidx0' is guaranteed to be < 'dimcumprod[0]' (note that
+	     'dimcumprod[0]' should always be = 'dim[0]' and <= INT_MAX);
+	   - 'opbuf_tree' is guaranteed to be a node of type NULL_NODE or
+	     LEAF_NODE. */
+	*idx0 = (int) Lidx0;
+	return opbuf_tree;
 }
 
-static void reset_idx0_to_k_map(int *idx0_to_k_map, const int *idx0s, int nelt)
+static int build_OPBufTree_from_Lindex1(OPBufTree *opbuf_tree, SEXP Lindex,
+		const int *x_dim, int x_ndim,
+		const R_xlen_t *dimcumprod)
 {
-	for (int k = 0; k < nelt; k++)
-		idx0_to_k_map[idx0s[k]] = -1;
-	return;
+	int max_outleaf_len = 0;
+	int in_len = LENGTH(Lindex);
+	R_xlen_t x_len = dimcumprod[x_ndim - 1];
+	/* Walk along 'Lindex'. */
+	for (int Loff = 0; Loff < in_len; Loff++) {
+		R_xlen_t Lidx0;
+		int ret = extract_long_idx0(Lindex, (R_xlen_t) Loff, x_len,
+					    &Lidx0);
+		if (ret < 0)
+			return ret;
+		int idx0;
+		OPBufTree *host_node = find_host_node_for_Lidx0(
+						opbuf_tree, Lidx0,
+						x_dim, x_ndim,
+						dimcumprod, &idx0);
+		ret = _append_idx0Loff_to_host_node(host_node, idx0, Loff);
+		if (ret < 0)
+			return ret;
+		if (ret > max_outleaf_len)
+			max_outleaf_len = ret;
+	}
+	return max_outleaf_len;
+}
+
+static int build_OPBufTree_from_Lindex2(OPBufTree *opbuf_tree, SEXP Lindex,
+		const int *x_dim, int x_ndim,
+		const R_xlen_t *dimcumprod)
+{
+	error("build_OPBufTree_from_Lindex2() not ready yet");
+	return 0;
+}
+
+static int build_OPBufTree_from_Lindex(OPBufTree *opbuf_tree, SEXP Lindex,
+		const int *x_dim, int x_ndim,
+		const R_xlen_t *dimcumprod)
+{
+	/* _free_OPBufTree(opbuf_tree) resets 'opbuf_tree->node_type'
+	   to NULL_NODE. */
+	_free_OPBufTree(opbuf_tree);
+	return XLENGTH(Lindex) <= (R_xlen_t) INT_MAX ?
+		build_OPBufTree_from_Lindex1(opbuf_tree, Lindex,
+				x_dim, x_ndim, dimcumprod) :
+		build_OPBufTree_from_Lindex2(opbuf_tree, Lindex,
+				x_dim, x_ndim, dimcumprod);
 }
 
 /* Recursive tree traversal of 'opbuf_tree'. */
@@ -685,15 +727,12 @@ static SEXP REC_subassign_SVT_by_OPBufTree(OPBufTree *opbuf_tree,
 	if (ndim == 1) {
 		/* Both 'opbuf_tree' and 'SVT' are leaves. */
 		OPBuf *opbuf = get_OPBufTree_leaf(opbuf_tree);
-		init_idx0_to_k_map(idx0_to_k_map, opbuf->idx0s, opbuf->nelt);
 		SEXP ans = subassign_leaf_by_OPBuf(SVT, dim[0], opbuf, vals,
 					fun1, fun2, fun3, idx0_to_k_map);
-		/* PROTECT not really necessary since neither
-		   reset_idx0_to_k_map() or _free_OPBufTree() will trigger
-		   R's garbage collector but this could change someday so
-		   we'd better not take any risk. */
+		/* PROTECT not really necessary since neither _free_OPBufTree()
+		   won't trigger R's garbage collector but this could change
+		   someday so we'd better not take any risk. */
 		PROTECT(ans);
-		reset_idx0_to_k_map(idx0_to_k_map, opbuf->idx0s, opbuf->nelt);
 		_free_OPBufTree(opbuf_tree);
 		UNPROTECT(1);
 		return ans;
@@ -759,6 +798,7 @@ SEXP C_subassign_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		return subassign_leaf_by_Lindex(x_SVT, x_dim0, Lindex, vals);
 
 	/* 1st pass: Build the OPBufTree. */
+	//clock_t t0 = clock();
 	OPBufTree *opbuf_tree = _get_global_opbuf_tree();
 	R_xlen_t *dimcumprod = (R_xlen_t *) R_alloc(x_ndim, sizeof(R_xlen_t));
 	R_xlen_t p = 1;
@@ -774,19 +814,26 @@ SEXP C_subassign_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		_bad_Lindex_error(max_outleaf_len);
 	}
 
+	//double dt = (1.0 * clock() - t0) * 1000.0 / CLOCKS_PER_SEC;
+	//printf("1st pass: %2.3f ms\n", dt);
+
 	//printf("max_outleaf_len = %d\n", max_outleaf_len);
 	//_print_OPBufTree(opbuf_tree, 1);
 
 	/* 2nd pass: Subset SVT by OPBufTree. */
+	//t0 = clock();
 	int *idx0_to_k_map = (int *) R_alloc(x_dim0, sizeof(int));
 	for (int i = 0; i < x_dim0; i++)
 		idx0_to_k_map[i] = -1;
 	/* Get 1-based rank of biggest dimension (ignoring the 1st dim).
 	   Parallel execution will be along that dimension. */
 	int pardim = which_max(INTEGER(x_dim) + 1, x_ndim - 1) + 2;
-	return REC_subassign_SVT_by_OPBufTree(opbuf_tree,
+	SEXP ans = REC_subassign_SVT_by_OPBufTree(opbuf_tree,
 				x_SVT, INTEGER(x_dim), x_ndim, vals,
 				fun1, fun2, fun3, idx0_to_k_map, pardim);
+	//dt = (1.0 * clock() - t0) * 1000.0 / CLOCKS_PER_SEC;
+	//printf("2nd pass: %2.3f ms\n", dt);
+	return ans;
 }
 
 
