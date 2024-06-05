@@ -13,7 +13,7 @@
 #include "leaf_utils.h"
 
 #include <limits.h>  /* for INT_MAX */
-//#include <time.h>
+#include <time.h>
 
 
 /* Copied from S4Arrays/src/array_selection.h */
@@ -428,6 +428,7 @@ static SEXP subassign_NULL_by_OPBuf(int dim0,
 		const OPBuf *opbuf, SEXP vals,
 		RVectorEltIsZero_FUNType Rvector_elt_is_zero_FUN,
 		CopyRVectorElt_FUNType copy_Rvector_elt_FUN,
+		int *idx0_order_buf, unsigned short int *rxbuf1, int *rxbuf2,
 		int *idx0_to_k_map)
 {
 	int ans_nzcount = 0;
@@ -449,10 +450,26 @@ static SEXP subassign_NULL_by_OPBuf(int dim0,
 	if (ans_nzcount == 0)
 		return R_NilValue;
 
+	for (int k = 0; k < opbuf->nelt; k++)
+		idx0_order_buf[k] = k;
+	int ret = sort_ints(idx0_order_buf, opbuf->nelt, opbuf->idx0s, 0, 1,
+			    rxbuf1, rxbuf2);
+	/* Note that ckecking the value returned by sort_ints() is not really
+	   necessary here because sort_ints() should never fail when 'rxbuf1'
+	   and 'rxbuf2' are supplied (see implementation of _sort_ints() in
+	   S4Vectors/src/sort_utils.c for the details). We perform this check
+	   nonetheless just to be on the safe side in case the implementation
+	   of sort_ints() changes in the future. */
+	if (ret < 0)
+		error("SparseArray internal error in "
+		      "subassign_NULL_by_OPBuf():\n"
+		      "    sort_ints() returned an error");
+
 	SEXP ans_nzvals = PROTECT(allocVector(TYPEOF(vals), ans_nzcount));
 	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(ans_nzcount));
 	int *ans_nzoffs_p = INTEGER(ans_nzoffs);
 	ans_nzcount = 0;
+/*
 	for (int i = 0; i < dim0; i++) {
 		int k1 = idx0_to_k_map[i];
 		if (k1 == -1)
@@ -463,10 +480,10 @@ static SEXP subassign_NULL_by_OPBuf(int dim0,
 		ans_nzoffs_p[ans_nzcount] = i;
 		ans_nzcount++;
 	}
-/*
-	// NOT READY! The (idx0,Loff) pairs in 'opbuf' first need to be ordered
-	// by ascending 'idx0'.
-	for (int k = 0; k < opbuf->nelt; k++) {
+*/
+	/* Walk on the (idx0,Loff) pairs in ascending 'idx0' order. */
+	for (int k0 = 0; k0 < opbuf->nelt; k0++) {
+		int k = idx0_order_buf[k0];
 		int idx0 = opbuf->idx0s[k];
 		if (idx0_to_k_map[idx0] != k)
 			continue;
@@ -476,7 +493,6 @@ static SEXP subassign_NULL_by_OPBuf(int dim0,
 		ans_nzoffs_p[ans_nzcount] = idx0;
 		ans_nzcount++;
 	}
-*/
 	SEXP ans = zip_leaf_and_go_lacunar_if_all_ones(ans_nzvals, ans_nzoffs);
 	UNPROTECT(2);
 	return ans;
@@ -617,6 +633,7 @@ static SEXP subassign_leaf_by_OPBuf(SEXP leaf, int dim0,
 		RVectorEltIsZero_FUNType fun1,
 		SameRVectorVals_FUNType fun2,
 		CopyRVectorElt_FUNType fun3,
+		int *idx0_order_buf, unsigned short int *rxbuf1, int *rxbuf2,
 		int *idx0_to_k_map)
 {
 	SEXP ans;
@@ -624,7 +641,9 @@ static SEXP subassign_leaf_by_OPBuf(SEXP leaf, int dim0,
 	   trigger R's garbage collector. */
 	if (leaf == R_NilValue) {
 		ans = subassign_NULL_by_OPBuf(dim0, opbuf, vals,
-					fun1, fun3, idx0_to_k_map);
+					fun1, fun3,
+					idx0_order_buf, rxbuf1, rxbuf2,
+					idx0_to_k_map);
 	} else {
 		init_idx0_to_k_map(idx0_to_k_map, opbuf->idx0s, opbuf->nelt);
 		ans = subassign_leaf0_by_OPBuf(leaf, dim0, opbuf, vals,
@@ -719,6 +738,7 @@ static SEXP REC_subassign_SVT_by_OPBufTree(OPBufTree *opbuf_tree,
 		RVectorEltIsZero_FUNType fun1,
 		SameRVectorVals_FUNType fun2,
 		CopyRVectorElt_FUNType fun3,
+		int *idx0_order_buf, unsigned short int *rxbuf1, int *rxbuf2,
 		int *idx0_to_k_map, int pardim)
 {
 	if (opbuf_tree->node_type == NULL_NODE)
@@ -728,7 +748,9 @@ static SEXP REC_subassign_SVT_by_OPBufTree(OPBufTree *opbuf_tree,
 		/* Both 'opbuf_tree' and 'SVT' are leaves. */
 		OPBuf *opbuf = get_OPBufTree_leaf(opbuf_tree);
 		SEXP ans = subassign_leaf_by_OPBuf(SVT, dim[0], opbuf, vals,
-					fun1, fun2, fun3, idx0_to_k_map);
+					fun1, fun2, fun3,
+					idx0_order_buf, rxbuf1, rxbuf2,
+					idx0_to_k_map);
 		/* PROTECT not really necessary since neither _free_OPBufTree()
 		   won't trigger R's garbage collector but this could change
 		   someday so we'd better not take any risk. */
@@ -749,6 +771,7 @@ static SEXP REC_subassign_SVT_by_OPBufTree(OPBufTree *opbuf_tree,
 		SEXP ans_elt = REC_subassign_SVT_by_OPBufTree(child,
 					subSVT, dim, ndim - 1, vals,
 					fun1, fun2, fun3,
+					idx0_order_buf, rxbuf1, rxbuf2,
 					idx0_to_k_map, pardim);
 		if (ans_elt != R_NilValue) {
 			PROTECT(ans_elt);
@@ -798,7 +821,7 @@ SEXP C_subassign_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		return subassign_leaf_by_Lindex(x_SVT, x_dim0, Lindex, vals);
 
 	/* 1st pass: Build the OPBufTree. */
-	//clock_t t0 = clock();
+	clock_t t0 = clock();
 	OPBufTree *opbuf_tree = _get_global_opbuf_tree();
 	R_xlen_t *dimcumprod = (R_xlen_t *) R_alloc(x_ndim, sizeof(R_xlen_t));
 	R_xlen_t p = 1;
@@ -814,25 +837,32 @@ SEXP C_subassign_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		_bad_Lindex_error(max_outleaf_len);
 	}
 
-	//double dt = (1.0 * clock() - t0) * 1000.0 / CLOCKS_PER_SEC;
-	//printf("1st pass: %2.3f ms\n", dt);
+	double dt = (1.0 * clock() - t0) * 1000.0 / CLOCKS_PER_SEC;
+	printf("1st pass: %2.3f ms\n", dt);
 
 	//printf("max_outleaf_len = %d\n", max_outleaf_len);
 	//_print_OPBufTree(opbuf_tree, 1);
 
 	/* 2nd pass: Subset SVT by OPBufTree. */
-	//t0 = clock();
+	t0 = clock();
 	int *idx0_to_k_map = (int *) R_alloc(x_dim0, sizeof(int));
 	for (int i = 0; i < x_dim0; i++)
 		idx0_to_k_map[i] = -1;
+	/* Three buffers needed by sort_ints(). */
+	int *idx0_order_buf = (int *) R_alloc(max_outleaf_len, sizeof(int));
+	unsigned short int *rxbuf1 = (unsigned short int *)
+			R_alloc(max_outleaf_len, sizeof(unsigned short int));
+	int *rxbuf2 = (int *) R_alloc(max_outleaf_len, sizeof(int));
 	/* Get 1-based rank of biggest dimension (ignoring the 1st dim).
 	   Parallel execution will be along that dimension. */
 	int pardim = which_max(INTEGER(x_dim) + 1, x_ndim - 1) + 2;
 	SEXP ans = REC_subassign_SVT_by_OPBufTree(opbuf_tree,
 				x_SVT, INTEGER(x_dim), x_ndim, vals,
-				fun1, fun2, fun3, idx0_to_k_map, pardim);
-	//dt = (1.0 * clock() - t0) * 1000.0 / CLOCKS_PER_SEC;
-	//printf("2nd pass: %2.3f ms\n", dt);
+				fun1, fun2, fun3,
+				idx0_order_buf, rxbuf1, rxbuf2,
+				idx0_to_k_map, pardim);
+	dt = (1.0 * clock() - t0) * 1000.0 / CLOCKS_PER_SEC;
+	printf("2nd pass: %2.3f ms\n", dt);
 	return ans;
 }
 

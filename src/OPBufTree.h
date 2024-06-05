@@ -17,7 +17,9 @@
    - idx0: an offset along the first dimension of the array to subset or
            subassign;
    - Loff: an offset along the L-index used for the subsetting or
-           subassignment. */
+           subassignment.
+   Note that 'buflen' and 'nelt' are both of type int below. This means
+   that the max length of an OPBuf is INT_MAX. */
 typedef struct opbuf_t {
 	int buflen;
 	int *idx0s;        /* Array of offsets < dim(<array>)[0]  */
