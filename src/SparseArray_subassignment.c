@@ -13,7 +13,7 @@
 #include "leaf_utils.h"
 
 #include <limits.h>  /* for INT_MAX */
-#include <time.h>
+//#include <time.h>
 
 
 /* Copied from S4Arrays/src/array_selection.h */
@@ -821,7 +821,7 @@ SEXP C_subassign_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		return subassign_leaf_by_Lindex(x_SVT, x_dim0, Lindex, vals);
 
 	/* 1st pass: Build the OPBufTree. */
-	clock_t t0 = clock();
+	//clock_t t0 = clock();
 	OPBufTree *opbuf_tree = _get_global_opbuf_tree();
 	R_xlen_t *dimcumprod = (R_xlen_t *) R_alloc(x_ndim, sizeof(R_xlen_t));
 	R_xlen_t p = 1;
@@ -837,14 +837,14 @@ SEXP C_subassign_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		_bad_Lindex_error(max_outleaf_len);
 	}
 
-	double dt = (1.0 * clock() - t0) * 1000.0 / CLOCKS_PER_SEC;
-	printf("1st pass: %2.3f ms\n", dt);
+	//double dt = (1.0 * clock() - t0) * 1000.0 / CLOCKS_PER_SEC;
+	//printf("1st pass: %2.3f ms\n", dt);
 
 	//printf("max_outleaf_len = %d\n", max_outleaf_len);
 	//_print_OPBufTree(opbuf_tree, 1);
 
 	/* 2nd pass: Subset SVT by OPBufTree. */
-	t0 = clock();
+	//t0 = clock();
 	int *idx0_to_k_map = (int *) R_alloc(x_dim0, sizeof(int));
 	for (int i = 0; i < x_dim0; i++)
 		idx0_to_k_map[i] = -1;
@@ -861,8 +861,8 @@ SEXP C_subassign_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 				fun1, fun2, fun3,
 				idx0_order_buf, rxbuf1, rxbuf2,
 				idx0_to_k_map, pardim);
-	dt = (1.0 * clock() - t0) * 1000.0 / CLOCKS_PER_SEC;
-	printf("2nd pass: %2.3f ms\n", dt);
+	//dt = (1.0 * clock() - t0) * 1000.0 / CLOCKS_PER_SEC;
+	//printf("2nd pass: %2.3f ms\n", dt);
 	return ans;
 }
 

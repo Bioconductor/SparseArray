@@ -54,6 +54,13 @@ SEXP C_from_SVT_SparseMatrix_to_CsparseMatrix(
 	SEXP as_ngCMatrix
 );
 
+SEXP C_build_SVT_from_CSC(
+	SEXP dim,
+	SEXP indptr,
+	SEXP data,
+	SEXP indices
+);
+
 SEXP C_build_SVT_from_CsparseMatrix(
 	SEXP x,
 	SEXP ans_type

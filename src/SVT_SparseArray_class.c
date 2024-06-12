@@ -624,11 +624,11 @@ static char get_gCMatrix_subtype(SEXP x)
 	error("'x' must be a [d|l|n]gCMatrix object");
 }
 
-static SEXP build_leaf_from_ngCsparseMatrix_col(SEXP x_sloti,
-		int ix_offset, int col_nzcount, SEXPTYPE ans_Rtype)
+static SEXP build_leaf_from_ngCsparseMatrix_col(const int *sloti,
+		R_xlen_t ix_offset, int col_nzcount, SEXPTYPE ans_Rtype)
 {
 	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(col_nzcount));
-	memcpy(INTEGER(ans_nzoffs), INTEGER(x_sloti) + ix_offset,
+	memcpy(INTEGER(ans_nzoffs), sloti + ix_offset,
 	       sizeof(int) * col_nzcount);
 	SEXP ans_nzvals = LACUNAR_MODE_IS_ON ?
 		R_NilValue : PROTECT(_new_Rvector1(ans_Rtype, col_nzcount));
@@ -687,70 +687,78 @@ static SEXP build_leaf_from_ngCsparseMatrix_col(SEXP x_sloti,
    by build_leaf_from_CsparseMatrix_col(). Unfortunately, this introduces
    an additional cost to coercion from [d|l]gCMatrix to SVT_SparseMatrix.
    This cost is a slowdown that is (approx.) between 1.3x and 1.5x. */
-static SEXP build_leaf_from_CsparseMatrix_col(SEXP x_sloti, SEXP x_slotx,
-		int ix_offset, int col_nzcount,
+static SEXP build_leaf_from_CsparseMatrix_col(const int *sloti, SEXP slotx,
+		R_xlen_t ix_offset, int col_nzcount,
 		SEXPTYPE ans_Rtype, int *warn, int *nzoffs_buf)
 {
-	/* 'x_slotx' can contain zeros. See above. */
-	SEXP ans = _make_leaf_from_Rsubvec(x_slotx,
-				(R_xlen_t) ix_offset, col_nzcount,
-				nzoffs_buf, 1);
+	/* 'slotx' can contain zeros. See above. */
+	SEXP ans = _make_leaf_from_Rsubvec(slotx, ix_offset, col_nzcount,
+					   nzoffs_buf, 1);
 	if (ans == R_NilValue)
 		return ans;
 
 	PROTECT(ans);
 
-	/* Replace offsets in 'ans_nzoffs' with offsets from 'x_sloti'. */
+	/* Replace offsets in 'ans_nzoffs' with offsets from 'sloti'. */
 	SEXP ans_nzoffs = get_leaf_nzoffs(ans);
 	int ans_nzcount = LENGTH(ans_nzoffs);  /* always <= 'col_nzcount' */
-	_copy_selected_int_elts(INTEGER(x_sloti) + ix_offset,
+	_copy_selected_int_elts(sloti + ix_offset,
 				INTEGER(ans_nzoffs), ans_nzcount,
 				INTEGER(ans_nzoffs));
-	if (ans_Rtype != TYPEOF(x_slotx))
+	if (ans_Rtype != TYPEOF(slotx))
 		ans = _coerce_leaf(ans, ans_Rtype, warn, nzoffs_buf);
 
 	UNPROTECT(1);
 	return ans;
 }
 
-/* --- .Call ENTRY POINT --- */
-SEXP C_build_SVT_from_CsparseMatrix(SEXP x, SEXP ans_type)
+#define	GET_SLOTP_ELT(slotp, j) \
+	(IS_INTEGER(slotp) ? INTEGER(slotp)[j] : REAL(slotp)[j])
+
+/* 'slotp' must be an integer or double vector of length 'ncol' + 1.
+   'slotx' can be R_NilValue. If not, 'slotx' and 'sloti' must be parallel. */
+SEXP build_SVT_from_CSC(int nrow, int ncol, SEXP slotp,
+		SEXP slotx, const int *sloti, int sloti_is_one_based,
+		SEXPTYPE ans_Rtype)
 {
-	char x_type = get_gCMatrix_subtype(x);
-	SEXPTYPE ans_Rtype = _get_Rtype_from_Rstring(ans_type);
-	if (ans_Rtype == 0)
-		error("invalid requested type");
-
-	SEXP x_Dim = GET_SLOT(x, install("Dim"));
-	int x_nrow = INTEGER(x_Dim)[0];
-	int x_ncol = INTEGER(x_Dim)[1];
-	SEXP x_slotp = GET_SLOT(x, install("p"));
-
-	if (INTEGER(x_slotp)[x_ncol] == 0)
+	if (!((IS_INTEGER(slotp) || IS_NUMERIC(slotp)) &&
+	      LENGTH(slotp) == ncol + 1 &&
+	      GET_SLOTP_ELT(slotp, 0) == 0))
+	{
+		error("SparseArray internal error in build_SVT_from_CSC():\n"
+		      "    invalid 'slotp'");
+	}
+	/* 'slotp[ncol]' is the common length of 'slotx' and 'sloti'. */
+	R_xlen_t ix_len = (R_xlen_t) GET_SLOTP_ELT(slotp, ncol);
+	if (ix_len == 0)
 		return R_NilValue;
 
-	SEXP x_sloti = GET_SLOT(x, install("i"));
-	SEXP x_slotx = x_type == 'n' ? R_NilValue : GET_SLOT(x, install("x"));
-
-	int *nzoffs_buf = (int *) R_alloc(x_nrow, sizeof(int));
-	SEXP ans = PROTECT(NEW_LIST(x_ncol));
+	int *nzoffs_buf = (int *) R_alloc(nrow, sizeof(int));
+	SEXP ans = PROTECT(NEW_LIST(ncol));
 	int warn = 0;
 	int is_empty = 1;
-	for (int j = 0; j < x_ncol; j++) {
-		int ix_offset = INTEGER(x_slotp)[j];
-		int col_nzcount = INTEGER(x_slotp)[j + 1] - ix_offset;
+	for (int j = 0; j < ncol; j++) {
+		R_xlen_t ix_offset = GET_SLOTP_ELT(slotp, j);
+		int col_nzcount = GET_SLOTP_ELT(slotp, j + 1) - ix_offset;
 		if (col_nzcount == 0)
 			continue;
-		SEXP ans_elt = x_type == 'n' ?
-			build_leaf_from_ngCsparseMatrix_col(x_sloti,
+		SEXP ans_elt = slotx == R_NilValue ?
+			build_leaf_from_ngCsparseMatrix_col(sloti,
 					ix_offset, col_nzcount, ans_Rtype
 			)
 			:
-			build_leaf_from_CsparseMatrix_col(x_sloti, x_slotx,
-					ix_offset, col_nzcount,
-					ans_Rtype, &warn, nzoffs_buf);
+			build_leaf_from_CsparseMatrix_col(sloti, slotx,
+					ix_offset, col_nzcount, ans_Rtype,
+					&warn, nzoffs_buf);
 		if (ans_elt != R_NilValue) {
 			PROTECT(ans_elt);
+			if (sloti_is_one_based) {
+				SEXP nzoffs = get_leaf_nzoffs(ans_elt);
+				int *nzoffs_p = INTEGER(nzoffs);
+				int nzcount = LENGTH(nzoffs);
+				for (int k = 0; k < nzcount; k++)
+					nzoffs_p[k]--;
+			}
 			SET_VECTOR_ELT(ans, j, ans_elt);
 			UNPROTECT(1);
 			is_empty = 0;
@@ -760,6 +768,40 @@ SEXP C_build_SVT_from_CsparseMatrix(SEXP x, SEXP ans_type)
 		_CoercionWarning(warn);
 	UNPROTECT(1);
 	return is_empty ? R_NilValue : ans;
+}
+
+/* --- .Call ENTRY POINT ---
+   'indptr' can be of type "integer" or "double".
+   'indices' is expected to contain 1-based row indices. */
+SEXP C_build_SVT_from_CSC(SEXP dim, SEXP indptr, SEXP data, SEXP indices)
+{
+	if (!(IS_INTEGER(dim) && LENGTH(dim) == 2))
+		error("SparseArray internal error in C_build_SVT_from_CSC():\n"
+		      "    invalid 'dim'");
+	int nrow = INTEGER(dim)[0];
+	int ncol = INTEGER(dim)[1];
+	if (!(IS_INTEGER(indices) && LENGTH(indices) == LENGTH(data)))
+		error("SparseArray internal error in C_build_SVT_from_CSC():\n"
+		      "    invalid 'indices'");
+	return build_SVT_from_CSC(nrow, ncol, indptr,
+				  data, INTEGER(indices), 1, TYPEOF(data));
+}
+
+/* --- .Call ENTRY POINT --- */
+SEXP C_build_SVT_from_CsparseMatrix(SEXP x, SEXP ans_type)
+{
+	char x_type = get_gCMatrix_subtype(x);
+	SEXPTYPE ans_Rtype = _get_Rtype_from_Rstring(ans_type);
+	if (ans_Rtype == 0)
+		error("invalid requested type");
+	SEXP x_Dim = GET_SLOT(x, install("Dim"));
+	int x_nrow = INTEGER(x_Dim)[0];
+	int x_ncol = INTEGER(x_Dim)[1];
+	SEXP x_slotp = GET_SLOT(x, install("p"));
+	SEXP x_slotx = x_type == 'n' ? R_NilValue : GET_SLOT(x, install("x"));
+	SEXP x_sloti = GET_SLOT(x, install("i"));
+	return build_SVT_from_CSC(x_nrow, x_ncol, x_slotp,
+				  x_slotx, INTEGER(x_sloti), 0, ans_Rtype);
 }
 
 

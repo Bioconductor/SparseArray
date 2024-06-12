@@ -218,6 +218,20 @@ setAs("matrix", "SVT_SparseMatrix",
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Make an SVT_SparseMatrix object from CSC components
+###
+
+### NOT exported but used in the HDF5Array package!
+make_SVT_SparseMatrix_from_CSC <- function(dim, indptr, data, indices,
+                                           dimnames=NULL)
+{
+    ans_SVT <- SparseArray.Call("C_build_SVT_from_CSC",
+                                dim, indptr, data, indices)
+    new_SVT_SparseArray(dim, dimnames, type(data), ans_SVT, check=FALSE)
+}
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### Going back and forth between SVT_SparseMatrix and *gCMatrix objects
 ###
 
