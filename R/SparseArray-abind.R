@@ -32,7 +32,8 @@
     COO_SparseArray(ans_dim, ans_nzcoo, ans_nzdata, ans_dimnames, check=FALSE)
 }
 
-.abind_SVT_SparseArray_objects <- function(objects, along, ans_dimnames)
+### NOT exported but used in the DelayedArray package!
+abind_SVT_SparseArray_objects <- function(objects, along, ans_dimnames)
 {
     ## Compute 'ans_type'.
     ans_type <- type(unlist(
@@ -77,8 +78,8 @@
                                               ans_dimnames))
     if (is(x, "SVT_SparseArray")) {
         check_svt_version(x)
-        return(.abind_SVT_SparseArray_objects(objects, along,
-                                              ans_dimnames))
+        return(abind_SVT_SparseArray_objects(objects, along,
+                                             ans_dimnames))
     }
     stop(wmsg(class(x)[[1L]], " objects are not supported"))
 }
