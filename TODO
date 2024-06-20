@@ -1,3 +1,18 @@
+- Implement efficient coercions from dgTMatrix to COO_SparseMatrix and
+  SVT_SparseMatrix. 'as(<dgTMatrix>, "SparseMatrix")' and
+  SparseArray(<dgTMatrix>) should do the former (this is the natural one
+  for dgTMatrix objects).
+
+- Implement readMatrixMarket(), similar to Matrix::readMM() but should
+  return a COO_SparseMatrix object instead of a dgTMatrix object. Note that
+  the easy/lazy implementation could just be
+
+      as(Matrix::readMM(.), COO_SparseMatrix)
+
+  However it wouldn't be really justified to introduce a new function just
+  for that. So hopefully a native implementation will improve efficiency
+  enough to be worth it and justify a dedicated function.
+
 - Support names() getter and setter on a 1D SparseArray array as a shortcut
   for 'dimnames()[[1L]]' and 'dimnames()[[1L]] <- value' respectively.
   This is to mimic the R base array API.
