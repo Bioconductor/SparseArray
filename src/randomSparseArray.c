@@ -193,6 +193,8 @@ SEXP C_poissonSparseArray(SEXP dim, SEXP lambda)
 	double lambda0 = REAL(lambda)[0];
 	if (lambda0 < 0.0 || lambda0 > 4.0)
 		error("'lambda' must be >= 0 and <= 4");
+	if (lambda0 == 0.0)
+		return R_NilValue;
 
 	const int *dim_p = INTEGER(dim);
 	int ndim = LENGTH(dim);
