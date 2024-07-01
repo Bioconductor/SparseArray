@@ -1,5 +1,5 @@
 
-test_that(".aperm_SVT()", {
+test_that(".aperm_SVT() follows base::aperm() semantic", {
     ## --- with 2 dimensions ---
 
     m0 <- array(1:120, c(8, 15))
@@ -118,6 +118,28 @@ test_that(".aperm_SVT()", {
     expect_identical(aperm(current, rperm), svt)
 
     expect_identical(aperm(svt, perm[perm]), aperm(current, perm))
+})
+
+test_that(".aperm_SVT() supports S4Arrays::aperm2() extended semantic", {
+    a <- array(1:6000, c(1, 40, 1, 50, 3))
+    dimnames(a) <- list(NULL,
+                        paste0("B", 1:40),
+                        NULL,
+                        paste0("D", 1:50),
+                        paste0("E", 1:3))
+    svt <- SparseArray(a)
+    perms <- list(2:5,
+                  5:2,
+                  c(1:2,4:5),
+                  c(5,2,1,4),
+                  c(NA,NA,5,2,NA,1,4,NA),
+                  c(2,4:5),
+                  c(4:5,2))
+    for (perm in perms) {
+        expected <- aperm2(a, perm)
+        current <- aperm(svt, perm)
+        check_SparseArray_object(current, "SVT_SparseArray", expected)
+    }
 })
 
 if (SparseArray:::.SVT_VERSION != 0L) {
