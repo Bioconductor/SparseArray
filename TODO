@@ -17,6 +17,9 @@
   for 'dimnames()[[1L]]' and 'dimnames()[[1L]] <- value' respectively.
   This is to mimic the R base array API.
 
+- Implement fast nzvals() getter/setter for SVT_SparseMatrix objects.
+  (Default methods work but are not as fast as they could be.)
+
 - Add is.nonzero() generic with methods for SparseArray objects and other
   sparseMatrix derivatives from the Matrix package ([d|l|n]g[C|R]Matrix
   objects).

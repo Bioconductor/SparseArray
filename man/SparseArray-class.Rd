@@ -28,6 +28,9 @@
 \alias{nzvals,lgCMatrix-method}
 \alias{nzvals,ngCMatrix-method}
 \alias{nzvals,ngRMatrix-method}
+\alias{nzvals<-}
+\alias{nzvals<-,ANY-method}
+
 \alias{sparsity}
 
 \alias{show,SparseArray-method}
@@ -111,7 +114,7 @@ SparseArray(x, type=NA)
 
   SparseArray derivatives also support \code{type()}, \code{`type<-`()},
   \code{is_sparse()}, \code{nzcount()}, \code{nzwhich()}, \code{nzvals()},
-  \code{sparsity()}, \code{arbind()}, and \code{acbind()}.
+  \code{`nzvals<-`()}, \code{sparsity()}, \code{arbind()}, and \code{acbind()}.
 
   \code{sparsity(x)} returns the ratio between the number of zero-valued
   elements in array-like object \code{x} and its total number of elements
@@ -223,7 +226,7 @@ class(dgr)
 SparseArray(dgr)  # a COO_SparseMatrix object
 
 ## ---------------------------------------------------------------------
-## nzcount(), nzwhich(), nzvals()
+## nzcount(), nzwhich(), nzvals(), `nzvals<-`()
 ## ---------------------------------------------------------------------
 x <- SparseArray(a)
 
@@ -250,15 +253,19 @@ tail(Mnzidx)
 
 ## Extract the values of the nonzero array elements in 'x' and return
 ## them in a vector "parallel" to 'nzwhich(x)':
-#nzvals <- nzvals(x)  # NOT READY YET!
-#length(nzvals)       # NOT READY YET!
-#head(nzvals)         # NOT READY YET!
+x_nzvals <- nzvals(x)  # equivalent to 'x[nzwhich(x)]'
+length(x_nzvals)
+head(x_nzvals)
+
+nzvals(x) <- log1p(nzvals(x))
+x
 
 ## Sanity checks:
 stopifnot(identical(nzidx, which(a != 0)))
 stopifnot(identical(Mnzidx, which(a != 0, arr.ind=TRUE, useNames=FALSE)))
-#stopifnot(identical(nzvals, a[nzidx]))   # NOT READY YET!
-#stopifnot(identical(nzvals, a[Mnzidx]))  # NOT READY YET!
+stopifnot(identical(x_nzvals, a[nzidx]))
+stopifnot(identical(x_nzvals, a[Mnzidx]))
+stopifnot(identical(`nzvals<-`(x, nzvals(x)), x))
 }
 
 \keyword{methods}

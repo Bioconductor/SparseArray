@@ -11,10 +11,10 @@
 ###    - Getters dim(), length(), dimnames(), type()
 ###    - Setters `dimnames<-`() and `type<-`()
 ###    - An is_sparse() method that returns TRUE
-###    - nzcount(), nzwhich(), and nzvals() generics
+###    - nzcount(), nzwhich(), nzvals(), and `nzvals<-`() generics
 ###    - sparsity()
 ### 2) Implemented elsewhere:
-###    - nzcount(), nzwhich(), and nzvals() methods
+###    - nzcount(), nzwhich(), nzvals(), and `nzvals<-`() methods
 ###    - as.array()
 ###    - extract_array() and extract_sparse_array()
 ###    - Subsetting (`[`) and subassignment (`[<-`)
@@ -120,8 +120,9 @@ coercion_can_introduce_zeros <- function(from_type, to_type)
 
 setMethod("is_sparse", "SparseArray", function(x) TRUE)
 
+
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### nzcount(), nzwhich(), and nzvals() generics + sparsity()
+### nzcount(), nzwhich(), nzvals(), and `nzvals<-`() generics
 ###
 
 ### Returns the number of nonzero array elements in 'x'.
@@ -204,8 +205,9 @@ setMethod("nzwhich", "RsparseMatrix", nzwhich_RsparseMatrix)
 
 ### Returns the values of the nonzero array elements in a vector of the
 ### same type() as 'x' and parallel to nzwhich(x).
-### Equivalent to x[nzwhich(x)] (and that's what the default method below
-### does). However specialized methods can make this dramatically faster.
+### Equivalent to 'x[nzwhich(x)]' (and that's what the default method
+### below does). However specialized methods have the potential to make
+### this dramatically faster.
 setGeneric("nzvals", function(x) standardGeneric("nzvals"))
 
 ### Assumes that array-like object 'x' supports subsetting by a linear
@@ -227,6 +229,29 @@ setMethod("nzvals", "lgCMatrix", function(x) x@x)
 
 setMethod("nzvals", "ngCMatrix", function(x) rep.int(TRUE, length(x@i)))
 setMethod("nzvals", "ngRMatrix", function(x) rep.int(TRUE, length(x@j)))
+
+### Replace the values of the nonzero array elements in 'x'.
+### Equivalent to 'x[nzwhich(x)] <- value' (and that's what the default
+### method below does). However specialized methods have the potential to
+### make this dramatically faster.
+setGeneric("nzvals<-", signature="x",
+    function(x, value) standardGeneric("nzvals<-")
+)
+
+setReplaceMethod("nzvals", "ANY",
+    function(x, value)
+    {
+        if (!is.vector(value))
+            stop(wmsg("replacement value must be a vector"))
+        x[nzwhich(x)] <- value
+        x
+    }
+)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### sparsity()
+###
 
 sparsity <- function(x) { 1 - nzcount(x) / length(x) }
 

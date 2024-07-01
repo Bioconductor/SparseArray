@@ -148,7 +148,7 @@ export(
 
 export(
     ## SparseArray-class.R:
-    nzcount, nzwhich, nzvals,
+    nzcount, nzwhich, nzvals, "nzvals<-",
 
     ## COO_SparseArray-class.R:
     nzcoo, nzdata,
@@ -162,7 +162,7 @@ export(
 
 ### Same list as above.
 exportMethods(
-    nzcount, nzwhich, nzvals,
+    nzcount, nzwhich, nzvals, "nzvals<-",
     nzcoo, nzdata,
     extract_sparse_array,
     read_block_as_sparse

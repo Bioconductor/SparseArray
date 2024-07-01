@@ -3,7 +3,7 @@ title: "SparseArray objects"
 author:
 - name: Hervé Pagès
   affiliation: Fred Hutchinson Cancer Research Center, Seattle, WA
-date: "Compiled `r BiocStyle::doc_date()`; Modified 8 April 2024"
+date: "Compiled `r BiocStyle::doc_date()`; Modified 30 June 2024"
 package: SparseArray
 vignette: |
   %\VignetteIndexEntry{SparseArray objects}
@@ -143,7 +143,7 @@ nzwhich(svt1, arr.ind=TRUE)
 
 ## Extract the values of the nonzero array elements in 'svt1' and return
 ## them in a vector "parallel" to 'nzwhich(svt1)':
-#nzvals(svt1)  # NOT READY YET!
+nzvals(svt1)
 
 sparsity(svt1)
 ```
