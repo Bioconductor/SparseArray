@@ -84,7 +84,7 @@ exportMethods(
     as.array,
     t,
     which,
-    anyNA,
+    is.na, is.nan, is.infinite, anyNA,
     any, all, min, max, range, sum, prod,  # "Summary" group generic
     mean,
     var, sd,

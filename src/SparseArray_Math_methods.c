@@ -1,6 +1,6 @@
-/****************************************************************************
- *                   Math methods for SparseArray objects                   *
- ****************************************************************************/
+/*****************************************************************************
+ *                   Math methods for SparseArray objects                    *
+ *****************************************************************************/
 #include "SparseArray_Math_methods.h"
 
 #include "Rvector_utils.h"
@@ -24,7 +24,7 @@ static SEXP Math_leaf(MathFUN fun, SEXP leaf, double digits, int dim0,
 }
 
 
-/****************************************************************************
+/*****************************************************************************
  * Recursive tree traversal
  */
 
@@ -42,7 +42,7 @@ static SEXP REC_Math_SVT(MathFUN fun, SEXP SVT, double digits,
 	}
 
 	/* 'SVT' is a list. */
-	int ans_len = dim[ndim - 1];
+	int ans_len = dim[ndim - 1];  /* same as 'LENGTH(SVT)' */
 	SEXP ans = PROTECT(NEW_LIST(ans_len));
 	int is_empty = 1;
 	for (int i = 0; i < ans_len; i++) {
@@ -62,7 +62,7 @@ static SEXP REC_Math_SVT(MathFUN fun, SEXP SVT, double digits,
 }
 
 
-/****************************************************************************
+/*****************************************************************************
  * C_Math_SVT()
  */
 

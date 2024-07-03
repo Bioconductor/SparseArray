@@ -26,11 +26,8 @@
   is.nonzero(<SVT_SparseArray>) simply needs to strip off the "nzvals"
   component from the non-empty leaves and return the result as a logical
   SVT_SparseArray. This means that the returned object will be fully
-  lacunar (i.e. all its leaves will be lacunar).
+  lacunar (i.e. all its leaves will be lacunar), like with is.na().
   is.nonzero(<[d|l|n]g[C|R]Matrix>) should return an ng[C|R]Matrix object.
-
-- Implement is.na() method for SVT_SparseArray objects. Like is.nonzero(),
-  it should return a logical SVT_SparseArray object that is fully lacunar.
 
 - Implement coercion from Hits to SVT_SparseMatrix. The returned object
   should be an integer SVT_SparseMatrix with only zeros and ones that is

@@ -123,7 +123,7 @@ static void REC_replace_lacunar_leaves_with_standard_leaves(
 		return;
 	}
 	/* 'SVT' is a tree. */
-	int SVT_len = LENGTH(SVT);  /* same as dim[ndim - 1] */
+	int SVT_len = LENGTH(SVT);  /* same as 'dim[ndim - 1]' */
 	for (int i = 0; i < SVT_len; i++)
 		REC_replace_lacunar_leaves_with_standard_leaves(
 			VECTOR_ELT(SVT, i), dim, ndim - 1, Rtype);

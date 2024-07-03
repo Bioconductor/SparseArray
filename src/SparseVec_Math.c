@@ -10,6 +10,9 @@
 		       sinh(), asinh(), tanh(), atanh() */
 #include <Rmath.h>  /* for sign(), sinpi(), tanpi(), fround(), fprec() */
 
+#include <string.h> /* for strcmp() */
+
+
 static int NaNs_produced_flag;
 
 static inline void set_NaNs_produced_flag(int flag)
