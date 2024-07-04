@@ -169,33 +169,82 @@ setReplaceMethod("type", "COO_SparseArray", .set_COO_SparseArray_type)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### nzcount() and nzwhich()
+### .normalize_COO_SparseArray()
 ###
 
-### length(nzdata(x)) is the same as nrow(nzcoo(x)) but doing the former
-### should be slightly more efficient.
+.remove_zeros_from_nzdata_slot <- function(x)
+{
+    zero <- vector(type(x@nzdata), length=1L)
+    idx0 <- which(x@nzdata == zero)
+    if (length(idx0) == 0L)
+        return(x)
+    new_nzcoo <- x@nzcoo[-idx0, , drop=FALSE]
+    new_nzdata <- x@nzdata[-idx0]
+    BiocGenerics:::replaceSlots(x, nzcoo=new_nzcoo,
+                                   nzdata=new_nzdata,
+                                   check=FALSE)
+}
+
+.compute_nzcoo_order <- function(nzcoo)
+    do.call(order, lapply(ncol(nzcoo):1L, function(along) nzcoo[ , along]))
+
+.order_nzcoo_slot <- function(x)
+{
+    oo <- .compute_nzcoo_order(x@nzcoo)
+    if (!is.unsorted(oo))
+        return(x)
+    new_nzcoo <- x@nzcoo[oo, , drop=FALSE]
+    new_nzdata <- x@nzdata[oo]
+    BiocGenerics:::replaceSlots(x, nzcoo=new_nzcoo,
+                                   nzdata=new_nzdata,
+                                   check=FALSE)
+}
+
+.normalize_COO_SparseArray <- function(x)
+{
+    stopifnot(is(x, "COO_SparseArray"))
+    .order_nzcoo_slot(.remove_zeros_from_nzdata_slot(x))
+}
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### nzcount(), nzwhich(), nzvals(), and `nzvals<-`() methods
+###
+
+### length(nzdata(x)) and nrow(nzcoo(x)) are guaranteed to be the same but
+### the former should be slightly more efficient.
 setMethod("nzcount", "COO_SparseArray", function(x) length(nzdata(x)))
 
-.nzcoo_order <- function(nzcoo)
-    do.call(order, lapply(ncol(nzcoo):1L, function(along) nzcoo[ , along]))
 
 ### Returns an integer vector of length nzcount(x) if 'arr.ind=FALSE', or
 ### a matrix with nzcount(x) rows if 'arr.ind=TRUE'.
 .nzwhich_COO_SparseArray <- function(x, arr.ind=FALSE)
 {
-    stopifnot(is(x, "COO_SparseArray"))
     if (!isTRUEorFALSE(arr.ind))
         stop(wmsg("'arr.ind' must be TRUE or FALSE"))
-    idx1 <- default_nzwhich(x@nzdata)
-    nzcoo1 <- x@nzcoo[idx1, , drop=FALSE]
-    oo <- .nzcoo_order(nzcoo1)
-    ans <- nzcoo1[oo, , drop=FALSE]
+    ans <- .normalize_COO_SparseArray(x)@nzcoo
     if (arr.ind)
         return(ans)
     Mindex2Lindex(ans, dim=dim(x))
 }
 
 setMethod("nzwhich", "COO_SparseArray", .nzwhich_COO_SparseArray)
+
+setMethod("nzvals", "COO_SparseArray",
+    function(x) .normalize_COO_SparseArray(x)@nzdata
+)
+
+### As a side effect, the returned COO_SparseArray object is normalized.
+setReplaceMethod("nzvals", "COO_SparseArray",
+    function(x, value)
+    {
+        if (!is.vector(value))
+            stop(wmsg("replacement value must be a vector"))
+        x <- .normalize_COO_SparseArray(x)
+        x@nzdata[] <- value
+        .remove_zeros_from_nzdata_slot(x)
+    }
+)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
