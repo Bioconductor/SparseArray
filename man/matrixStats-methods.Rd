@@ -4,64 +4,64 @@
 \alias{matrixStats_methods}
 
 \alias{colAnyNAs}
-\alias{colAnyNAs,SVT_SparseArray-method}
+\alias{colAnyNAs,SparseArray-method}
 \alias{rowAnyNAs}
-\alias{rowAnyNAs,SVT_SparseArray-method}
+\alias{rowAnyNAs,SparseArray-method}
 
 \alias{colAnys}
-\alias{colAnys,SVT_SparseArray-method}
+\alias{colAnys,SparseArray-method}
 \alias{rowAnys}
-\alias{rowAnys,SVT_SparseArray-method}
+\alias{rowAnys,SparseArray-method}
 
 \alias{colAlls}
-\alias{colAlls,SVT_SparseArray-method}
+\alias{colAlls,SparseArray-method}
 \alias{rowAlls}
-\alias{rowAlls,SVT_SparseArray-method}
+\alias{rowAlls,SparseArray-method}
 
 \alias{colMins}
-\alias{colMins,SVT_SparseArray-method}
+\alias{colMins,SparseArray-method}
 \alias{rowMins}
-\alias{rowMins,SVT_SparseArray-method}
+\alias{rowMins,SparseArray-method}
 
 \alias{colMaxs}
-\alias{colMaxs,SVT_SparseArray-method}
+\alias{colMaxs,SparseArray-method}
 \alias{rowMaxs}
-\alias{rowMaxs,SVT_SparseArray-method}
+\alias{rowMaxs,SparseArray-method}
 
 \alias{colRanges}
-\alias{colRanges,SVT_SparseArray-method}
+\alias{colRanges,SparseArray-method}
 \alias{rowRanges}
-\alias{rowRanges,SVT_SparseArray-method}
+\alias{rowRanges,SparseArray-method}
 
 \alias{colSums}
-\alias{colSums,SVT_SparseArray-method}
+\alias{colSums,SparseArray-method}
 \alias{rowSums}
-\alias{rowSums,SVT_SparseArray-method}
+\alias{rowSums,SparseArray-method}
 
 \alias{colProds}
-\alias{colProds,SVT_SparseArray-method}
+\alias{colProds,SparseArray-method}
 \alias{rowProds}
-\alias{rowProds,SVT_SparseArray-method}
+\alias{rowProds,SparseArray-method}
 
 \alias{colMeans}
-\alias{colMeans,SVT_SparseArray-method}
+\alias{colMeans,SparseArray-method}
 \alias{rowMeans}
-\alias{rowMeans,SVT_SparseArray-method}
+\alias{rowMeans,SparseArray-method}
 
 \alias{colVars}
-\alias{colVars,SVT_SparseArray-method}
+\alias{colVars,SparseArray-method}
 \alias{rowVars}
-\alias{rowVars,SVT_SparseArray-method}
+\alias{rowVars,SparseArray-method}
 
 \alias{colSds}
-\alias{colSds,SVT_SparseArray-method}
+\alias{colSds,SparseArray-method}
 \alias{rowSds}
-\alias{rowSds,SVT_SparseArray-method}
+\alias{rowSds,SparseArray-method}
 
 \alias{colMedians}
-\alias{colMedians,SVT_SparseArray-method}
+\alias{colMedians,SparseArray-method}
 \alias{rowMedians}
-\alias{rowMedians,SVT_SparseArray-method}
+\alias{rowMedians,SparseArray-method}
 
 \title{SparseArray col/row summarization methods}
 
@@ -74,46 +74,46 @@
   Note that these are \emph{S4 generic functions} defined in the
   \pkg{MatrixGenerics} package, with methods for ordinary matrices
   defined in the \pkg{matrixStats} package. This man page documents
-  the methods defined for \link{SVT_SparseArray} objects.
+  the methods defined for \link{SparseArray} objects.
 }
 
 \usage{
 ## N.B.: Showing ONLY the col*() methods (usage of row*() methods is
 ## the same):
 
-\S4method{colAnyNAs}{SVT_SparseArray}(x, rows=NULL, cols=NULL, dims=1, ..., useNames=NA)
+\S4method{colAnyNAs}{SparseArray}(x, rows=NULL, cols=NULL, dims=1, ..., useNames=NA)
 
-\S4method{colAnys}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+\S4method{colAnys}{SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 
-\S4method{colAlls}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+\S4method{colAlls}{SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 
-\S4method{colMins}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+\S4method{colMins}{SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 
-\S4method{colMaxs}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+\S4method{colMaxs}{SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 
-\S4method{colRanges}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+\S4method{colRanges}{SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 
-\S4method{colSums}{SVT_SparseArray}(x, na.rm=FALSE, dims=1)
+\S4method{colSums}{SparseArray}(x, na.rm=FALSE, dims=1)
 
-\S4method{colProds}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+\S4method{colProds}{SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 
-\S4method{colMeans}{SVT_SparseArray}(x, na.rm=FALSE, dims=1)
+\S4method{colMeans}{SparseArray}(x, na.rm=FALSE, dims=1)
 
-\S4method{colVars}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL, dims=1,
+\S4method{colVars}{SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL, dims=1,
            ..., useNames=NA)
 
-\S4method{colSds}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL, dims=1,
+\S4method{colSds}{SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL, dims=1,
           ..., useNames=NA)
 
-\S4method{colMedians}{SVT_SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
+\S4method{colMedians}{SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
 }
 
 \arguments{
   \item{x}{
-    An \link{SVT_SparseMatrix} or \link{SVT_SparseArray} object.
+    A \link{SparseMatrix} or \link{SparseArray} object.
 
     Note that the \code{colMedians()} and \code{rowMedians()} methods
-    only support 2D objects (i.e. \link{SVT_SparseMatrix} objects) at
+    only support 2D objects (i.e. \link{SparseMatrix} objects) at
     the moment.
   }
   \item{rows, cols, ...}{
@@ -127,7 +127,7 @@
     Note that, unlike the methods for ordinary matrices defined in
     the \pkg{matrixStats} package, the \code{center} argument of the
     \code{colVars()}, \code{rowVars()}, \code{colSds()}, and \code{rowSds()}
-    methods for \link{SVT_SparseArray} objects can only be a
+    methods for \link{SparseArray} objects can only be a
     \emph{single value} (or a \code{NULL}). In particular, if \code{x}
     has more than one column, then \code{center} cannot be a vector
     with one value per column in \code{x}.
@@ -153,14 +153,14 @@
 }
 
 \note{
-  The matrixStats method for \link{SVT_SparseMatrix} objects are multithreaded.
+  The matrixStats method for \link{SparseMatrix} objects are multithreaded.
   See \code{\link{set_SparseArray_nthread}} for how to control the number
   of threads.
 }
 
 \seealso{
   \itemize{
-    \item \link{SVT_SparseArray} objects.
+    \item \link{SparseArray} objects.
 
     \item The man pages for the various generic functions defined
           in the \pkg{MatrixGenerics} package e.g.

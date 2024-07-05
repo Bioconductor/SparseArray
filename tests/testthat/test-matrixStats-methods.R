@@ -1,17 +1,21 @@
 
 .test_matrixStats_method1 <- function(a, svt, method)
 {
+    coo <- as(svt, "COO_SparseArray")
     FUN <- match.fun(method)
     expected <- FUN(a, useNames=FALSE)
     current <- FUN(svt, useNames=FALSE)
     expect_identical(current, expected)
+    expect_identical(FUN(coo, useNames=FALSE), current)
     expected <- FUN(a, useNames=TRUE)
     current <- FUN(svt, useNames=TRUE)
     expect_identical(current, expected)
+    expect_identical(FUN(coo, useNames=TRUE), current)
 }
 
 .test_matrixStats_method2 <- function(a, svt, method, dims)
 {
+    coo <- as(svt, "COO_SparseArray")
     FUN <- match.fun(method)
     op <- sub("^(col|row)", "", method)
     if (op %in% c("Vars", "Sds") ||
@@ -27,34 +31,42 @@
             expected <- FUN(a)
             current <- FUN(svt)
             EXPECT_FUN(current, expected)
+            expect_identical(FUN(coo), current)
             expected <- FUN(a, na.rm=TRUE)
             current <- FUN(svt, na.rm=TRUE)
             EXPECT_FUN(current, expected)
+            expect_identical(FUN(coo, na.rm=TRUE), current)
         } else {
             expected <- FUN(a, dims=dims)
             current <- FUN(svt, dims=dims)
             EXPECT_FUN(current, expected)
+            expect_identical(FUN(coo, dims=dims), current)
             expected <- FUN(a, na.rm=TRUE, dims=dims)
             current <- FUN(svt, na.rm=TRUE, dims=dims)
             EXPECT_FUN(current, expected)
+            expect_identical(FUN(coo, na.rm=TRUE, dims=dims), current)
         }
     } else {
         expected <- FUN(a, useNames=FALSE)
         current <- FUN(svt, useNames=FALSE)
         EXPECT_FUN(current, expected)
+        expect_identical(FUN(coo, useNames=FALSE), current)
         expected <- FUN(a, na.rm=TRUE, useNames=FALSE)
         current <- FUN(svt, na.rm=TRUE, useNames=FALSE)
         EXPECT_FUN(current, expected)
+        expect_identical(FUN(coo, na.rm=TRUE, useNames=FALSE), current)
         expected <- FUN(a, useNames=TRUE)
         current <- FUN(svt, useNames=TRUE)
         EXPECT_FUN(current, expected)
+        expect_identical(FUN(coo, useNames=TRUE), current)
         expected <- FUN(a, na.rm=TRUE, useNames=TRUE)
         current <- FUN(svt, na.rm=TRUE, useNames=TRUE)
         EXPECT_FUN(current, expected)
+        expect_identical(FUN(coo, na.rm=TRUE, useNames=TRUE), current)
     }
 }
 
-test_that("colAnyNAs()/rowAnyNAs() methods for 2D SVT_SparseArray objects", {
+test_that("colAnyNAs()/rowAnyNAs() methods for 2D SparseArray objects", {
     ## input of type() "integer"
     m1 <- matrix(c(0L, 0L, 155L,
                    0L, 8L,  -1L), nrow=2, byrow=TRUE,
@@ -126,7 +138,7 @@ test_that("colAnyNAs()/rowAnyNAs() methods for 2D SVT_SparseArray objects", {
     .test_matrixStats_method1(m5, svt5, "rowAnyNAs")
 })
 
-test_that("other matrixStats methods for 2D SVT_SparseArray objects", {
+test_that("other matrixStats methods for 2D SparseArray objects", {
     ## input of type() "integer"
     m1 <- matrix(c( 0L, 0L,  NA, 0L, NA,
                     NA, 0L, -3L, 1L, NA,
@@ -221,7 +233,7 @@ test_that("other matrixStats methods for 2D SVT_SparseArray objects", {
     expect_identical(rowRanges(svt0), rowRanges(m0))
 })
 
-test_that("matrixStats methods for 3D SVT_SparseArray objects", {
+test_that("matrixStats methods for 3D SparseArray objects", {
     ## input of type() "double"
     a <- array(0, 6:4,
                dimnames=list(letters[1:6], letters[22:26], LETTERS[1:4]))
@@ -230,30 +242,35 @@ test_that("matrixStats methods for 3D SVT_SparseArray objects", {
     a[5, , 2] <- c(pi, 10.33, 3.4567895e8, 300, 2009.01)
     a[6, 3:4, 2] <- c(NA, NaN)
     svt3 <- as(a, "SVT_SparseArray")
+    coo3 <- as(svt3, "COO_SparseArray")
 
     ## dims == 1 (default)
-    expected <- apply(a, MARGIN=3, colMins, useNames=TRUE)
-    expect_identical(colMins(svt3), expected)
-    expected <- apply(a, MARGIN=1, min)
-    expect_identical(rowMins(svt3), expected)
-    expected <- apply(a, MARGIN=3, colMaxs, useNames=TRUE)
-    expect_identical(colMaxs(svt3), expected)
-    expected <- apply(a, MARGIN=1, max)
-    expect_identical(rowMaxs(svt3), expected)
+    for (x in list(svt3, coo3)) {
+        expected <- apply(a, MARGIN=3, colMins, useNames=TRUE)
+        expect_identical(colMins(x), expected)
+        expected <- apply(a, MARGIN=1, min)
+        expect_identical(rowMins(x), expected)
+        expected <- apply(a, MARGIN=3, colMaxs, useNames=TRUE)
+        expect_identical(colMaxs(x), expected)
+        expected <- apply(a, MARGIN=1, max)
+        expect_identical(rowMaxs(x), expected)
+    }
     .test_matrixStats_method2(a, svt3, "colSums")
     .test_matrixStats_method2(a, svt3, "rowSums")
     .test_matrixStats_method2(a, svt3, "colMeans")
     .test_matrixStats_method2(a, svt3, "rowMeans")
 
     ## dims == 2
-    expected <- apply(a, MARGIN=3, min)
-    expect_identical(colMins(svt3, dims=2), expected)
-    expected <- apply(a, MARGIN=2, rowMins, useNames=TRUE)
-    expect_identical(rowMins(svt3, dims=2), expected)
-    expected <- apply(a, MARGIN=3, max)
-    expect_identical(colMaxs(svt3, dims=2), expected)
-    expected <- apply(a, MARGIN=2, rowMaxs, useNames=TRUE)
-    expect_identical(rowMaxs(svt3, dims=2), expected)
+    for (x in list(svt3, coo3)) {
+        expected <- apply(a, MARGIN=3, min)
+        expect_identical(colMins(x, dims=2), expected)
+        expected <- apply(a, MARGIN=2, rowMins, useNames=TRUE)
+        expect_identical(rowMins(x, dims=2), expected)
+        expected <- apply(a, MARGIN=3, max)
+        expect_identical(colMaxs(x, dims=2), expected)
+        expected <- apply(a, MARGIN=2, rowMaxs, useNames=TRUE)
+        expect_identical(rowMaxs(x, dims=2), expected)
+    }
     .test_matrixStats_method2(a, svt3, "colSums", dims=2)
     .test_matrixStats_method2(a, svt3, "rowSums", dims=2)
     .test_matrixStats_method2(a, svt3, "colMeans", dims=2)

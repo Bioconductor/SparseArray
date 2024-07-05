@@ -58,7 +58,7 @@
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### .colStats_SVT(), .rowStats_SVT()
+### .colStats_SparseArray(), .rowStats_SparseArray()
 ###
 ### Workhorses behind all the matrixStats methods for SVT_SparseArray
 ### objects, with the exception of the colMedians()/rowMedians() methods
@@ -75,10 +75,14 @@
 }
 
 ### Return an ordinary array with 'length(dim(x)) - dims' dimensions.
-.colStats_SVT <- function(op, x, na.rm=FALSE, center=NULL, dims=1L, useNames=NA)
+.colStats_SparseArray <- function(op, x, na.rm=FALSE, center=NULL, dims=1L,
+                                  useNames=NA)
 {
-    stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
-    check_svt_version(x)
+    stopifnot(isSingleString(op), is(x, "SparseArray"))
+    if (is(x, "SVT_SparseArray"))
+        check_svt_version(x)
+    else
+        x <- as(x, "SVT_SparseArray")
 
     ## Check 'na.rm'.
     if (!isTRUEorFALSE(na.rm))
@@ -111,18 +115,19 @@
 }
 
 ### WORK-IN-PROGRESS!
-### The naive implementation would be to simply do:
+### The naive implementation for .rowStats_SparseArray() would be to simply do:
 ###
-###     aperm(.colStats_SVT(op, aperm(x), ..., dims=length(dim(x))-dims))
+###   aperm(.colStats_SparseArray(op, aperm(x), ..., dims=length(dim(x))-dims))
 ###
 ### This is semantically correct for any number of dimensions. However,
-### it is VERY inefficient when 'x' has more than 2 dimensions because
-### multidimensional transposition of SVT_SparseArray object 'x' (i.e.
-### 'aperm(x)') is VERY expensive when 'length(dim(x))' is >= 3. So we
-### use some tricks to avoid this multidimensional transposition.
-.rowStats_SVT <- function(op, x, na.rm=FALSE, center=NULL, dims=1L, useNames=NA){
-    stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
-    check_svt_version(x)
+### it is VERY inefficient when 'x' is a SVT_SparseArray object with more
+### than 2 dimensions because multidimensional transposition of 'x' (i.e.
+### 'aperm(x)') is VERY expensive in that case. So we use some tricks below
+### to avoid this multidimensional transposition.
+.rowStats_SparseArray <- function(op, x, na.rm=FALSE, center=NULL, dims=1L,
+                                  useNames=NA)
+{
+    stopifnot(isSingleString(op), is(x, "SparseArray"))
 
     ## Check and normalize 'dims'.
     dims <- .normarg_dims(dims)
@@ -135,11 +140,22 @@
     useNames <- .normarg_useNames(useNames)
 
     x_ndim <- length(x@dim)
+
+    if (is(x, "COO_SparseArray")) {
+        ans <- .colStats_SparseArray(op, as(aperm(x), "SVT_SparseArray"),
+                                     na.rm=na.rm, center=center,
+                                     dims=x_ndim-dims, useNames=useNames)
+        if (!is.null(dim(ans)))
+            ans <- aperm(ans)
+        return(ans)
+    }
+
+    check_svt_version(x)
     if (x_ndim <= 2L || dims == 0L || length(x) == 0L) {
         if (x_ndim >= 2L && dims != 0L)
             x <- aperm(x)
-        ans <- .colStats_SVT(op, x, na.rm=na.rm, center=center,
-                             dims=x_ndim-dims, useNames=useNames)
+        ans <- .colStats_SparseArray(op, x, na.rm=na.rm, center=center,
+                                     dims=x_ndim-dims, useNames=useNames)
         if (!is.null(dim(ans)))
             ans <- aperm(ans)
         return(ans)
@@ -160,8 +176,8 @@
         ans <- sapply(seq_len(x@dim[[2L]]),
             function(j) {
                 slice <- extract_j_slice(j)  # 'x_ndim - 1' dimensions
-                .colStats_SVT(op, slice, na.rm=na.rm, center=center,
-                              dims=x_ndim-1L, useNames=FALSE)
+                .colStats_SparseArray(op, slice, na.rm=na.rm, center=center,
+                                      dims=x_ndim-1L, useNames=FALSE)
             })
         if (useNames)
             names(ans) <- x@dimnames[[2L]]
@@ -174,8 +190,8 @@
         ans_cols <- lapply(seq_len(x@dim[[2L]]),
             function(j) {
                 slice <- extract_j_slice(j)  # 'x_ndim - 1' dimensions
-                .rowStats_SVT(op, slice, na.rm=na.rm, center=center,
-                              useNames=FALSE)
+                .rowStats_SparseArray(op, slice, na.rm=na.rm, center=center,
+                                      useNames=FALSE)
             })
         ans <- do.call(cbind, ans_cols)
         if (useNames)
@@ -183,7 +199,8 @@
         return(ans)
     }
 
-    stop(wmsg("row*() summarization functions don't support 'dims' >= 3 yet"))
+    stop(wmsg("row*(<SVT_SparseArray>) summarizations ",
+              "don't support 'dims' >= 3 yet"))
 }
 
 
@@ -220,143 +237,105 @@
 ### colAnyNAs/rowAnyNAs
 ###
 
-.colAnyNAs_SVT <-
+.colAnyNAs_SparseArray <-
     function(x, rows=NULL, cols=NULL, dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "colAnyNAs")
-    .colStats_SVT("anyNA", x, dims=dims, useNames=useNames)
+    .colStats_SparseArray("anyNA", x, dims=dims, useNames=useNames)
 }
-setMethod("colAnyNAs", "SVT_SparseArray", .colAnyNAs_SVT)
+setMethod("colAnyNAs", "SparseArray", .colAnyNAs_SparseArray)
 
-.rowAnyNAs_SVT <-
+.rowAnyNAs_SparseArray <-
     function(x, rows=NULL, cols=NULL, dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "rowAnyNAs")
-    .rowStats_SVT("anyNA", x, dims=dims, useNames=useNames)
+    .rowStats_SparseArray("anyNA", x, dims=dims, useNames=useNames)
 }
-setMethod("rowAnyNAs", "SVT_SparseArray", .rowAnyNAs_SVT)
+setMethod("rowAnyNAs", "SparseArray", .rowAnyNAs_SparseArray)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### colAnys/rowAnys and colAlls/rowAlls
 ###
 
-.colAnys_SVT <-
+.colAnys_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "colAnys")
-    .colStats_SVT("any", x, na.rm=na.rm, dims=dims, useNames=useNames)
+    .colStats_SparseArray("any", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-setMethod("colAnys", "SVT_SparseArray", .colAnys_SVT)
+setMethod("colAnys", "SparseArray", .colAnys_SparseArray)
 
-.rowAnys_SVT <-
+.rowAnys_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "rowAnys")
-    .rowStats_SVT("any", x, na.rm=na.rm, dims=dims, useNames=useNames)
+    .rowStats_SparseArray("any", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-setMethod("rowAnys", "SVT_SparseArray", .rowAnys_SVT)
+setMethod("rowAnys", "SparseArray", .rowAnys_SparseArray)
 
-.colAlls_SVT <-
+.colAlls_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "colAlls")
-    .colStats_SVT("all", x, na.rm=na.rm, dims=dims, useNames=useNames)
+    .colStats_SparseArray("all", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-setMethod("colAlls", "SVT_SparseArray", .colAlls_SVT)
+setMethod("colAlls", "SparseArray", .colAlls_SparseArray)
 
-.rowAlls_SVT <-
+.rowAlls_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "rowAlls")
-    .rowStats_SVT("all", x, na.rm=na.rm, dims=dims, useNames=useNames)
+    .rowStats_SparseArray("all", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-setMethod("rowAlls", "SVT_SparseArray", .rowAlls_SVT)
+setMethod("rowAlls", "SparseArray", .rowAlls_SparseArray)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### colMins/rowMins, colMaxs/rowMaxs, and colRanges/rowRanges
 ###
 
-### Original "pure R" implementation. Was originally used by the colMins()
-### and colMaxs() methods for SVT_SparseMatrix objects.
-### No longer used!
-.colMinsMaxs_SVT_SparseMatrix <- function(x, FUN, na.rm=FALSE, useNames=NA)
-{
-    if (!isTRUEorFALSE(na.rm))
-        stop(wmsg("'na.rm' must be TRUE or FALSE"))
-    useNames <- .normarg_useNames(useNames)
-    x_nrow <- nrow(x)
-    x_ncol <- ncol(x)
-    if (x_ncol == 0L) {
-        ans <- vector(type(x), length=0L)
-    } else if (x_nrow == 0L) {
-        ans <- rep.int(suppressWarnings(FUN()), x_ncol)
-    } else if (is.null(x@SVT)) {
-        ans <- vector(type(x), length=x_ncol)
-    } else {
-        zero <- vector(type(x), length=1L)
-        ## We use lapply() rather than vapply() because we don't know in
-        ## advance the type of the result we're going to get for each column.
-        ans <- unlist(lapply(x@SVT,
-            function(lv) {
-                if (is.null(lv))
-                    return(zero)
-                lv_vals <- lv[[2L]]
-                ## Suppress the warning that min() or max() will issue
-                ## if 'na.rm' is TRUE and 'lv_vals' contains no non-NA values.
-                res <- suppressWarnings(FUN(lv_vals, na.rm=na.rm))
-                if (length(lv_vals) < x_nrow)
-                    res <- FUN(res, zero)
-                res
-            }), use.names=FALSE)
-    }
-    if (useNames)
-        names(ans) <- colnames(x)
-    ans
-}
-
-.colMins_SVT <-
+.colMins_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "colMins")
-    .colStats_SVT("min", x, na.rm=na.rm, dims=dims, useNames=useNames)
+    .colStats_SparseArray("min", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-setMethod("colMins", "SVT_SparseArray", .colMins_SVT)
+setMethod("colMins", "SparseArray", .colMins_SparseArray)
 
-.rowMins_SVT <-
+.rowMins_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "rowMins")
-    .rowStats_SVT("min", x, na.rm=na.rm, dims=dims, useNames=useNames)
+    .rowStats_SparseArray("min", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-setMethod("rowMins", "SVT_SparseArray", .rowMins_SVT)
+setMethod("rowMins", "SparseArray", .rowMins_SparseArray)
 
-.colMaxs_SVT <-
+.colMaxs_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "colMaxs")
-    .colStats_SVT("max", x, na.rm=na.rm, dims=dims, useNames=useNames)
+    .colStats_SparseArray("max", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-setMethod("colMaxs", "SVT_SparseArray", .colMaxs_SVT)
+setMethod("colMaxs", "SparseArray", .colMaxs_SparseArray)
 
-.rowMaxs_SVT <-
+.rowMaxs_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "rowMaxs")
-    .rowStats_SVT("max", x, na.rm=na.rm, dims=dims, useNames=useNames)
+    .rowStats_SparseArray("max", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-setMethod("rowMaxs", "SVT_SparseArray", .rowMaxs_SVT)
+setMethod("rowMaxs", "SparseArray", .rowMaxs_SparseArray)
 
 .bind_mins_maxs <- function(mins, maxs, just.use.c)
 {
@@ -375,35 +354,39 @@ setMethod("rowMaxs", "SVT_SparseArray", .rowMaxs_SVT)
     S4Arrays:::set_dimnames(ans, ans_dimnames)
 }
 
-.colRanges_SVT <-
+.colRanges_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "colRanges")
     ## Using two passes at the moment and binding the two results in R.
-    ## TODO: Do all this in a single pass. Call '.colStats_SVT("range", ...)'
-    ## and modify .Call ENTRY POINT C_colStats_SVT to perform the binding
-    ## from the very start at the C level.
-    mins <- .colStats_SVT("min", x, na.rm=na.rm, dims=dims, useNames=useNames)
-    maxs <- .colStats_SVT("max", x, na.rm=na.rm, dims=dims, useNames=FALSE)
+    ## TODO: Do all this in a single pass by calling
+    ## '.colStats_SparseArray("range", ...)' and modifying .Call ENTRY POINT
+    ## C_colStats_SVT to perform the binding from the very start at the C level.
+    mins <- .colStats_SparseArray("min", x, na.rm=na.rm, dims=dims,
+                                         useNames=useNames)
+    maxs <- .colStats_SparseArray("max", x, na.rm=na.rm, dims=dims,
+                                         useNames=FALSE)
     .bind_mins_maxs(mins, maxs, dims == length(dim(x)))
 }
-setMethod("colRanges", "SVT_SparseArray", .colRanges_SVT)
+setMethod("colRanges", "SparseArray", .colRanges_SparseArray)
 
-.rowRanges_SVT <-
+.rowRanges_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "rowRanges")
     ## Using two passes at the moment and binding the two results in R.
-    ## TODO: Do all this in a single pass. Call '.rowStats_SVT("range", ...)'
-    ## and modify .Call ENTRY POINT C_colStats_SVT to perform the binding
-    ## from the very start at the C level.
-    mins <- .rowStats_SVT("min", x, na.rm=na.rm, dims=dims, useNames=useNames)
-    maxs <- .rowStats_SVT("max", x, na.rm=na.rm, dims=dims, useNames=FALSE)
+    ## TODO: Do all this in a single pass by calling
+    ## '.rowStats_SparseArray("range", ...)' and modifying .Call ENTRY POINT
+    ## C_colStats_SVT to perform the binding from the very start at the C level.
+    mins <- .rowStats_SparseArray("min", x, na.rm=na.rm, dims=dims,
+                                         useNames=useNames)
+    maxs <- .rowStats_SparseArray("max", x, na.rm=na.rm, dims=dims,
+                                         useNames=FALSE)
     .bind_mins_maxs(mins, maxs, dims == 0L)
 }
-setMethod("rowRanges", "SVT_SparseArray", .rowRanges_SVT)
+setMethod("rowRanges", "SparseArray", .rowRanges_SparseArray)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -412,47 +395,47 @@ setMethod("rowRanges", "SVT_SparseArray", .rowRanges_SVT)
 ### The colSums/rowSums/colMeans/rowMeans functions in base R propagate the
 ### dimnames so we do the same.
 
-.colSums_SVT <- function(x, na.rm=FALSE, dims=1)
+.colSums_SparseArray <- function(x, na.rm=FALSE, dims=1)
 {
-    .colStats_SVT("sum", x, na.rm=na.rm, dims=dims)
+    .colStats_SparseArray("sum", x, na.rm=na.rm, dims=dims)
 }
-setMethod("colSums", "SVT_SparseArray", .colSums_SVT)
+setMethod("colSums", "SparseArray", .colSums_SparseArray)
 
-.rowSums_SVT <- function(x, na.rm=FALSE, dims=1)
+.rowSums_SparseArray <- function(x, na.rm=FALSE, dims=1)
 {
-    .rowStats_SVT("sum", x, na.rm=na.rm, dims=dims)
+    .rowStats_SparseArray("sum", x, na.rm=na.rm, dims=dims)
 }
-setMethod("rowSums", "SVT_SparseArray", .rowSums_SVT)
+setMethod("rowSums", "SparseArray", .rowSums_SparseArray)
 
-.colProds_SVT <-
+.colProds_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "colProds")
-    .colStats_SVT("prod", x, na.rm=na.rm, dims=dims, useNames=useNames)
+    .colStats_SparseArray("prod", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-setMethod("colProds", "SVT_SparseArray", .colProds_SVT)
+setMethod("colProds", "SparseArray", .colProds_SparseArray)
 
-.rowProds_SVT <-
+.rowProds_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "rowProds")
-    .rowStats_SVT("prod", x, na.rm=na.rm, dims=dims, useNames=useNames)
+    .rowStats_SparseArray("prod", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-setMethod("rowProds", "SVT_SparseArray", .rowProds_SVT)
+setMethod("rowProds", "SparseArray", .rowProds_SparseArray)
 
-.colMeans_SVT <- function(x, na.rm=FALSE, dims=1)
+.colMeans_SparseArray <- function(x, na.rm=FALSE, dims=1)
 {
-    .colStats_SVT("mean", x, na.rm=na.rm, dims=dims)
+    .colStats_SparseArray("mean", x, na.rm=na.rm, dims=dims)
 }
-setMethod("colMeans", "SVT_SparseArray", .colMeans_SVT)
+setMethod("colMeans", "SparseArray", .colMeans_SparseArray)
 
-.rowMeans_SVT <- function(x, na.rm=FALSE, dims=1)
+.rowMeans_SparseArray <- function(x, na.rm=FALSE, dims=1)
 {
-    .rowStats_SVT("mean", x, na.rm=na.rm, dims=dims)
+    .rowStats_SparseArray("mean", x, na.rm=na.rm, dims=dims)
 }
-setMethod("rowMeans", "SVT_SparseArray", .rowMeans_SVT)
+setMethod("rowMeans", "SparseArray", .rowMeans_SparseArray)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -497,7 +480,8 @@ setMethod("rowMeans", "SVT_SparseArray", .rowMeans_SVT)
 
 ### Original "pure R" implementation. Was originally used by the colVars()
 ### method for SVT_SparseMatrix objects. No longer used!
-.colVars_SVT_SparseMatrix <- function(x, na.rm=FALSE, center=NULL, useNames=NA)
+.colVars_SparseArray_SparseMatrix <-
+    function(x, na.rm=FALSE, center=NULL, useNames=NA)
 {
     if (!isTRUEorFALSE(na.rm))
         stop(wmsg("'na.rm' must be TRUE or FALSE"))
@@ -527,45 +511,49 @@ setMethod("rowMeans", "SVT_SparseArray", .rowMeans_SVT)
     ans
 }
 
-.colVars_SVT <- function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
-                            dims=1, ..., useNames=NA)
+.colVars_SparseArray <-
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+                dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "colVars")
-    .colStats_SVT("var1", x, na.rm=na.rm, center=center,
-                             dims=dims, useNames=useNames)
+    .colStats_SparseArray("var1", x, na.rm=na.rm, center=center,
+                                  dims=dims, useNames=useNames)
 }
-setMethod("colVars", "SVT_SparseArray", .colVars_SVT)
+setMethod("colVars", "SparseArray", .colVars_SparseArray)
 
-.rowVars_SVT <- function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
-                            dims=1, ..., useNames=NA)
+.rowVars_SparseArray <-
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+                dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "rowVars")
-    .rowStats_SVT("var1", x, na.rm=na.rm, center=center,
-                             dims=dims, useNames=useNames)
+    .rowStats_SparseArray("var1", x, na.rm=na.rm, center=center,
+                                  dims=dims, useNames=useNames)
 }
-setMethod("rowVars", "SVT_SparseArray", .rowVars_SVT)
+setMethod("rowVars", "SparseArray", .rowVars_SparseArray)
 
-.colSds_SVT <- function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
-                           dims=1, ..., useNames=NA)
+.colSds_SparseArray <-
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+                dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "colSds")
-    .colStats_SVT("sd1", x, na.rm=na.rm, center=center,
-                            dims=dims, useNames=useNames)
+    .colStats_SparseArray("sd1", x, na.rm=na.rm, center=center,
+                                 dims=dims, useNames=useNames)
 }
-setMethod("colSds", "SVT_SparseArray", .colSds_SVT)
+setMethod("colSds", "SparseArray", .colSds_SparseArray)
 
-.rowSds_SVT <- function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
-                           dims=1, ..., useNames=NA)
+.rowSds_SparseArray <-
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
+                dims=1, ..., useNames=NA)
 {
     .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "rowSds")
-    .rowStats_SVT("sd1", x, na.rm=na.rm, center=center,
-                            dims=dims, useNames=useNames)
+    .rowStats_SparseArray("sd1", x, na.rm=na.rm, center=center,
+                                 dims=dims, useNames=useNames)
 }
-setMethod("rowSds", "SVT_SparseArray", .rowSds_SVT)
+setMethod("rowSds", "SparseArray", .rowSds_SparseArray)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -643,6 +631,8 @@ setMethod("rowSds", "SVT_SparseArray", .rowSds_SVT)
 
 .colMedians_SVT_SparseMatrix <- function(x, na.rm=FALSE, useNames=NA)
 {
+    stopifnot(is(x, "SVT_SparseMatrix"))
+    check_svt_version(x)
     if (!isTRUEorFALSE(na.rm))
         stop(wmsg("'na.rm' must be TRUE or FALSE"))
     useNames <- .normarg_useNames(useNames)
@@ -669,23 +659,28 @@ setMethod("rowSds", "SVT_SparseArray", .rowSds_SVT)
     ans
 }
 
-setMethod("colMedians", "SVT_SparseArray",
+setMethod("colMedians", "SparseArray",
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
     {
         .check_unused_arguments(...)
         .stopifnot_2D_object(x, "colMedians")
         .check_rows_cols(rows, cols, "colMedians")
+        if (!is(x, "SVT_SparseArray"))
+            x <- as(x, "SVT_SparseArray")
         .colMedians_SVT_SparseMatrix(x, na.rm=na.rm, useNames=useNames)
     }
 )
 
-setMethod("rowMedians", "SVT_SparseArray",
+setMethod("rowMedians", "SparseArray",
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
     {
         .check_unused_arguments(...)
         .stopifnot_2D_object(x, "rowMedians")
         .check_rows_cols(rows, cols, "rowMedians")
-        .colMedians_SVT_SparseMatrix(t(x), na.rm=na.rm, useNames=useNames, ...)
+        tx <- t(x)
+        if (!is(tx, "SVT_SparseArray"))
+            x <- as(tx, "SVT_SparseArray")
+        .colMedians_SVT_SparseMatrix(tx, na.rm=na.rm, useNames=useNames, ...)
     }
 )
 
