@@ -13,12 +13,13 @@
 }
 
 \usage{
-randomSparseArray(dim, density=0.05)
-poissonSparseArray(dim, lambda=-log(0.95), density=NA)
+randomSparseArray(dim, density=0.05, dimnames=NULL)
+poissonSparseArray(dim, lambda=-log(0.95), density=NA, dimnames=NULL)
 
 ## Convenience wrappers for the 2D case:
-randomSparseMatrix(nrow, ncol, density=0.05)
-poissonSparseMatrix(nrow, ncol, lambda=-log(0.95), density=NA)
+randomSparseMatrix(nrow, ncol, density=0.05, dimnames=NULL)
+poissonSparseMatrix(nrow, ncol, lambda=-log(0.95), density=NA,
+                    dimnames=NULL)
 }
 
 \arguments{
@@ -35,6 +36,11 @@ poissonSparseMatrix(nrow, ncol, lambda=-log(0.95), density=NA)
     Note that for \code{poissonSparseArray()} and \code{poissonSparseMatrix()}
     \code{density} must be < 1 and the \emph{actual} density of the returned
     object won't be exactly as requested but will typically be very close.
+  }
+  \item{dimnames}{
+    The \emph{dimnames} to put on the object to generate. Must be \code{NULL}
+    or a list of length the number of dimensions. Each list element must be
+    either \code{NULL} or a character vector along the corresponding dimension.
   }
   \item{lambda}{
     The mean of the Poisson distribution. Passed internally to the calls

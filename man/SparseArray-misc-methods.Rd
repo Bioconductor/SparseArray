@@ -21,6 +21,11 @@
 \alias{nchar}
 \alias{nchar,COO_SparseArray-method}
 
+\alias{pmin}
+\alias{pmin,SparseArray-method}
+\alias{pmax}
+\alias{pmax,SparseArray-method}
+
 \title{Miscellaneous operations on a SparseArray object}
 
 \description{
@@ -31,6 +36,8 @@
 }
 
 \usage{
+# --- unary isometric array transformations ---
+
 \S4method{is.na}{COO_SparseArray}(x)
 \S4method{is.na}{SVT_SparseArray}(x)
 
@@ -45,6 +52,11 @@
 \S4method{toupper}{COO_SparseArray}(x)
 
 \S4method{nchar}{COO_SparseArray}(x, type="chars", allowNA=FALSE, keepNA=NA)
+
+# --- N-ary isometric array transformations ---
+
+\S4method{pmin}{SparseArray}(..., na.rm=FALSE)
+\S4method{pmax}{SparseArray}(..., na.rm=FALSE)
 }
 
 \arguments{
@@ -55,6 +67,13 @@
     See \code{?base::\link[base]{nchar}} for a description of
     these arguments.
   }
+  \item{...}{
+    \link{SparseArray} derivatives.
+  }
+  \item{na.rm}{
+    See \code{?base::\link[base]{pmin}} for a description of
+    this argument.
+  }
 }
 
 \details{
@@ -63,8 +82,9 @@
 
 \value{
   See man pages for the corresponding base functions (e.g.
-  \code{?base::\link[base]{is.na}}, \code{?base::\link[base]{nchar}}, etc...)
-  for the value returned by these methods.
+  \code{?base::\link[base]{is.na}}, \code{?base::\link[base]{nchar}},
+  \code{?base::\link[base]{pmin}}, etc...) for the value returned by
+  these methods.
 
   Note that, like the base functions, the methods documented in this man page
   are \emph{endomorphisms} i.e. they return an array-like object of the same
@@ -79,6 +99,8 @@
     \item \code{base::\link[base]{tolower}} in base R.
 
     \item \code{base::\link[base]{nchar}} in base R.
+
+    \item \code{base::\link[base]{pmin}} in base R.
 
     \item \link{SparseArray} objects.
 
@@ -95,6 +117,11 @@ is.na(svt)             # SVT_SparseArray object of type "logical"
 is.nan(svt)            # SVT_SparseArray object of type "logical"
 is.infinite(svt)       # SVT_SparseArray object of type "logical"
 
+svt1 <- poissonSparseMatrix(500, 20, density=0.2)
+svt2 <- poissonSparseMatrix(500, 20, density=0.25) * 0.77
+pmin(svt1, svt2)
+pmax(svt1, svt2)
+
 ## Sanity checks:
 res <- is.na(svt)
 stopifnot(is(res, "SVT_SparseArray"), type(res) == "logical",
@@ -105,6 +132,12 @@ stopifnot(is(res, "SVT_SparseArray"), type(res) == "logical",
 res <- is.infinite(svt)
 stopifnot(is(res, "SVT_SparseArray"), type(res) == "logical",
           identical(as.array(res), is.infinite(a)))
+res <- pmin(svt1, svt2)
+stopifnot(is(res, "SVT_SparseArray"),
+          identical(as.array(res), pmin(as.array(svt1), as.array(svt2))))
+res <- pmax(svt1, svt2)
+stopifnot(is(res, "SVT_SparseArray"),
+          identical(as.array(res), pmax(as.array(svt1), as.array(svt2))))
 }
 \keyword{array}
 \keyword{methods}

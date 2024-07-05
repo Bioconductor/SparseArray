@@ -8,7 +8,7 @@
 ###
 
 ### Returns an SVT_SparseArray object of type "double".
-randomSparseArray <- function(dim, density=0.05)
+randomSparseArray <- function(dim, density=0.05, dimnames=NULL)
 {
     if (!is.numeric(dim))
         stop(wmsg("'dim' must be an integer vector"))
@@ -18,7 +18,7 @@ randomSparseArray <- function(dim, density=0.05)
         stop(wmsg("'density' must be a number >= 0 and <= 1"))
 
     ## Start with an empty sparse array.
-    ans <- new_SVT_SparseArray(dim, type="double")
+    ans <- new_SVT_SparseArray(dim, dimnames=dimnames, type="double")
 
     ## Add the nonzero values to it.
     ans_len <- length(ans)
@@ -37,11 +37,11 @@ randomSparseArray <- function(dim, density=0.05)
     ans
 }
 
-randomSparseMatrix <- function(nrow=1L, ncol=1L, density=0.05)
+randomSparseMatrix <- function(nrow=1L, ncol=1L, density=0.05, dimnames=NULL)
 {
     if (!isSingleNumber(nrow) || !isSingleNumber(ncol))
         stop(wmsg("'nrow' and 'ncol' must be single integers"))
-    randomSparseArray(c(nrow, ncol), density=density)
+    randomSparseArray(c(nrow, ncol), density=density, dimnames=dimnames)
 }
 
 
@@ -59,7 +59,8 @@ simple_rpois <- function(n, lambda)
 ### Density of the returned object is expected to be about '1 - exp(-lambda)'.
 ### Default for 'lambda' is set to -log(0.95) which should produce an object
 ### with an expected density of 0.05.
-poissonSparseArray <- function(dim, lambda=-log(0.95), density=NA)
+poissonSparseArray <- function(dim, lambda=-log(0.95), density=NA,
+                               dimnames=NULL)
 {
     dim <- S4Arrays:::normarg_dim(dim)
 
@@ -75,7 +76,8 @@ poissonSparseArray <- function(dim, lambda=-log(0.95), density=NA)
     }
 
     ans_SVT <- SparseArray.Call("C_poissonSparseArray", dim, lambda)
-    new_SVT_SparseArray(dim, type="integer", SVT=ans_SVT, check=FALSE)
+    new_SVT_SparseArray(dim, dimnames=dimnames, type="integer", SVT=ans_SVT,
+                        check=FALSE)
 }
 
 ### Replacement for rpois() when 'n' is big and 'lambda' is small.
@@ -145,14 +147,17 @@ poissonSparseArray2 <- function(dim, lambda=-log(0.95), density=NA)
     ans
 }
 
-poissonSparseMatrix <- function(nrow=1L, ncol=1L, lambda=-log(0.95), density=NA)
+poissonSparseMatrix <- function(nrow=1L, ncol=1L, lambda=-log(0.95), density=NA,
+                                dimnames=NULL)
 {
     if (!isSingleNumber(nrow) || !isSingleNumber(ncol))
         stop(wmsg("'nrow' and 'ncol' must be single integers"))
     if (missing(lambda)) {
-        poissonSparseArray(c(nrow, ncol), density=density)
+        poissonSparseArray(c(nrow, ncol), density=density,
+                           dimnames=dimnames)
     } else {
-        poissonSparseArray(c(nrow, ncol), lambda=lambda, density=density)
+        poissonSparseArray(c(nrow, ncol), lambda=lambda, density=density,
+                           dimnames=dimnames)
     }
 }
 
