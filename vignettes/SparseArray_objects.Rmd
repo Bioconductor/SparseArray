@@ -3,7 +3,7 @@ title: "SparseArray objects"
 author:
 - name: Hervé Pagès
   affiliation: Fred Hutchinson Cancer Research Center, Seattle, WA
-date: "Compiled `r BiocStyle::doc_date()`; Modified 30 June 2024"
+date: "Compiled `r BiocStyle::doc_date()`; Modified 5 July 2024"
 package: SparseArray
 vignette: |
   %\VignetteIndexEntry{SparseArray objects}
@@ -79,6 +79,9 @@ Alternatively, the ordinary matrix or array can be passed to the
 svt1 <- SVT_SparseArray(m)
 svt2 <- SVT_SparseArray(a)
 ```
+
+See `?SVT_SparseArray` for more information about the `SVT_SparseArray`
+constructor function and additional examples.
 
 Note that coercing an ordinary matrix or array to SparseArray is also
 supported and will produce the same results:

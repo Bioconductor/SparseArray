@@ -29,6 +29,15 @@
   lacunar (i.e. all its leaves will be lacunar), like with is.na().
   is.nonzero(<[d|l|n]g[C|R]Matrix>) should return an ng[C|R]Matrix object.
 
+- Add nzvals() methods for COO_SparseArray and SVT_SparseArray objects.
+  Uncomment nzvals() examples in vignette and SparseArray-class.Rd
+
+- Add unit tests for nzwhich() and nzvals() methods for COO_SparseArray
+  and SVT_SparseArray objects.
+
+- Parallelize more operations (with OpenMP). Right now only %*%, crossprod(),
+  tcrossprod(), and the matrixStats operations are parallelized.
+
 - Implement coercion from Hits to SVT_SparseMatrix. The returned object
   should be an integer SVT_SparseMatrix with only zeros and ones that is
   the adjacency matrix of the bipartite graph represented by the Hits object.
@@ -39,23 +48,10 @@
   > 1 in the adjacency matrix? (Google this.) This means that the resulting
   SVT_SparseMatrix won't necessarily be fully lacunar.
 
-- Add nzvals() methods for COO_SparseArray and SVT_SparseArray objects.
-  Uncomment nzvals() examples in vignette and SparseArray-class.Rd
-
-- Add unit tests for nzwhich() and nzvals() methods for COO_SparseArray
-  and SVT_SparseArray objects.
-
-- Parallelize more operations (with OpenMP). Right now only %*%, crossprod(),
-  tcrossprod(), and the matrixStats operations are parallelized.
-
 - Use "sparseness" instead of "sparsity" in the doc when referring to the
   quality of being structurally sparse. Use "sparsity" to refer to the
   number (>= 0 and <= 1) that measures how sparse an object is.
   sparsity = 1 - density
-
-- Extend the capabilities of the SVT_SparseArray() and SparseArray()
-  constructors so that they can be used to create a SVT_SparseArray object
-  with the specified dimensions and only zeros (i.e. no nonzero data).
 
 - Subassignments like this need to work:
       svt[ , , 1] <- svt[ , , 3, drop=FALSE]

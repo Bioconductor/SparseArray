@@ -60,14 +60,34 @@
 
 \usage{
 ## Constructor function:
-SVT_SparseArray(x, type=NA)
+SVT_SparseArray(x, dim=NULL, dimnames=NULL, type=NA)
 }
 
 \arguments{
   \item{x}{
-    An ordinary matrix or array, or a dgCMatrix/lgCMatrix object,
-    or any matrix-like or array-like object that supports coercion
-    to SVT_SparseArray.
+    If \code{dim} is \code{NULL} (the default) then \code{x} must be an
+    ordinary matrix or array, or a dgCMatrix/lgCMatrix object, or any
+    matrix-like or array-like object that supports coercion to SVT_SparseArray.
+
+    If \code{dim} is provided then \code{x} must be a vector (atomic or
+    list) that will be used to fill the returned object. Additionally it
+    can be an array-like object in which case it will be treated as if it
+    had been passed thru \code{as.vector()}, that is, its dimensions will
+    be ignored.
+  }
+  \item{dim}{
+    \code{NULL} or the dimensions (supplied as an integer vector) of
+    the SVT_SparseArray or SVT_SparseMatrix object to construct.
+    If \code{NULL} (the default) then the returned object will have
+    the dimensions of matrix-like or array-like object \code{x}.
+  }
+  \item{dimnames}{
+    The \emph{dimnames} of the object to construct. Must be \code{NULL} or
+    a list of length the number of dimensions. Each list element must be
+    either \code{NULL} or a character vector along the corresponding dimension.
+    If both \code{dim} and \code{dimnames} are \code{NULL} (the default) then
+    the returned object will have the \emph{dimnames} of matrix-like or
+    array-like object \code{x}.
   }
   \item{type}{
     A single string specifying the requested type of the object.
@@ -188,54 +208,60 @@ vector  vector          vector  vector  vector  vector}
 
 \examples{
 ## ---------------------------------------------------------------------
-## EXAMPLE 1
+## BASIC CONSTRUCTION
 ## ---------------------------------------------------------------------
-m0 <- matrix(0L, nrow=6, ncol=4)
-m0[c(1:2, 8, 10, 15:17, 24)] <- (1:8)*10L
-m0
+SVT_SparseArray(dim=5:3)
 
-svt0 <- as(m0, "SVT_SparseMatrix")
-svt0
+SVT_SparseArray(dim=c(35000, 2e6), type="raw")
 
-## CSC (Compressed sparse column) layout vs SVT layout:
-
-dgcm <- as(m0, "dgCMatrix")
-dgcm@x
-dgcm@i
-dgcm@p
-
-str(svt0)
-
-## ---------------------------------------------------------------------
-## EXAMPLE 2
-## ---------------------------------------------------------------------
-m1 <- matrix(rpois(54e6, lambda=0.4), ncol=1200)
-
-## Note that 'SparseArray(m1)' can also be used for this:
-svt1 <- SVT_SparseArray(m1)
+svt1 <- SVT_SparseArray(dim=c(12, 5, 2))
+svt1[cbind(11, 2:5, 2)] <- 22:25
 svt1
 
-dgcm1 <- as(m1, "dgCMatrix")
+svt2 <- SVT_SparseArray(dim=c(6, 4), type="integer",
+                        dimnames=list(letters[1:6], LETTERS[1:4]))
+svt2[c(1:2, 8, 10, 15:17, 24)] <- (1:8)*10L
+svt2
+
+## ---------------------------------------------------------------------
+## CSC (Compressed Sparse Column) LAYOUT VS SVT LAYOUT
+## ---------------------------------------------------------------------
+
+## dgCMatrix objects from the Matrix package use the CSC layout:
+dgcm2 <- as(svt2, "dgCMatrix")
+dgcm2@x  # nonzero values
+dgcm2@i  # row indices of the nonzero values
+dgcm2@p  # breakpoints (0 followed by one breakpoint per column)
+
+str(svt2)
+
+m3 <- matrix(rpois(54e6, lambda=0.4), ncol=1200)
+
+## Note that 'SparseArray(m3)' can also be used for this:
+svt3 <- SVT_SparseArray(m3)
+svt3
+
+dgcm3 <- as(m3, "dgCMatrix")
 
 ## Compare type and memory footprint:
-type(svt1)
-object.size(svt1)
-type(dgcm1)
-object.size(dgcm1)
+type(svt3)
+object.size(svt3)
+type(dgcm3)
+object.size(dgcm3)
 
 ## Transpose:
-system.time(svt <- t(t(svt1)))
-system.time(dgcm <- t(t(dgcm1)))
-identical(svt, svt1)
-identical(dgcm, dgcm1)
+system.time(svt <- t(t(svt3)))
+system.time(dgcm <- t(t(dgcm3)))
+identical(svt, svt3)
+identical(dgcm, dgcm3)
 
 ## rbind():
-m2 <- matrix(rpois(45e6, lambda=0.4), ncol=1200)
-svt2 <- SVT_SparseArray(m2)
-dgcm2 <- as(m2, "dgCMatrix")
+m4 <- matrix(rpois(45e6, lambda=0.4), ncol=1200)
+svt4 <- SVT_SparseArray(m4)
+dgcm4 <- as(m4, "dgCMatrix")
 
-system.time(rbind(svt1, svt2))
-system.time(rbind(dgcm1, dgcm2))
+system.time(rbind(svt3, svt4))
+system.time(rbind(dgcm3, dgcm4))
 }
 \keyword{classes}
 \keyword{methods}

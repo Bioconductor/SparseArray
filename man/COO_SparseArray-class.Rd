@@ -68,8 +68,8 @@ nzdata(x)
 
 \arguments{
   \item{dim}{
-    The dimensions (specified as an integer vector) of the
-    COO_SparseArray or COO_SparseMatrix object to create.
+    The dimensions (supplied as an integer vector) of the
+    COO_SparseArray or COO_SparseMatrix object to construct.
   }
   \item{nzcoo}{
     A matrix containing the array coordinates of the nonzero elements.
@@ -85,7 +85,7 @@ nzdata(x)
     the nonzero elements.
   }
   \item{dimnames}{
-    The \emph{dimnames} of the object to be created. Must be \code{NULL} or
+    The \emph{dimnames} of the object to construct. Must be \code{NULL} or
     a list of length the number of dimensions. Each list element must be
     either \code{NULL} or a character vector along the corresponding dimension.
   }

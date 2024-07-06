@@ -200,13 +200,18 @@ new_SVT_SparseArray <- function(dim, dimnames=NULL,
 as.array.SVT_SparseArray <- function(x, ...) .from_SVT_SparseArray_to_array(x)
 setMethod("as.array", "SVT_SparseArray", as.array.SVT_SparseArray)
 
-.build_SVT_SparseArray_from_array <- function(x, type=NA)
+.build_SVT_SparseArray_from_array <- function(x, dimnames=NULL, type=NA)
 {
     stopifnot(is.array(x))
+    if (is.null(dimnames)) {
+        ans_dimnames <- dimnames(x)
+    } else {
+        ans_dimnames <- S4Arrays:::normarg_dimnames(dimnames, dim(x))
+    }
     if (identical(type, NA))
         type <- type(x)
     ans_SVT <- SparseArray.Call("C_build_SVT_from_Rarray", x, type)
-    new_SVT_SparseArray(dim(x), dimnames(x), type, ans_SVT, check=FALSE)
+    new_SVT_SparseArray(dim(x), ans_dimnames, type, ans_SVT, check=FALSE)
 }
 
 setAs("array", "SVT_SparseArray",
@@ -278,13 +283,19 @@ setAs("SVT_SparseMatrix", "dgCMatrix", .from_SVT_SparseMatrix_to_dgCMatrix)
 setAs("SVT_SparseMatrix", "lgCMatrix", .from_SVT_SparseMatrix_to_lgCMatrix)
 setAs("SVT_SparseMatrix", "ngCMatrix", .from_SVT_SparseMatrix_to_ngCMatrix)
 
-.build_SVT_SparseMatrix_from_CsparseMatrix <- function(x, type=NA)
+.build_SVT_SparseMatrix_from_CsparseMatrix <- function(x, dimnames=NULL,
+                                                          type=NA)
 {
     stopifnot(is(x, "CsparseMatrix"))
+    if (is.null(dimnames)) {
+        ans_dimnames <- dimnames(x)
+    } else {
+        ans_dimnames <- S4Arrays:::normarg_dimnames(dimnames, dim(x))
+    }
     if (identical(type, NA))
         type <- type(x)
     ans_SVT <- SparseArray.Call("C_build_SVT_from_CsparseMatrix", x, type)
-    new_SVT_SparseArray(dim(x), dimnames(x), type, ans_SVT, check=FALSE)
+    new_SVT_SparseArray(dim(x), ans_dimnames, type, ans_SVT, check=FALSE)
 }
 
 setAs("CsparseMatrix", "SVT_SparseMatrix",
@@ -318,9 +329,15 @@ setAs("SVT_SparseMatrix", "COO_SparseMatrix",
     .from_SVT_SparseArray_to_COO_SparseArray
 )
 
-.build_SVT_SparseArray_from_COO_SparseArray <- function(x, type=NA)
+.build_SVT_SparseArray_from_COO_SparseArray <- function(x, dimnames=NULL,
+                                                           type=NA)
 {
     stopifnot(is(x, "COO_SparseArray"))
+    if (is.null(dimnames)) {
+        ans_dimnames <- dimnames(x)
+    } else {
+        ans_dimnames <- S4Arrays:::normarg_dimnames(dimnames, dim(x))
+    }
     if (identical(type, NA)) {
         type <- type(x)
     } else {
@@ -332,7 +349,7 @@ setAs("SVT_SparseMatrix", "COO_SparseMatrix",
     }
     ## We start with an allzero SVT_SparseArray object and subassign
     ## the nonzero data to it.
-    ans <- new_SVT_SparseArray(x@dim, x@dimnames, type, check=FALSE)
+    ans <- new_SVT_SparseArray(x@dim, ans_dimnames, type, check=FALSE)
     ans[x@nzcoo] <- x@nzdata
     ans
 }
@@ -356,32 +373,47 @@ setAs("COO_SparseMatrix", "SVT_SparseMatrix",
     new2("SVT_SparseArray", type=type, check=FALSE)
 }
 
-.SVT_SparseArray <- function(x, type=NA)
+.SVT_SparseArray <- function(x, dimnames=NULL, type=NA)
 {
     if (is.array(x))
-        return(.build_SVT_SparseArray_from_array(x, type=type))
+        return(.build_SVT_SparseArray_from_array(x,
+                                      dimnames=dimnames, type=type))
 
     if (is(x, "CsparseMatrix"))
-        return(.build_SVT_SparseMatrix_from_CsparseMatrix(x, type=type))
+        return(.build_SVT_SparseMatrix_from_CsparseMatrix(x,
+                                      dimnames=dimnames, type=type))
 
     if (is(x, "COO_SparseArray"))
-        return(.build_SVT_SparseArray_from_COO_SparseArray(x, type=type))
+        return(.build_SVT_SparseArray_from_COO_SparseArray(x,
+                                      dimnames=dimnames, type=type))
 
     ans <- as(x, "SVT_SparseArray")
+    ans <- S4Arrays:::set_dimnames(ans, dimnames)
     if (!identical(type, NA))
         type(ans) <- type
     ans
 }
 
-SVT_SparseArray <- function(x, type=NA)
+SVT_SparseArray <- function(x, dim=NULL, dimnames=NULL, type=NA)
 {
     if (!identical(type, NA))
         type <- S4Arrays:::normarg_array_type(type, "the requested type")
 
-    if (missing(x))
-        return(.new_empty_SVT_SparseArray(type))
+    if (is.null(dim)) {
+        if (missing(x))
+            return(.new_empty_SVT_SparseArray(type))
+        return(.SVT_SparseArray(x, dimnames=dimnames, type=type))
+    }
 
-    .SVT_SparseArray(x, type=type)
+    dim <- S4Arrays:::normarg_dim(dim)
+    ans <- new_SVT_SparseArray(dim, dimnames=dimnames, check=FALSE)
+    if (!missing(x)) {
+        nzidx <- nzwhich(x)
+        ans[nzidx] <- as.vector(x[nzidx])
+    }
+    if (!identical(type, NA))
+        type(ans) <- type
+    ans
 }
 
 
