@@ -174,8 +174,13 @@ nzwhich_CsparseMatrix <- function(x, arr.ind=FALSE)
         stop(wmsg("'arr.ind' must be TRUE or FALSE"))
     x_nrow <- nrow(x)
     x_ncol <- ncol(x)
-    offsets <- rep.int(x_nrow * seq_len(x_ncol) - (x_nrow - 1L), diff(x@p))
-    ans <- x@i + offsets
+    ## If 'x' is a "long object" (i.e. length(x) >= 2^31) then we'll get
+    ## an integer overflow in 'x_nrow * (seq_len(x_ncol) - 1L)' below.
+    ## Coercing 'x_nrow' to double avoids that.
+    if (is.double(length(x)))
+        x_nrow <- as.double(x_nrow)
+    offsets <- rep.int(x_nrow * (seq_len(x_ncol) - 1L), diff(x@p))
+    ans <- x@i + offsets + 1L
     if (!arr.ind)
         return(ans)
     Lindex2Mindex(ans, dim(x))
