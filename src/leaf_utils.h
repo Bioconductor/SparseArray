@@ -17,18 +17,18 @@
    length 2. R_NilValue is used to represent an empty leaf. Otherwise, a
    list of 2 parallel dense vectors is used:
      - nzvals: a vector (atomic or list) of nonzero values (zeros are
-               not allowed).
-     - nzoffs: an integer vector of offsets (i.e. 0-based positions);
+               not allowed);
+     - nzoffs: an integer vector of offsets (i.e. 0-based positions).
    The common length of 'nzvals' and 'nzoffs' is called the "nonzero count"
    (a.k.a. nzcount) and it should always be >= 1. Note that we do not
    support "long leaves" so 'nzcount' will always be <= INT_MAX.
 
+   It's useful to realize that a leaf simply represents a 1D SVT.
+
    In SparseArray 1.5.4 a new type of leaf was introduced called "lacunar
    leaf". A lacunar leaf is a non-empty leaf where the nzvals component is
    set to R_NilValue. In this case the nonzero values are implicit: they're
-   all considered to be equal to one.
-
-   It's useful to realize that a leaf simply represents a 1D SVT. */
+   all considered to be equal to one. */
 
 /* Support for "lacunar leaves" was completed in SparseArray 1.5.4. */
 #define LACUNAR_MODE_IS_ON 1  /* turned on in SparseArray 1.5.4 */

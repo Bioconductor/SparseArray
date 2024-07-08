@@ -144,24 +144,32 @@ SVT_SparseArray(x, dim=NULL, dimnames=NULL, type=NA)
   Leaves that are leaf vectors can only be found at the deepest level in the
   tree (i.e. at depth N - 1). All leaves found at a lower depth must be NULLs.
 
-  A leaf vector represents a sparse vector of length equal to the first
-  dimension of the sparse array. This is done using a set of offset/value
-  pairs sorted by strictly ascending offset.
+  A leaf vector represents a sparse vector along the first dimension (a.k.a.
+  innermost or fastest moving dimension) of the sparse array. It contains a
+  collection of offset/value pairs sorted by strictly ascending offset.
   More precisely, a leaf vector is represented by an ordinary list of 2
-  parallel vectors:
+  parallel dense vectors:
   \enumerate{
-    \item an integer vector of offsets (i.e. 0-based positions);
-    \item a vector (atomic or list) of nonzero values.
+    \item nzvals: a vector (atomic or list) of nonzero values (zeros are
+                  not allowed);
+    \item nzoffs: an integer vector of offsets (i.e. 0-based positions).
   }
-  The 2nd vector determines the type of the leaf vector i.e. \code{"double"},
+  The 1st vector determines the type of the leaf vector i.e. \code{"double"},
   \code{"integer"}, \code{"logical"}, etc...
-  All the leaf vectors in the SVT have the type of the sparse array.
+  All the leaf vectors in the SVT must have the same type as the sparse array.
+
+  It's useful to realize that a leaf vector simply represents a 1D SVT.
+
+  In \pkg{SparseArray} 1.5.4 a new type of leaf vector was introduced called
+  \emph{lacunar leaf}. A lacunar leaf is a non-empty leaf vector where the
+  nzvals component is set to \code{NULL}. In this case the nonzero values are
+  implicit: they're all considered to be equal to one.
 
   Examples:
   \itemize{
     \item An SVT_SparseArray object with 1 dimension has its nonzero data
           stored in an SVT of depth 0. Such SVT is represented by a
-          single "leaf vector".
+          single \emph{leaf vector}.
 
     \item An SVT_SparseArray object with 2 dimensions has its nonzero data
           stored in an SVT of depth 1. Such SVT is represented by a list of
@@ -187,6 +195,8 @@ vector  vector          vector  vector  vector  vector}
           an SVT of depth 1 (as described above) that stores the nonzero data
           of the corresponding 2D slice, or a NULL if the 2D slice is empty
           (i.e. has no nonzero data).
+
+    \item And so on...
   }
 }
 
