@@ -21,15 +21,6 @@
     check_SparseArray_object(object, expected_class, a)
 }
 
-.test_SparseMatrix_transposition <- function(m0, to)
-{
-    svt <- as(m0, to)
-    tm0 <- t(m0)
-    tsvt <- t(svt)
-    check_SparseArray_object(tsvt, to, tm0)
-    expect_identical(tsvt, as(tm0, to))
-}
-
 test_that("array <==> SVT_SparseArray coercions", {
     ## Only zeros.
     a0 <- array(0.0, c(7, 10, 3),
@@ -300,33 +291,67 @@ test_that("COO_SparseArray <==> SVT_SparseArray coercions", {
     expect_identical(as(svt, "COO_SparseArray"), coo)
 })
 
-test_that("SVT_SparseMatrix transposition", {
-    ## Only zeros.
-    m0 <- matrix(0.0, nrow=7, ncol=10, dimnames=list(NULL, letters[1:10]))
-    .test_SparseMatrix_transposition(m0, "SVT_SparseMatrix")
+test_that("SVT_SparseArray() constructor function", {
+    a0 <- array(0L, c(7, 10, 3),
+                dimnames=list(NULL, letters[1:10], LETTERS[1:3]))
 
-    ## Add some nonzero elements.
-    set.seed(789)
-    m0[5*(1:14)] <- runif(7, min=-5, max=10)
-    m0[2, c(1:4, 7:9)] <- c(NA, NaN, Inf, 3e9, 256, -0.999, -1)
-    .test_SparseMatrix_transposition(m0, "SVT_SparseMatrix")
+    ## 3D
+    svt <- SVT_SparseArray(a0)
+    check_SparseArray_object(svt, "SVT_SparseArray", a0)
+    svt <- SVT_SparseArray(dim=dim(a0), type=type(a0))
+    check_SparseArray_object(svt, "SVT_SparseArray", unname(a0))
+    svt <- SVT_SparseArray(dim=dim(a0), dimnames=dimnames(a0), type=type(a0))
+    check_SparseArray_object(svt, "SVT_SparseArray", a0)
+    svt <- SVT_SparseArray(a0, dim=dim(a0))
+    check_SparseArray_object(svt, "SVT_SparseArray", unname(a0))
+    a <- S4Arrays:::set_dimnames(a0, list(LETTERS[1:7], NULL, letters[24:26]))
+    svt <- SVT_SparseArray(a0, dimnames=dimnames(a))
+    check_SparseArray_object(svt, "SVT_SparseArray", a)
 
-    ## Length zero.
-    m <- m0[0 , ]
-    .test_SparseMatrix_transposition(m, "SVT_SparseMatrix")
-    m <- m0[ , 0]  # this sets the dimnames to list(NULL, NULL)
-    dimnames(m) <- NULL  # fix the dimnames
-    .test_SparseMatrix_transposition(m, "SVT_SparseMatrix")
+    a <- `type<-`(a0, "logical")
+    svt <- SVT_SparseArray(a0, type="logical")
+    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    svt <- SVT_SparseArray(dim=dim(a0), type="logical")
+    check_SparseArray_object(svt, "SVT_SparseArray", unname(a))
+    svt <- SVT_SparseArray(dim=dim(a0), dimnames=dimnames(a), type="logical")
+    check_SparseArray_object(svt, "SVT_SparseArray", a)
 
-    ## Other types.
-    m <- m0
-    suppressWarnings(storage.mode(m) <- "integer")
-    .test_SparseMatrix_transposition(m, "SVT_SparseMatrix")
-    m <- m0
-    suppressWarnings(storage.mode(m) <- "logical")
-    .test_SparseMatrix_transposition(m, "SVT_SparseMatrix")
-    m <- m0
-    suppressWarnings(storage.mode(m) <- "raw")
-    .test_SparseMatrix_transposition(m, "SVT_SparseMatrix")
+    a <- `type<-`(a0, "raw")
+    svt <- SVT_SparseArray(a0, type="raw")
+    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    svt <- SVT_SparseArray(dim=dim(a0), type="raw")
+    check_SparseArray_object(svt, "SVT_SparseArray", unname(a))
+    svt <- SVT_SparseArray(dim=dim(a0), dimnames=dimnames(a), type="raw")
+    check_SparseArray_object(svt, "SVT_SparseArray", a)
+
+    ## 2D
+    a <- S4Arrays:::set_dim(a0, 14:15)
+    svt <- SVT_SparseArray(a0, dim=dim(a))
+    check_SparseArray_object(svt, "SVT_SparseMatrix", a)
+    svt <- SVT_SparseArray(dim=dim(a), type=type(a))
+    check_SparseArray_object(svt, "SVT_SparseMatrix", a)
+    a <- S4Arrays:::set_dimnames(a, list(letters[1:14], NULL))
+    svt <- SVT_SparseArray(a0, dim=dim(a), dimnames=dimnames(a))
+    check_SparseArray_object(svt, "SVT_SparseMatrix", a)
+
+    a <- `type<-`(a, "double")
+    svt <- SVT_SparseArray(dim=dim(a), type="double")
+    check_SparseArray_object(svt, "SVT_SparseMatrix", unname(a))
+    svt <- SVT_SparseArray(dim=dim(a), dimnames=dimnames(a), type="double")
+    check_SparseArray_object(svt, "SVT_SparseMatrix", a)
+
+    ## 1D
+    a <- S4Arrays:::set_dim(a0, prod(dim(a0)))
+    svt <- SVT_SparseArray(a0, dim=dim(a))
+    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    a <- S4Arrays:::set_dimnames(a, list(sprintf("%02d", 1:210)))
+    svt <- SVT_SparseArray(a0, dim=dim(a), dimnames=dimnames(a))
+    check_SparseArray_object(svt, "SVT_SparseArray", a)
+
+    a <- `type<-`(a, "complex")
+    svt <- SVT_SparseArray(dim=dim(a), type="complex")
+    check_SparseArray_object(svt, "SVT_SparseArray", unname(a))
+    svt <- SVT_SparseArray(dim=dim(a), dimnames=dimnames(a), type="complex")
+    check_SparseArray_object(svt, "SVT_SparseArray", a)
 })
 

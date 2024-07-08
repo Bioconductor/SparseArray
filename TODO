@@ -5,13 +5,21 @@
 
 - Implement readMatrixMarket(), similar to Matrix::readMM() but should
   return a COO_SparseMatrix object instead of a dgTMatrix object. Note that
-  the easy/lazy implementation could just be
+  the easy/lazy implementation could simply be
 
       as(Matrix::readMM(.), COO_SparseMatrix)
 
   However it wouldn't be really justified to introduce a new function just
   for that. So hopefully a native implementation will improve efficiency
   enough to be worth it and justify a dedicated function.
+  See https://math.nist.gov/MatrixMarket/formats.html
+
+- To write a SparseMatrix object to a Matrix Market file, do we need a
+  dedicated writeMatrixMarket() function or should we just define a
+  Matrix::writeMM() method for SparseMatrix objects? That method could
+  simply do
+
+      Matrix::writeMM(as(x, "CsparseMatrix"))
 
 - Support names() getter and setter on a 1D SparseArray array as a shortcut
   for 'dimnames()[[1L]]' and 'dimnames()[[1L]] <- value' respectively.
@@ -138,36 +146,36 @@
   They are multidimensional versions of 'rep(, times=t)' and 'rep(, each=e)'
   that perform the replications along each dimension of the array.
 
-  For example, with x = matrix(1:6, ncol=2):
+  For example, with x = matrix(letters[1:6], ncol=2):
 
       > x
            [,1] [,2]
-      [1,]    1    4
-      [2,]    2    5
-      [3,]    3    6
+      [1,] "a"  "d" 
+      [2,] "b"  "e" 
+      [3,] "c"  "f" 
 
    1. arep_times(x, times=c(2, 4)) returns:
 
       > do.call(cbind, rep(list(do.call(rbind, rep(list(x), 2))), 4))
            [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8]
-      [1,]    1    4    1    4    1    4    1    4
-      [2,]    2    5    2    5    2    5    2    5
-      [3,]    3    6    3    6    3    6    3    6
-      [4,]    1    4    1    4    1    4    1    4
-      [5,]    2    5    2    5    2    5    2    5
-      [6,]    3    6    3    6    3    6    3    6
+      [1,] "a"  "d"  "a"  "d"  "a"  "d"  "a"  "d" 
+      [2,] "b"  "e"  "b"  "e"  "b"  "e"  "b"  "e" 
+      [3,] "c"  "f"  "c"  "f"  "c"  "f"  "c"  "f" 
+      [4,] "a"  "d"  "a"  "d"  "a"  "d"  "a"  "d" 
+      [5,] "b"  "e"  "b"  "e"  "b"  "e"  "b"  "e" 
+      [6,] "c"  "f"  "c"  "f"  "c"  "f"  "c"  "f" 
 
    2. arep_each(x, each=c(2, 4)) returns:
 
      > matrix(rep(t(matrix(rep(x, each=2), ncol=ncol(x))), each=4),
               byrow=TRUE, ncol=ncol(x)*4)
            [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8]
-      [1,]    1    1    1    1    4    4    4    4
-      [2,]    1    1    1    1    4    4    4    4
-      [3,]    2    2    2    2    5    5    5    5
-      [4,]    2    2    2    2    5    5    5    5
-      [5,]    3    3    3    3    6    6    6    6
-      [6,]    3    3    3    3    6    6    6    6
+      [1,] "a"  "a"  "a"  "a"  "d"  "d"  "d"  "d" 
+      [2,] "a"  "a"  "a"  "a"  "d"  "d"  "d"  "d" 
+      [3,] "b"  "b"  "b"  "b"  "e"  "e"  "e"  "e" 
+      [4,] "b"  "b"  "b"  "b"  "e"  "e"  "e"  "e" 
+      [5,] "c"  "c"  "c"  "c"  "f"  "f"  "f"  "f" 
+      [6,] "c"  "c"  "c"  "c"  "f"  "f"  "f"  "f" 
 
   Note that the arep_times() and arep_each() generics really belong to
   the S4Arrays package (with the methods for ordinary arrays defined there
@@ -243,12 +251,6 @@
 
 - Implement more summarization methods for SVT_SparseArray objects.
   See R/SparseArray-summarization.R
-
-- Implement readMatrixMarket() to read a Matrix Market file as a SparseMatrix
-  object, and writeMatrixMarket() to write a SparseMatrix object to a Matrix
-  Market file. These will be the analogs of readMM() and writeMM() from the
-  Matrix package.
-  See https://math.nist.gov/MatrixMarket/formats.html
 
 - Add unit tests for the SVT_SparseArray stuff.
 

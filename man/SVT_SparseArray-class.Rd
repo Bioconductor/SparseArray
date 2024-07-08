@@ -69,11 +69,12 @@ SVT_SparseArray(x, dim=NULL, dimnames=NULL, type=NA)
     ordinary matrix or array, or a dgCMatrix/lgCMatrix object, or any
     matrix-like or array-like object that supports coercion to SVT_SparseArray.
 
-    If \code{dim} is provided then \code{x} must be a vector (atomic or
-    list) that will be used to fill the returned object. Additionally it
-    can be an array-like object in which case it will be treated as if it
-    had been passed thru \code{as.vector()}, that is, its dimensions will
-    be ignored.
+    If \code{dim} is provided then \code{x} can either be missing, a
+    vector (atomic or list), or an array-like object. If missing, then an
+    allzero SVT_SparseArray object will be constructed. Otherwise \code{x}
+    will be used to fill the returned object (\code{length(x)} must be
+    \code{<= prod(dim)}). Note that if \code{x} is an array-like object
+    then its dimensions are ignored i.e. it's treated as a vector.
   }
   \item{dim}{
     \code{NULL} or the dimensions (supplied as an integer vector) of
@@ -202,6 +203,9 @@ vector  vector          vector  vector  vector  vector}
           \pkg{Matrix} package for the parent class of all classes
           that use the "CSC layout".
 
+    \item The \code{Matrix::\link[Matrix]{rsparsematrix}} function in
+          the \pkg{Matrix} package.
+
     \item Ordinary \link[base]{array} objects in base R.
   }
 }
@@ -210,11 +214,15 @@ vector  vector          vector  vector  vector  vector}
 ## ---------------------------------------------------------------------
 ## BASIC CONSTRUCTION
 ## ---------------------------------------------------------------------
-SVT_SparseArray(dim=5:3)
+SVT_SparseArray(dim=5:3)  # allzero object
 
-SVT_SparseArray(dim=c(35000, 2e6), type="raw")
+SVT_SparseArray(dim=c(35000, 2e6), type="raw")  # allzero object
 
-svt1 <- SVT_SparseArray(dim=c(12, 5, 2))
+## Use a dgCMatrix object to fill the SVT_SparseArray object to construct:
+x <- rsparsematrix(10, 16, density=0.1)  # random dgCMatrix object
+SVT_SparseArray(x, dim=c(8, 5, 4))
+
+svt1 <- SVT_SparseArray(dim=c(12, 5, 2))  # allzero object
 svt1[cbind(11, 2:5, 2)] <- 22:25
 svt1
 
