@@ -191,8 +191,10 @@ nzwhich_RsparseMatrix <- function(x, arr.ind=FALSE)
         stop(wmsg("'arr.ind' must be TRUE or FALSE"))
     x_nrow <- nrow(x)
     x_ncol <- ncol(x)
-    offsets <- rep.int(x_ncol * seq_len(x_nrow) - (x_ncol - 1L), diff(x@p))
-    transposed_nzwhich <- x@j + offsets
+    if (is.double(length(x)))
+        x_ncol <- as.double(x_ncol)  # see nzwhich_CsparseMatrix() above
+    offsets <- rep.int(x_ncol * (seq_len(x_nrow) - 1L), diff(x@p))
+    transposed_nzwhich <- x@j + offsets + 1L
     transposed_arr_ind <- Lindex2Mindex(transposed_nzwhich, rev(dim(x)))
     transposed_arr_ind1 <- transposed_arr_ind[ , 1L]
     transposed_arr_ind2 <- transposed_arr_ind[ , 2L]
