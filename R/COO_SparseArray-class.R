@@ -185,12 +185,9 @@ setReplaceMethod("type", "COO_SparseArray", .set_COO_SparseArray_type)
                                    check=FALSE)
 }
 
-.compute_nzcoo_order <- function(nzcoo)
-    do.call(order, lapply(ncol(nzcoo):1L, function(along) nzcoo[ , along]))
-
 .order_nzcoo_slot <- function(x)
 {
-    oo <- .compute_nzcoo_order(x@nzcoo)
+    oo <- S4Arrays:::Mindex_order(x@nzcoo)
     if (!is.unsorted(oo))
         return(x)
     new_nzcoo <- x@nzcoo[oo, , drop=FALSE]
