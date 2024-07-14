@@ -3,8 +3,9 @@
 \alias{rowsum-methods}
 \alias{rowsum_methods}
 
-\alias{rowsum.SVT_SparseMatrix}
-\alias{rowsum,SVT_SparseMatrix-method}
+\alias{rowsum}
+\alias{rowsum.SparseMatrix}
+\alias{rowsum,SparseMatrix-method}
 \alias{rowsum.dgCMatrix}
 \alias{rowsum,dgCMatrix-method}
 
@@ -20,14 +21,14 @@
 }
 
 \usage{
-\S4method{rowsum}{SVT_SparseMatrix}(x, group, reorder=TRUE, ...)
+\S4method{rowsum}{SparseMatrix}(x, group, reorder=TRUE, ...)
 
 \S4method{rowsum}{dgCMatrix}(x, group, reorder=TRUE, ...)
 }
 
 \arguments{
   \item{x}{
-    An \link{SVT_SparseMatrix} or \linkS4class{dgCMatrix} object.
+    An \link{SparseMatrix} or \linkS4class{dgCMatrix} object.
   }
   \item{group, reorder}{
     See \code{?base::\link[base]{rowsum}} for a description of
@@ -56,7 +57,7 @@
           package for the \code{rowsum()} and \code{colsum()} S4 generic
           functions.
 
-    \item \link{SVT_SparseMatrix} objects.
+    \item \link{SparseMatrix} objects.
 
     \item \linkS4class{dgCMatrix} objects implemented in the \pkg{Matrix}
           package.

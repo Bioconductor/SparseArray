@@ -1,18 +1,22 @@
 ### =========================================================================
-### rowsum() methods for SparseArray and dgCMatrix objects
+### rowsum() methods for SparseMatrix and dgCMatrix objects
 ### -------------------------------------------------------------------------
 ###
 
 
 .rowsum_method <- function(x, group, reorder=TRUE, na.rm=FALSE)
 {
-    stopifnot(is(x, "SVT_SparseMatrix") || is(x, "dgCMatrix"))
+    stopifnot(is(x, "SparseMatrix") || is(x, "dgCMatrix"))
     ugroup <- S4Arrays:::compute_ugroup(group, nrow(x), reorder)
     if (!isTRUEorFALSE(na.rm))
         stop(wmsg("'na.rm' must be TRUE or FALSE"))
     group <- match(group, ugroup)
-    if (is(x, "SVT_SparseMatrix")) {
-        check_svt_version(x)
+    if (is(x, "SparseMatrix")) {
+        if (is(x, "SVT_SparseMatrix")) {
+            check_svt_version(x)
+        } else {
+            x <- as(x, "SVT_SparseMatrix")
+        }
         ans <- SparseArray.Call("C_rowsum_SVT", x@dim, x@type, x@SVT,
                                 group, length(ugroup), na.rm)
     } else {
@@ -23,17 +27,17 @@
     ans
 }
 
-### S3/S4 combo for rowsum.SVT_SparseMatrix
-rowsum.SVT_SparseMatrix <-
+### S3/S4 combo for rowsum.SparseMatrix
+rowsum.SparseMatrix <-
     function(x, group, reorder=TRUE, na.rm=FALSE, ...)
         .rowsum_method(x, group, reorder=reorder, na.rm=na.rm, ...)
-setMethod("rowsum", "SVT_SparseMatrix",
+setMethod("rowsum", "SparseMatrix",
     function(x, group, reorder=TRUE, ...)
         .rowsum_method(x, group, reorder=reorder, ...)
 )
 
 ### S3/S4 combo for rowsum.dgCMatrix
-rowsum.dgCMatrix <- rowsum.SVT_SparseMatrix
+rowsum.dgCMatrix <- rowsum.SparseMatrix
 setMethod("rowsum", "dgCMatrix",
     function(x, group, reorder=TRUE, ...)
         .rowsum_method(x, group, reorder=reorder, ...)

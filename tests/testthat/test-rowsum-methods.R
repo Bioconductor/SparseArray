@@ -17,6 +17,7 @@
     stopifnot(is.matrix(m))
     svt <- as(m, "SVT_SparseMatrix")
     dgcm <- as(m, "dgCMatrix")
+    coo <- as(svt, "COO_SparseMatrix")
 
     check_rs1_rs2 <- function(expected, rs1, rs2) {
         expected <- .fix_rownames(expected)
@@ -35,21 +36,25 @@
     rs1 <- rowsum(svt, group)
     rs2 <- rowsum(dgcm, group)
     check_rs1_rs2(expected, rs1, rs2)
+    expect_identical(rowsum(coo, group), rs1)
 
     expected <- rowsum(m, group, na.rm=TRUE)
     rs1 <- rowsum(svt, group, na.rm=TRUE)
     rs2 <- rowsum(dgcm, group, na.rm=TRUE)
     check_rs1_rs2(expected, rs1, rs2)
+    expect_identical(rowsum(coo, group, na.rm=TRUE), rs1)
 
     expected <- rowsum(m, group, reorder=FALSE)
     rs1 <- rowsum(svt, group, reorder=FALSE)
     rs2 <- rowsum(dgcm, group, reorder=FALSE)
     check_rs1_rs2(expected, rs1, rs2)
+    expect_identical(rowsum(coo, group, reorder=FALSE), rs1)
 
     expected <- rowsum(m, group, reorder=FALSE, na.rm=TRUE)
     rs1 <- rowsum(svt, group, reorder=FALSE, na.rm=TRUE)
     rs2 <- rowsum(dgcm, group, reorder=FALSE, na.rm=TRUE)
     check_rs1_rs2(expected, rs1, rs2)
+    expect_identical(rowsum(coo, group, reorder=FALSE, na.rm=TRUE), rs1)
 }
 
 test_that("rowsum() methods for SVT_SparseMatrix and dgCMatrix objects", {
