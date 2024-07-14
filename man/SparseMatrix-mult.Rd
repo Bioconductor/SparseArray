@@ -4,27 +4,27 @@
 \alias{SparseMatrix_mult}
 
 \alias{crossprod}
-\alias{crossprod,SVT_SparseMatrix,matrix-method}
-\alias{crossprod,matrix,SVT_SparseMatrix-method}
-\alias{crossprod,SVT_SparseMatrix,SVT_SparseMatrix-method}
-\alias{crossprod,SVT_SparseMatrix,ANY-method}
-\alias{crossprod,ANY,SVT_SparseMatrix-method}
-\alias{crossprod,SVT_SparseMatrix,missing-method}
+\alias{crossprod,SparseMatrix,matrix-method}
+\alias{crossprod,matrix,SparseMatrix-method}
+\alias{crossprod,SparseMatrix,SparseMatrix-method}
+\alias{crossprod,SparseMatrix,ANY-method}
+\alias{crossprod,ANY,SparseMatrix-method}
+\alias{crossprod,SparseMatrix,missing-method}
 
 \alias{tcrossprod}
-\alias{tcrossprod,SVT_SparseMatrix,matrix-method}
-\alias{tcrossprod,matrix,SVT_SparseMatrix-method}
-\alias{tcrossprod,SVT_SparseMatrix,SVT_SparseMatrix-method}
-\alias{tcrossprod,SVT_SparseMatrix,ANY-method}
-\alias{tcrossprod,ANY,SVT_SparseMatrix-method}
-\alias{tcrossprod,SVT_SparseMatrix,missing-method}
+\alias{tcrossprod,SparseMatrix,matrix-method}
+\alias{tcrossprod,matrix,SparseMatrix-method}
+\alias{tcrossprod,SparseMatrix,SparseMatrix-method}
+\alias{tcrossprod,SparseMatrix,ANY-method}
+\alias{tcrossprod,ANY,SparseMatrix-method}
+\alias{tcrossprod,SparseMatrix,missing-method}
 
 \alias{\%*\%}
-\alias{\%*\%,SVT_SparseMatrix,matrix-method}
-\alias{\%*\%,matrix,SVT_SparseMatrix-method}
-\alias{\%*\%,SVT_SparseMatrix,SVT_SparseMatrix-method}
-\alias{\%*\%,SVT_SparseMatrix,ANY-method}
-\alias{\%*\%,ANY,SVT_SparseMatrix-method}
+\alias{\%*\%,SparseMatrix,matrix-method}
+\alias{\%*\%,matrix,SparseMatrix-method}
+\alias{\%*\%,SparseMatrix,SparseMatrix-method}
+\alias{\%*\%,SparseMatrix,ANY-method}
+\alias{\%*\%,ANY,SparseMatrix-method}
 
 \title{SparseMatrix multiplication and cross-product}
 
@@ -41,8 +41,8 @@
 }
 
 \note{
-  Matrix multiplication and cross-product of \link{SVT_SparseMatrix}
-  objects are multithreaded.
+  Matrix multiplication and cross-product of \link{SparseMatrix}
+  derivatives are multithreaded.
   See \code{\link{set_SparseArray_nthread}} for how to control the number
   of threads.
 }

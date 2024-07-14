@@ -79,10 +79,11 @@
                                   useNames=NA)
 {
     stopifnot(isSingleString(op), is(x, "SparseArray"))
-    if (is(x, "SVT_SparseArray"))
+    if (is(x, "SVT_SparseArray")) {
         check_svt_version(x)
-    else
+    } else {
         x <- as(x, "SVT_SparseArray")
+    }
 
     ## Check 'na.rm'.
     if (!isTRUEorFALSE(na.rm))
