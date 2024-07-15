@@ -106,6 +106,7 @@ exportMethods(
     colAnys, rowAnys, colAlls, rowAlls,
     colMins, rowMins, colMaxs, rowMaxs, colRanges, rowRanges,
     colSums, rowSums, colProds, rowProds, colMeans, rowMeans,
+    colSums2, rowSums2, colMeans2, rowMeans2,
     colVars, rowVars, colSds, rowSds,
     colMedians, rowMedians,
 

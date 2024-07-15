@@ -48,6 +48,16 @@
 \alias{rowMeans}
 \alias{rowMeans,SparseArray-method}
 
+\alias{colSums2}
+\alias{colSums2,SparseArray-method}
+\alias{rowSums2}
+\alias{rowSums2,SparseArray-method}
+
+\alias{colMeans2}
+\alias{colMeans2,SparseArray-method}
+\alias{rowMeans2}
+\alias{rowMeans2,SparseArray-method}
+
 \alias{colVars}
 \alias{colVars,SparseArray-method}
 \alias{rowVars}
@@ -98,6 +108,10 @@
 \S4method{colProds}{SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 
 \S4method{colMeans}{SparseArray}(x, na.rm=FALSE, dims=1)
+
+\S4method{colSums2}{SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+
+\S4method{colMeans2}{SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 
 \S4method{colVars}{SparseArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL, dims=1,
            ..., useNames=NA)

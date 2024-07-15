@@ -1,8 +1,8 @@
 
-.test_matrixStats_method1 <- function(a, svt, method)
+.test_matrixStats_method1 <- function(a, svt, generic)
 {
     coo <- as(svt, "COO_SparseArray")
-    FUN <- match.fun(method)
+    FUN <- match.fun(generic)
     expected <- FUN(a, useNames=FALSE)
     current <- FUN(svt, useNames=FALSE)
     expect_identical(current, expected)
@@ -13,13 +13,13 @@
     expect_identical(FUN(coo, useNames=TRUE), current)
 }
 
-.test_matrixStats_method2 <- function(a, svt, method, dims)
+.test_matrixStats_method2 <- function(a, svt, generic, dims)
 {
     coo <- as(svt, "COO_SparseArray")
-    FUN <- match.fun(method)
-    op <- sub("^(col|row)", "", method)
+    FUN <- match.fun(generic)
+    op <- sub("^(col|row)", "", generic)
     if (op %in% c("Vars", "Sds") ||
-        is.double(a) && op %in% c("Sums", "Prods", "Means"))
+        is.double(a) && op %in% c("Sums", "Prods", "Means", "Sums2", "Means2"))
     {
         EXPECT_FUN <- expect_equal
     } else {
@@ -162,6 +162,10 @@ test_that("other matrixStats methods for 2D SparseArray objects", {
     .test_matrixStats_method2(m1, svt1, "rowProds")
     .test_matrixStats_method2(m1, svt1, "colMeans")
     .test_matrixStats_method2(m1, svt1, "rowMeans")
+    .test_matrixStats_method2(m1, svt1, "colSums2")
+    .test_matrixStats_method2(m1, svt1, "rowSums2")
+    .test_matrixStats_method2(m1, svt1, "colMeans2")
+    .test_matrixStats_method2(m1, svt1, "rowMeans2")
     .test_matrixStats_method2(m1, svt1, "colVars")
     .test_matrixStats_method2(m1, svt1, "rowVars")
     .test_matrixStats_method2(m1, svt1, "colSds")
@@ -207,6 +211,10 @@ test_that("other matrixStats methods for 2D SparseArray objects", {
     .test_matrixStats_method2(m2, svt2, "rowProds")
     .test_matrixStats_method2(m2, svt2, "colMeans")
     .test_matrixStats_method2(m2, svt2, "rowMeans")
+    .test_matrixStats_method2(m2, svt2, "colSums2")
+    .test_matrixStats_method2(m2, svt2, "rowSums2")
+    .test_matrixStats_method2(m2, svt2, "colMeans2")
+    .test_matrixStats_method2(m2, svt2, "rowMeans2")
     .test_matrixStats_method2(m2, svt2, "colVars")
     .test_matrixStats_method2(m2, svt2, "rowVars")
     .test_matrixStats_method2(m2, svt2, "colSds")

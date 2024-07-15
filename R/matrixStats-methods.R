@@ -440,6 +440,47 @@ setMethod("rowMeans", "SparseArray", .rowMeans_SparseArray)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### colSums2/rowSums2 and colMeans2/rowMeans2
+###
+
+.colSums2_SparseArray <-
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+{
+    .check_unused_arguments(...)
+    .check_rows_cols(rows, cols, "colSums2")
+    .colStats_SparseArray("sum", x, na.rm=na.rm, dims=dims, useNames=useNames)
+}
+setMethod("colSums2", "SparseArray", .colSums2_SparseArray)
+
+.rowSums2_SparseArray <-
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+{
+    .check_unused_arguments(...)
+    .check_rows_cols(rows, cols, "rowSums2")
+    .rowStats_SparseArray("sum", x, na.rm=na.rm, dims=dims, useNames=useNames)
+}
+setMethod("rowSums2", "SparseArray", .rowSums2_SparseArray)
+
+.colMeans2_SparseArray <-
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+{
+    .check_unused_arguments(...)
+    .check_rows_cols(rows, cols, "colMeans2")
+    .colStats_SparseArray("mean", x, na.rm=na.rm, dims=dims, useNames=useNames)
+}
+setMethod("colMeans2", "SparseArray", .colMeans2_SparseArray)
+
+.rowMeans2_SparseArray <-
+    function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+{
+    .check_unused_arguments(...)
+    .check_rows_cols(rows, cols, "rowMeans2")
+    .rowStats_SparseArray("mean", x, na.rm=na.rm, dims=dims, useNames=useNames)
+}
+setMethod("rowMeans2", "SparseArray", .rowMeans2_SparseArray)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### colVars/rowVars and colSds/rowSds
 ###
 
