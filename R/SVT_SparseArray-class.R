@@ -287,6 +287,17 @@ setAs("SVT_SparseMatrix", "ngCMatrix", .from_SVT_SparseMatrix_to_ngCMatrix)
                                                           type=NA)
 {
     stopifnot(is(x, "CsparseMatrix"))
+
+    ## Turn any [d|l|n]gCMatrix derivative (e.g. TestColMatrix object 'y'
+    ## defined in alabaster.matrix/tests/testthat/test-SparseMatrix.R) into
+    ## a [d|l|n]gCMatrix **instance**. We should not need to do this. Only
+    ## reason we do it is because we don't know how to test for inheritance
+    ## at the C level (Rf_inherits() doesn't seem to work properly on S4
+    ## objects). More precisely, without this coercion, C function
+    ## get_gCMatrix_subtype() defined in src/SVT_SparseArray_class.c won't
+    ## be able to recognize a [d|l|n]gCMatrix derivative so will reject it.
+    x <- as(x, "CsparseMatrix")
+
     if (is.null(dimnames)) {
         ans_dimnames <- dimnames(x)
     } else {
