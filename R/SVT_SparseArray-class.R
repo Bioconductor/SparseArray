@@ -227,11 +227,18 @@ setAs("matrix", "SVT_SparseMatrix",
 ###
 
 ### NOT exported but used in the HDF5Array package!
-make_SVT_SparseMatrix_from_CSC <- function(dim, indptr, data, indices,
+### 'row_indices' must be an integer vector containing 0-based or 1-based
+### row indices. Note that the indices in 'row_indices' are not required
+### to be increasing within columns. However, 'row_indices' should NOT
+### contain duplicates within columns. This is NOT checked!
+make_SVT_SparseMatrix_from_CSC <- function(dim, indptr, data, row_indices,
+                                           indices.are.1based=FALSE,
                                            dimnames=NULL)
 {
+    stopifnot(is.integer(row_indices), isTRUEorFALSE(indices.are.1based))
     ans_SVT <- SparseArray.Call("C_build_SVT_from_CSC",
-                                dim, indptr, data, indices)
+                                dim, indptr, data, row_indices,
+                                indices.are.1based)
     new_SVT_SparseArray(dim, dimnames, type(data), ans_SVT, check=FALSE)
 }
 

@@ -58,7 +58,8 @@ SEXP C_build_SVT_from_CSC(
 	SEXP dim,
 	SEXP indptr,
 	SEXP data,
-	SEXP indices
+	SEXP indices,
+	SEXP indices_are_1based
 );
 
 SEXP C_build_SVT_from_CsparseMatrix(

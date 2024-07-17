@@ -173,6 +173,13 @@ SEXP _make_leaf_from_Rsubvec(
 	int avoid_copy_if_all_nonzeros
 );
 
+SEXP _order_leaf_by_nzoff(
+	SEXP leaf,
+	int *order_buf,
+	unsigned short int *rxbuf1,
+	int *rxbuf2
+);
+
 SEXP _INPLACE_remove_zeros_from_leaf(
 	SEXP leaf,
 	int *selection_buf

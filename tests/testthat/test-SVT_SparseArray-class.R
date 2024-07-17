@@ -59,6 +59,35 @@ test_that("array <==> SVT_SparseArray coercions", {
                                                         "SVT_SparseArray")
 })
 
+test_that("make_SVT_SparseMatrix_from_CSC()", {
+    make_SVT_SparseMatrix_from_CSC <-
+        SparseArray:::make_SVT_SparseMatrix_from_CSC
+
+    dim <- c(10L, 3L)
+    indptr <- c(0, 0, 0, 0)
+    data <- complex(0)
+    row_indices <- integer(0)
+    svt0 <- make_SVT_SparseMatrix_from_CSC(dim, indptr, data, row_indices)
+    expect_identical(svt0, SVT_SparseArray(dim=dim, type="complex"))
+
+    indptr <- c(0, 4, 4, 6)
+    data <- as.raw(c(11:14, 1, 1))
+    row_indices <- c(1L, 5L, 6L, 9L, 4L, 9L)
+    svt1 <- make_SVT_SparseMatrix_from_CSC(dim, indptr, data, row_indices)
+    expect_identical(svt1@SVT[[1]], list(as.raw(11:14), c(1L, 5L, 6L, 9L)))
+    expect_null(svt1@SVT[[2]])
+    expect_identical(svt1@SVT[[3]], make_lacunar_leaf("raw", c(4L, 9L)))
+
+    data <- as.raw(c(14, 11, 13, 12, 1, 1))
+    row_indices <- c(9L, 1L, 6L, 5L, 9L, 4L)
+    svt2 <- make_SVT_SparseMatrix_from_CSC(dim, indptr, data, row_indices)
+    expect_identical(svt1, svt2)
+
+    svt3 <- make_SVT_SparseMatrix_from_CSC(dim, indptr, data, row_indices,
+                                           indices.are.1based=TRUE)
+    expect_identical(svt3, rbind(svt1[-1, ], svt1[1, , drop=FALSE]))
+})
+
 test_that("dgCMatrix <==> SVT_SparseMatrix coercions", {
     ## Only zeros.
     m0 <- matrix(0.0, nrow=7, ncol=10, dimnames=list(NULL, letters[1:10]))

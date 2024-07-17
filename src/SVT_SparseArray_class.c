@@ -718,8 +718,9 @@ static SEXP build_leaf_from_CsparseMatrix_col(const int *sloti, SEXP slotx,
 /* 'slotp' must be an integer or double vector of length 'ncol' + 1.
    'slotx' can be R_NilValue. If not, 'slotx' and 'sloti' must be parallel. */
 SEXP build_SVT_from_CSC(int nrow, int ncol, SEXP slotp,
-		SEXP slotx, const int *sloti, int sloti_is_one_based,
-		SEXPTYPE ans_Rtype)
+		SEXP slotx, const int *sloti, int sloti_is_1based,
+		SEXPTYPE ans_Rtype,
+		int *order_buf, unsigned short int *rxbuf1, int *rxbuf2)
 {
 	if (!((IS_INTEGER(slotp) || IS_NUMERIC(slotp)) &&
 	      LENGTH(slotp) == ncol + 1 &&
@@ -752,7 +753,21 @@ SEXP build_SVT_from_CSC(int nrow, int ncol, SEXP slotp,
 					&warn, nzoffs_buf);
 		if (ans_elt != R_NilValue) {
 			PROTECT(ans_elt);
-			if (sloti_is_one_based) {
+			if (order_buf != NULL) {
+				ans_elt = PROTECT(
+					_order_leaf_by_nzoff(ans_elt,
+							     order_buf,
+							     rxbuf1, rxbuf2)
+				);
+			}
+			/* We trust that 'sloti' contains no duplicates
+			   within columns. If that's the case then the nzoffs
+			   in 'ans_elt' should now be in strictly ascending
+			   order. If we no longer want to trust 'sloti', here
+			   would be a good place to check that the nzoffs have
+			   no repeated values, and raise an error if they have.
+			*/
+			if (sloti_is_1based) {
 				SEXP nzoffs = get_leaf_nzoffs(ans_elt);
 				int *nzoffs_p = INTEGER(nzoffs);
 				int nzcount = LENGTH(nzoffs);
@@ -760,7 +775,7 @@ SEXP build_SVT_from_CSC(int nrow, int ncol, SEXP slotp,
 					nzoffs_p[k]--;
 			}
 			SET_VECTOR_ELT(ans, j, ans_elt);
-			UNPROTECT(1);
+			UNPROTECT(order_buf != NULL ? 2 : 1);
 			is_empty = 0;
 		}
 	}
@@ -773,7 +788,8 @@ SEXP build_SVT_from_CSC(int nrow, int ncol, SEXP slotp,
 /* --- .Call ENTRY POINT ---
    'indptr' can be of type "integer" or "double".
    'indices' is expected to contain 1-based row indices. */
-SEXP C_build_SVT_from_CSC(SEXP dim, SEXP indptr, SEXP data, SEXP indices)
+SEXP C_build_SVT_from_CSC(SEXP dim, SEXP indptr, SEXP data, SEXP indices,
+			  SEXP indices_are_1based)
 {
 	if (!(IS_INTEGER(dim) && LENGTH(dim) == 2))
 		error("SparseArray internal error in C_build_SVT_from_CSC():\n"
@@ -783,8 +799,19 @@ SEXP C_build_SVT_from_CSC(SEXP dim, SEXP indptr, SEXP data, SEXP indices)
 	if (!(IS_INTEGER(indices) && LENGTH(indices) == LENGTH(data)))
 		error("SparseArray internal error in C_build_SVT_from_CSC():\n"
 		      "    invalid 'indices'");
+	int one_based = LOGICAL(indices_are_1based)[0];
+	int *order_buf = NULL;
+	unsigned short int *rxbuf1 = NULL;
+	int *rxbuf2 = NULL;
+	if (nrow >= 2) {
+		order_buf = (int *) R_alloc(nrow, sizeof(int));
+		rxbuf1 = (unsigned short int *)
+			 R_alloc(nrow, sizeof(unsigned short int));
+		rxbuf2 = (int *) R_alloc(nrow, sizeof(int));
+	}
 	return build_SVT_from_CSC(nrow, ncol, indptr,
-				  data, INTEGER(indices), 1, TYPEOF(data));
+				  data, INTEGER(indices), one_based,
+				  TYPEOF(data), order_buf, rxbuf1, rxbuf2);
 }
 
 /* --- .Call ENTRY POINT --- */
@@ -801,7 +828,8 @@ SEXP C_build_SVT_from_CsparseMatrix(SEXP x, SEXP ans_type)
 	SEXP x_slotx = x_type == 'n' ? R_NilValue : GET_SLOT(x, install("x"));
 	SEXP x_sloti = GET_SLOT(x, install("i"));
 	return build_SVT_from_CSC(x_nrow, x_ncol, x_slotp,
-				  x_slotx, INTEGER(x_sloti), 0, ans_Rtype);
+				  x_slotx, INTEGER(x_sloti), 0,
+				  ans_Rtype, NULL, NULL, NULL);
 }
 
 

@@ -43,6 +43,12 @@
 - Add unit tests for nzwhich() and nzvals() methods for COO_SparseArray
   and SVT_SparseArray objects.
 
+- Fix rbind() between an SVT_SparseMatrix and an ordinary vector or matrix:
+    > rbind(SVT_SparseArray(dim=6:5), logical(5))
+    Error: C stack usage  7971988 is too close to the limit
+    > rbind(SVT_SparseArray(dim=6:5), matrix(ncol=5))
+    Error: C stack usage  7971988 is too close to the limit
+
 - Parallelize more operations (with OpenMP). Right now only %*%, crossprod(),
   tcrossprod(), and the matrixStats operations are parallelized.
 

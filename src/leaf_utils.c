@@ -175,6 +175,50 @@ SEXP _make_leaf_from_Rsubvec(
 
 
 /****************************************************************************
+ * _order_leaf_by_nzoff()
+ */
+
+/* Do NOT use on a NULL leaf. */
+SEXP _order_leaf_by_nzoff(SEXP leaf, int *order_buf,
+		unsigned short int *rxbuf1, int *rxbuf2)
+{
+	SEXP nzvals, nzoffs;
+	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
+	for (int k = 0; k < nzcount; k++)
+		order_buf[k] = k;
+	int ret = sort_ints(order_buf, nzcount, INTEGER(nzoffs), 0, 1,
+			    rxbuf1, rxbuf2);
+	/* Note that ckecking the value returned by sort_ints() is not really
+	   necessary here because sort_ints() should never fail when 'rxbuf1'
+	   and 'rxbuf2' are supplied (see implementation of _sort_ints() in
+	   S4Vectors/src/sort_utils.c for the details). We perform this check
+	   nonetheless just to be on the safe side in case the implementation
+	   of sort_ints() changes in the future. */
+	if (ret < 0)
+		error("SparseArray internal error in _order_leaf_by_nzoff():\n"
+		      "    sort_ints() returned an error");
+	if (ret == 0)
+		return leaf;  /* no-op */
+
+	SEXP ans_nzvals;
+	if (nzvals == R_NilValue) {
+		/* lacunar leaf */
+		ans_nzvals = R_NilValue;
+	} else {
+		/* regular leaf */
+		ans_nzvals = PROTECT(allocVector(TYPEOF(nzvals), nzcount));
+		_copy_selected_Rsubvec_elts(nzvals, 0, order_buf, ans_nzvals);
+	}
+	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(nzcount));
+	_copy_selected_int_elts(INTEGER(nzoffs),
+				order_buf, nzcount,
+				INTEGER(ans_nzoffs));
+	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs);
+	UNPROTECT(nzvals == R_NilValue ? 1 : 2);
+	return ans;
+}
+
+/****************************************************************************
  * _INPLACE_remove_zeros_from_leaf()
  * _INPLACE_turn_into_lacunar_leaf_if_all_ones()
  */
