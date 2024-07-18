@@ -114,7 +114,7 @@ exportMethods(
     bindROWS,
 
     ## Methods for generics defined in the S4Arrays package:
-    rowsum, aperm, abind, extract_array, is_sparse
+    rowsum, colsum, aperm, abind, extract_array, is_sparse
 )
 
 

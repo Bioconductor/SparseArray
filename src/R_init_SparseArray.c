@@ -118,6 +118,8 @@ static const R_CallMethodDef callMethods[] = {
 /* rowsum_methods.c */
 	CALLMETHOD_DEF(C_rowsum_SVT, 6),
 	CALLMETHOD_DEF(C_rowsum_dgCMatrix, 4),
+	CALLMETHOD_DEF(C_colsum_SVT, 6),
+	CALLMETHOD_DEF(C_colsum_dgCMatrix, 4),
 
 /* randomSparseArray.c */
 	CALLMETHOD_DEF(C_simple_rpois, 2),

@@ -8,27 +8,31 @@
 \alias{rowsum,SparseMatrix-method}
 \alias{rowsum.dgCMatrix}
 \alias{rowsum,dgCMatrix-method}
+\alias{colsum}
+\alias{colsum,SparseMatrix-method}
+\alias{colsum,dgCMatrix-method}
 
 \title{rowsum() methods for sparse matrices}
 
 \description{
   The \pkg{SparseArray} package provides memory-efficient
-  \code{\link[base]{rowsum}()} methods for \link{SparseMatrix}
-  and \linkS4class{dgCMatrix} objects.
-
-  Note that \code{\link[S4Arrays]{colsum}()} also works on these
-  objects via the default method defined in the \pkg{S4Arrays} package.
+  \code{\link[S4Arrays]{rowsum}()} and \code{\link[S4Arrays]{colsum}()}
+  methods for \link{SparseMatrix} and \linkS4class{dgCMatrix} objects.
 }
 
 \usage{
 \S4method{rowsum}{SparseMatrix}(x, group, reorder=TRUE, ...)
 
 \S4method{rowsum}{dgCMatrix}(x, group, reorder=TRUE, ...)
+
+\S4method{colsum}{SparseMatrix}(x, group, reorder=TRUE, ...)
+
+\S4method{colsum}{dgCMatrix}(x, group, reorder=TRUE, ...)
 }
 
 \arguments{
   \item{x}{
-    An \link{SparseMatrix} or \linkS4class{dgCMatrix} object.
+    A \link{SparseMatrix} or \linkS4class{dgCMatrix} object.
   }
   \item{group, reorder}{
     See \code{?base::\link[base]{rowsum}} for a description of

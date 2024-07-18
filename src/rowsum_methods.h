@@ -19,5 +19,21 @@ SEXP C_rowsum_dgCMatrix(
 	SEXP na_rm
 );
 
+SEXP C_colsum_SVT(
+	SEXP x_dim,
+	SEXP x_type,
+	SEXP x_SVT,
+	SEXP group,
+	SEXP ngroup,
+	SEXP na_rm
+);
+
+SEXP C_colsum_dgCMatrix(
+	SEXP x,
+	SEXP group,
+	SEXP ngroup,
+	SEXP na_rm
+);
+
 #endif  /* _ROWSUM_METHODS_H_ */
 

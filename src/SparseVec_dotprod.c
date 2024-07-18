@@ -30,10 +30,12 @@ double _dotprod_doubleSV_finite_doubles(const SparseVec *sv1, const double *x2)
 {
 	double ans = 0.0;
 	int nzcount1 = get_SV_nzcount(sv1);
-	if (sv1->nzvals == R_NilValue) {  /* lacunar SparseVec */
+	if (sv1->nzvals == R_NilValue) {
+		/* lacunar SparseVec */
 		for (int k1 = 0; k1 < nzcount1; k1++)
 			ans += x2[sv1->nzoffs[k1]];
-	} else {  /* regular SparseVec */
+	} else {
+		/* regular SparseVec */
 		const double *nzvals1_p = get_doubleSV_nzvals_p(sv1);
 		for (int k1 = 0; k1 < nzcount1; k1++)
 			ans += nzvals1_p[k1] * x2[sv1->nzoffs[k1]];
@@ -73,10 +75,12 @@ double _dotprod_intSV_noNA_ints(const SparseVec *sv1, const int *x2)
 {
 	double ans = 0.0;
 	int nzcount1 = get_SV_nzcount(sv1);
-	if (sv1->nzvals == R_NilValue) {  /* lacunar SparseVec */
+	if (sv1->nzvals == R_NilValue) {
+		/* lacunar SparseVec */
 		for (int k1 = 0; k1 < nzcount1; k1++)
 			ans += (double) x2[sv1->nzoffs[k1]];
-	} else {  /* regular SparseVec */
+	} else {
+		/* regular SparseVec */
 		const int *nzvals1_p = get_intSV_nzvals_p(sv1);
 		for (int k1 = 0; k1 < nzcount1; k1++) {
 			int v1 = nzvals1_p[k1];

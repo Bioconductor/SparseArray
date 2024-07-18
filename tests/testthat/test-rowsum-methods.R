@@ -12,9 +12,10 @@
     x
 }
 
-.test_rowsum_methods <- function(m, group)
+.test_rowsum_methods <- function(m, group, FUN=rowsum)
 {
     stopifnot(is.matrix(m))
+    FUN <- match.fun(FUN)
     svt <- as(m, "SVT_SparseMatrix")
     dgcm <- as(m, "dgCMatrix")
     coo <- as(svt, "COO_SparseMatrix")
@@ -32,50 +33,58 @@
         expect_equal(rs2, expected)  # 'rs2' always of type "double"
     }
 
-    expected <- rowsum(m, group)
-    rs1 <- rowsum(svt, group)
-    rs2 <- rowsum(dgcm, group)
+    expected <- FUN(m, group)
+    rs1 <- FUN(svt, group)
+    rs2 <- FUN(dgcm, group)
     check_rs1_rs2(expected, rs1, rs2)
-    expect_identical(rowsum(coo, group), rs1)
+    expect_identical(FUN(coo, group), rs1)
 
-    expected <- rowsum(m, group, na.rm=TRUE)
-    rs1 <- rowsum(svt, group, na.rm=TRUE)
-    rs2 <- rowsum(dgcm, group, na.rm=TRUE)
+    expected <- FUN(m, group, na.rm=TRUE)
+    rs1 <- FUN(svt, group, na.rm=TRUE)
+    rs2 <- FUN(dgcm, group, na.rm=TRUE)
     check_rs1_rs2(expected, rs1, rs2)
-    expect_identical(rowsum(coo, group, na.rm=TRUE), rs1)
+    expect_identical(FUN(coo, group, na.rm=TRUE), rs1)
 
-    expected <- rowsum(m, group, reorder=FALSE)
-    rs1 <- rowsum(svt, group, reorder=FALSE)
-    rs2 <- rowsum(dgcm, group, reorder=FALSE)
+    expected <- FUN(m, group, reorder=FALSE)
+    rs1 <- FUN(svt, group, reorder=FALSE)
+    rs2 <- FUN(dgcm, group, reorder=FALSE)
     check_rs1_rs2(expected, rs1, rs2)
-    expect_identical(rowsum(coo, group, reorder=FALSE), rs1)
+    expect_identical(FUN(coo, group, reorder=FALSE), rs1)
 
-    expected <- rowsum(m, group, reorder=FALSE, na.rm=TRUE)
-    rs1 <- rowsum(svt, group, reorder=FALSE, na.rm=TRUE)
-    rs2 <- rowsum(dgcm, group, reorder=FALSE, na.rm=TRUE)
+    expected <- FUN(m, group, reorder=FALSE, na.rm=TRUE)
+    rs1 <- FUN(svt, group, reorder=FALSE, na.rm=TRUE)
+    rs2 <- FUN(dgcm, group, reorder=FALSE, na.rm=TRUE)
     check_rs1_rs2(expected, rs1, rs2)
-    expect_identical(rowsum(coo, group, reorder=FALSE, na.rm=TRUE), rs1)
+    expect_identical(FUN(coo, group, reorder=FALSE, na.rm=TRUE), rs1)
 }
 
-test_that("rowsum() methods for SVT_SparseMatrix and dgCMatrix objects", {
+test_that("rowsum()/colsum() on a SVT_SparseMatrix or dgCMatrix object", {
+    ## type "double"
     m1 <- matrix(0, nrow=6, ncol=4)
     group <- c("B", "A", "B", "B", "B", "A")
     colnames(m1) <- letters[1:4]
     .test_rowsum_methods(m1, group)
+    .test_rowsum_methods(t(m1), group, FUN=colsum)
 
     m1[ , 1] <- c(8.55, Inf, NA_real_, 0, NaN, -Inf)
     m1[ , 3] <- c(0.6, -11.99, 0, 4.44, 0, 0)
     m1[ , 4] <- 1:6
     .test_rowsum_methods(m1, group)
+    .test_rowsum_methods(t(m1), group, FUN=colsum)
     .test_rowsum_methods(m1[0L,   ], integer(0))
+    .test_rowsum_methods(t(m1[0L,   ]), integer(0), FUN=colsum)
     .test_rowsum_methods(m1[  , 0L], group)
+    .test_rowsum_methods(t(m1[  , 0L]), group, FUN=colsum)
     .test_rowsum_methods(m1[0L, 0L], integer(0))
+    .test_rowsum_methods(t(m1[0L, 0L]), integer(0), FUN=colsum)
 
+    ## type "integer"
     m2 <- matrix(0L, nrow=6, ncol=4)
     dimnames(m2) <- list(letters[21:26], letters[1:4])
     m2[1, 2] <- NA_integer_
     m2[3, 2] <- 99L
     m2[ , 4] <- 1:6
     .test_rowsum_methods(m2, group)
+    .test_rowsum_methods(t(m2), group, FUN=colsum)
 })
 
