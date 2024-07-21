@@ -104,12 +104,9 @@
 - Implement table() method for SVT_SparseArray objects of type logical,
   integer, or raw (should it go in R/SparseArray-summarization.R?)
 
-- Implement function for loading a TENxMatrixSeed subset as an
-  SVT_SparseMatrix. Test it on the 1.3 Million Brain Cell Dataset.
-
-- Improve readSparseCSV() functionality by adding a few read.table-like args
-  to it. See https://github.com/Bioconductor/SparseArray/issues/5 for the
-  details.
+- Improve readSparseCSV() functionality by adding a few read.table-like
+  args to it. See https://github.com/Bioconductor/SparseArray/issues/5
+  for the details.
 
 - We can't use base::apply() or base::asplit() on a SparseArray derivative
   because they turn it into an ordinary (i.e. dense) array.
@@ -145,6 +142,9 @@
   3. Revisit implementation of C_readSparseCSV_as_SVT_SparseMatrix(): Try to
      use an SBT instead of an ExtendableJaggedArray. Performance should not
      be impacted. Then we can get rid of the ExtendableJaggedArray thing.
+
+- Implement `|`, `&`, and `!` for "raw" SVT_SparseArray objects. Important:
+  they must perform bitwise operations like with "raw" vectors (see ?raw).
 
 - To help implement the Kronecker product (see below): Introduce
   arep_times(x, times) and arep_each(x, each) generics. The 'times'
