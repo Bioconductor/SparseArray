@@ -37,20 +37,20 @@ static int has_no_NA(const int *x, int x_len)
 
 static int doubleSV_has_no_NaN_or_Inf(const SparseVec *sv)
 {
-	if (sv->nzvals == R_NilValue)  /* lacunar SparseVec */
+	const double *nzvals_p = get_doubleSV_nzvals_p(sv);
+	if (nzvals_p == NULL)  /* lacunar SparseVec */
 		return 1;
 	/* regular SparseVec */
-	return has_no_NaN_or_Inf(get_doubleSV_nzvals_p(sv),
-				 get_SV_nzcount(sv));
+	return has_no_NaN_or_Inf(nzvals_p, get_SV_nzcount(sv));
 }
 
 static int intSV_has_no_NA(const SparseVec *sv)
 {
-	if (sv->nzvals == R_NilValue)  /* lacunar SparseVec */
+	const int *nzvals_p = get_intSV_nzvals_p(sv);
+	if (nzvals_p == NULL)  /* lacunar SparseVec */
 		return 1;
 	/* regular SparseVec */
-	return has_no_NA(get_intSV_nzvals_p(sv),
-			 get_SV_nzcount(sv));
+	return has_no_NA(nzvals_p, get_SV_nzcount(sv));
 }
 
 static void fill_col(double *out, int out_nrow, double v)
@@ -80,11 +80,12 @@ static void sym_fill_with_NAs(double *out, int out_nrow, int j)
 static void expand_doubleSV(const SparseVec *sv, double *out)
 {
 	memset(out, 0, sizeof(double) * sv->len);
-	if (sv->nzvals == R_NilValue) {  /* lacunar SparseVec */
+	const double *nzvals_p = get_doubleSV_nzvals_p(sv);
+	if (nzvals_p == NULL) {  /* lacunar SparseVec */
 		_set_selected_elts_to_one(REALSXP, out, 0,
 				sv->nzoffs, get_SV_nzcount(sv));
 	} else {  /* regular SparseVec */
-		_copy_double_elts_to_offsets(get_doubleSV_nzvals_p(sv),
+		_copy_double_elts_to_offsets(nzvals_p,
 				sv->nzoffs, get_SV_nzcount(sv), out);
 	}
 	return;
@@ -93,11 +94,12 @@ static void expand_doubleSV(const SparseVec *sv, double *out)
 static void expand_intSV(const SparseVec *sv, int *out)
 {
 	memset(out, 0, sizeof(int) * sv->len);
-	if (sv->nzvals == R_NilValue) {  /* lacunar SparseVec */
+	const int *nzvals_p = get_intSV_nzvals_p(sv);
+	if (nzvals_p == NULL) {  /* lacunar SparseVec */
 		_set_selected_elts_to_one(INTSXP, out, 0,
 				sv->nzoffs, get_SV_nzcount(sv));
 	} else {  /* regular SparseVec */
-		_copy_int_elts_to_offsets(get_intSV_nzvals_p(sv),
+		_copy_int_elts_to_offsets(nzvals_p,
 				sv->nzoffs, get_SV_nzcount(sv), out);
 	}
 	return;

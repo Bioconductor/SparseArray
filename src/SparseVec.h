@@ -9,17 +9,17 @@
 
 /* Set 'nzvals' to R_NilValue to represent a lacunar SparseVec. */
 typedef struct sparse_vec_t {
-	SEXP nzvals;         /* vector type (atomic or list) or R_NilValue */
-	const int *nzoffs;   /* offsets of nonzero values */
+	SEXPTYPE Rtype;      /* type of the values in 'nzvals' */
+	const void *nzvals;  /* NULL or array of nonzero values */
+	const int *nzoffs;   /* array of offsets for the nonzero values */
 	int nzcount;         /* nb of nonzero values */
-	SEXPTYPE Rtype;      /* = TYPEOF(nzvals) if nzvals != R_NilValue */
 	int len;             /* vector length (= nzcount + nb of zeros) */
 } SparseVec;
 
 /* 'Rtype' **must** be set to 'TYPEOF(nzvals)' if 'nzvals' is not R_NilValue.
-   The only reason we have the 'Rtype' argument (and SparseVec has the 'Rtype'
-   member) is so that we can still store the 'Rtype' in the SparseVec even
-   when the supplied 'nzvals' is R_NilValue (lacunar case). */
+   The only reason we have the 'Rtype' argument is so that we can still store
+   the 'Rtype' in the SparseVec even when the supplied 'nzvals' is R_NilValue
+   (lacunar case). */
 static inline SparseVec toSparseVec(SEXP nzvals, SEXP nzoffs,
 				    SEXPTYPE Rtype, int len)
 {
@@ -29,19 +29,30 @@ static inline SparseVec toSparseVec(SEXP nzvals, SEXP nzoffs,
 	R_xlen_t nzcount = XLENGTH(nzoffs);
 	if (nzcount == 0 || nzcount > INT_MAX)
 		goto on_error;
-	if (nzvals != R_NilValue) {
+
+	SparseVec sv;
+	sv.Rtype = Rtype;
+	if (nzvals == R_NilValue) {
+		sv.nzvals = NULL;
+	} else {
+		/* Types STRSXP (character) and VECSXP (list) are not supported
+		   at the moment. */
+		if (Rtype != INTSXP && Rtype != LGLSXP && Rtype != REALSXP &&
+		    Rtype != CPLXSXP && Rtype != RAWSXP)
+			error("SparseArray internal error in toSparseVec():\n"
+			      "    type \"%s\" is not supported",
+			      type2char(Rtype));
 		if (TYPEOF(nzvals) != Rtype)
 			error("SparseArray internal error in toSparseVec():\n"
 			      "    TYPEOF(nzvals) != Rtype");
 		if (XLENGTH(nzvals) != nzcount)
 			goto on_error;
+		/* DATAPTR(nzvals) only makes sense because we know that
+		   TYPEOF(nzvals) is not STRSXP or VECSXP. */
+		sv.nzvals = DATAPTR(nzvals);
 	}
-
-	SparseVec sv;
-	sv.nzvals = nzvals;
 	sv.nzoffs = INTEGER(nzoffs);
 	sv.nzcount = LENGTH(nzoffs);
-	sv.Rtype = Rtype;
 	sv.len = len;
 	return sv;
 
@@ -49,7 +60,6 @@ static inline SparseVec toSparseVec(SEXP nzvals, SEXP nzoffs,
 	error("SparseArray internal error in toSparseVec():\n"
 	      "    supplied 'nzvals' and/or 'nzoffs' "
 	      "are invalid or incompatible");
-
 }
 
 static inline SEXPTYPE get_SV_Rtype(const SparseVec *sv)
@@ -64,42 +74,46 @@ static inline int get_SV_nzcount(const SparseVec *sv)
 
 static inline const Rbyte *get_RbyteSV_nzvals_p(const SparseVec *sv)
 {
-	return RAW(sv->nzvals);
+	return sv->nzvals;
 }
 
 static inline const int *get_intSV_nzvals_p(const SparseVec *sv)
 {
-	return INTEGER(sv->nzvals);
+	return sv->nzvals;
 }
 
 static inline const double *get_doubleSV_nzvals_p(const SparseVec *sv)
 {
-	return REAL(sv->nzvals);
+	return sv->nzvals;
 }
 
 static inline const Rcomplex *get_RcomplexSV_nzvals_p(const SparseVec *sv)
 {
-	return COMPLEX(sv->nzvals);
+	return sv->nzvals;
 }
 
 static inline Rbyte get_RbyteSV_nzval(const SparseVec *sv, int k)
 {
-	return sv->nzvals == R_NilValue ? Rbyte1 : RAW(sv->nzvals)[k];
+	const Rbyte *nzvals_p = get_RbyteSV_nzvals_p(sv);
+	return nzvals_p == NULL ? Rbyte1 : nzvals_p[k];
 }
 
 static inline int get_intSV_nzval(const SparseVec *sv, int k)
 {
-	return sv->nzvals == R_NilValue ? int1 : INTEGER(sv->nzvals)[k];
+	const int *nzvals_p = get_intSV_nzvals_p(sv);
+	return nzvals_p == NULL ? int1 : nzvals_p[k];
 }
 
 static inline double get_doubleSV_nzval(const SparseVec *sv, int k)
 {
-	return sv->nzvals == R_NilValue ? double1 : REAL(sv->nzvals)[k];
+	const double *nzvals_p = get_doubleSV_nzvals_p(sv);
+	return nzvals_p == NULL ? double1 : nzvals_p[k];
 }
 
 static inline Rcomplex get_RcomplexSV_nzval(const SparseVec *sv, int k)
 {
-	return sv->nzvals == R_NilValue ? Rcomplex1 : COMPLEX(sv->nzvals)[k];
+	const Rcomplex *nzvals_p = get_RcomplexSV_nzvals_p(sv);
+	return nzvals_p == NULL ? Rcomplex1 : nzvals_p[k];
 }
 
 static inline int smallest_offset(

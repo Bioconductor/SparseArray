@@ -226,7 +226,8 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 		const SparseVec *sv1, Rtype y,				\
 		int *out_nzvals, int *out_nzoffs)			\
 {									\
-	if (sv1->nzvals == R_NilValue) {  /* lacunar SparseVec */	\
+	const Ltype *nzvals1_p = get_ ## Ltype ## SV_nzvals_p(sv1);	\
+	if (nzvals1_p == NULL) {  /* lacunar SparseVec */		\
 		int v = Compare_ ## Ltype ## _ ## Rtype			\
 					(opcode, Ltype ## 1, y);	\
 		if (v == int0)						\
@@ -237,7 +238,6 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 		return PROPAGATE_NZOFFS;				\
 	}								\
 	/* regular SparseVec */						\
-	const Ltype *nzvals1_p = get_ ## Ltype ## SV_nzvals_p(sv1);	\
 	int nzcount1 = get_SV_nzcount(sv1);				\
 	int out_nzcount = 0;						\
 	for (int k = 0; k < nzcount1; k++) {				\

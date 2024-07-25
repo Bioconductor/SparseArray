@@ -29,14 +29,14 @@ double _dotprod_doubleSV_doubleSV(const SparseVec *sv1, const SparseVec *sv2)
 double _dotprod_doubleSV_finite_doubles(const SparseVec *sv1, const double *x2)
 {
 	double ans = 0.0;
+	const double *nzvals1_p = get_doubleSV_nzvals_p(sv1);
 	int nzcount1 = get_SV_nzcount(sv1);
-	if (sv1->nzvals == R_NilValue) {
+	if (nzvals1_p == NULL) {
 		/* lacunar SparseVec */
 		for (int k1 = 0; k1 < nzcount1; k1++)
 			ans += x2[sv1->nzoffs[k1]];
 	} else {
 		/* regular SparseVec */
-		const double *nzvals1_p = get_doubleSV_nzvals_p(sv1);
 		for (int k1 = 0; k1 < nzcount1; k1++)
 			ans += nzvals1_p[k1] * x2[sv1->nzoffs[k1]];
 	}
@@ -74,14 +74,14 @@ double _dotprod_doubleSV_doubles(const SparseVec *sv1, const double *x2)
 double _dotprod_intSV_noNA_ints(const SparseVec *sv1, const int *x2)
 {
 	double ans = 0.0;
+	const int *nzvals1_p = get_intSV_nzvals_p(sv1);
 	int nzcount1 = get_SV_nzcount(sv1);
-	if (sv1->nzvals == R_NilValue) {
+	if (nzvals1_p == NULL) {
 		/* lacunar SparseVec */
 		for (int k1 = 0; k1 < nzcount1; k1++)
 			ans += (double) x2[sv1->nzoffs[k1]];
 	} else {
 		/* regular SparseVec */
-		const int *nzvals1_p = get_intSV_nzvals_p(sv1);
 		for (int k1 = 0; k1 < nzcount1; k1++) {
 			int v1 = nzvals1_p[k1];
 			if (v1 == NA_INTEGER)
@@ -140,18 +140,19 @@ double _dotprod_ints_zero(const int *x, int x_len)
 
 double _dotprod_doubleSV_zero(const SparseVec *sv)
 {
-	if (sv->nzvals == R_NilValue)  /* lacunar SparseVec */
+	const double *nzvals_p = get_doubleSV_nzvals_p(sv);
+	if (nzvals_p == NULL)  /* lacunar SparseVec */
 		return 0.0;
 	/* regular SparseVec */
-	return _dotprod_doubles_zero(get_doubleSV_nzvals_p(sv),
-				     get_SV_nzcount(sv));
+	return _dotprod_doubles_zero(nzvals_p, get_SV_nzcount(sv));
 }
 
 double _dotprod_intSV_zero(const SparseVec *sv)
 {
-	if (sv->nzvals == R_NilValue)  /* lacunar SparseVec */
+	const int *nzvals_p = get_intSV_nzvals_p(sv);
+	if (nzvals_p == NULL)  /* lacunar SparseVec */
 		return 0.0;
 	/* regular SparseVec */
-	return _dotprod_ints_zero(get_intSV_nzvals_p(sv), get_SV_nzcount(sv));
+	return _dotprod_ints_zero(nzvals_p, get_SV_nzcount(sv));
 }
 

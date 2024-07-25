@@ -144,7 +144,8 @@ static int Arith_intSV_int(int opcode,
 		const SparseVec *sv1, int y,
 		int *out_nzvals, int *out_nzoffs, int *ovflow)
 {
-	if (sv1->nzvals == R_NilValue) {  /* lacunar SparseVec */
+	const int *nzvals1_p = get_intSV_nzvals_p(sv1);
+	if (nzvals1_p == NULL) {  /* lacunar SparseVec */
 		int v = Arith_int(opcode, int1, y, ovflow);
 		if (v == int0)
 			return 0;
@@ -152,7 +153,6 @@ static int Arith_intSV_int(int opcode,
 		return PROPAGATE_NZOFFS;
 	}
 	/* regular SparseVec */
-	const int *nzvals1_p = get_intSV_nzvals_p(sv1);
 	int nzcount1 = get_SV_nzcount(sv1);
 	int out_nzcount = 0;
 	for (int k = 0; k < nzcount1; k++) {
@@ -188,7 +188,8 @@ static int Arith_intSV_double(int opcode,
                 const SparseVec *sv1, double y,
 		double *out_nzvals, int *out_nzoffs)
 {
-	if (sv1->nzvals == R_NilValue) {  /* lacunar SparseVec */
+	const int *nzvals1_p = get_intSV_nzvals_p(sv1);
+	if (nzvals1_p == NULL) {  /* lacunar SparseVec */
 		double v = Arith_double(opcode, double1, y);
 		if (v == double0)
 			return 0;
@@ -196,7 +197,6 @@ static int Arith_intSV_double(int opcode,
 		return PROPAGATE_NZOFFS;
 	}
 	/* regular SparseVec */
-	const int *nzvals1_p = get_intSV_nzvals_p(sv1);
 	int nzcount1 = get_SV_nzcount(sv1);
 	int out_nzcount = 0;
 	for (int k = 0; k < nzcount1; k++) {
@@ -269,7 +269,8 @@ static int Arith_doubleSV_double(int opcode,
 		const SparseVec *sv1, double y,
 		double *out_nzvals, int *out_nzoffs)
 {
-	if (sv1->nzvals == R_NilValue) {  /* lacunar SparseVec */
+	const double *nzvals1_p = get_doubleSV_nzvals_p(sv1);
+	if (nzvals1_p == NULL) {  /* lacunar SparseVec */
 		double v = Arith_double(opcode, double1, y);
 		if (v == double0)
 			return 0;
@@ -277,7 +278,6 @@ static int Arith_doubleSV_double(int opcode,
 		return PROPAGATE_NZOFFS;
 	}
 	/* regular SparseVec */
-	const double *nzvals1_p = get_doubleSV_nzvals_p(sv1);
 	int nzcount1 = get_SV_nzcount(sv1);
 	int out_nzcount = 0;
 	for (int k = 0; k < nzcount1; k++) {
@@ -362,13 +362,13 @@ int _Arith_sv1_scalar(int opcode, const SparseVec *sv1, SEXP scalar,
 int _mult_SV_zero(const SparseVec *sv,
 		SEXPTYPE outRtype, void *out_nzvals, int *out_nzoffs)
 {
-	if (sv->nzvals == R_NilValue)  /* lacunar SparseVec */
+	const int *nzvals_p = get_intSV_nzvals_p(sv);
+	if (nzvals_p == NULL)  /* lacunar SparseVec */
 		return 0;
 	/* regular SparseVec */
 	int nzcount = NZCOUNT_IS_NOT_SET;
 	SEXPTYPE Rtype = get_SV_Rtype(sv);
 	if (Rtype == INTSXP) {
-		const int *nzvals_p = get_intSV_nzvals_p(sv);
 		int in_nzcount = get_SV_nzcount(sv);
 		if (outRtype == INTSXP) {
 			/* We only keep NAs. */

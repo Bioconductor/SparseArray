@@ -498,23 +498,22 @@ static SEXP subassign_NULL_by_OPBuf(int dim0,
 	return ans;
 }
 
-/* TODO: Maybe add this to SparseVec.h as an inline function. */
-#define	GET_SV_NZOFF(sv, k) (k < get_SV_nzcount(sv) ? sv->nzoffs[(k)] : -1)
-
 /* Returns -1 if subassignment is a no-op. */
-static int compute_subassignment_nzcount(const SparseVec *sv,
+static int compute_subassignment_nzcount(SEXP leaf, int dim0,
 		const OPBuf *opbuf, SEXP vals,
 		RVectorEltIsZero_FUNType Rvector_elt_is_zero_FUN,
 		SameRVectorVals_FUNType same_Rvector_vals_FUN,
 		int *idx0_to_k_map)
 {
-	//print_idx0_to_k_map(idx0_to_k_map, sv->len);
+	SEXP nzvals, nzoffs;
+	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
+	//print_idx0_to_k_map(idx0_to_k_map, dim0);
 	int out_nzcount = 0;
-	int k2 = 0, sv_nzoff = sv->nzoffs[0];
+	int k2 = 0, nzoff = INTEGER(nzoffs)[0];
 	int is_noop = 1;
-	for (int i = 0; i < sv->len; i++) {
+	for (int i = 0; i < dim0; i++) {
 		int k1 = idx0_to_k_map[i];
-		if (i != sv_nzoff) {
+		if (i != nzoff) {
 			if (k1 == -1)
 				continue;
 			R_xlen_t Loff = GET_OPBUF_LOFF(opbuf, k1);
@@ -537,18 +536,18 @@ static int compute_subassignment_nzcount(const SparseVec *sv,
 			} else {
 				out_nzcount++;
 				R_xlen_t Loff = GET_OPBUF_LOFF(opbuf, k1);
-				if (!same_Rvector_vals_FUN(sv->nzvals, k2,
+				if (!same_Rvector_vals_FUN(nzvals, k2,
 							   vals, Loff))
 				{
 					is_noop = 0;
 				}
 			}
 		}
-		/* Move to next sv->nzoffs[]. */
+		/* Move to next nzoffs[]. */
 		k2++;
-		sv_nzoff = GET_SV_NZOFF(sv, k2);
+		nzoff = k2 < nzcount ? INTEGER(nzoffs)[k2] : -1;
 	}
-	if (is_noop && out_nzcount != get_SV_nzcount(sv))  /* sanity check */
+	if (is_noop && out_nzcount != nzcount)  /* sanity check */
 		error("SparseArray internal error in "
 		      "compute_subassignment_nzcount():\n"
 		      "    leaf subassignment is a no-op "
@@ -556,73 +555,75 @@ static int compute_subassignment_nzcount(const SparseVec *sv,
 	return is_noop ? -1 : out_nzcount;
 }
 
-static void subassign_SV_by_OPBuf(const SparseVec *sv,
+static void do_subassign_nonNULL_leaf_by_OPBuf(SEXP leaf, int dim0,
 		const OPBuf *opbuf, SEXP vals,
 		SEXP ans_nzvals, SEXP ans_nzoffs,
 		RVectorEltIsZero_FUNType Rvector_elt_is_zero_FUN,
 		CopyRVectorElt_FUNType copy_Rvector_elt_FUN,
 		const int *idx0_to_k_map)
 {
+	SEXP nzvals, nzoffs;
+	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
 	int *ans_nzoffs_p = INTEGER(ans_nzoffs);
-	int nzcount = 0;
-	int k2 = 0, sv_nzoff = sv->nzoffs[0];
-	for (int i = 0; i < sv->len; i++) {
+	int ans_nzcount = 0;
+	int k2 = 0, nzoff = INTEGER(nzoffs)[0];
+	for (int i = 0; i < dim0; i++) {
 		int k1 = idx0_to_k_map[i];
-		if (i != sv_nzoff) {
+		if (i != nzoff) {
 			if (k1 == -1)
 				continue;
 			R_xlen_t Loff = GET_OPBUF_LOFF(opbuf, k1);
 			copy_Rvector_elt_FUN(vals, Loff,
-					     ans_nzvals, (R_xlen_t) nzcount);
-			ans_nzoffs_p[nzcount] = i;
-			nzcount++;
+					ans_nzvals, (R_xlen_t) ans_nzcount);
+			ans_nzoffs_p[ans_nzcount] = i;
+			ans_nzcount++;
 			continue;
 		}
 		if (k1 == -1) {
-			copy_Rvector_elt_FUN(sv->nzvals, k2,
-					     ans_nzvals, (R_xlen_t) nzcount);
-			ans_nzoffs_p[nzcount] = i;
-			nzcount++;
+			copy_Rvector_elt_FUN(nzvals, k2,
+					ans_nzvals, (R_xlen_t) ans_nzcount);
+			ans_nzoffs_p[ans_nzcount] = i;
+			ans_nzcount++;
 		} else {
 			R_xlen_t Loff = GET_OPBUF_LOFF(opbuf, k1);
 			int is_zero = Rvector_elt_is_zero_FUN(vals, Loff);
 			if (!is_zero) {
 				copy_Rvector_elt_FUN(vals, Loff,
-					     ans_nzvals, (R_xlen_t) nzcount);
-				ans_nzoffs_p[nzcount] = i;
-				nzcount++;
+					ans_nzvals, (R_xlen_t) ans_nzcount);
+				ans_nzoffs_p[ans_nzcount] = i;
+				ans_nzcount++;
 			}
 		}
-		/* Move to next sv->nzoffs[]. */
+		/* Move to next nzoffs[]. */
 		k2++;
-		sv_nzoff = GET_SV_NZOFF(sv, k2);
+		nzoff = k2 < nzcount ? INTEGER(nzoffs)[k2] : -1;
 	}
-	if (nzcount != LENGTH(ans_nzoffs))  /* sanity check */
+	if (ans_nzcount != LENGTH(ans_nzoffs))  /* sanity check */
 		error("SparseArray internal error in "
-		      "subassign_SV_by_OPBuf():\n"
-		      "    nzcount != LENGTH(ans_nzoffs)");
+		      "do_subassign_nonNULL_leaf_by_OPBuf():\n"
+		      "    ans_nzcount != LENGTH(ans_nzoffs)");
 	return;
 }
 
 /* 'leaf' cannot be R_NilValue. */
-static SEXP subassign_leaf0_by_OPBuf(SEXP leaf, int dim0,
+static SEXP subassign_nonNULL_leaf_by_OPBuf(SEXP leaf, int dim0,
 		const OPBuf *opbuf, SEXP vals,
 		RVectorEltIsZero_FUNType fun1,
 		SameRVectorVals_FUNType fun2,
 		CopyRVectorElt_FUNType fun3,
 		int *idx0_to_k_map)
 {
-	SparseVec sv = leaf2SV(leaf, TYPEOF(vals), dim0);
-	int nzcount = compute_subassignment_nzcount(&sv, opbuf, vals,
-					fun1, fun2, idx0_to_k_map);
-	if (nzcount == -1)  /* no-op */
+	int ans_nzcount = compute_subassignment_nzcount(leaf, dim0,
+				opbuf, vals, fun1, fun2, idx0_to_k_map);
+	if (ans_nzcount == -1)  /* no-op */
 		return leaf;
-	if (nzcount == 0)
+	if (ans_nzcount == 0)
 		return R_NilValue;
-	SEXP ans_nzvals = PROTECT(allocVector(TYPEOF(vals), nzcount));
-	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(nzcount));
-	subassign_SV_by_OPBuf(&sv, opbuf, vals, ans_nzvals, ans_nzoffs,
-			      fun1, fun3, idx0_to_k_map);
+	SEXP ans_nzvals = PROTECT(allocVector(TYPEOF(vals), ans_nzcount));
+	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(ans_nzcount));
+	do_subassign_nonNULL_leaf_by_OPBuf(leaf, dim0,
+				opbuf, vals, ans_nzvals, ans_nzoffs,
+				fun1, fun3, idx0_to_k_map);
 	SEXP ans = zip_leaf_and_go_lacunar_if_all_ones(ans_nzvals, ans_nzoffs);
 	UNPROTECT(2);
 	return ans;
@@ -646,7 +647,7 @@ static SEXP subassign_leaf_by_OPBuf(SEXP leaf, int dim0,
 					idx0_to_k_map);
 	} else {
 		init_idx0_to_k_map(idx0_to_k_map, opbuf->idx0s, opbuf->nelt);
-		ans = subassign_leaf0_by_OPBuf(leaf, dim0, opbuf, vals,
+		ans = subassign_nonNULL_leaf_by_OPBuf(leaf, dim0, opbuf, vals,
 					fun1, fun2, fun3, idx0_to_k_map);
 	}
 	reset_idx0_to_k_map(idx0_to_k_map, opbuf->idx0s, opbuf->nelt);
