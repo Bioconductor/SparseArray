@@ -65,7 +65,14 @@ CsparseMatrix <- function(dim, i, j, nzdata, dimnames=NULL)
 {
     stopifnot(is.integer(dim), length(dim) == 2L,
               is.integer(i), is.integer(j), is.atomic(nzdata))
-    oo <- order(j, i)
+    is_dup <- duplicatedIntegerPairs(i, j, fromLast=TRUE)
+    if (any(is_dup)) {
+        keepidx <- which(!is_dup)
+        i <- i[keepidx]
+        j <- j[keepidx]
+        nzdata <- nzdata[keepidx]
+    }
+    oo <- orderIntegerPairs(j, i)
     ans_i <- i[oo] - 1L  # CsparseMatrix objects want this zero-based
     ans_p <- c(0L, cumsum(tabulate(j[oo], nbins=dim[[2L]])))
     ans_x <- nzdata[oo]
@@ -76,7 +83,14 @@ RsparseMatrix <- function(dim, i, j, nzdata, dimnames=NULL)
 {
     stopifnot(is.integer(dim), length(dim) == 2L,
               is.integer(i), is.integer(j), is.atomic(nzdata))
-    oo <- order(i, j)
+    is_dup <- duplicatedIntegerPairs(i, j, fromLast=TRUE)
+    if (any(is_dup)) {
+        keepidx <- which(!is_dup)
+        i <- i[keepidx]
+        j <- j[keepidx]
+        nzdata <- nzdata[keepidx]
+    }
+    oo <- orderIntegerPairs(i, j)
     ans_j <- j[oo] - 1L  # RsparseMatrix objects want this zero-based
     ans_p <- c(0L, cumsum(tabulate(i[oo], nbins=dim[[1L]])))
     ans_x <- nzdata[oo]

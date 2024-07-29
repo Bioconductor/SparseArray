@@ -1,3 +1,7 @@
+- Speed up more row summarization methods by supporting natively more
+  operations in .Call entry point C_rowStats_SVT. Note that doing this
+  for "sum" led to a 20x or more speedup on big SVT_SparseArray objects.
+
 - Implement efficient coercions from dgTMatrix to COO_SparseMatrix and
   SVT_SparseMatrix. 'as(<dgTMatrix>, "SparseMatrix")' and
   SparseArray(<dgTMatrix>) should do the former (this is the natural one
@@ -259,6 +263,16 @@
   See R/SparseArray-summarization.R
 
 - Add unit tests for the SVT_SparseArray stuff.
+
+
+TAKE A LOOK AT THE FOLLOWING POTENTIAL USE CASES:
+
+- Hi-C sequencing data. See Sunduz Keles work (BioC2024) and Jacques Serizay
+  packages HiCExperiment and HiContacts.
+
+- Support RcppML::nmf
+
+- Support some of the SparseM (CRAN) operations.
 
 - Go after dgCMatrix objects in ExperimentHub (query(eh, "dgCMatrix")),
   convert them to SVT_SparseMatrix objects and try to do the things that

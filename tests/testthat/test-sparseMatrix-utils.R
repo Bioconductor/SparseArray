@@ -1,4 +1,25 @@
 
+test_that("CsparseMatrix() and RsparseMatrix()", {
+    CsparseMatrix <- SparseArray:::CsparseMatrix
+    RsparseMatrix <- SparseArray:::RsparseMatrix
+
+    i <- c(1:3, 1L, 10:7)
+    j <- c(1:3, 1L, 7:4)
+    nzdata <- c(11:14, NA, 0:2)
+    m <- matrix(0, nrow=10, ncol=7)
+    m[cbind(i, j)] <- nzdata
+
+    x <- CsparseMatrix(dim(m), i, j, nzdata)
+    expect_true(is(x, "dgCMatrix"))
+    expect_true(validObject(x))
+    expect_identical(as.matrix(x), m)
+
+    x <- RsparseMatrix(dim(m), i, j, nzdata)
+    expect_true(is(x, "dgRMatrix"))
+    expect_true(validObject(x))
+    expect_identical(as.matrix(x), m)
+})
+
 test_that("colStats_dgCMatrix", {
     colMins_dgCMatrix   <- SparseArray:::colMins_dgCMatrix
     colMaxs_dgCMatrix   <- SparseArray:::colMaxs_dgCMatrix

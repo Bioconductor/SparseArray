@@ -185,6 +185,8 @@ setReplaceMethod("type", "COO_SparseArray", .set_COO_SparseArray_type)
                                    check=FALSE)
 }
 
+### Does NOT remove duplicates from the 'nzcoo' slot.
+### FIXME: Remove duplicates from the 'nzcoo' slot.
 .order_nzcoo_slot <- function(x)
 {
     oo <- S4Arrays:::Mindex_order(x@nzcoo)
@@ -197,6 +199,8 @@ setReplaceMethod("type", "COO_SparseArray", .set_COO_SparseArray_type)
                                    check=FALSE)
 }
 
+### Note that .normalize_COO_SparseArray() does NOT remove duplicates
+### from the 'nzcoo' slot at the moment.
 .normalize_COO_SparseArray <- function(x)
 {
     stopifnot(is(x, "COO_SparseArray"))

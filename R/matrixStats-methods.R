@@ -23,7 +23,8 @@
 ### Low-level helpers
 ###
 
-### A silly trick used only to trigger an error if called with arguments.
+### A silly trick used only to trigger an error when the function is called
+### with no arguments.
 .check_unused_arguments <- function() NULL
 
 .check_dims <- function(dims, method)
@@ -74,11 +75,19 @@
     dims
 }
 
-### Return an ordinary array with 'length(dim(x)) - dims' dimensions.
+### Returns an ordinary array with 'length(dim(x)) - dims' dimensions.
 .colStats_SparseArray <- function(op, x, na.rm=FALSE, center=NULL, dims=1L,
                                   useNames=NA)
 {
     stopifnot(isSingleString(op), is(x, "SparseArray"))
+
+    ## Normalize and check 'dims'.
+    dims <- .normarg_dims(dims)
+    if (dims <= 0L || dims > length(x@dim))
+        stop(wmsg("'dims' must be a single integer that is ",
+                  "> 0 and <= length(dim(x)) for the col*() functions, and ",
+                  ">= 0 and < length(dim(x)) for the row*() functions"))
+
     if (is(x, "SVT_SparseArray")) {
         check_svt_version(x)
     } else {
@@ -99,13 +108,6 @@
             center <- as.double(center)
     }
 
-    ## Check and normalize 'dims'.
-    dims <- .normarg_dims(dims)
-    if (dims <= 0L || dims > length(x@dim))
-        stop(wmsg("'dims' must be a single integer that is ",
-                  "> 0 and <= length(dim(x)) for the col*() functions, and ",
-                  ">= 0 and < length(dim(x)) for the row*() functions"))
-
     ## Normalize 'useNames'.
     useNames <- .normarg_useNames(useNames)
 
@@ -115,8 +117,11 @@
                      op, na.rm, center, dims)
 }
 
-### WORK-IN-PROGRESS!
-### The naive implementation for .rowStats_SparseArray() would be to simply do:
+### .OLD_rowStats_SparseArray(): A lazy and inefficient implementation
+### that passes the ball to .colStats_SparseArray() to actually do the job.
+### TODO: Drop it once .rowStats_SparseArray() below supports all ops.
+### The naive implementation for .OLD_rowStats_SparseArray() would be to
+### simply do:
 ###
 ###   aperm(.colStats_SparseArray(op, aperm(x), ..., dims=length(dim(x))-dims))
 ###
@@ -125,18 +130,9 @@
 ### than 2 dimensions because multidimensional transposition of 'x' (i.e.
 ### 'aperm(x)') is VERY expensive in that case. So we use some tricks below
 ### to avoid this multidimensional transposition.
-.rowStats_SparseArray <- function(op, x, na.rm=FALSE, center=NULL, dims=1L,
-                                  useNames=NA)
+.OLD_rowStats_SparseArray <- function(op, x, na.rm=FALSE, center=NULL, dims=1L,
+                                      useNames=NA)
 {
-    stopifnot(isSingleString(op), is(x, "SparseArray"))
-
-    ## Check and normalize 'dims'.
-    dims <- .normarg_dims(dims)
-    if (dims < 0L || dims >= length(x@dim))
-        stop(wmsg("'dims' must be a single integer that is ",
-                  "> 0 and <= length(dim(x)) for the col*() functions, and ",
-                  ">= 0 and < length(dim(x)) for the row*() functions"))
-
     ## Normalize 'useNames'.
     useNames <- .normarg_useNames(useNames)
 
@@ -152,8 +148,8 @@
     }
 
     check_svt_version(x)
-    if (x_ndim <= 2L || dims == 0L || length(x) == 0L) {
-        if (x_ndim >= 2L && dims != 0L)
+    if (x_ndim <= 2L || length(x) == 0L) {
+        if (x_ndim >= 2L)
             x <- aperm(x)
         ans <- .colStats_SparseArray(op, x, na.rm=na.rm, center=center,
                                      dims=x_ndim-dims, useNames=useNames)
@@ -191,8 +187,8 @@
         ans_cols <- lapply(seq_len(x@dim[[2L]]),
             function(j) {
                 slice <- extract_j_slice(j)  # 'x_ndim - 1' dimensions
-                .rowStats_SparseArray(op, slice, na.rm=na.rm, center=center,
-                                      useNames=FALSE)
+                .OLD_rowStats_SparseArray(op, slice, na.rm=na.rm,
+                                          center=center, useNames=FALSE)
             })
         ans <- do.call(cbind, ans_cols)
         if (useNames)
@@ -202,6 +198,61 @@
 
     stop(wmsg("row*(<SVT_SparseArray>) summarizations ",
               "don't support 'dims' >= 3 yet"))
+}
+
+### Returns an ordinary array where the number of dimensions is 'dims'.
+### TODO: Speed up more row summarization methods by supporting natively
+### more operations in .Call entry point C_rowStats_SVT. Note that doing
+### this for "sum" led to a 20x or more speedup on big SVT_SparseArray
+### objects.
+.rowStats_SparseArray <- function(op, x, na.rm=FALSE, center=NULL, dims=1L,
+                                  useNames=NA)
+{
+    stopifnot(isSingleString(op), is(x, "SparseArray"))
+
+    ## Normalize and check 'dims'.
+    dims <- .normarg_dims(dims)
+    if (dims < 0L || dims >= length(x@dim))
+        stop(wmsg("'dims' must be a single integer that is ",
+                  "> 0 and <= length(dim(x)) for the col*() functions, and ",
+                  ">= 0 and < length(dim(x)) for the row*() functions"))
+
+    if (dims == 0L)
+        return(.colStats_SparseArray(op, x, na.rm=na.rm, center=center,
+                                     dims=length(x@dim), useNames=useNames))
+
+    if (op != "sum")
+        return(.OLD_rowStats_SparseArray(op, x, na.rm=na.rm,
+                                         center=center, dims=dims,
+                                         useNames=useNames))
+
+    if (is(x, "SVT_SparseArray")) {
+        check_svt_version(x)
+    } else {
+        x <- as(x, "SVT_SparseArray")
+    }
+
+    ## Check 'na.rm'.
+    if (!isTRUEorFALSE(na.rm))
+        stop(wmsg("'na.rm' must be TRUE or FALSE"))
+
+    ## Check and normalize 'center'.
+    if (is.null(center)) {
+        center <- NA_real_
+    } else {
+        if (!isSingleNumberOrNA(center))
+            stop(wmsg("'center' must be NULL, or a single number"))
+        if (!is.double(center))
+            center <- as.double(center)
+    }
+
+    ## Normalize 'useNames'.
+    useNames <- .normarg_useNames(useNames)
+
+    x_dimnames <- if (useNames) x@dimnames else NULL
+    SparseArray.Call("C_rowStats_SVT",
+                     x@dim, x_dimnames, x@type, x@SVT,
+                     op, na.rm, center, dims)
 }
 
 
