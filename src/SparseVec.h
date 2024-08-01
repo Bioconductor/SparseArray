@@ -35,10 +35,9 @@ static inline SparseVec toSparseVec(SEXP nzvals, SEXP nzoffs,
 	if (nzvals == R_NilValue) {
 		sv.nzvals = NULL;
 	} else {
-		/* Types STRSXP (character) and VECSXP (list) are not supported
-		   at the moment. */
+		/* Type VECSXP (list) is not supported at the moment. */
 		if (Rtype != INTSXP && Rtype != LGLSXP && Rtype != REALSXP &&
-		    Rtype != CPLXSXP && Rtype != RAWSXP)
+		    Rtype != CPLXSXP && Rtype != RAWSXP && Rtype != STRSXP)
 			error("SparseArray internal error in toSparseVec():\n"
 			      "    type \"%s\" is not supported",
 			      type2char(Rtype));
@@ -47,9 +46,9 @@ static inline SparseVec toSparseVec(SEXP nzvals, SEXP nzoffs,
 			      "    TYPEOF(nzvals) != Rtype");
 		if (XLENGTH(nzvals) != nzcount)
 			goto on_error;
-		/* DATAPTR(nzvals) only makes sense because we know that
-		   TYPEOF(nzvals) is not STRSXP or VECSXP. */
-		sv.nzvals = DATAPTR(nzvals);
+		/* DATAPTR(nzvals) only makes sense when TYPEOF(nzvals) is
+		   not STRSXP or VECSXP. */
+		sv.nzvals = Rtype == STRSXP ? nzvals : DATAPTR(nzvals);
 	}
 	sv.nzoffs = INTEGER(nzoffs);
 	sv.nzcount = LENGTH(nzoffs);

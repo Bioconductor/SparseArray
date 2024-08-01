@@ -196,7 +196,6 @@ static inline int anyNA_doubles(const double *x, int n, int outbuf[1])
 	return OUTBUF_IS_SET;
 }
 
-#define	RCOMPLEX_IS_NA(x) (ISNAN((x)->r) || ISNAN((x)->i))
 static inline int anyNA_Rcomplexes(const Rcomplex *x, int n, int outbuf[1])
 {
 	for (int i = 0; i < n; i++, x++) {

@@ -181,6 +181,26 @@ static void propagate_rowStats_dimnames(SEXP ans, SEXP x_dimnames, int dims)
 	return;
 }
 
+static void init_rowStats_ans(SEXP ans, const SummarizeOp *summarize_op,
+		const double *center_p, SEXP x_dim, int dims)
+{
+	if (summarize_op->opcode != CENTERED_X2_SUM_OPCODE ||
+	    center_p == NULL)
+	{
+		_set_Rvector_elts_to_zero(ans);
+		return;
+	}
+	R_xlen_t n = 1;
+	for (int along = dims; along < LENGTH(x_dim); along++)
+		n *= INTEGER(x_dim)[along];
+	double *ans_p = REAL(ans);
+	for (int i = 0; i < LENGTH(ans); i++) {
+		double c = center_p[i];
+		ans_p[i] = n * c * c;
+	}
+	return;
+}
+
 /* Only the first value in 'res->outbuf' gets copied. */
 static inline void copy_result_to_out(const SummarizeResult *res,
 		void *out, SEXPTYPE out_Rtype)
@@ -297,22 +317,43 @@ SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
  * C_rowStats_SVT()
  */
 
-static void init_rowStats_ans(SEXP ans, const SummarizeOp *summarize_op,
-		const double *center_p, SEXP x_dim, int dims)
+static inline int is_na(SEXPTYPE Rtype, const void *x, int i)
 {
-	if (summarize_op->opcode != CENTERED_X2_SUM_OPCODE ||
-	    center_p == NULL)
-	{
-		_set_Rvector_elts_to_zero(ans);
-		return;
+	switch (Rtype) {
+	    case INTSXP: case LGLSXP: {
+		const int *x_p = x;
+		return x_p[i] == NA_INTEGER;
+	    }
+	    case REALSXP: {
+		const double *x_p = x;
+		/* ISNAN(): True for *both* NA and NaN.
+		   See <R_ext/Arith.h> */
+		return ISNAN(x_p[i]);
+	    }
+	    case CPLXSXP: {
+		const Rcomplex *x_p = x;
+		return RCOMPLEX_IS_NA(x_p + i);
+	    }
+	    case RAWSXP:
+		return 0;
+	    case STRSXP:
+		return STRING_ELT((SEXP) x, i) == NA_STRING;
 	}
-	R_xlen_t n = 1;
-	for (int along = dims; along < LENGTH(x_dim); along++)
-		n *= INTEGER(x_dim)[along];
-	double *ans_p = REAL(ans);
-	for (int i = 0; i < LENGTH(ans); i++) {
-		double c = center_p[i];
-		ans_p[i] = n * c * c;
+	error("SparseArray internal error in is_na():\n"
+	      "    type \"%s\" is not supported", type2char(Rtype));
+	return 0;  /* will never reach this */
+}
+
+static void rowAnyNAs_SV(const SparseVec *sv, int *out)
+{
+	if (sv->nzvals == NULL)  /* lacunar leaf */
+		return;
+	/* regular leaf */
+	int nzcount = get_SV_nzcount(sv);
+	SEXPTYPE sv_Rtype = get_SV_Rtype(sv);
+	for (int k = 0; k < nzcount; k++) {
+		if (is_na(sv_Rtype, sv->nzvals, k))
+			out[sv->nzoffs[k]] = 1;
 	}
 	return;
 }
@@ -324,30 +365,8 @@ static void rowCountNAs_SV(const SparseVec *sv, double *out)
 	/* regular leaf */
 	int nzcount = get_SV_nzcount(sv);
 	SEXPTYPE sv_Rtype = get_SV_Rtype(sv);
-	for (int k = 0; k < nzcount; k++) {
-		switch (sv_Rtype) {
-		    case INTSXP: case LGLSXP: {
-			const int *nzvals_p = sv->nzvals;
-			if (nzvals_p[k] == NA_INTEGER)
-				break;
-			continue;
-		    }
-		    case REALSXP: {
-			const double *nzvals_p = sv->nzvals;
-			/* ISNAN(): True for *both* NA and NaN.
-			   See <R_ext/Arith.h> */
-			if (ISNAN(nzvals_p[k]))
-				break;
-			continue;
-		    }
-		    default:
-			error("SparseArray internal error in "
-			      "rowCountNAs_SV():\n"
-			      "    type \"%s\" is not supported",
-			      type2char(sv_Rtype));
-		}
-		out[sv->nzoffs[k]] += 1.0;
-	}
+	for (int k = 0; k < nzcount; k++)
+		out[sv->nzoffs[k]] += is_na(sv_Rtype, sv->nzvals, k);
 	return;
 }
 
@@ -460,6 +479,9 @@ static void rowStats_leaf(SEXP leaf, int dim0,
 {
 	SparseVec sv = leaf2SV(leaf, summarize_op->in_Rtype, dim0);
 	switch (summarize_op->opcode) {
+	    case ANYNA_OPCODE:
+		rowAnyNAs_SV(&sv, out);
+		return;
 	    case COUNTNAS_OPCODE:
 		rowCountNAs_SV(&sv, out);
 		return;

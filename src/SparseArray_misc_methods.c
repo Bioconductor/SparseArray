@@ -3,6 +3,7 @@
  *****************************************************************************/
 #include "SparseArray_misc_methods.h"
 
+#include "Rvector_summarization.h"
 #include "leaf_utils.h"
 
 #include <string.h>  /* for memcpy(), strcmp() */
@@ -71,7 +72,7 @@ static int collect_Rcomplex_na_nzoffs(const Rcomplex *nzvals,
 	int out_nzcount = 0;
 	for (int k = 0; k < nzcount; k++) {
 		const Rcomplex *z = nzvals + k;
-		if (ISNAN(z->r) || ISNAN(z->i)) {
+		if (RCOMPLEX_IS_NA(z)) {
 			out_nzoffs[out_nzcount] = nzoffs[k];
 			out_nzcount++;
 		}

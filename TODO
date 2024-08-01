@@ -1,7 +1,13 @@
 - Speed up more row summarization methods by supporting natively more
   operations in .Call entry point C_rowStats_SVT. Note that doing this
-  for rowSums(), rowMeans(), and rowVars(), led to speedups of 20x, 18x,
-  and 5x, or more, on big SVT_SparseArray objects.
+  for rowAnyNAs(), rowSums(), rowMeans(), rowVars(), and rowSds(), led
+  to speedups of 35x, 20x, 18x, 5x, and 5x, respectively, on big
+  SVT_SparseArray objects, or more.
+
+- Charlotte's use case: Big sparse matrix where most values are NAs and
+  the number of non-NA values is small. Non-NA values can be zeros.
+  How to efficiently represent this and operate on it? Note that column/row
+  summarization methods (e.g. colSums()/rowSums()) should ignore the NAs.
 
 - Implement efficient coercions from dgTMatrix to COO_SparseMatrix and
   SVT_SparseMatrix. 'as(<dgTMatrix>, "SparseMatrix")' and

@@ -221,7 +221,7 @@
         return(.colStats_SparseArray(op, x, na.rm=na.rm, center=center,
                                      dims=length(x@dim), useNames=useNames))
 
-    if (!(op %in% c("countNAs", "sum", "centered_X2_sum")))
+    if (!(op %in% c("countNAs", "anyNA", "sum", "centered_X2_sum")))
         return(.OLD_rowStats_SparseArray(op, x, na.rm=na.rm,
                                          center=center, dims=dims,
                                          useNames=useNames))
@@ -663,11 +663,10 @@ setMethod("colVars", "SparseArray", .colVars_SparseArray)
         sums <- .rowSums_SparseArray(x, na.rm=na.rm, dims=dims)
         center <- sums / nvals
     }
-    centered_X2_sum <- .rowStats_SparseArray("centered_X2_sum",
-                                             x, na.rm=na.rm,
-                                             center=center, dims=dims,
-                                             useNames=useNames)
-    centered_X2_sum / (nvals - 1)
+    centered_X2_sums <- .rowStats_SparseArray("centered_X2_sum",
+                                              x, na.rm=na.rm, center=center,
+                                              dims=dims, useNames=useNames)
+    centered_X2_sums / (nvals - 1)
 }
 setMethod("rowVars", "SparseArray", .rowVars_SparseArray)
 
@@ -688,8 +687,9 @@ setMethod("colSds", "SparseArray", .colSds_SparseArray)
 {
     .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "rowSds")
-    .rowStats_SparseArray("sd1", x, na.rm=na.rm, center=center,
-                                 dims=dims, useNames=useNames)
+    row_vars <- .rowVars_SparseArray(x, na.rm=na.rm, center=center,
+                                     dims=dims, useNames=useNames)
+    sqrt(row_vars)
 }
 setMethod("rowSds", "SparseArray", .rowSds_SparseArray)
 
