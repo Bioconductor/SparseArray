@@ -96,7 +96,7 @@ SummarizeResult _summarize_SVT(SEXP SVT, const int *dim, int ndim,
 	SummarizeResult res;
 
 	if (ISNAN(summarize_op->center) &&
-		(summarize_op->opcode == SUM_CENTERED_X2_OPCODE ||
+		(summarize_op->opcode == CENTERED_X2_SUM_OPCODE ||
 		 summarize_op->opcode == VAR1_OPCODE ||
 		 summarize_op->opcode == SD1_OPCODE))
 	{

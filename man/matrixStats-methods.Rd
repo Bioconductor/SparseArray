@@ -167,7 +167,7 @@
 }
 
 \note{
-  The matrixStats method for \link{SparseMatrix} objects are multithreaded.
+  Most \code{col*()} methods for \link{SparseArray} objects are multithreaded.
   See \code{\link{set_SparseArray_nthread}} for how to control the number
   of threads.
 }

@@ -103,7 +103,7 @@
         center <- NA_real_
     } else {
         if (!isSingleNumberOrNA(center))
-            stop(wmsg("'center' must be NULL, or a single number"))
+            stop(wmsg("'center' must be NULL or a single number"))
         if (!is.double(center))
             center <- as.double(center)
     }
@@ -221,7 +221,7 @@
         return(.colStats_SparseArray(op, x, na.rm=na.rm, center=center,
                                      dims=length(x@dim), useNames=useNames))
 
-    if (op != "sum")
+    if (!(op %in% c("countNAs", "sum", "centered_X2_sum")))
         return(.OLD_rowStats_SparseArray(op, x, na.rm=na.rm,
                                          center=center, dims=dims,
                                          useNames=useNames))
@@ -237,13 +237,26 @@
         stop(wmsg("'na.rm' must be TRUE or FALSE"))
 
     ## Check and normalize 'center'.
-    if (is.null(center)) {
-        center <- NA_real_
-    } else {
-        if (!isSingleNumberOrNA(center))
-            stop(wmsg("'center' must be NULL, or a single number"))
-        if (!is.double(center))
-            center <- as.double(center)
+    if (!is.null(center)) {
+        ## Unlike for .colStats_SparseArray() where 'center' can only be NULL
+        ## or a single number, here it can also be an ordinary numeric array
+        ## of the same dimensions as the result of .rowStats_SparseArray()
+        ## (i.e. of dimensions 'head(dim(x), n=dims)'), or a numeric vector
+        ## of the same length as the result of .rowStats_SparseArray().
+        if (!is.numeric(center))
+            stop(wmsg("'center' must be NULL, a single number, ",
+                      "or an ordinary array"))
+        ans_dim <- head(dim(x), n=dims)
+        if (is.array(center)) {
+            if (!identical(dim(center), ans_dim))
+                stop(wmsg("unexpected 'center' dimensions"))
+            if (storage.mode(center) != "double")
+                storage.mode(center) <- "double"
+        } else if (length(center) %in% c(1L, prod(ans_dim))) {
+            center <- array(as.double(center), dim=ans_dim)
+        } else {
+            stop(wmsg("unexpected 'center' length"))
+        }
     }
 
     ## Normalize 'useNames'.
@@ -261,28 +274,50 @@
 ###
 ### Not part of the matrixStats API!
 
-.colCountNAs_SVT_SparseMatrix <- function(x)
+.colCountNAs_SparseArray <- function(x, dims=1, useNames=NA)
 {
-    if (is.null(x@SVT)) {
-        ans <- integer(ncol(x))
-    } else {
-        ans <- vapply(x@SVT,
-            function(lv) {
-                if (is.null(lv))
-                    return(0L)
-                lv_vals <- lv[[2L]]
-                sum(is.na(lv_vals))
-            }, integer(1), USE.NAMES=FALSE)
-    }
-    setNames(ans, colnames(x))
+    .colStats_SparseArray("countNAs", x, dims=dims, useNames=useNames)
 }
-#setMethod("colCountNAs", "SVT_SparseMatrix", .colCountNAs_SVT_SparseMatrix)
+#setMethod("colCountNAs", "SparseArray", .colCountNAs_SparseArray)
 
-.rowCountNAs_SVT_SparseMatrix <- function(x)
+.rowCountNAs_SparseArray <- function(x, dims=1, useNames=NA)
 {
-    .colCountNAs_SVT_SparseMatrix(t(x))
+    .rowStats_SparseArray("countNAs", x, dims=dims, useNames=useNames)
 }
-#setMethod("rowCountNAs", "SVT_SparseMatrix", .rowCountNAs_SVT_SparseMatrix)
+#setMethod("rowCountNAs", "SparseArray", .rowCountNAs_SparseArray)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### .colCountVals_SparseArray()/.rowCountVals_SparseArray()
+###
+### Count the number of non-NA vals per column/row.
+###
+### Both functions return a single value if 'na.rm' is FALSE, or an unnamed
+### ordinary vector, matrix, or array if 'na.rm' is TRUE.
+
+.colCountVals_SparseArray <- function(x, na.rm=FALSE, dims=1)
+{
+    stopifnot(is(x, "SparseArray"))
+    dims <- .normarg_dims(dims)
+    ans <- prod(head(dim(x), n=dims))
+    if (na.rm) {
+        count_nas <- .colCountNAs_SparseArray(x, dims=dims, useNames=FALSE)
+        ans <- ans - count_nas
+    }
+    ans
+}
+
+.rowCountVals_SparseArray <- function(x, na.rm=FALSE, dims=1)
+{
+    stopifnot(is(x, "SparseArray"))
+    dims <- .normarg_dims(dims)
+    ans <- prod(tail(dim(x), n=-dims))
+    if (na.rm) {
+        count_nas <- .rowCountNAs_SparseArray(x, dims=dims, useNames=FALSE)
+        ans <- ans - count_nas
+    }
+    ans
+}
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -485,7 +520,9 @@ setMethod("colMeans", "SparseArray", .colMeans_SparseArray)
 
 .rowMeans_SparseArray <- function(x, na.rm=FALSE, dims=1)
 {
-    .rowStats_SparseArray("mean", x, na.rm=na.rm, dims=dims)
+    sums <- .rowSums_SparseArray(x, na.rm=na.rm, dims=dims)
+    nvals <- .rowCountVals_SparseArray(x, na.rm=na.rm, dims=dims)
+    sums / nvals
 }
 setMethod("rowMeans", "SparseArray", .rowMeans_SparseArray)
 
@@ -573,7 +610,7 @@ setMethod("rowMeans2", "SparseArray", .rowMeans2_SparseArray)
 
 ### Original "pure R" implementation. Was originally used by the colVars()
 ### method for SVT_SparseMatrix objects. No longer used!
-.colVars_SparseArray_SparseMatrix <-
+.colVars_SparseMatrix <-
     function(x, na.rm=FALSE, center=NULL, useNames=NA)
 {
     if (!isTRUEorFALSE(na.rm))
@@ -621,8 +658,16 @@ setMethod("colVars", "SparseArray", .colVars_SparseArray)
 {
     .check_unused_arguments(...)
     .check_rows_cols(rows, cols, "rowVars")
-    .rowStats_SparseArray("var1", x, na.rm=na.rm, center=center,
-                                  dims=dims, useNames=useNames)
+    nvals <- .rowCountVals_SparseArray(x, na.rm=na.rm, dims=dims)
+    if (is.null(center)) {
+        sums <- .rowSums_SparseArray(x, na.rm=na.rm, dims=dims)
+        center <- sums / nvals
+    }
+    centered_X2_sum <- .rowStats_SparseArray("centered_X2_sum",
+                                             x, na.rm=na.rm,
+                                             center=center, dims=dims,
+                                             useNames=useNames)
+    centered_X2_sum / (nvals - 1)
 }
 setMethod("rowVars", "SparseArray", .rowVars_SparseArray)
 

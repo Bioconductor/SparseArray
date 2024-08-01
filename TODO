@@ -1,6 +1,7 @@
 - Speed up more row summarization methods by supporting natively more
   operations in .Call entry point C_rowStats_SVT. Note that doing this
-  for "sum" led to a 20x or more speedup on big SVT_SparseArray objects.
+  for rowSums(), rowMeans(), and rowVars(), led to speedups of 20x, 18x,
+  and 5x, or more, on big SVT_SparseArray objects.
 
 - Implement efficient coercions from dgTMatrix to COO_SparseMatrix and
   SVT_SparseMatrix. 'as(<dgTMatrix>, "SparseMatrix")' and
@@ -53,8 +54,9 @@
     > rbind(SVT_SparseArray(dim=6:5), matrix(ncol=5))
     Error: C stack usage  7971988 is too close to the limit
 
-- Parallelize more operations (with OpenMP). Right now only %*%, crossprod(),
-  tcrossprod(), and the matrixStats operations are parallelized.
+- Parallelize more operations (with OpenMP) e.g. rowsum(). Right now only %*%,
+  crossprod(), tcrossprod(), and the col*() methods (matrixStats operations)
+  are parallelized.
 
 - Implement coercion from Hits to SVT_SparseMatrix. The returned object
   should be an integer SVT_SparseMatrix with only zeros and ones that is

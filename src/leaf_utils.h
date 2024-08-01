@@ -125,7 +125,6 @@ static inline int unzip_leaf(SEXP leaf, SEXP *nzvals, SEXP *nzoffs)
 static inline SparseVec leaf2SV(SEXP leaf, SEXPTYPE Rtype, int len)
 {
 	SEXP nzvals, nzoffs;
-
 	unzip_leaf(leaf, &nzvals, &nzoffs);
 	return toSparseVec(nzvals, nzoffs, Rtype, len);
 }

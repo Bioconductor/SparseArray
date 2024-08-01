@@ -15,7 +15,7 @@
 ### objects
 ###
 
-### 'center' ignored by all ops except "sum_centered_X2".
+### 'center' ignored by all ops except "centered_X2_sum".
 ### Returns an integer or numeric vector of length 1 or 2.
 .summarize_SVT <- function(op, x, na.rm=FALSE, center=NULL)
 {

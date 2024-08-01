@@ -36,25 +36,38 @@ static int check_dims(SEXP dims, int min, int max)
 	return d;
 }
 
-/* Returns 'tail(dim(x), n=-dims)'. */
-static SEXP compute_colStats_ans_dim(SEXP x_dim, SEXP dims)
+static const double *check_rowStats_center(SEXP center, SEXP x_dim, int dims)
 {
-	int x_ndim = LENGTH(x_dim);
-	int d = check_dims(dims, 1, x_ndim);
-	int ans_ndim = x_ndim - d;
+	if (center == R_NilValue)
+		return NULL;
+	if (!IS_NUMERIC(center))
+		error("SparseArray internal error in check_rowStats_center():\n"
+		      "    'center' must be NULL or a numeric array");
+	/* We only check the length of 'center', not its actual dimensions. */
+	R_xlen_t ans_len = 1;
+	for (int along = 0; along < dims; along++)
+		ans_len *= INTEGER(x_dim)[along];
+	if (LENGTH(center) != ans_len)
+		error("SparseArray internal error in check_rowStats_center():\n"
+		      "    unexpected 'center' length");
+	return REAL(center);
+}
+
+/* Returns 'tail(dim(x), n=-dims)'. */
+static SEXP compute_colStats_ans_dim(SEXP x_dim, int dims)
+{
+	int ans_ndim = LENGTH(x_dim) - dims;
 	SEXP ans_dim = PROTECT(NEW_INTEGER(ans_ndim));
-	memcpy(INTEGER(ans_dim), INTEGER(x_dim) + d, sizeof(int) * ans_ndim);
+	memcpy(INTEGER(ans_dim), INTEGER(x_dim) + dims, sizeof(int) * ans_ndim);
 	UNPROTECT(1);
 	return ans_dim;
 }
 
 /* Returns 'head(dim(x), n=dims)'. */
-static SEXP compute_rowStats_ans_dim(SEXP x_dim, SEXP dims)
+static SEXP compute_rowStats_ans_dim(SEXP x_dim, int dims)
 {
-	int x_ndim = LENGTH(x_dim);
-	int d = check_dims(dims, 1, x_ndim - 1);
-	SEXP ans_dim = PROTECT(NEW_INTEGER(d));
-	memcpy(INTEGER(ans_dim), INTEGER(x_dim), sizeof(int) * d);
+	SEXP ans_dim = PROTECT(NEW_INTEGER(dims));
+	memcpy(INTEGER(ans_dim), INTEGER(x_dim), sizeof(int) * dims);
 	UNPROTECT(1);
 	return ans_dim;
 }
@@ -251,8 +264,9 @@ SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
 						     REAL(center)[0]);
 	SEXPTYPE ans_Rtype = compute_ans_Rtype(&summarize_op);
 
-	SEXP ans_dim = PROTECT(compute_colStats_ans_dim(x_dim, dims));
-	int ans_ndim = LENGTH(ans_dim);  /* = x_ndim - INTEGER(dims)[0] */
+	int d = check_dims(dims, 1, LENGTH(x_dim));
+	SEXP ans_dim = PROTECT(compute_colStats_ans_dim(x_dim, d));
+	int ans_ndim = LENGTH(ans_dim);  /* = x_ndim - d */
 	/* Get 1-based rank of biggest dimension. Parallel execution will
 	   be along that dimension. */
 	int pardim = which_max(INTEGER(ans_dim), ans_ndim) + 1;
@@ -262,7 +276,7 @@ SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
 		out_incs = (R_xlen_t *) R_alloc(ans_ndim, sizeof(R_xlen_t));
 
 	SEXP ans = PROTECT(alloc_ans(ans_Rtype, ans_dim, out_incs));
-	propagate_colStats_dimnames(ans, x_dimnames, INTEGER(dims)[0]);
+	propagate_colStats_dimnames(ans, x_dimnames, d);
 
 	int warn = 0;
 	REC_colStats_SVT(x_SVT, INTEGER(x_dim), LENGTH(x_dim),
@@ -283,49 +297,177 @@ SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
  * C_rowStats_SVT()
  */
 
-static void add_SV_to_doubles(const SparseVec *sv, double *out, int narm)
+static void init_rowStats_ans(SEXP ans, const SummarizeOp *summarize_op,
+		const double *center_p, SEXP x_dim, int dims)
+{
+	if (summarize_op->opcode != CENTERED_X2_SUM_OPCODE ||
+	    center_p == NULL)
+	{
+		_set_Rvector_elts_to_zero(ans);
+		return;
+	}
+	R_xlen_t n = 1;
+	for (int along = dims; along < LENGTH(x_dim); along++)
+		n *= INTEGER(x_dim)[along];
+	double *ans_p = REAL(ans);
+	for (int i = 0; i < LENGTH(ans); i++) {
+		double c = center_p[i];
+		ans_p[i] = n * c * c;
+	}
+	return;
+}
+
+static void rowCountNAs_SV(const SparseVec *sv, double *out)
+{
+	if (sv->nzvals == NULL)  /* lacunar leaf */
+		return;
+	/* regular leaf */
+	int nzcount = get_SV_nzcount(sv);
+	SEXPTYPE sv_Rtype = get_SV_Rtype(sv);
+	for (int k = 0; k < nzcount; k++) {
+		switch (sv_Rtype) {
+		    case INTSXP: case LGLSXP: {
+			const int *nzvals_p = sv->nzvals;
+			if (nzvals_p[k] == NA_INTEGER)
+				break;
+			continue;
+		    }
+		    case REALSXP: {
+			const double *nzvals_p = sv->nzvals;
+			/* ISNAN(): True for *both* NA and NaN.
+			   See <R_ext/Arith.h> */
+			if (ISNAN(nzvals_p[k]))
+				break;
+			continue;
+		    }
+		    default:
+			error("SparseArray internal error in "
+			      "rowCountNAs_SV():\n"
+			      "    type \"%s\" is not supported",
+			      type2char(sv_Rtype));
+		}
+		out[sv->nzoffs[k]] += 1.0;
+	}
+	return;
+}
+
+static void rowSums_SV(const SparseVec *sv, int narm, double *out)
 {
 	int nzcount = get_SV_nzcount(sv);
 	if (sv->nzvals == NULL) {
 		/* lacunar leaf */
 		for (int k = 0; k < nzcount; k++)
 			out[sv->nzoffs[k]] += double1;
-	} else {
-		/* regular leaf */
-		for (int k = 0; k < nzcount; k++) {
-			double x;
-			if (get_SV_Rtype(sv) == REALSXP) {
-				const double *nzvals_p = sv->nzvals;
-				x = nzvals_p[k];
-				/* ISNAN(): True for *both* NA and NaN.
-				   See <R_ext/Arith.h> */
-				if (narm && ISNAN(x))
+		return;
+	}
+	/* regular leaf */
+	SEXPTYPE sv_Rtype = get_SV_Rtype(sv);
+	for (int k = 0; k < nzcount; k++) {
+		double x;
+		switch (sv_Rtype) {
+		    case INTSXP: case LGLSXP: {
+			const int *nzvals_p = sv->nzvals;
+			int v = nzvals_p[k];
+			if (v == NA_INTEGER) {
+				if (narm)
 					continue;
+				x = NA_REAL;
 			} else {
-				const int *nzvals_p = sv->nzvals;
-				int v = nzvals_p[k];
-				if (v == NA_INTEGER) {
-					if (narm)
-						continue;
-					x = NA_REAL;
-				} else {
-					x = (double) v;
-				}
+				x = (double) v;
 			}
-			out[sv->nzoffs[k]] += x;
+			break;
+		    }
+		    case REALSXP: {
+			const double *nzvals_p = sv->nzvals;
+			x = nzvals_p[k];
+			/* ISNAN(): True for *both* NA and NaN.
+			   See <R_ext/Arith.h> */
+			if (narm && ISNAN(x))
+				continue;
+			break;
+		    }
+		    default:
+			error("SparseArray internal error in rowSums_SV():\n"
+			      "    type \"%s\" is not supported",
+			      type2char(sv_Rtype));
 		}
+		out[sv->nzoffs[k]] += x;
+	}
+	return;
+}
+
+static void rowCenteredX2Sum_SV(const SparseVec *sv,
+		int narm, const double *center, double *out)
+{
+	int nzcount = get_SV_nzcount(sv);
+	if (sv->nzvals == NULL) {
+		/* lacunar leaf */
+		for (int k = 0; k < nzcount; k++) {
+			int i = sv->nzoffs[k];
+			double x = double1;
+			if (center != NULL)
+				x -= 2 * center[i];
+			out[i] += x;
+		}
+		return;
+	}
+	/* regular leaf */
+	SEXPTYPE sv_Rtype = get_SV_Rtype(sv);
+	for (int k = 0; k < nzcount; k++) {
+		int i = sv->nzoffs[k];
+		double c = center == NULL ? 0.0 : center[i];
+		double x;
+		switch (sv_Rtype) {
+		    case INTSXP: case LGLSXP: {
+			const int *nzvals_p = sv->nzvals;
+			int v = nzvals_p[k];
+			if (v == NA_INTEGER) {
+				if (narm) {
+					out[i] -= c * c;
+					continue;
+				}
+				x = NA_REAL;
+			} else {
+				x = (double) v;
+			}
+			break;
+		    }
+		    case REALSXP: {
+			const double *nzvals_p = sv->nzvals;
+			x = nzvals_p[k];
+			/* ISNAN(): True for *both* NA and NaN.
+			   See <R_ext/Arith.h> */
+			if (narm && ISNAN(x)) {
+				out[i] -= c * c;
+				continue;
+			}
+			break;
+		    }
+		    default:
+			error("SparseArray internal error in "
+			      "rowCenteredX2Sum_SV():\n"
+			      "    type \"%s\" is not supported",
+			      type2char(sv_Rtype));
+		}
+		out[i] += x * (x - 2 * c);
 	}
 	return;
 }
 
 static void rowStats_leaf(SEXP leaf, int dim0,
-		const SummarizeOp *summarize_op,
+		const SummarizeOp *summarize_op, const double *center,
 		void *out, SEXPTYPE out_Rtype, int *warn)
 {
 	SparseVec sv = leaf2SV(leaf, summarize_op->in_Rtype, dim0);
 	switch (summarize_op->opcode) {
+	    case COUNTNAS_OPCODE:
+		rowCountNAs_SV(&sv, out);
+		return;
 	    case SUM_OPCODE:
-		add_SV_to_doubles(&sv, out, summarize_op->na_rm);
+		rowSums_SV(&sv, summarize_op->na_rm, out);
+		return;
+	    case CENTERED_X2_SUM_OPCODE:
+		rowCenteredX2Sum_SV(&sv, summarize_op->na_rm, center, out);
 		return;
 	}
 	error("SparseArray internal error in rowStats_leaf():\n"
@@ -335,7 +477,7 @@ static void rowStats_leaf(SEXP leaf, int dim0,
 
 /* Recursive. */
 static void REC_rowStats_SVT(SEXP SVT, const int *dims, int ndim,
-		const SummarizeOp *summarize_op,
+		const SummarizeOp *summarize_op, const double *center,
 		void *out, SEXPTYPE out_Rtype,
 		const R_xlen_t *out_incs, int out_ndim,
 		int *warn)
@@ -345,9 +487,11 @@ static void REC_rowStats_SVT(SEXP SVT, const int *dims, int ndim,
 
 	if (ndim == 1) { /* 'out_ndim' also guaranteed to be 1 */
 		/* 'SVT' is a leaf (i.e. a 1D SVT). */
-		rowStats_leaf(SVT, dims[0], summarize_op, out, out_Rtype, warn);
+		rowStats_leaf(SVT, dims[0], summarize_op, center,
+			      out, out_Rtype, warn);
 		return;
 	}
+
 	int SVT_len = dims[ndim - 1];
 	R_xlen_t out_inc = 0;
 	if (ndim <= out_ndim) {
@@ -356,9 +500,10 @@ static void REC_rowStats_SVT(SEXP SVT, const int *dims, int ndim,
 	}
 	for (int i = 0; i < SVT_len; i++) {
 		SEXP subSVT = VECTOR_ELT(SVT, i);
+		const double *subcenter = center + out_inc * i;
 		void *subout = shift_dataptr(out_Rtype, out, out_inc * i);
 		REC_rowStats_SVT(subSVT, dims, ndim - 1,
-				 summarize_op,
+				 summarize_op, subcenter,
 				 subout, out_Rtype,
 				 out_incs, out_ndim,
 				 warn);
@@ -382,28 +527,26 @@ SEXP C_rowStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
 		error("'na.rm' must be TRUE or FALSE");
 	int narm = LOGICAL(na_rm)[0];
 
-	if (!IS_NUMERIC(center) || LENGTH(center) != 1)
-		error("SparseArray internal error in "
-		      "C_rowStats_SVT():\n"
-		      "    'center' must be a single number");
+	int d = check_dims(dims, 1, LENGTH(x_dim) - 1);
+	const double *center_p = check_rowStats_center(center, x_dim, d);
 
 	SummarizeOp summarize_op = _make_SummarizeOp(opcode, x_Rtype, narm,
-						     REAL(center)[0]);
+						     NA_REAL);
 	SEXPTYPE ans_Rtype = compute_ans_Rtype(&summarize_op);
 
-	SEXP ans_dim = PROTECT(compute_rowStats_ans_dim(x_dim, dims));
-	int ans_ndim = LENGTH(ans_dim);  /* = INTEGER(dims)[0] */
+	SEXP ans_dim = PROTECT(compute_rowStats_ans_dim(x_dim, d));
+	int ans_ndim = LENGTH(ans_dim);  /* = d */
 
 	/* 'ans_ndim' is guaranteed to be >= 1. */
 	R_xlen_t *out_incs = (R_xlen_t *) R_alloc(ans_ndim, sizeof(R_xlen_t));
 
 	SEXP ans = PROTECT(alloc_ans(ans_Rtype, ans_dim, out_incs));
 	propagate_rowStats_dimnames(ans, x_dimnames, ans_ndim);
-	_set_Rvector_elts_to_zero(ans);
+	init_rowStats_ans(ans, &summarize_op, center_p, x_dim, d);
 
 	int warn = 0;
 	REC_rowStats_SVT(x_SVT, INTEGER(x_dim), LENGTH(x_dim),
-			 &summarize_op,
+			 &summarize_op, center_p,
 			 DATAPTR(ans), ans_Rtype,
 			 out_incs, ans_ndim,
 			 &warn);

@@ -47,8 +47,8 @@ int _get_summarize_opcode(SEXP op, SEXPTYPE Rtype)
 		return PROD_OPCODE;
 	if (strcmp(s, "mean") == 0)
 		return MEAN_OPCODE;
-	if (strcmp(s, "sum_centered_X2") == 0)
-		return SUM_CENTERED_X2_OPCODE;
+	if (strcmp(s, "centered_X2_sum") == 0)
+		return CENTERED_X2_SUM_OPCODE;
 	if (strcmp(s, "sum_X_X2") == 0)
 		return SUM_X_X2_OPCODE;
 	if (strcmp(s, "var1") == 0)
@@ -70,7 +70,7 @@ int _get_summarize_opcode(SEXP op, SEXPTYPE Rtype)
 	      "\"anyNA\", \"countNAs\", \"any\", \"all\",\n"
 	      "                       \"min\", \"max\", "
 	      "\"range\", \"sum\", \"prod\", \"mean\",\n"
-	      "                       \"sum_centered_X2\", \"sum_X_X2\",\n"
+	      "                       \"centered_X2_sum\", \"sum_X_X2\",\n"
 	      "                       \"var1\", \"var2\", \"sd1\", \"sd2\"");
 	return 0;
 }
@@ -122,7 +122,7 @@ void _init_SummarizeResult(const SummarizeOp *summarize_op,
 		res->outbuf.one_double[0] = 1.0;
 		res->postprocess_one_zero = 1;
 		return;
-	    case SUM_CENTERED_X2_OPCODE: case VAR1_OPCODE: case SD1_OPCODE:
+	    case CENTERED_X2_SUM_OPCODE: case VAR1_OPCODE: case SD1_OPCODE:
 		res->out_Rtype = REALSXP;
 		res->outbuf.one_double[0] = 0.0;
 		return;
@@ -618,7 +618,7 @@ static inline int prod_doubles(const double *x, int n,
 }
 
 /* 'outbuf' initialized by _init_SummarizeResult() above. */
-static inline int sum_centered_X2_ints(const int *x, int n,
+static inline int centered_X2_sum_ints(const int *x, int n,
 		int na_rm, double center, R_xlen_t *nacount,
 		double outbuf[1])
 {
@@ -641,7 +641,7 @@ static inline int sum_centered_X2_ints(const int *x, int n,
 }
 
 /* 'outbuf' initialized by _init_SummarizeResult() above. */
-static inline int sum_centered_X2_doubles(const double *x, int n,
+static inline int centered_X2_sum_doubles(const double *x, int n,
 		int na_rm, double center, R_xlen_t *nacount,
 		double outbuf[1])
 {
@@ -808,7 +808,7 @@ static int summarize_ones(SEXPTYPE x_Rtype, int x_len,
 		res->outbuf.one_double[0] += (double) x_len;
 	    case PROD_OPCODE:
 		return OUTBUF_IS_SET;
-	    case SUM_CENTERED_X2_OPCODE: case VAR1_OPCODE: case SD1_OPCODE: {
+	    case CENTERED_X2_SUM_OPCODE: case VAR1_OPCODE: case SD1_OPCODE: {
 		double delta = 1.0 - center;
 		res->outbuf.one_double[0] += delta * delta * x_len;
 		return OUTBUF_IS_SET;
@@ -853,8 +853,8 @@ static int summarize_ints(const int *x, int x_len,
 	    case PROD_OPCODE:
 		return prod_ints(x, x_len, na_rm, nacount_p,
 				res->outbuf.one_double);
-	    case SUM_CENTERED_X2_OPCODE: case VAR1_OPCODE: case SD1_OPCODE:
-		return sum_centered_X2_ints(x, x_len, na_rm,
+	    case CENTERED_X2_SUM_OPCODE: case VAR1_OPCODE: case SD1_OPCODE:
+		return centered_X2_sum_ints(x, x_len, na_rm,
 				center, nacount_p,
 				res->outbuf.one_double);
 	    case SUM_X_X2_OPCODE: case VAR2_OPCODE: case SD2_OPCODE:
@@ -890,8 +890,8 @@ static int summarize_doubles(const double *x, int x_len,
 	    case PROD_OPCODE:
 		return prod_doubles(x, x_len, na_rm, nacount_p,
 				res->outbuf.one_double);
-	    case SUM_CENTERED_X2_OPCODE: case VAR1_OPCODE: case SD1_OPCODE:
-		return sum_centered_X2_doubles(x, x_len, na_rm,
+	    case CENTERED_X2_SUM_OPCODE: case VAR1_OPCODE: case SD1_OPCODE:
+		return centered_X2_sum_doubles(x, x_len, na_rm,
 				center, nacount_p,
 				res->outbuf.one_double);
 	    case SUM_X_X2_OPCODE: case VAR2_OPCODE: case SD2_OPCODE:
@@ -1081,10 +1081,10 @@ void _postprocess_SummarizeResult(const SummarizeOp *summarize_op,
 		res->outbuf.one_double[0] /= (double) effective_len;
 		return;
 	    }
-	    case SUM_CENTERED_X2_OPCODE: case VAR1_OPCODE: case SD1_OPCODE: {
+	    case CENTERED_X2_SUM_OPCODE: case VAR1_OPCODE: case SD1_OPCODE: {
 		double center = summarize_op->center;
 		res->outbuf.one_double[0] += center * center * zerocount;
-		if (opcode == SUM_CENTERED_X2_OPCODE)
+		if (opcode == CENTERED_X2_SUM_OPCODE)
 			return;
 		if (effective_len <= 1) {
 			res->outbuf.one_double[0] = NA_REAL;

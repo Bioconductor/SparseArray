@@ -24,7 +24,7 @@
 
 /* Other "summarize" operations */
 #define	MEAN_OPCODE             10  /* Interface 2 */
-#define	SUM_CENTERED_X2_OPCODE  11  /* Interface 3, supports VAR1_OPCODE */
+#define	CENTERED_X2_SUM_OPCODE  11  /* Interface 3, supports VAR1_OPCODE */
 #define	SUM_X_X2_OPCODE         12  /* Interface 2, supports VAR2_OPCODE  */
 #define	VAR1_OPCODE             13  /* Interface 3, supports SD1_OPCODE  */
 #define	VAR2_OPCODE             14  /* Interface 2, supports SD2_OPCODE  */
