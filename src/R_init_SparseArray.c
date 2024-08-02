@@ -84,7 +84,7 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_subassign_SVT_by_Mindex_OLD, 5),
 
 /* SparseArray_abind.c */
-	CALLMETHOD_DEF(C_abind_SVT_SparseArray_objects, 3),
+	CALLMETHOD_DEF(C_abind_SVT_SparseArray_objects, 4),
 
 /* SparseArray_summarization.c */
 	CALLMETHOD_DEF(C_summarize_SVT, 6),

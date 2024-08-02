@@ -43,7 +43,7 @@ abind_SVT_SparseArray_objects <- function(objects, along, ans_dimnames)
 
     ## Returns 'ans_dim' and 'ans_SVT' in a list of length 2.
     C_ans <- SparseArray.Call("C_abind_SVT_SparseArray_objects",
-                              objects, along, ans_type)
+                              objects, "SVT", along, ans_type)
     ans_dim <- C_ans[[1L]]
     ans_SVT <- C_ans[[2L]]
 

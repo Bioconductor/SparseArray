@@ -62,4 +62,5 @@ Collate: utils.R
 	NaArray-class.R
 	NaArray-subsetting.R
 	NaArray-aperm.R
+	NaArray-abind.R
 	zzz.R

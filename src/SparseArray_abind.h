@@ -5,6 +5,7 @@
 
 SEXP C_abind_SVT_SparseArray_objects(
 	SEXP objects,
+	SEXP SVTslotname,
 	SEXP along,
 	SEXP ans_type
 );

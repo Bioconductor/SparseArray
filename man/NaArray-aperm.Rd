@@ -33,7 +33,7 @@
 }
 
 \examples{
-## COMING SOON...
+# COMING SOON...
 }
 \keyword{array}
 \keyword{methods}

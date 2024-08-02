@@ -153,8 +153,8 @@ SparseArray(x, type=NA)
 
     \item \link{SparseArray_subassignment} for SparseArray subassignment.
 
-    \item \link{SparseArray_abind} for combining multidimensional SparseArray
-          objects.
+    \item \link{SparseArray_abind} for combining 2D or multidimensional
+          SparseArray objects.
 
     \item \link{SparseArray_summarization} for SparseArray summarization
           methods.

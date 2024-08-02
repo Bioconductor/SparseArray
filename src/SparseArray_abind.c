@@ -38,14 +38,22 @@ static SEXP check_and_combine_object_dims(SEXP objects, int along0,
 	return ans_dim;
 }
 
-static SEXP *prepare_SVTs_buf(SEXP objects, int ndim, int along0)
+static SEXP *prepare_SVTs_buf(SEXP objects, SEXP SVTslotname,
+			      int ndim, int along0)
 {
+	if (!(IS_CHARACTER(SVTslotname) && LENGTH(SVTslotname) == 1))
+		error("'SVTslotname' must be a single string");
+	SVTslotname = STRING_ELT(SVTslotname, 0);
+	if (SVTslotname == NA_STRING)
+		error("'SVTslotname' cannot be NA");
+	const char *slotname = CHAR(SVTslotname);
+
 	int nb_objects = LENGTH(objects);
 	SEXP *SVTs_buf = (SEXP *)
 		R_alloc(nb_objects * (ndim - along0), sizeof(SEXP));
 	for (int n = 0; n < nb_objects; n++) {
 		SEXP object = VECTOR_ELT(objects, n);
-		SVTs_buf[n] = GET_SLOT(object, install("SVT"));
+		SVTs_buf[n] = GET_SLOT(object, install(slotname));
 	}
 	return SVTs_buf;
 }
@@ -222,7 +230,8 @@ static SEXP REC_abind_SVTs(SEXP *SVTs, int nb_objects,
 }
 
 /* --- .Call ENTRY POINT --- */
-SEXP C_abind_SVT_SparseArray_objects(SEXP objects, SEXP along, SEXP ans_type)
+SEXP C_abind_SVT_SparseArray_objects(SEXP objects, SEXP SVTslotname,
+		SEXP along, SEXP ans_type)
 {
 	if (!isVectorList(objects))  // IS_LIST() is broken
 		error("'objects' must be a list of SVT_SparseArray objects");
@@ -245,7 +254,7 @@ SEXP C_abind_SVT_SparseArray_objects(SEXP objects, SEXP along, SEXP ans_type)
 	);
 	int ndim = LENGTH(ans_dim);
 
-	SEXP *SVTs_buf = prepare_SVTs_buf(objects, ndim, along0);
+	SEXP *SVTs_buf = prepare_SVTs_buf(objects, SVTslotname, ndim, along0);
 	SEXP ans_SVT = REC_abind_SVTs(SVTs_buf, nb_objects,
 				INTEGER(ans_dim), ndim, along0, dims_along,
 				ans_Rtype);

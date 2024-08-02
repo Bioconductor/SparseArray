@@ -83,6 +83,9 @@ NaArray(x, dim=NULL, dimnames=NULL, type=NA)
 
     \item \link{NaArray_subsetting} for subsetting an NaArray object.
 
+    \item \link{NaArray_abind} for combining 2D or multidimensional
+          NaArray objects.
+
     \item Ordinary \link[base]{array} objects in base R.
   }
 }

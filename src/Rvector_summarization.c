@@ -18,16 +18,18 @@
 
 int _get_summarize_opcode(SEXP op, SEXPTYPE Rtype)
 {
-	if (!IS_CHARACTER(op) || LENGTH(op) != 1)
+	if (!(IS_CHARACTER(op) && LENGTH(op) == 1))
 		error("'op' must be a single string");
 	op = STRING_ELT(op, 0);
 	if (op == NA_STRING)
 		error("'op' cannot be NA");
 	const char *s = CHAR(op);
+
 	if (Rtype != LGLSXP && Rtype != INTSXP && Rtype != REALSXP &&
 	    Rtype != CPLXSXP && Rtype != STRSXP)
 		error("%s() does not support SparseArray objects "
 		      "of type() \"%s\"", s, type2char(Rtype));
+
 	if (strcmp(s, "anyNA") == 0)
 		return ANYNA_OPCODE;
 	if (strcmp(s, "countNAs") == 0)
