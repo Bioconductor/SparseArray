@@ -78,6 +78,9 @@ NaArray(x, dim=NULL, dimnames=NULL, type=NA)
   \itemize{
     \item The \link{SVT_SparseArray} class.
 
+    \item \link{NaArray_aperm} for permuting the dimensions of an
+          NaArray object (e.g. transposition).
+
     \item \link{NaArray_subsetting} for subsetting an NaArray object.
 
     \item Ordinary \link[base]{array} objects in base R.

@@ -61,4 +61,5 @@ Collate: utils.R
 	readSparseCSV.R
 	NaArray-class.R
 	NaArray-subsetting.R
+	NaArray-aperm.R
 	zzz.R

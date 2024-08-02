@@ -11,6 +11,7 @@
 ### S3/S4 combo for t.SVT_SparseMatrix
 t.SVT_SparseMatrix <- function(x)
 {
+    check_svt_version(x)
     new_SVT <- SparseArray.Call("C_transpose_2D_SVT", x@dim, x@type, x@SVT)
     BiocGenerics:::replaceSlots(x, dim=rev(x@dim),
                                    dimnames=rev(x@dimnames),

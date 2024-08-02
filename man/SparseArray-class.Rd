@@ -146,6 +146,9 @@ SparseArray(x, type=NA)
   \itemize{
     \item The \link{COO_SparseArray} and \link{SVT_SparseArray} classes.
 
+    \item \link{SparseArray_aperm} for permuting the dimensions of a
+          SparseArray object (e.g. transposition).
+
     \item \link{SparseArray_subsetting} for subsetting a SparseArray object.
 
     \item \link{SparseArray_subassignment} for SparseArray subassignment.

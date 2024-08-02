@@ -40,6 +40,7 @@ exportClasses(
 
 S3method(aperm, COO_SparseArray)
 S3method(aperm, SVT_SparseArray)
+S3method(aperm, NaArray)
 
 S3method(as.array, COO_SparseArray)
 S3method(as.array, SVT_SparseArray)
@@ -54,6 +55,7 @@ S3method(rowsum, dgCMatrix)
 S3method(rowsum, SparseMatrix)
 
 S3method(t, SVT_SparseMatrix)
+S3method(t, NaMatrix)
 
 ### We also export them thru the export() directive so that (a) they can be
 ### called directly, (b) tab-completion on the name of the generic shows them,
@@ -62,6 +64,7 @@ S3method(t, SVT_SparseMatrix)
 export(
     aperm.COO_SparseArray,
     aperm.SVT_SparseArray,
+    aperm.NaArray,
 
     as.array.COO_SparseArray,
     as.array.SVT_SparseArray,
@@ -72,7 +75,8 @@ export(
     rowsum.dgCMatrix,
     rowsum.SparseMatrix,
 
-    t.SVT_SparseMatrix
+    t.SVT_SparseMatrix,
+    t.NaMatrix
 )
 
 
