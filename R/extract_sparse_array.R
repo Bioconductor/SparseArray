@@ -47,7 +47,7 @@ check_returned_SparseArray <- function(ans, expected_dim, .Generic, x_class)
 ### and are the responsibility of the user. We'll refer to (2) and (3) as
 ### the "extract_sparse_array() contract".
 
-setGeneric("extract_sparse_array",
+setGeneric("extract_sparse_array", signature="x",
     function(x, index)
     {
         x_dim <- dim(x)

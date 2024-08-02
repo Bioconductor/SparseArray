@@ -39,7 +39,8 @@ SEXP C_from_SVT_SparseArray_to_Rarray(
 	SEXP x_dim,
 	SEXP x_dimnames,
 	SEXP x_type,
-	SEXP x_SVT
+	SEXP x_SVT,
+	SEXP na_background
 );
 
 SEXP C_build_SVT_from_Rarray(

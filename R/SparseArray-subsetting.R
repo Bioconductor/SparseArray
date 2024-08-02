@@ -67,7 +67,7 @@
         if (is.null(x_dimnames))
             stop(wmsg("SparseArray object to subset has no dimnames"))
         ## Subsetting an ordinary array with dimnames on it by a character
-        ## matrix is supported in R base but we don't support this yet for
+        ## matrix is supported in base R but we don't support this yet for
         ## SparseArray objects.
         stop("subsetting a SparseArray object by a character matrix ",
              "is not supported at the moment")

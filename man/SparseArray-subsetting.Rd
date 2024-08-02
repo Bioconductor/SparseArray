@@ -19,8 +19,8 @@
 
 \seealso{
   \itemize{
-    \item \code{SparseArray::\link[SparseArray]{drop}} to drop
-          \emph{ineffective dimensions}.
+    \item \code{\link[base]{drop}} in base R to drop the \emph{ineffective
+          dimensions} of an array or array-like object.
 
     \item \code{\link[S4Arrays]{Lindex2Mindex}} in the \pkg{S4Arrays}
           package for how to convert an \emph{L-index} to an \emph{M-index}

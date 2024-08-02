@@ -176,7 +176,7 @@ test_that(paste("subassign an SVT_SparseArray object by an Nindex",
     check_SparseArray_object(svt, "SVT_SparseArray", a)
 })
 
-if (SparseArray:::.SVT_VERSION != 0L) {
+if (SparseArray:::SVT_VERSION != 0L) {
 
 test_that("handling of lacunar leaves in SVT_SparseArray subassignment", {
     svt1 <- as(array(0L, dim=4L), "SVT_SparseArray")  # 1D
@@ -320,4 +320,4 @@ test_that("handling of lacunar leaves in SVT_SparseArray subassignment", {
 
 })
 
-}  # ----- end if (SparseArray:::.SVT_VERSION != 0L) -----
+}  # ----- end if (SparseArray:::SVT_VERSION != 0L) -----

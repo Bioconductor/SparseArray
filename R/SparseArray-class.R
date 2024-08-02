@@ -270,13 +270,13 @@ sparsity <- function(x) { 1 - nzcount(x) / length(x) }
 setMethod("classNameForDisplay", "SparseArray", function(x) "SparseArray")
 setMethod("classNameForDisplay", "SparseMatrix", function(x) "SparseMatrix")
 
-.show_headline_part1 <- function(x)
+show_headline_part1 <- function(x)
 {
     sprintf("<%s %s> of type \"%s\" ", paste0(dim(x), collapse=" x "),
                                        classNameForDisplay(x), type(x))
 }
 
-.show_headline_part2 <- function(x)
+.show_nzcount <- function(x)
 {
     ## Calling nzcount(x) will fail if 'x' is an SVT_SparseArray object
     ## that uses version 0 of the SVT internal layout.
@@ -292,9 +292,9 @@ setMethod("show", "SparseArray",
         ## Only reason we print the headline in 2 steps is because we
         ## want to make sure to print at least something (part1) even
         ## when printing part2 is going to fail. This will happen for
-        ## example if the call to nzcount() in .show_headline_part2() fails.
-        cat(.show_headline_part1(object))
-        cat(.show_headline_part2(object))
+        ## example if the call to nzcount() in .show_nzcount() fails.
+        cat(show_headline_part1(object))
+        cat(.show_nzcount(object))
         if (any(dim(object) == 0L)) {
             cat("\n")
             return()

@@ -57,16 +57,19 @@ size_t _get_Rtype_size(SEXPTYPE Rtype)
  * _set_elts_to_zero()
  * _set_elts_to_one()
  * _set_elts_to_minus_one()
+ * _set_elts_to_NA()
  *
  * _set_Rsubvec_elts_to_val()
  * _set_Rsubvec_elts_to_zero()
  * _set_Rsubvec_elts_to_one()
  * _set_Rsubvec_elts_to_minus_one()
+ * _set_Rsubvec_elts_to_NA()
  *
  * _set_Rvector_elts_to_val()
  * _set_Rvector_elts_to_zero()
  * _set_Rvector_elts_to_one()
  * _set_Rvector_elts_to_minus_one()
+ * _set_Rvector_elts_to_NA()
  */
 
 #define	DEFINE_set_TYPE_elts_to_val_FUN(type)				\
@@ -172,6 +175,37 @@ void _set_elts_to_minus_one(SEXPTYPE Rtype, void *x,
 	return;
 }
 
+/* Restricted to types "integer", "logical", "double", and "complex". */
+void _set_elts_to_NA(SEXPTYPE Rtype, void *x, R_xlen_t offset, R_xlen_t n)
+{
+	switch (Rtype) {
+	    case INTSXP: {
+		const int val = NA_INTEGER;
+		_set_elts_to_val(Rtype, x, offset, n, &val);
+		return;
+	    }
+	    case LGLSXP: {
+		const int val = NA_LOGICAL;
+		_set_elts_to_val(Rtype, x, offset, n, &val);
+		return;
+	    }
+	    case REALSXP: {
+		const double val = NA_REAL;
+		_set_elts_to_val(Rtype, x, offset, n, &val);
+		return;
+	    }
+	    case CPLXSXP: {
+		const Rcomplex val = {{NA_REAL, NA_REAL}};
+		_set_elts_to_val(Rtype, x, offset, n, &val);
+		return;
+	    }
+	}
+	error("SparseArray internal error in _set_elts_to_NA():\n"
+	      "    type \"%s\" is not supported", type2char(Rtype));
+	return;
+}
+
+
 static void set_character_elts_to_val(SEXP Rvector,
 		R_xlen_t subvec_offset, int subvec_len, const SEXP val)
 {
@@ -224,8 +258,7 @@ void _set_Rsubvec_elts_to_zero(SEXP Rvector,
 				     R_NilValue);
 		return;
 	}
-	_set_elts_to_zero(TYPEOF(Rvector), DATAPTR(Rvector),
-			  subvec_offset, subvec_len);
+	_set_elts_to_zero(Rtype, DATAPTR(Rvector), subvec_offset, subvec_len);
 	return;
 }
 
@@ -244,6 +277,21 @@ void _set_Rsubvec_elts_to_minus_one(SEXP Rvector,
 {
 	_set_elts_to_minus_one(TYPEOF(Rvector), DATAPTR(Rvector),
 			 subvec_offset, subvec_len);
+	return;
+}
+
+/* Restricted to types "integer", "logical", "double", "complex",
+   and "character". */
+void _set_Rsubvec_elts_to_NA(SEXP Rvector,
+		R_xlen_t subvec_offset, R_xlen_t subvec_len)
+{
+	SEXPTYPE Rtype = TYPEOF(Rvector);
+	if (Rtype == STRSXP) {
+		set_character_elts_to_val(Rvector, subvec_offset, subvec_len,
+					  NA_STRING);
+		return;
+	}
+	_set_elts_to_NA(Rtype, DATAPTR(Rvector), subvec_offset, subvec_len);
 	return;
 }
 
@@ -272,6 +320,14 @@ void _set_Rvector_elts_to_one(SEXP Rvector)
 void _set_Rvector_elts_to_minus_one(SEXP Rvector)
 {
 	_set_Rsubvec_elts_to_minus_one(Rvector, 0, XLENGTH(Rvector));
+	return;
+}
+
+/* Restricted to types "integer", "logical", "double", "complex",
+   and "character". */
+void _set_Rvector_elts_to_NA(SEXP Rvector)
+{
+	_set_Rsubvec_elts_to_NA(Rvector, 0, XLENGTH(Rvector));
 	return;
 }
 
@@ -407,6 +463,7 @@ void _set_selected_Rsubvec_elts_to_one(SEXP Rvector, R_xlen_t subvec_offset,
  * _new_Rmatrix0()
  * _new_Rarray0()
  * _new_Rvector1()
+ * _new_RarrayNA()
  */
 
 /* Like allocVector() but with initialization of the vector elements. */
@@ -459,6 +516,19 @@ SEXP _new_Rvector1(SEXPTYPE Rtype, int len)
 {
 	SEXP ans = PROTECT(allocVector(Rtype, (R_xlen_t) len));
 	_set_Rvector_elts_to_one(ans);
+	UNPROTECT(1);
+	return ans;
+}
+
+/* Like _new_Rarray0() but:
+   - initializes the array elements to NA;
+   - restricted to types "integer", "logical", "double", "complex",
+     and "character". */
+SEXP _new_RarrayNA(SEXPTYPE Rtype, SEXP dim, SEXP dimnames)
+{
+	SEXP ans = PROTECT(allocArray(Rtype, dim));
+	_set_Rvector_elts_to_NA(ans);
+	SET_DIMNAMES(ans, dimnames);
 	UNPROTECT(1);
 	return ans;
 }

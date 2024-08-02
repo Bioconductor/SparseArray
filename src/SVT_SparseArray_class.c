@@ -418,7 +418,7 @@ static int REC_unroll_SVT_into_Rarray(SEXP SVT,
 
 /* --- .Call ENTRY POINT --- */
 SEXP C_from_SVT_SparseArray_to_Rarray(SEXP x_dim, SEXP x_dimnames,
-		SEXP x_type, SEXP x_SVT)
+		SEXP x_type, SEXP x_SVT, SEXP na_background)
 {
 	SEXPTYPE Rtype = _get_Rtype_from_Rstring(x_type);
 	if (Rtype == 0)
@@ -426,7 +426,18 @@ SEXP C_from_SVT_SparseArray_to_Rarray(SEXP x_dim, SEXP x_dimnames,
 		      "C_from_SVT_SparseArray_to_Rarray():\n"
 		      "    SVT_SparseArray object has invalid type");
 
-	SEXP ans = PROTECT(_new_Rarray0(Rtype, x_dim, x_dimnames));
+	if (!(IS_LOGICAL(na_background) && LENGTH(na_background) == 1))
+		error("SparseArray internal error in "
+		      "C_from_SVT_SparseArray_to_Rarray():\n"
+		      "    'na_background' must be TRUE or FALSE");
+
+	SEXP ans;
+	if (LOGICAL(na_background)[0]) {
+		ans = _new_RarrayNA(Rtype, x_dim, x_dimnames);
+	} else {
+		ans = _new_Rarray0(Rtype, x_dim, x_dimnames);
+	}
+	PROTECT(ans);
 	int ret = REC_unroll_SVT_into_Rarray(x_SVT,
 				INTEGER(x_dim), LENGTH(x_dim),
 				ans, 0, XLENGTH(ans));

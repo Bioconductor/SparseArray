@@ -27,7 +27,10 @@ exportClasses(
     COO_SparseArray, COO_SparseMatrix,
 
     ## SVT_SparseArray-class.R:
-    NULL_OR_list, SVT_SparseArray, SVT_SparseMatrix
+    NULL_OR_list, SVT_SparseArray, SVT_SparseMatrix,
+
+    ## NaArray-class.R:
+    NaArray, NaMatrix
 )
 
 
@@ -40,6 +43,7 @@ S3method(aperm, SVT_SparseArray)
 
 S3method(as.array, COO_SparseArray)
 S3method(as.array, SVT_SparseArray)
+S3method(as.array, NaArray)
 
 S3method(mean, SparseArray)
 
@@ -114,7 +118,7 @@ exportMethods(
     bindROWS,
 
     ## Methods for generics defined in the S4Arrays package:
-    rowsum, colsum, aperm, abind, extract_array, is_sparse
+    rowsum, colsum, aperm, abind, tune_Array_dims, extract_array, is_sparse
 )
 
 
@@ -140,7 +144,10 @@ export(
     poissonSparseArray, poissonSparseMatrix,
 
     ## readSparseCSV.R:
-    writeSparseCSV, readSparseCSV, readSparseTable
+    writeSparseCSV, readSparseCSV, readSparseTable,
+
+    ## NaArray-class.R:
+    NaArray
 )
 
 
@@ -159,7 +166,13 @@ export(
     extract_sparse_array,
 
     ## read_block_as_sparse.R:
-    read_block_as_sparse
+    read_block_as_sparse,
+
+    ## NaArray-class.R:
+    nnacount, nnawhich,
+
+    ## NaArray-subsetting.R:
+    extract_na_array
 )
 
 ### Same list as above.
@@ -167,6 +180,8 @@ exportMethods(
     nzcount, nzwhich, nzvals, "nzvals<-",
     nzcoo, nzdata,
     extract_sparse_array,
-    read_block_as_sparse
+    read_block_as_sparse,
+    nnacount, nnawhich,
+    extract_na_array
 )
 

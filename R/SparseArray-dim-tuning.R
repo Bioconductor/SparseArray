@@ -18,8 +18,7 @@
 
 .tune_SVT_SparseArray_dims <- function(x, dim_tuner)
 {
-    stopifnot(is(x, "SVT_SparseArray"),
-              is.integer(dim_tuner))
+    stopifnot(is(x, "SVT_SparseArray"), is.integer(dim_tuner))
     check_svt_version(x)
 
     ans_SVT <- SparseArray.Call("C_tune_SVT_dims",

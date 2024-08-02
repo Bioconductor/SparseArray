@@ -180,7 +180,7 @@ test_that(".aperm_SVT() supports S4Arrays::aperm2() extended semantic", {
     }
 })
 
-if (SparseArray:::.SVT_VERSION != 0L) {
+if (SparseArray:::SVT_VERSION != 0L) {
 
 test_that("handling of lacunar leaves in t.SVT_SparseMatrix()", {
     m0 <- matrix(0L, nrow=4, ncol=5)
@@ -267,4 +267,4 @@ test_that("handling of lacunar leaves in .aperm_SVT()", {
     run_tests()
 })
 
-}  # ----- end if (SparseArray:::.SVT_VERSION != 0L) -----
+}  # ----- end if (SparseArray:::SVT_VERSION != 0L) -----

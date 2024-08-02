@@ -24,7 +24,7 @@
 
 setClassUnion("NULL_OR_list", c("NULL", "list"))
 
-.SVT_VERSION <- 1L
+SVT_VERSION <- 1L
 
 setClass("SVT_SparseArray",
     contains="SparseArray",
@@ -35,7 +35,7 @@ setClass("SVT_SparseArray",
     ),
     prototype(
         type="logical",
-        .svt_version=.SVT_VERSION
+        .svt_version=SVT_VERSION
     )
 )
 
@@ -50,20 +50,29 @@ setClass("SVT_SparseMatrix",
 ### Not exported (for internal use only).
 svt_version <- function(x)
 {
-    stopifnot(is(x, "SVT_SparseArray"))
+    stopifnot(is(x, "SVT_SparseArray") || is(x, "NaArray"))
     if (.hasSlot(x, ".svt_version")) x@.svt_version else 0L
 }
 
 check_svt_version <- function(x)
 {
-    if (svt_version(x) == 0L && !is.null(x@SVT)) {
-        pkg_version <- as.character(packageVersion("SparseArray"))
-        stop(wmsg("Old SVT_SparseArray object detected: object uses ",
-                  "version 0 of the SVT internal layout which is not ",
-                  "compatible with versions >= 1.5.0 of the SparseArray ",
-                  "package (your version is ", pkg_version, ")."))
+    if (svt_version(x) != 0L ||
+        is(x, "SVT_SparseArray") && is.null(x@SVT) ||
+        is(x, "NaArray") && is.null(x@NaSVT))
+    {
+        return(invisible(NULL))
     }
+    pkg_version <- as.character(packageVersion("SparseArray"))
+    stop(wmsg("Old ", class(x)[[1L]], " object detected: object uses ",
+              "version 0 of the SVT internal layout which is not ",
+              "compatible with versions >= 1.5.0 of the SparseArray ",
+              "package (your version is ", pkg_version, ")."))
 }
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Validity
+###
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -105,11 +114,6 @@ setAs("SVT_SparseMatrix", "SVT_SparseArray", function(from) from)  # no-op
 setMethod("coerce", c("SVT_SparseMatrix", "SparseArray"),
     function(from, to, strict=TRUE) from  # no-op
 )
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Validity
-###
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -193,7 +197,7 @@ new_SVT_SparseArray <- function(dim, dimnames=NULL,
     stopifnot(is(from, "SVT_SparseArray"))
     check_svt_version(from)
     SparseArray.Call("C_from_SVT_SparseArray_to_Rarray",
-                     from@dim, dimnames(from), from@type, from@SVT)
+                     from@dim, dimnames(from), from@type, from@SVT, FALSE)
 }
 
 ### S3/S4 combo for as.array.SVT_SparseArray

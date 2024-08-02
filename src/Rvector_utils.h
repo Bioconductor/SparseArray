@@ -144,6 +144,13 @@ void _set_elts_to_minus_one(
 	R_xlen_t n
 );
 
+void _set_elts_to_NA(
+	SEXPTYPE Rtype,
+	void *x,
+	R_xlen_t offset,
+	R_xlen_t n
+);
+
 void _set_Rsubvec_elts_to_val(
 	SEXP Rvector,
 	R_xlen_t subvec_offset,
@@ -169,6 +176,12 @@ void _set_Rsubvec_elts_to_minus_one(
 	R_xlen_t subvec_len
 );
 
+void _set_Rsubvec_elts_to_NA(
+	SEXP Rvector,
+	R_xlen_t subvec_offset,
+	R_xlen_t subvec_len
+);
+
 void _set_Rvector_elts_to_val(SEXP Rvector, const void *val);
 
 void _set_Rvector_elts_to_zero(SEXP Rvector);
@@ -176,6 +189,8 @@ void _set_Rvector_elts_to_zero(SEXP Rvector);
 void _set_Rvector_elts_to_one(SEXP Rvector);
 
 void _set_Rvector_elts_to_minus_one(SEXP Rvector);
+
+void _set_Rvector_elts_to_NA(SEXP Rvector);
 
 void _set_selected_elts_to_zero(
 	SEXPTYPE Rtype,
@@ -228,6 +243,12 @@ SEXP _new_Rarray0(
 SEXP _new_Rvector1(
 	SEXPTYPE Rtype,
 	int len
+);
+
+SEXP _new_RarrayNA(
+	SEXPTYPE Rtype,
+	SEXP dim,
+	SEXP dimnames
 );
 
 int _collect_offsets_of_nonzero_Rsubvec_elts(
