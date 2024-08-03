@@ -536,6 +536,7 @@ SEXP _new_RarrayNA(SEXPTYPE Rtype, SEXP dim, SEXP dimnames)
 
 /****************************************************************************
  * _collect_offsets_of_nonzero_Rsubvec_elts()
+ * _collect_offsets_of_nonNA_Rsubvec_elts()
  */
 
 static int collect_offsets_of_nonzero_int_elts(
@@ -544,6 +545,16 @@ static int collect_offsets_of_nonzero_int_elts(
 	const int *out0 = out;
 	for (int i = 0; i < n; i++)
 		if (x[i] != int0)
+			*(out++) = i;
+	return (int) (out - out0);
+}
+
+static int collect_offsets_of_nonNA_int_elts(
+		const int *x, int n, int *out)
+{
+	const int *out0 = out;
+	for (int i = 0; i < n; i++)
+		if (x[i] != NA_INTEGER)
 			*(out++) = i;
 	return (int) (out - out0);
 }
@@ -558,12 +569,33 @@ static int collect_offsets_of_nonzero_double_elts(
 	return (int) (out - out0);
 }
 
+static int collect_offsets_of_nonNA_double_elts(
+		const double *x, int n, int *out)
+{
+	const int *out0 = out;
+	for (int i = 0; i < n; i++)
+		if (!ISNAN(x[i]))
+			*(out++) = i;
+	return (int) (out - out0);
+}
+
 static int collect_offsets_of_nonzero_Rcomplex_elts(
 		const Rcomplex *x, int n, int *out)
 {
 	const int *out0 = out;
 	for (int i = 0; i < n; i++, x++) {
 		if (x->r != Rcomplex0.r || x->i != Rcomplex0.i)
+			*(out++) = i;
+	}
+	return (int) (out - out0);
+}
+
+static int collect_offsets_of_nonNA_Rcomplex_elts(
+		const Rcomplex *x, int n, int *out)
+{
+	const int *out0 = out;
+	for (int i = 0; i < n; i++, x++) {
+		if (!RCOMPLEX_IS_NA(x))
 			*(out++) = i;
 	}
 	return (int) (out - out0);
@@ -587,6 +619,19 @@ static int collect_offsets_of_nonempty_character_elts(
 	for (int i = 0; i < subvec_len; i++, subvec_offset++) {
 		SEXP vec_elt = STRING_ELT(Rvector, subvec_offset);
 		if (!IS_EMPTY_CHARSXP(vec_elt))
+			*(out++) = i;
+	}
+	return (int) (out - out0);
+}
+
+static int collect_offsets_of_nonNA_character_elts(
+		SEXP Rvector, R_xlen_t subvec_offset, int subvec_len,
+		int *out)
+{
+	const int *out0 = out;
+	for (int i = 0; i < subvec_len; i++, subvec_offset++) {
+		SEXP vec_elt = STRING_ELT(Rvector, subvec_offset);
+		if (vec_elt != NA_STRING)
 			*(out++) = i;
 	}
 	return (int) (out - out0);
@@ -648,6 +693,38 @@ int _collect_offsets_of_nonzero_Rsubvec_elts(
 	}
 	error("SparseArray internal error in "
 	      "_collect_offsets_of_nonzero_Rsubvec_elts():\n"
+	      "    type \"%s\" is not supported", type2char(Rtype));
+	return -1;  /* will never reach this */
+}
+
+/* Similar to _collect_offsets_of_nonzero_Rsubvec_elts() above but collects
+   non-NAs instead of nonzeros. Restricted to types "integer", "logical",
+   "double", "complex", and "character". */
+int _collect_offsets_of_nonNA_Rsubvec_elts(
+		SEXP Rvector, R_xlen_t subvec_offset, int subvec_len,
+		int *out)
+{
+	SEXPTYPE Rtype = TYPEOF(Rvector);
+	switch (Rtype) {
+	    case INTSXP: case LGLSXP:
+		return collect_offsets_of_nonNA_int_elts(
+				INTEGER(Rvector) + subvec_offset,
+				subvec_len, out);
+	    case REALSXP:
+		return collect_offsets_of_nonNA_double_elts(
+				REAL(Rvector) + subvec_offset,
+				subvec_len, out);
+	    case CPLXSXP:
+		return collect_offsets_of_nonNA_Rcomplex_elts(
+				COMPLEX(Rvector) + subvec_offset,
+				subvec_len, out);
+	    case STRSXP:
+		return collect_offsets_of_nonNA_character_elts(
+				Rvector, subvec_offset,
+				subvec_len, out);
+	}
+	error("SparseArray internal error in "
+	      "_collect_offsets_of_nonNA_Rsubvec_elts():\n"
 	      "    type \"%s\" is not supported", type2char(Rtype));
 	return -1;  /* will never reach this */
 }

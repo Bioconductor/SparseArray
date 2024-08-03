@@ -458,7 +458,8 @@ SEXP C_from_SVT_SparseArray_to_Rarray(SEXP x_dim, SEXP x_dimnames,
 static SEXP REC_build_SVT_from_Rsubarray(
 		SEXP Rarray, R_xlen_t arr_offset, R_xlen_t subarr_len,
 		const int *dim, int ndim,
-		SEXPTYPE ans_Rtype, int *warn, int *offs_buf)
+		SEXPTYPE ans_Rtype, int na_background,
+		int *warn, int *offs_buf)
 {
 	if (ndim == 1) {
 		/* Sanity check (should never fail). */
@@ -466,10 +467,20 @@ static SEXP REC_build_SVT_from_Rsubarray(
 			error("SparseArray internal error in "
 			      "REC_build_SVT_from_Rsubarray():\n"
 			      "    dim[0] != subarr_len");
-		SEXP ans = _make_leaf_from_Rsubvec(Rarray, arr_offset, dim[0],
-						   offs_buf, 1);
+		SEXP ans;
+		if (na_background) {
+			ans = _make_naleaf_from_Rsubvec(
+					Rarray, arr_offset, dim[0],
+					offs_buf, 1);
+		} else {
+			ans = _make_leaf_from_Rsubvec(
+					Rarray, arr_offset, dim[0],
+					offs_buf, 1);
+		}
 		if (ans_Rtype == TYPEOF(Rarray) || ans == R_NilValue)
 			return ans;
+		if (na_background)
+			error("'type' argument not supported yet");
 		PROTECT(ans);
 		ans = _coerce_leaf(ans, ans_Rtype, warn, offs_buf);
 		UNPROTECT(1);
@@ -484,7 +495,8 @@ static SEXP REC_build_SVT_from_Rsubarray(
 		SEXP ans_elt = REC_build_SVT_from_Rsubarray(
 					Rarray, arr_offset, subarr_len,
 					dim, ndim - 1,
-					ans_Rtype, warn, offs_buf);
+					ans_Rtype, na_background,
+					warn, offs_buf);
 		if (ans_elt != R_NilValue) {
 			PROTECT(ans_elt);
 			SET_VECTOR_ELT(ans, i, ans_elt);
@@ -498,11 +510,16 @@ static SEXP REC_build_SVT_from_Rsubarray(
 }
 
 /* --- .Call ENTRY POINT --- */
-SEXP C_build_SVT_from_Rarray(SEXP x, SEXP ans_type)
+SEXP C_build_SVT_from_Rarray(SEXP x, SEXP ans_type, SEXP na_background)
 {
 	SEXPTYPE ans_Rtype = _get_Rtype_from_Rstring(ans_type);
 	if (ans_Rtype == 0)
 		error("invalid requested type");
+
+	if (!(IS_LOGICAL(na_background) && LENGTH(na_background) == 1))
+		error("SparseArray internal error in "
+		      "C_from_SVT_SparseArray_to_Rarray():\n"
+		      "    'na_background' must be TRUE or FALSE");
 
 	R_xlen_t x_len = XLENGTH(x);
 	if (x_len == 0)  /* means that 'any(dim(x) == 0)' is TRUE */
@@ -513,8 +530,9 @@ SEXP C_build_SVT_from_Rarray(SEXP x, SEXP ans_type)
 	int *offs_buf = (int *) R_alloc(INTEGER(x_dim)[0], sizeof(int));
 	int warn = 0;
 	SEXP ans = REC_build_SVT_from_Rsubarray(x, 0, x_len,
-					   INTEGER(x_dim), x_ndim,
-					   ans_Rtype, &warn, offs_buf);
+					INTEGER(x_dim), x_ndim,
+					ans_Rtype, LOGICAL(na_background)[0],
+					&warn, offs_buf);
 	if (warn) {
 		if (ans != R_NilValue)
 			PROTECT(ans);

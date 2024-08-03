@@ -19,6 +19,8 @@ static const Rcomplex Rcomplex1 = {{1.0, 0.0}};
 
 #define	IS_EMPTY_CHARSXP(x) ((x) != NA_STRING && isBlankString(CHAR(x)))
 
+#define RCOMPLEX_IS_NA(z) (ISNAN((z)->r) || ISNAN((z)->i))
+
 typedef void (*CopyRVectorElt_FUNType)(
 	SEXP in,  R_xlen_t in_offset,
 	SEXP out, R_xlen_t out_offset);
@@ -252,6 +254,13 @@ SEXP _new_RarrayNA(
 );
 
 int _collect_offsets_of_nonzero_Rsubvec_elts(
+	SEXP Rvector,
+	R_xlen_t subvec_offset,
+	int subvec_len,
+	int *out
+);
+
+int _collect_offsets_of_nonNA_Rsubvec_elts(
 	SEXP Rvector,
 	R_xlen_t subvec_offset,
 	int subvec_len,

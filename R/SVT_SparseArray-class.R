@@ -214,7 +214,7 @@ setMethod("as.array", "SVT_SparseArray", as.array.SVT_SparseArray)
     }
     if (identical(type, NA))
         type <- type(x)
-    ans_SVT <- SparseArray.Call("C_build_SVT_from_Rarray", x, type)
+    ans_SVT <- SparseArray.Call("C_build_SVT_from_Rarray", x, type, FALSE)
     new_SVT_SparseArray(dim(x), ans_dimnames, type, ans_SVT, check=FALSE)
 }
 

@@ -199,7 +199,7 @@ setMethod("as.array", "NaArray", as.array.NaArray)
     }
     if (identical(type, NA))
         type <- type(x)
-    ans_NaSVT <- SparseArray.Call("C_build_NaSVT_from_Rarray", x, type)
+    ans_NaSVT <- SparseArray.Call("C_build_SVT_from_Rarray", x, type, TRUE)
     new_NaArray(dim(x), ans_dimnames, type, ans_NaSVT, check=FALSE)
 }
 

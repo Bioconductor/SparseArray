@@ -31,8 +31,6 @@
 #define	SD1_OPCODE              15  /* Interface 3 */
 #define	SD2_OPCODE              16  /* Interface 2 */
 
-#define RCOMPLEX_IS_NA(z) (ISNAN((z)->r) || ISNAN((z)->i))
-
 typedef struct summarize_op_t {
 	int opcode;
 	SEXPTYPE in_Rtype;

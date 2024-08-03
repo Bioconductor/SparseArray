@@ -172,6 +172,14 @@ SEXP _make_leaf_from_Rsubvec(
 	int avoid_copy_if_all_nonzeros
 );
 
+SEXP _make_naleaf_from_Rsubvec(
+	SEXP Rvector,
+	R_xlen_t subvec_offset,
+	int subvec_len,
+	int *selection_buf,
+	int avoid_copy_if_all_nonNAs
+);
+
 SEXP _order_leaf_by_nzoff(
 	SEXP leaf,
 	int *order_buf,
