@@ -1,5 +1,7 @@
 #include "coerceVector2.h"
 
+#include "Rvector_utils.h"
+
 
 /****************************************************************************
  * _CoercionWarning()
@@ -35,6 +37,60 @@ void _CoercionWarning(int warn)
 
 
 /****************************************************************************
+ * C_coercion_can_introduce_zeros()
+ * C_coercion_can_introduce_NAs()
+ */
+
+int _coercion_can_introduce_zeros(SEXPTYPE from_Rtype, SEXPTYPE to_Rtype)
+{
+	if (to_Rtype == from_Rtype)
+		return 0;
+	if (to_Rtype == RAWSXP || from_Rtype == STRSXP || from_Rtype == VECSXP)
+		return 1;
+	if (from_Rtype == REALSXP)
+		return to_Rtype == INTSXP;
+	if (from_Rtype == CPLXSXP)
+		return to_Rtype == INTSXP || to_Rtype == REALSXP;
+	return 0;
+}
+
+int _coercion_can_introduce_NAs(SEXPTYPE from_Rtype, SEXPTYPE to_Rtype)
+{
+	if (to_Rtype == from_Rtype)
+		return 0;
+	if (from_Rtype == STRSXP)
+		return 1;
+	if (to_Rtype == INTSXP)
+		return from_Rtype == REALSXP || from_Rtype == CPLXSXP;
+	return 0;
+}
+
+/* --- .Call ENTRY POINT --- */
+SEXP C_coercion_can_introduce_zeros(SEXP from_type, SEXP to_type)
+{
+	SEXPTYPE from_Rtype = _get_Rtype_from_Rstring(from_type);
+	SEXPTYPE to_Rtype = _get_Rtype_from_Rstring(to_type);
+	if (from_Rtype == 0 || to_Rtype == 0)
+		error("'from_type' and 'to_type' must be valid "
+		      "vector types specified\n  as single strings");
+	return ScalarLogical(_coercion_can_introduce_zeros(from_Rtype,
+							   to_Rtype));
+}
+
+/* --- .Call ENTRY POINT --- */
+SEXP C_coercion_can_introduce_NAs(SEXP from_type, SEXP to_type)
+{
+	SEXPTYPE from_Rtype = _get_Rtype_from_Rstring(from_type);
+	SEXPTYPE to_Rtype = _get_Rtype_from_Rstring(to_type);
+	if (from_Rtype == 0 || to_Rtype == 0)
+		error("'from_type' and 'to_type' must be valid "
+		      "vector types specified\n  as single strings");
+	return ScalarLogical(_coercion_can_introduce_NAs(from_Rtype,
+							 to_Rtype));
+}
+
+
+/****************************************************************************
  * coerceToLogical()
  *
  * Unfortunately coerceToLogical() is already implemented in
@@ -60,11 +116,11 @@ static inline int LogicalFromComplex(Rcomplex x)
 
 static inline int LogicalFromString(SEXP x)
 {
-    if (x != R_NaString) {
-        if (StringTrue(CHAR(x))) return 1;
-        if (StringFalse(CHAR(x))) return 0;
-    }
-    return NA_LOGICAL;
+	if (x != R_NaString) {
+		if (StringTrue(CHAR(x))) return 1;
+		if (StringFalse(CHAR(x))) return 0;
+	}
+	return NA_LOGICAL;
 }
 
 static SEXP coerceToLogical(SEXP v)
@@ -146,22 +202,22 @@ static inline int IntegerFromComplex(Rcomplex x, int *warn)
 
 static inline int IntegerFromString(SEXP x, int *warn)
 {
-    double xdouble;
-    char *endp;
-    if (x != R_NaString && !isBlankString(CHAR(x))) { /* ASCII */
-        xdouble = R_strtod(CHAR(x), &endp); /* ASCII */
-        if (isBlankString(endp)) {
-            // behave the same as IntegerFromReal() etc:
-            if (xdouble >= INT_MAX+1. || xdouble <= INT_MIN ) {
-                *warn |= WARN_INT_NA;
-                return NA_INTEGER;
-            }
-            else
-                return (int) xdouble;
-        }
-        else *warn |= WARN_NA;
-    }
-    return NA_INTEGER;
+	double xdouble;
+	char *endp;
+	if (x != R_NaString && !isBlankString(CHAR(x))) { /* ASCII */
+		xdouble = R_strtod(CHAR(x), &endp); /* ASCII */
+		if (isBlankString(endp)) {
+			// behave the same as IntegerFromReal() etc:
+			if (xdouble >= INT_MAX+1. || xdouble <= INT_MIN ) {
+				*warn |= WARN_INT_NA;
+				return NA_INTEGER;
+			}
+			else
+				return (int) xdouble;
+		}
+		else *warn |= WARN_NA;
+	}
+	return NA_INTEGER;
 }
 
 static SEXP coerceToInteger(SEXP v, int *warn)
@@ -233,16 +289,16 @@ static inline double RealFromComplex(Rcomplex x, int *warn)
 
 static inline double RealFromString(SEXP x, int *warn)
 {
-    double xdouble;
-    char *endp;
-    if (x != R_NaString && !isBlankString(CHAR(x))) { /* ASCII */
-        xdouble = R_strtod(CHAR(x), &endp); /* ASCII */
-        if (isBlankString(endp))
-            return xdouble;
-        else
-            *warn |= WARN_NA;
-    }
-    return NA_REAL;
+	double xdouble;
+	char *endp;
+	if (x != R_NaString && !isBlankString(CHAR(x))) { /* ASCII */
+		xdouble = R_strtod(CHAR(x), &endp); /* ASCII */
+		if (isBlankString(endp))
+			return xdouble;
+		else
+			*warn |= WARN_NA;
+	}
+	return NA_REAL;
 }
 
 static SEXP coerceToReal(SEXP v, int *warn)
@@ -319,29 +375,29 @@ static inline Rcomplex ComplexFromInteger(int x, int *warn)
 
 static inline Rcomplex ComplexFromString(SEXP x, int *warn)
 {
-    double xr, xi;
-    Rcomplex z;
-    const char *xx = CHAR(x); /* ASCII */
-    char *endp;
+	double xr, xi;
+	Rcomplex z;
+	const char *xx = CHAR(x); /* ASCII */
+	char *endp;
 
-    z.r = z.i = NA_REAL;
-    if (x != R_NaString && !isBlankString(xx)) {
-        xr = R_strtod(xx, &endp);
-        if (isBlankString(endp)) {
-            z.r = xr;
-            z.i = 0.0;
-        }
-        else if (*endp == '+' || *endp == '-') {
-            xi = R_strtod(endp, &endp);
-            if (*endp++ == 'i' && isBlankString(endp)) {
-                z.r = xr;
-                z.i = xi;
-            }
-            else *warn |= WARN_NA;
-        }
-        else *warn |= WARN_NA;
-    }
-    return z;
+	z.r = z.i = NA_REAL;
+	if (x != R_NaString && !isBlankString(xx)) {
+		xr = R_strtod(xx, &endp);
+		if (isBlankString(endp)) {
+			z.r = xr;
+			z.i = 0.0;
+		}
+		else if (*endp == '+' || *endp == '-') {
+			xi = R_strtod(endp, &endp);
+			if (*endp++ == 'i' && isBlankString(endp)) {
+				z.r = xr;
+				z.i = xi;
+			}
+			else *warn |= WARN_NA;
+		}
+		else *warn |= WARN_NA;
+	}
+	return z;
 }
 
 static SEXP coerceToComplex(SEXP v, int *warn)
@@ -429,7 +485,7 @@ static inline Rbyte RawFromComplex(Rcomplex x, int *warn)
 {
 	int tmp;
 
-        if (ISNAN(x.r) || ISNAN(x.i) || x.r <= -1.0 || x.r >= 256.0) {
+	if (ISNAN(x.r) || ISNAN(x.i) || x.r <= -1.0 || x.r >= 256.0) {
 		*warn |= WARN_RAW;
 		return 0;
 	}
@@ -441,21 +497,21 @@ static inline Rbyte RawFromComplex(Rcomplex x, int *warn)
 
 static inline Rbyte RawFromString(SEXP x, int *warn)
 {
-    double xdouble;
-    char *endp;
-    if (x != R_NaString && !isBlankString(CHAR(x))) { /* ASCII */
-        xdouble = R_strtod(CHAR(x), &endp); /* ASCII */
-        if (isBlankString(endp)) {
-            int tmp = (int) xdouble;
-            if (tmp < 0 || tmp > 255) {
-                *warn |= WARN_RAW;
-                return 0;
-            }
-            return (Rbyte) tmp;
-        }
-    }
-    *warn |= WARN_RAW;
-    return 0;
+	double xdouble;
+	char *endp;
+	if (x != R_NaString && !isBlankString(CHAR(x))) { /* ASCII */
+		xdouble = R_strtod(CHAR(x), &endp); /* ASCII */
+		if (isBlankString(endp)) {
+			int tmp = (int) xdouble;
+			if (tmp < 0 || tmp > 255) {
+				*warn |= WARN_RAW;
+				return 0;
+			}
+			return (Rbyte) tmp;
+		}
+	}
+	*warn |= WARN_RAW;
+	return 0;
 }
 
 static SEXP coerceToRaw(SEXP v, int *warn)

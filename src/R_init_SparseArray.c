@@ -1,10 +1,10 @@
 #include <R_ext/Rdynload.h>
 
+#include "coerceVector2.h"
 #include "OPBufTree.h"
 #include "thread_control.h"
 #include "leaf_utils.h"
 #include "sparseMatrix_utils.h"
-#include "SparseArray_class.h"
 #include "SVT_SparseArray_class.h"
 #include "SparseArray_dim_tuning.h"
 #include "SparseArray_aperm.h"
@@ -28,6 +28,10 @@
 
 static const R_CallMethodDef callMethods[] = {
 
+/* coerceVector2.c */
+	CALLMETHOD_DEF(C_coercion_can_introduce_zeros, 2),
+	CALLMETHOD_DEF(C_coercion_can_introduce_NAs, 2),
+
 /* OPBufTree.c */
 	CALLMETHOD_DEF(C_free_global_OPBufTree, 0),
 
@@ -45,11 +49,8 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_colRanges_dgCMatrix, 2),
 	CALLMETHOD_DEF(C_colVars_dgCMatrix, 2),
 
-/* SparseArray_class.c */
-	CALLMETHOD_DEF(C_coercion_can_introduce_zeros, 2),
-
 /* SVT_SparseArray_class.c */
-	CALLMETHOD_DEF(C_set_SVT_SparseArray_type, 4),
+	CALLMETHOD_DEF(C_set_SVT_SparseArray_type, 5),
 	CALLMETHOD_DEF(C_nzcount_SVT_SparseArray, 2),
 	CALLMETHOD_DEF(C_nzwhich_SVT_SparseArray, 3),
 	CALLMETHOD_DEF(C_from_SVT_SparseArray_to_Rarray, 5),
@@ -73,7 +74,7 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_subset_SVT_by_Nindex, 4),
 
 /* SparseArray_subassignment.c */
-	CALLMETHOD_DEF(C_subassign_SVT_by_Lindex, 5),
+	CALLMETHOD_DEF(C_subassign_SVT_by_Lindex, 6),
 	CALLMETHOD_DEF(C_subassign_SVT_by_Mindex, 5),
 	CALLMETHOD_DEF(C_subassign_SVT_with_short_Rvector, 5),
 	CALLMETHOD_DEF(C_subassign_SVT_with_Rarray, 5),

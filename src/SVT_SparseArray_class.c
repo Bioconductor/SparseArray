@@ -34,12 +34,17 @@ static void copy_nzvals_elts_to_Rsubvec(SEXP nzvals,
  * type() setter
  */
 
-/* Returns 1 if coercion to the requested type turned 'leaf' into an
-   R_NilValue, and 0 otherwise. */
-static int INPLACE_modify_leaf_type(SEXP leaf,
-		SEXPTYPE new_Rtype, int *warn, int *nzoffs_buf)
+/* Returns 1 if coercion to the requested type produces a NULL 'leaf',
+   and 0 otherwise. */
+static int INPLACE_modify_leaf_type(SEXP leaf, SEXPTYPE new_Rtype,
+		int na_background, int *warn, int *nzoffs_buf)
 {
-	SEXP new_leaf = _coerce_leaf(leaf, new_Rtype, warn, nzoffs_buf);
+	SEXP new_leaf;
+	if (na_background) {
+		new_leaf = _coerce_naleaf(leaf, new_Rtype, warn, nzoffs_buf);
+	} else {
+		new_leaf = _coerce_leaf(leaf, new_Rtype, warn, nzoffs_buf);
+	}
 	if (new_leaf == R_NilValue)
 		return 1;
 	PROTECT(new_leaf);
@@ -51,14 +56,15 @@ static int INPLACE_modify_leaf_type(SEXP leaf,
 
 /* Recursive. */
 static int REC_INPLACE_modify_SVT_type(SEXP SVT, const int *dim, int ndim,
-		SEXPTYPE new_Rtype, int *warn, int *nzoffs_buf)
+		SEXPTYPE new_Rtype, int na_background,
+		int *warn, int *nzoffs_buf)
 {
 	if (SVT == R_NilValue)
 		return 1;
 
 	if (ndim == 1) {
 		/* 'SVT' is a leaf (i.e. a 1D SVT). */
-		return INPLACE_modify_leaf_type(SVT, new_Rtype,
+		return INPLACE_modify_leaf_type(SVT, new_Rtype, na_background,
 						warn, nzoffs_buf);
 	}
 
@@ -73,7 +79,8 @@ static int REC_INPLACE_modify_SVT_type(SEXP SVT, const int *dim, int ndim,
 	for (int i = 0; i < SVT_len; i++) {
 		SEXP subSVT = VECTOR_ELT(SVT, i);
 		int ret = REC_INPLACE_modify_SVT_type(subSVT, dim, ndim - 1,
-						   new_Rtype, warn, nzoffs_buf);
+						      new_Rtype, na_background,
+						      warn, nzoffs_buf);
 		if (ret < 0)
 			return -1;
 		if (ret == 1) {
@@ -87,7 +94,7 @@ static int REC_INPLACE_modify_SVT_type(SEXP SVT, const int *dim, int ndim,
 
 /* --- .Call ENTRY POINT --- */
 SEXP C_set_SVT_SparseArray_type(SEXP x_dim, SEXP x_type, SEXP x_SVT,
-		SEXP new_type)
+		SEXP new_type, SEXP na_background)
 {
 	SEXPTYPE x_Rtype = _get_Rtype_from_Rstring(x_type);
 	if (x_Rtype == 0)
@@ -101,12 +108,18 @@ SEXP C_set_SVT_SparseArray_type(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	if (new_Rtype == x_Rtype || x_SVT == R_NilValue)
 		return x_SVT;
 
+	if (!(IS_LOGICAL(na_background) && LENGTH(na_background) == 1))
+		error("SparseArray internal error in "
+		      "C_set_SVT_SparseArray_type():\n"
+		      "    'na_background' must be TRUE or FALSE");
+
 	int *nzoffs_buf = (int *) R_alloc(INTEGER(x_dim)[0], sizeof(int));
 	SEXP ans = PROTECT(duplicate(x_SVT));
 	int warn = 0;
 	int ret = REC_INPLACE_modify_SVT_type(ans,
 				INTEGER(x_dim), LENGTH(x_dim),
-				new_Rtype, &warn, nzoffs_buf);
+				new_Rtype, LOGICAL(na_background)[0],
+				&warn, nzoffs_buf);
 	if (ret < 0) {
 		UNPROTECT(1);
 		error("SparseArray internal error in "
@@ -130,7 +143,7 @@ SEXP _coerce_SVT(SEXP SVT, const int *dim, int ndim,
 	SEXP ans = PROTECT(duplicate(SVT));
 	int warn;
 	int ret = REC_INPLACE_modify_SVT_type(ans, dim, ndim,
-					      to_Rtype, &warn, offs_buf);
+					      to_Rtype, 0, &warn, offs_buf);
 	if (ret < 0) {
 		UNPROTECT(1);
 		error("SparseArray internal error in _coerce_SVT():\n"
@@ -479,10 +492,12 @@ static SEXP REC_build_SVT_from_Rsubarray(
 		}
 		if (ans_Rtype == TYPEOF(Rarray) || ans == R_NilValue)
 			return ans;
-		if (na_background)
-			error("'type' argument not supported yet");
 		PROTECT(ans);
-		ans = _coerce_leaf(ans, ans_Rtype, warn, offs_buf);
+		if (na_background) {
+			ans = _coerce_naleaf(ans, ans_Rtype, warn, offs_buf);
+		} else {
+			ans = _coerce_leaf(ans, ans_Rtype, warn, offs_buf);
+		}
 		UNPROTECT(1);
 		return ans;
 	}
@@ -518,7 +533,7 @@ SEXP C_build_SVT_from_Rarray(SEXP x, SEXP ans_type, SEXP na_background)
 
 	if (!(IS_LOGICAL(na_background) && LENGTH(na_background) == 1))
 		error("SparseArray internal error in "
-		      "C_from_SVT_SparseArray_to_Rarray():\n"
+		      "C_build_SVT_from_Rarray():\n"
 		      "    'na_background' must be TRUE or FALSE");
 
 	R_xlen_t x_len = XLENGTH(x);

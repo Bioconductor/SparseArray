@@ -187,14 +187,26 @@ SEXP _order_leaf_by_nzoff(
 	int *rxbuf2
 );
 
+void _INPLACE_turn_into_lacunar_leaf_if_all_ones(SEXP leaf);
+
 SEXP _INPLACE_remove_zeros_from_leaf(
 	SEXP leaf,
 	int *selection_buf
 );
 
-void _INPLACE_turn_into_lacunar_leaf_if_all_ones(SEXP leaf);
+SEXP _INPLACE_remove_NAs_from_leaf(
+	SEXP leaf,
+	int *selection_buf
+);
 
 SEXP _coerce_leaf(
+	SEXP leaf,
+	SEXPTYPE new_Rtype,
+	int *warn,
+	int *selection_buf
+);
+
+SEXP _coerce_naleaf(
 	SEXP leaf,
 	SEXPTYPE new_Rtype,
 	int *warn,

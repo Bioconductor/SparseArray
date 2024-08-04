@@ -99,22 +99,6 @@ setReplaceMethod("dimnames", "SparseArray",
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### coercion_can_introduce_zeros()
-###
-
-coercion_can_introduce_zeros <- function(from_type, to_type)
-{
-    if (!isSingleString(from_type))
-        stop(wmsg("'from_type' must be a single string"))
-    if (!isSingleString(to_type))
-        stop(wmsg("'to_type' must be a single string"))
-    if (!(to_type %in% c("double", "logical")))
-        stop(wmsg("'to_type' must be \"double\" or \"logical\""))
-    SparseArray.Call("C_coercion_can_introduce_zeros", from_type, to_type)
-}
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### is_sparse() method
 ###
 
@@ -140,9 +124,9 @@ setGeneric("nzwhich", signature="x",
     function(x, arr.ind=FALSE) standardGeneric("nzwhich")
 )
 
-### Works on any array-like object 'x' that supports type(x) and comparison
-### with zero (x != zero). One notable exception is ngRMatrix objects from
-### the Matrix package ('x != FALSE' is broken on these objects).
+### Works on any vector-like or array-like object 'x' that supports type(x)
+### and comparison with zero (x != zero). One notable exception are ngRMatrix
+### objects from the Matrix package ('x != FALSE' is broken on these objects).
 default_nzwhich <- function(x, arr.ind=FALSE)
 {
     if (!isTRUEorFALSE(arr.ind))

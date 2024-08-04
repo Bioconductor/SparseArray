@@ -21,6 +21,7 @@
 \alias{nnacount}
 \alias{nnacount,NaArray-method}
 \alias{nnawhich}
+\alias{nnawhich,ANY-method}
 \alias{nnawhich,NaArray-method}
 
 \alias{as.array,NaArray-method}
@@ -45,7 +46,16 @@ NaArray(x, dim=NULL, dimnames=NULL, type=NA)
 
 \arguments{
   \item{x}{
-    COMING SOON...
+    If \code{dim} is \code{NULL} (the default) then \code{x} must be an
+    ordinary matrix or array, or a dgCMatrix/lgCMatrix object, or any
+    matrix-like or array-like object that supports coercion to NaArray.
+
+    If \code{dim} is provided then \code{x} can either be missing, a
+    vector (atomic or list), or an array-like object. If missing, then an
+    all-NA NaArray object will be constructed. Otherwise \code{x}
+    will be used to fill the returned object (\code{length(x)} must be
+    \code{<= prod(dim)}). Note that if \code{x} is an array-like object
+    then its dimensions are ignored i.e. it's treated as a vector.
   }
   \item{dim}{
     \code{NULL} or the dimensions (supplied as an integer vector) of
@@ -101,7 +111,39 @@ showClass("NaArray")
 ## The NaArray() constructor
 ## ---------------------------------------------------------------------
 
-# COMING SOON...
+naa1 <- NaArray(dim=5:3)  # all-NA object
+naa1
+
+naa2 <- NaArray(dim=c(35000, 2e6), type="integer")  # all-NA object
+naa2
+
+## Add some non-NA values to 'naa2':
+naa2[cbind( 1:99, 2:100)] <-  1L
+naa2[cbind(1:100, 1:100)] <-  0L
+naa2[cbind(2:100,  1:99)] <- -1L
+naa2
+
+## The dimnames can be specified at construction time, or
+## added/modified later:
+naa3 <- NaArray(c(NA, NA, 1L, NA, 0:7, rep(NA, 4), 12:14, NA),
+                dim=4:5, dimnames=list(letters[1:4], LETTERS[1:5]))
+naa3
+
+colnames(naa3) <- LETTERS[22:26]
+naa3
+
+## Sanity checks:
+stopifnot(
+  is(naa1, "NaArray"),
+  identical(dim(naa1), 5:3),
+  identical(as.array(naa1), array(dim=5:3)),
+  is(naa2, "NaMatrix"),
+  all.equal(dim(naa2), c(35000, 2e6)),
+  identical(nnacount(naa2), 298L),
+  is(naa3, "NaMatrix"),
+  identical(dim(naa3), 4:5),
+  identical(nnacount(naa3), 12L)
+)
 }
 
 \keyword{methods}

@@ -7,7 +7,8 @@ SEXP C_set_SVT_SparseArray_type(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT,
-	SEXP new_type
+	SEXP new_type,
+	SEXP na_background
 );
 
 SEXP _coerce_SVT(

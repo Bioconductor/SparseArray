@@ -179,9 +179,6 @@ test_that(paste("subassign an SVT_SparseArray object by an Nindex",
 if (SparseArray:::SVT_VERSION != 0L) {
 
 test_that("handling of lacunar leaves in SVT_SparseArray subassignment", {
-    svt1 <- as(array(0L, dim=4L), "SVT_SparseArray")  # 1D
-    m3 <- matrix(0L, nrow=4, ncol=5)
-    svt2 <- svt3 <- as(m3, "SVT_SparseMatrix")        # 2D
 
     run_tests <- function(type) {
 
@@ -311,6 +308,9 @@ test_that("handling of lacunar leaves in SVT_SparseArray subassignment", {
         expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
     }
 
+    svt1 <- as(array(0L, dim=4L), "SVT_SparseArray")  # 1D
+    m3 <- matrix(0L, nrow=4, ncol=5)
+    svt2 <- svt3 <- as(m3, "SVT_SparseMatrix")        # 2D
     run_tests("integer")
 
     type(svt1) <- "double"

@@ -3,8 +3,6 @@
 \alias{SparseArray-subassignment}
 \alias{SparseArray_subassignment}
 
-\alias{[<-,SVT_SparseArray,ANY,ANY,ANY-method}
-
 \title{SparseArray subassignment}
 
 \description{

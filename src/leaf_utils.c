@@ -7,7 +7,6 @@
 
 #include "Rvector_utils.h"
 #include "coerceVector2.h"
-#include "SparseArray_class.h"  /* for _coercion_can_introduce_zeros() */
 
 #include <string.h>  /* for memcpy() */
 
@@ -244,36 +243,10 @@ SEXP _order_leaf_by_nzoff(SEXP leaf, int *order_buf,
 }
 
 /****************************************************************************
- * _INPLACE_remove_zeros_from_leaf()
  * _INPLACE_turn_into_lacunar_leaf_if_all_ones()
+ * _INPLACE_remove_zeros_from_leaf()
+ * _INPLACE_remove_NAs_from_leaf()
  */
-
-/* Do NOT use on a NULL or lacunar leaf. */
-SEXP _INPLACE_remove_zeros_from_leaf(SEXP leaf, int *selection_buf)
-{
-	SEXP nzvals, nzoffs;
-	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
-	/* 'n' will always be >= 0 and <= nzcount. */
-	int n = _collect_offsets_of_nonzero_Rsubvec_elts(
-				nzvals, 0, nzcount, selection_buf);
-
-	if (n == 0)	      /* all values in 'nzvals' are zeros */
-		return R_NilValue;
-
-	if (n == nzcount)     /* all values in 'nzvals' are nonzeros */
-		return leaf;  /* no-op */
-
-	/* Shrink 'nzvals'. */
-	SEXP new_nzvals = PROTECT(_subset_Rsubvec(nzvals, 0, selection_buf, n));
-	replace_leaf_nzvals(leaf, new_nzvals);
-	UNPROTECT(1);
-
-	/* Shrink 'nzoffs'. */
-	SEXP new_nzoffs = PROTECT(_subset_Rsubvec(nzoffs, 0, selection_buf, n));
-	replace_leaf_nzoffs(leaf, new_nzoffs);
-	UNPROTECT(1);
-	return leaf;
-}
 
 /* Do NOT use on a NULL or lacunar leaf. */
 void _INPLACE_turn_into_lacunar_leaf_if_all_ones(SEXP leaf)
@@ -286,9 +259,74 @@ void _INPLACE_turn_into_lacunar_leaf_if_all_ones(SEXP leaf)
 	return;
 }
 
+/* The selection is assumed to be sorted in strictly ascending order.
+   Do NOT use on a NULL or lacunar leaf. */
+static SEXP INPLACE_extract_selection_from_leaf(SEXP leaf,
+		const int *selection, int n)
+{
+	if (n == 0)
+		return R_NilValue;
+
+	SEXP nzvals, nzoffs;
+	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
+	if (n == nzcount) {
+		if (LACUNAR_MODE_IS_ON) {
+			int all_ones =
+				_all_Rsubvec_elts_equal_one(nzvals, 0, nzcount);
+			if (all_ones)
+				replace_leaf_nzvals(leaf, R_NilValue);
+		}
+		return leaf;
+	}
+
+	/* Shrink 'nzoffs'. */
+	SEXP new_nzoffs = PROTECT(_subset_Rsubvec(nzoffs, 0, selection, n));
+	replace_leaf_nzoffs(leaf, new_nzoffs);
+	UNPROTECT(1);
+
+	/* Shrink 'nzvals'. */
+	if (LACUNAR_MODE_IS_ON) {
+		int all_ones =
+			_all_selected_Rsubvec_elts_equal_one(nzvals, 0,
+							     selection, n);
+		if (all_ones) {
+			replace_leaf_nzvals(leaf, R_NilValue);
+			return leaf;
+		}
+	}
+	SEXP new_nzvals = PROTECT(_subset_Rsubvec(nzvals, 0, selection, n));
+	replace_leaf_nzvals(leaf, new_nzvals);
+	UNPROTECT(1);
+
+	return leaf;
+}
+
+/* Do NOT use on a NULL or lacunar leaf. */
+SEXP _INPLACE_remove_zeros_from_leaf(SEXP leaf, int *selection_buf)
+{
+	SEXP nzvals, nzoffs;
+	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
+	/* 'n' will always be >= 0 and <= nzcount. */
+	int n = _collect_offsets_of_nonzero_Rsubvec_elts(
+				nzvals, 0, nzcount, selection_buf);
+	return INPLACE_extract_selection_from_leaf(leaf, selection_buf, n);
+}
+
+/* Do NOT use on a NULL or lacunar leaf. */
+SEXP _INPLACE_remove_NAs_from_leaf(SEXP leaf, int *selection_buf)
+{
+	SEXP nzvals, nzoffs;
+	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
+	/* 'n' will always be >= 0 and <= nzcount. */
+	int n = _collect_offsets_of_nonNA_Rsubvec_elts(
+				nzvals, 0, nzcount, selection_buf);
+	return INPLACE_extract_selection_from_leaf(leaf, selection_buf, n);
+}
+
 
 /****************************************************************************
  * _coerce_leaf()
+ * _coerce_naleaf()
  *
  * Returns a leaf whose nzcount is guaranteed to not exceed the nzcount of
  * the input leaf.
@@ -306,7 +344,8 @@ static SEXP coerce_lacunar_leaf(SEXP leaf, SEXPTYPE new_Rtype)
 /* Note that, in practice, _coerce_leaf() is always called to actually
    change the type of 'leaf', so the code below does not bother to check
    for the (trivial) no-op case. */
-SEXP _coerce_leaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn, int *selection_buf)
+SEXP _coerce_leaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn,
+		  int *selection_buf)
 {
 	SEXP nzvals, nzoffs;
 	unzip_leaf(leaf, &nzvals, &nzoffs);  /* ignore returned nzcount */
@@ -319,6 +358,25 @@ SEXP _coerce_leaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn, int *selection_buf)
 	   going from double/complex to int/raw. We need to remove them. */
 	if (_coercion_can_introduce_zeros(TYPEOF(nzvals), new_Rtype))
 		ans = _INPLACE_remove_zeros_from_leaf(ans, selection_buf);
+	UNPROTECT(2);
+	return ans;
+}
+
+SEXP _coerce_naleaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn,
+		    int *selection_buf)
+{
+	SEXP nzvals, nzoffs;
+	unzip_leaf(leaf, &nzvals, &nzoffs);  /* ignore returned nzcount */
+	if (nzvals == R_NilValue)  /* lacunar leaf */
+		return coerce_lacunar_leaf(leaf, new_Rtype);
+	/* standard leaf */
+	int w;
+	SEXP ans_nzvals = PROTECT(_coerceVector2(nzvals, new_Rtype, &w));
+	SEXP ans = PROTECT(zip_leaf(ans_nzvals, nzoffs));
+	if (w) {
+		ans = _INPLACE_remove_NAs_from_leaf(ans, selection_buf);
+		*warn = 1;
+	}
 	UNPROTECT(2);
 	return ans;
 }

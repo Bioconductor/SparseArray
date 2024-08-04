@@ -213,8 +213,11 @@ static SEXP make_offval_pairs_from_Lindex_vals(SEXP Lindex, SEXP vals,
 /* 'Lindex' and 'vals' are assumed to have the same nonzero length.
    The returned leaf can be NULL or lacunar. */
 static SEXP subassign_leaf_by_Lindex(SEXP leaf, int dim0,
-				     SEXP Lindex, SEXP vals)
+		SEXP Lindex, SEXP vals, int na_background)
 {
+	if (na_background)
+		error("subassignment of 1D NaArray objects "
+		      "is not supported yet");
 	R_xlen_t nvals = XLENGTH(vals);
 	if (nvals > INT_MAX)
 		error("assigning more than INT_MAX values to "
@@ -247,8 +250,6 @@ static SEXP subassign_leaf_by_Lindex(SEXP leaf, int dim0,
 	   (its length is at least 'worst_nzcount'). */
 	SEXP ans = _INPLACE_remove_zeros_from_leaf(offval_pairs,
 						   sort_bufs.offs);
-	if (ans != R_NilValue && LACUNAR_MODE_IS_ON)
-		_INPLACE_turn_into_lacunar_leaf_if_all_ones(ans);
 	UNPROTECT(leaf != R_NilValue ? 2 : 1);
 	return ans;
 }
@@ -293,16 +294,28 @@ static inline int Rvector_elt_is_int0(SEXP Rvector, R_xlen_t i)
 {
 	return INTEGER(Rvector)[i] == int0;
 }
+static inline int Rvector_elt_is_intNA(SEXP Rvector, R_xlen_t i)
+{
+	return INTEGER(Rvector)[i] == NA_INTEGER;
+}
 
 static inline int Rvector_elt_is_double0(SEXP Rvector, R_xlen_t i)
 {
 	return REAL(Rvector)[i] == double0;
+}
+static inline int Rvector_elt_is_doubleNA(SEXP Rvector, R_xlen_t i)
+{
+	return ISNAN(REAL(Rvector)[i]);
 }
 
 static inline int Rvector_elt_is_Rcomplex0(SEXP Rvector, R_xlen_t i)
 {
 	const Rcomplex *z = COMPLEX(Rvector) + i;
 	return z->r == Rcomplex0.r && z->i == Rcomplex0.i;
+}
+static inline int Rvector_elt_is_RcomplexNA(SEXP Rvector, R_xlen_t i)
+{
+	return RCOMPLEX_IS_NA(COMPLEX(Rvector) + i);
 }
 
 static inline int Rvector_elt_is_Rbyte0(SEXP Rvector, R_xlen_t i)
@@ -313,6 +326,10 @@ static inline int Rvector_elt_is_Rbyte0(SEXP Rvector, R_xlen_t i)
 static inline int Rvector_elt_is_Rstring0(SEXP Rvector, R_xlen_t i)
 {
 	return IS_EMPTY_CHARSXP(STRING_ELT(Rvector, i));
+}
+static inline int Rvector_elt_is_RstringNA(SEXP Rvector, R_xlen_t i)
+{
+	return STRING_ELT(Rvector, i) == NA_STRING;
 }
 
 static inline int Rvector_elt_is_R_NilValue(SEXP Rvector, R_xlen_t i)
@@ -332,7 +349,22 @@ static RVectorEltIsZero_FUNType select_Rvector_elt_is_zero_FUN(SEXPTYPE Rtype)
 	    case STRSXP:              return Rvector_elt_is_Rstring0;
 	    case VECSXP:              return Rvector_elt_is_R_NilValue;
 	}
-	return NULL;
+	error("SparseArray internal error in "
+	      "select_Rvector_elt_is_zero_FUN():\n"
+	      "    type \"%s\" is not supported", type2char(Rtype));
+}
+
+static RVectorEltIsZero_FUNType select_Rvector_elt_is_NA_FUN(SEXPTYPE Rtype)
+{
+	switch (Rtype) {
+	    case INTSXP: case LGLSXP: return Rvector_elt_is_intNA;
+	    case REALSXP:             return Rvector_elt_is_doubleNA;
+	    case CPLXSXP:             return Rvector_elt_is_RcomplexNA;
+	    case STRSXP:              return Rvector_elt_is_RstringNA;
+	}
+	error("SparseArray internal error in "
+	      "select_Rvector_elt_is_NA_FUN():\n"
+	      "    type \"%s\" is not supported", type2char(Rtype));
 }
 
 static inline int same_INTEGER_vals(
@@ -790,16 +822,13 @@ static SEXP REC_subassign_SVT_by_OPBufTree(OPBufTree *opbuf_tree,
    NAs are not allowed (they'll trigger an error).
    'vals' must be a vector (atomic or list) of type 'x_type'. */
 SEXP C_subassign_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
-		SEXP Lindex, SEXP vals)
+		SEXP Lindex, SEXP vals, SEXP na_background)
 {
 	SEXPTYPE Rtype = _get_Rtype_from_Rstring(x_type);
 	if (Rtype == 0)
 		error("SparseArray internal error in "
 		      "C_subassign_SVT_by_Lindex():\n"
 		      "    SVT_SparseArray object has invalid type");
-	RVectorEltIsZero_FUNType fun1 = select_Rvector_elt_is_zero_FUN(Rtype);
-	SameRVectorVals_FUNType fun2 = select_same_Rvector_vals_FUN(Rtype);
-	CopyRVectorElt_FUNType fun3 = _select_copy_Rvector_elt_FUN(Rtype);
 
 	if (TYPEOF(vals) != Rtype)
 		error("SparseArray internal error in "
@@ -817,9 +846,24 @@ SEXP C_subassign_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	if (nvals == 0)
 		return x_SVT;  /* no-op */
 
+	if (!(IS_LOGICAL(na_background) && LENGTH(na_background) == 1))
+		error("SparseArray internal error in "
+		      "C_subassign_SVT_by_Lindex():\n"
+		      "    'na_background' must be TRUE or FALSE");
+
+	RVectorEltIsZero_FUNType fun1;
+	if (LOGICAL(na_background)[0]) {
+		fun1 = select_Rvector_elt_is_NA_FUN(Rtype);
+	} else {
+		fun1 = select_Rvector_elt_is_zero_FUN(Rtype);
+	}
+	SameRVectorVals_FUNType fun2 = select_same_Rvector_vals_FUN(Rtype);
+	CopyRVectorElt_FUNType fun3 = _select_copy_Rvector_elt_FUN(Rtype);
+
 	int x_dim0 = INTEGER(x_dim)[0];
 	if (x_ndim == 1)
-		return subassign_leaf_by_Lindex(x_SVT, x_dim0, Lindex, vals);
+		return subassign_leaf_by_Lindex(x_SVT, x_dim0, Lindex, vals,
+						LOGICAL(na_background)[0]);
 
 	/* 1st pass: Build the OPBufTree. */
 	//clock_t t0 = clock();
@@ -896,9 +940,6 @@ SEXP C_subassign_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		error("SparseArray internal error in "
 		      "C_subassign_SVT_by_Mindex():\n"
 		      "    SVT_SparseArray object has invalid type");
-	//RVectorEltIsZero_FUNType fun1 = select_Rvector_elt_is_zero_FUN(Rtype);
-	//SameRVectorVals_FUNType fun2 = select_same_Rvector_vals_FUN(Rtype);
-	//CopyRVectorElt_FUNType fun3 = _select_copy_Rvector_elt_FUN(Rtype);
 
 	if (TYPEOF(vals) != Rtype)
 		error("SparseArray internal error in "
@@ -913,9 +954,13 @@ SEXP C_subassign_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	if (nvals == 0)
 		return x_SVT;  /* no-op */
 
+	//RVectorEltIsZero_FUNType fun1 = select_Rvector_elt_is_zero_FUN(Rtype);
+	//SameRVectorVals_FUNType fun2 = select_same_Rvector_vals_FUN(Rtype);
+	//CopyRVectorElt_FUNType fun3 = _select_copy_Rvector_elt_FUN(Rtype);
+
 	int x_dim0 = INTEGER(x_dim)[0];
 	if (x_ndim == 1)
-		return subassign_leaf_by_Lindex(x_SVT, x_dim0, Mindex, vals);
+		return subassign_leaf_by_Lindex(x_SVT, x_dim0, Mindex, vals, 0);
 
 	/* 1st pass: Build the OPBufTree. */
 	error("C_subassign_SVT_by_Mindex() not ready yet");

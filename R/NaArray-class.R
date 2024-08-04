@@ -107,9 +107,8 @@ setMethod("type", "NaArray", function(x) x@type)
     if (value == x_type)
         return(x)
 
-    stop(wmsg("type() setter for NaArray objects not available yet"))
-    new_NaSVT <- SparseArray.Call("C_set_NaArray_type",
-                                  x@dim, x@type, x@NaSVT, value)
+    new_NaSVT <- SparseArray.Call("C_set_SVT_SparseArray_type",
+                                  x@dim, x@type, x@NaSVT, value, TRUE)
     BiocGenerics:::replaceSlots(x, type=value, NaSVT=new_NaSVT, check=FALSE)
 }
 
@@ -139,6 +138,15 @@ setMethod("nnacount", "NaArray", .get_NaArray_nnacount)
 setGeneric("nnawhich", signature="x",
     function(x, arr.ind=FALSE) standardGeneric("nnawhich")
 )
+
+### Works on any vector-like or array-like object that supports is.na().
+.default_nnawhich <- function(x, arr.ind=FALSE)
+{
+    if (!isTRUEorFALSE(arr.ind))
+        stop(wmsg("'arr.ind' must be TRUE or FALSE"))
+    which(!is.na(x), arr.ind=arr.ind, useNames=FALSE)
+}
+setMethod("nnawhich", "ANY", .default_nnawhich)
 
 ### Returns an integer vector of length nnacount(x) if 'arr.ind=FALSE', or
 ### a matrix with nnacount(x) rows if 'arr.ind=TRUE'.
@@ -278,7 +286,7 @@ setMethod("show", "NaArray",
         ## when printing part2 is going to fail. This will happen for
         ## example if the call to nnacount() in .show_nnacount() fails.
         cat(show_headline_part1(object))
-        #cat(.show_nnacount(object))
+        cat(.show_nnacount(object))
         if (any(dim(object) == 0L)) {
             cat("\n")
             return()

@@ -4,22 +4,9 @@
 ###
 
 
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### .subassign_SVT_by_logical_array()
-###
-
-.subassign_SVT_by_logical_array <- function(x, y, value)
-    stop("subassignment operation not supported yet")
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### .subassign_SVT_by_Lindex()
-### .subassign_SVT_by_Mindex()
-###
-
-.adjust_left_type <- function(x, value)
+adjust_left_type <- function(x, value)
 {
-    stopifnot(is(x, "SVT_SparseArray"))
+    stopifnot(is(x, "SVT_SparseArray") || is(x, "NaArray"))
     check_svt_version(x)
     if (!is.vector(value))
         stop(wmsg("the supplied value must be a vector for this form ",
@@ -29,6 +16,12 @@
     type(x) <- new_type
     x
 }
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### subassign_Array_by_Lindex() and subassign_Array_by_Mindex() methods for
+### SVT_SparseArray
+###
 
 ### Adjust the type of 'value' and recycle it to the length of the
 ### subassignment M/L-index.
@@ -42,27 +35,35 @@
 
 .subassign_SVT_by_Lindex <- function(x, Lindex, value, old=FALSE)
 {
-    x <- .adjust_left_type(x, value)
+    x <- adjust_left_type(x, value)
     stopifnot(is.vector(Lindex), is.numeric(Lindex))
 
-    ## No-op (except for type adjustment above) if selection if empty.
+    ## No-op (except for type adjustment above) if selection is empty.
     if (length(Lindex) == 0L)
         return(x)
 
     value <- .normalize_right_value(value, type(x), length(Lindex))
 
-    .NAME <- if (old) "C_subassign_SVT_by_Lindex_OLD"
-                 else "C_subassign_SVT_by_Lindex"
-    new_SVT <- SparseArray.Call(.NAME, x@dim, x@type, x@SVT, Lindex, value)
+    if (old) {
+        new_SVT <- SparseArray.Call("C_subassign_SVT_by_Lindex_OLD",
+                                    x@dim, x@type, x@SVT, Lindex, value)
+    } else {
+        new_SVT <- SparseArray.Call("C_subassign_SVT_by_Lindex",
+                                    x@dim, x@type, x@SVT, Lindex, value, FALSE)
+    }
     BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
 }
 
+setMethod("subassign_Array_by_Lindex", "SVT_SparseArray",
+    function(x, Lindex, value) .subassign_SVT_by_Lindex(x, Lindex, value)
+)
+
 .subassign_SVT_by_Mindex <- function(x, Mindex, value)
 {
-    x <- .adjust_left_type(x, value)
+    x <- adjust_left_type(x, value)
     stopifnot(is.matrix(Mindex), is.numeric(Mindex))
 
-    ## No-op (except for type adjustment above) if selection if empty.
+    ## No-op (except for type adjustment above) if selection is empty.
     if (nrow(Mindex) == 0L)
         return(x)
 
@@ -75,9 +76,13 @@
     BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
 }
 
+setMethod("subassign_Array_by_Mindex", "SVT_SparseArray",
+    .subassign_SVT_by_Mindex
+)
+
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### .subassign_SVT_by_Nindex()
+### subassign_Array_by_Nindex() method for SVT_SparseArray
 ###
 ### Like the 'index' argument in 'extract_array()', the 'Nindex' argument in
 ### all the functions below must be an N-index, that is, a list with one list
@@ -114,11 +119,11 @@
         stop(wmsg("the supplied value must be an ordinary vector or array, ",
                   "or an SVT_SparseArray object, for this subassignment"))
 
-    ## Change 'x' type if necessary. */
+    ## Change 'x' type if necessary.
     new_type <- type(c(vector(type(x)), vector(type(value))))
     type(x) <- new_type
 
-    ## No-op (except for type change above) if selection if empty. */
+    ## No-op (except for type change above) if selection is empty.
     selection_dim <- S4Arrays:::get_Nindex_lengths(Nindex, x@dim)
     if (any(selection_dim == 0L))
         return(x)
@@ -160,33 +165,7 @@
     BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
 }
 
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Subassignment method (`[<-`) for SVT_SparseArray objects
-###
-
-.subassign_SVT_SparseArray <- function(x, i, j, ..., value)
-{
-    if (missing(x))
-        stop(wmsg("'x' is missing"))
-    Nindex <- S4Arrays:::extract_Nindex_from_syscall(sys.call(), parent.frame())
-    nsubscript <- length(Nindex)
-    x_dim <- dim(x)
-    x_ndim <- length(x_dim)
-    if (nsubscript == 1L) {
-        i <- Nindex[[1L]]
-        if (type(i) == "logical" && identical(x_dim, dim(i)))
-            return(.subassign_SVT_by_logical_array(x, i, value))
-        if (is.matrix(i) && is.numeric(i))
-            return(.subassign_SVT_by_Mindex(x, i, value))
-        ## Linear single bracket subassignment e.g. x[5:2] <- 4.
-        return(.subassign_SVT_by_Lindex(x, i, value))
-    }
-    if (nsubscript != x_ndim)
-        stop(wmsg("incorrect number of subscripts"))
-    Nindex <- S4Arrays:::normalize_Nindex(Nindex, x)
-    .subassign_SVT_by_Nindex(x, Nindex, value)
-}
-
-setReplaceMethod("[", "SVT_SparseArray", .subassign_SVT_SparseArray)
+setMethod("subassign_Array_by_Nindex", "SVT_SparseArray",
+    .subassign_SVT_by_Nindex
+)
 

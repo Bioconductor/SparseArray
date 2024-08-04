@@ -595,8 +595,6 @@ static SEXP subassign_xleaf3_with_offval_pairs(SEXP xleaf3,
 	/* We've made sure that 'offs_buf' is big enough (its length is
 	   at least 'max_postsubassign_nzcount'). */
 	ans = _INPLACE_remove_zeros_from_leaf(ans, offs_buf);
-	if (ans != R_NilValue && LACUNAR_MODE_IS_ON)
-		_INPLACE_turn_into_lacunar_leaf_if_all_ones(ans);
 	UNPROTECT(2);
 	return ans;
 }
@@ -649,8 +647,6 @@ static SEXP postprocess_xleaf_using_Mindex(SEXP xleaf, int dim0,
 		   enough for this (its length is at least 'worst_nzcount'). */
 		SEXP ans = _INPLACE_remove_zeros_from_leaf(offval_pairs,
 							   sort_bufs->offs);
-		if (ans != R_NilValue && LACUNAR_MODE_IS_ON)
-			_INPLACE_turn_into_lacunar_leaf_if_all_ones(ans);
 		UNPROTECT(1);
 		return ans;
 	}
@@ -686,8 +682,6 @@ static SEXP postprocess_xleaf_using_Lindex(SEXP xleaf, int dim0,
 		   enough for this (its length is at least 'worst_nzcount'). */
 		SEXP ans = _INPLACE_remove_zeros_from_leaf(offval_pairs,
 							   sort_bufs->offs);
-		if (ans != R_NilValue && LACUNAR_MODE_IS_ON)
-			_INPLACE_turn_into_lacunar_leaf_if_all_ones(ans);
 		UNPROTECT(1);
 		return ans;
 	}
@@ -855,8 +849,6 @@ static SEXP subassign_leaf_by_Lindex_OLD(SEXP leaf, int dim0,
 	   (its length is at least 'worst_nzcount'). */
 	SEXP ans = _INPLACE_remove_zeros_from_leaf(offval_pairs,
 						   sort_bufs.offs);
-	if (ans != R_NilValue && LACUNAR_MODE_IS_ON)
-		_INPLACE_turn_into_lacunar_leaf_if_all_ones(ans);
 	UNPROTECT(leaf != R_NilValue ? 2 : 1);
 	return ans;
 }
