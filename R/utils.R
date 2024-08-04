@@ -1,4 +1,8 @@
 
+### A silly trick used only to trigger an error when the function is called
+### with no arguments.
+check_unused_arguments <- function() NULL
+
 coercion_can_introduce_zeros <- function(from_type, to_type)
 {
     if (!isSingleString(from_type))

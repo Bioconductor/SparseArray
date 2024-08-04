@@ -171,8 +171,8 @@ SparseArray(x, type=NA)
     \item \link{SparseArray_misc} for miscellaneous operations on a
           SparseArray object.
 
-    \item \link{matrixStats_methods} for SparseArray col/row summarization
-          methods.
+    \item \link{SparseArray_matrixStats} for col/row summarization methods
+          for SparseArray objects.
 
     \item \link{rowsum_methods} for \code{rowsum()} methods for sparse
           matrices.

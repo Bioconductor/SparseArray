@@ -54,7 +54,7 @@ Collate: utils.R
 	SparseArray-Math-methods.R
 	SparseArray-Complex-methods.R
 	SparseArray-misc-methods.R
-	matrixStats-methods.R
+	SparseArray-matrixStats.R
 	rowsum-methods.R
 	SparseMatrix-mult.R
 	randomSparseArray.R
@@ -64,4 +64,5 @@ Collate: utils.R
 	NaArray-subsetting.R
 	NaArray-subassignment.R
 	NaArray-abind.R
+	NaArray-matrixStats.R
 	zzz.R

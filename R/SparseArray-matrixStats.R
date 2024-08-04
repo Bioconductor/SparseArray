@@ -15,58 +15,16 @@
 ### - colSums() and colMeans() are functions actually defined in the base
 ###   package but we still count them as part of the matrixStats family.
 ### - All other matrix col/row summarization operations are from the
-###   matrixStats package with corresponding generics defined in the
-###   MatrixGenerics package.
+###   matrixStats package.
+### - The MatrixGenerics package defines S4 generics for all the matrix
+###   col/row summarization functions.
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### Low-level helpers
 ###
 
-### A silly trick used only to trigger an error when the function is called
-### with no arguments.
-.check_unused_arguments <- function() NULL
-
-.check_dims <- function(dims, method)
-{
-    if (!identical(dims, 1))
-        stop(wmsg("the ", method, "() method for SVT_SparseArray objects ",
-                  "does not support the 'dims' argument"))
-}
-
-.check_rows_cols <- function(rows, cols, method)
-{
-    if (!(is.null(rows) && is.null(cols)))
-        stop(wmsg("the ", method, "() method for SVT_SparseArray objects ",
-                  "does not support the 'rows' or 'cols' argument"))
-}
-
-### Returns TRUE or FALSE.
-.normarg_useNames <- function(useNames=NA)
-{
-    if (!(is.logical(useNames) && length(useNames) == 1L))
-        stop(wmsg("'useNames' must be a single logical value"))
-    !isFALSE(useNames)
-}
-
-.stopifnot_2D_object <- function(x, method)
-{
-    if (length(dim(x)) != 2L)
-        stop(wmsg("the ", method, "() method for SVT_SparseArray objects ",
-                  "only supports 2D objects (i.e. SVT_SparseMatrix objects) ",
-                  "at the moment"))
-}
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### .colStats_SparseArray(), .rowStats_SparseArray()
-###
-### Workhorses behind all the matrixStats methods for SVT_SparseArray
-### objects, with the exception of the colMedians()/rowMedians() methods
-### at the moment.
-###
-
-.normarg_dims <- function(dims)
+normarg_dims <- function(dims)
 {
     if (!isSingleNumber(dims))
         stop(wmsg("'dims' must be a single integer"))
@@ -75,6 +33,37 @@
     dims
 }
 
+### Returns TRUE or FALSE.
+normarg_useNames <- function(useNames=NA)
+{
+    if (!(is.logical(useNames) && length(useNames) == 1L))
+        stop(wmsg("'useNames' must be a single logical value"))
+    !isFALSE(useNames)
+}
+
+check_rows_cols <- function(rows, cols, method, class)
+{
+    if (!(is.null(rows) && is.null(cols)))
+        stop(wmsg("the ", method, "() method for ", class, " objects ",
+                  "does not support the 'rows' or 'cols' argument"))
+}
+
+stopifnot_2D_object <- function(x, method, class1, class2)
+{
+    if (length(dim(x)) != 2L)
+        stop(wmsg("the ", method, "() method for ", class1, " objects ",
+                  "only supports 2D objects (i.e. ", class2, " objects) ",
+                  "at the moment"))
+}
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### .colStats_SparseArray(), .rowStats_SparseArray()
+###
+### Workhorses behind all the matrixStats methods for SparseArray objects,
+### with the exception of the colMedians()/rowMedians() methods at the moment.
+###
+
 ### Returns an ordinary array with 'length(dim(x)) - dims' dimensions.
 .colStats_SparseArray <- function(op, x, na.rm=FALSE, center=NULL, dims=1L,
                                   useNames=NA)
@@ -82,7 +71,7 @@
     stopifnot(isSingleString(op), is(x, "SparseArray"))
 
     ## Normalize and check 'dims'.
-    dims <- .normarg_dims(dims)
+    dims <- normarg_dims(dims)
     if (dims <= 0L || dims > length(x@dim))
         stop(wmsg("'dims' must be a single integer that is ",
                   "> 0 and <= length(dim(x)) for the col*() functions, and ",
@@ -109,7 +98,7 @@
     }
 
     ## Normalize 'useNames'.
-    useNames <- .normarg_useNames(useNames)
+    useNames <- normarg_useNames(useNames)
 
     x_dimnames <- if (useNames) x@dimnames else NULL
     SparseArray.Call("C_colStats_SVT",
@@ -134,7 +123,7 @@
                                       useNames=NA)
 {
     ## Normalize 'useNames'.
-    useNames <- .normarg_useNames(useNames)
+    useNames <- normarg_useNames(useNames)
 
     x_ndim <- length(x@dim)
 
@@ -211,7 +200,7 @@
     stopifnot(isSingleString(op), is(x, "SparseArray"))
 
     ## Normalize and check 'dims'.
-    dims <- .normarg_dims(dims)
+    dims <- normarg_dims(dims)
     if (dims < 0L || dims >= length(x@dim))
         stop(wmsg("'dims' must be a single integer that is ",
                   "> 0 and <= length(dim(x)) for the col*() functions, and ",
@@ -260,7 +249,7 @@
     }
 
     ## Normalize 'useNames'.
-    useNames <- .normarg_useNames(useNames)
+    useNames <- normarg_useNames(useNames)
 
     x_dimnames <- if (useNames) x@dimnames else NULL
     SparseArray.Call("C_rowStats_SVT",
@@ -298,7 +287,7 @@
 .colCountVals_SparseArray <- function(x, na.rm=FALSE, dims=1)
 {
     stopifnot(is(x, "SparseArray"))
-    dims <- .normarg_dims(dims)
+    dims <- normarg_dims(dims)
     ans <- prod(head(dim(x), n=dims))
     if (na.rm) {
         count_nas <- .colCountNAs_SparseArray(x, dims=dims, useNames=FALSE)
@@ -310,7 +299,7 @@
 .rowCountVals_SparseArray <- function(x, na.rm=FALSE, dims=1)
 {
     stopifnot(is(x, "SparseArray"))
-    dims <- .normarg_dims(dims)
+    dims <- normarg_dims(dims)
     ans <- prod(tail(dim(x), n=-dims))
     if (na.rm) {
         count_nas <- .rowCountNAs_SparseArray(x, dims=dims, useNames=FALSE)
@@ -327,8 +316,8 @@
 .colAnyNAs_SparseArray <-
     function(x, rows=NULL, cols=NULL, dims=1, ..., useNames=NA)
 {
-    .check_unused_arguments(...)
-    .check_rows_cols(rows, cols, "colAnyNAs")
+    check_unused_arguments(...)
+    check_rows_cols(rows, cols, "colAnyNAs", "SparseArray")
     .colStats_SparseArray("anyNA", x, dims=dims, useNames=useNames)
 }
 setMethod("colAnyNAs", "SparseArray", .colAnyNAs_SparseArray)
@@ -336,8 +325,8 @@ setMethod("colAnyNAs", "SparseArray", .colAnyNAs_SparseArray)
 .rowAnyNAs_SparseArray <-
     function(x, rows=NULL, cols=NULL, dims=1, ..., useNames=NA)
 {
-    .check_unused_arguments(...)
-    .check_rows_cols(rows, cols, "rowAnyNAs")
+    check_unused_arguments(...)
+    check_rows_cols(rows, cols, "rowAnyNAs", "SparseArray")
     .rowStats_SparseArray("anyNA", x, dims=dims, useNames=useNames)
 }
 setMethod("rowAnyNAs", "SparseArray", .rowAnyNAs_SparseArray)
@@ -350,8 +339,8 @@ setMethod("rowAnyNAs", "SparseArray", .rowAnyNAs_SparseArray)
 .colAnys_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
-    .check_unused_arguments(...)
-    .check_rows_cols(rows, cols, "colAnys")
+    check_unused_arguments(...)
+    check_rows_cols(rows, cols, "colAnys", "SparseArray")
     .colStats_SparseArray("any", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
 setMethod("colAnys", "SparseArray", .colAnys_SparseArray)
@@ -359,8 +348,8 @@ setMethod("colAnys", "SparseArray", .colAnys_SparseArray)
 .rowAnys_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
-    .check_unused_arguments(...)
-    .check_rows_cols(rows, cols, "rowAnys")
+    check_unused_arguments(...)
+    check_rows_cols(rows, cols, "rowAnys", "SparseArray")
     .rowStats_SparseArray("any", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
 setMethod("rowAnys", "SparseArray", .rowAnys_SparseArray)
@@ -368,8 +357,8 @@ setMethod("rowAnys", "SparseArray", .rowAnys_SparseArray)
 .colAlls_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
-    .check_unused_arguments(...)
-    .check_rows_cols(rows, cols, "colAlls")
+    check_unused_arguments(...)
+    check_rows_cols(rows, cols, "colAlls", "SparseArray")
     .colStats_SparseArray("all", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
 setMethod("colAlls", "SparseArray", .colAlls_SparseArray)
@@ -377,8 +366,8 @@ setMethod("colAlls", "SparseArray", .colAlls_SparseArray)
 .rowAlls_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
-    .check_unused_arguments(...)
-    .check_rows_cols(rows, cols, "rowAlls")
+    check_unused_arguments(...)
+    check_rows_cols(rows, cols, "rowAlls", "SparseArray")
     .rowStats_SparseArray("all", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
 setMethod("rowAlls", "SparseArray", .rowAlls_SparseArray)
@@ -391,8 +380,8 @@ setMethod("rowAlls", "SparseArray", .rowAlls_SparseArray)
 .colMins_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
-    .check_unused_arguments(...)
-    .check_rows_cols(rows, cols, "colMins")
+    check_unused_arguments(...)
+    check_rows_cols(rows, cols, "colMins", "SparseArray")
     .colStats_SparseArray("min", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
 setMethod("colMins", "SparseArray", .colMins_SparseArray)
@@ -400,8 +389,8 @@ setMethod("colMins", "SparseArray", .colMins_SparseArray)
 .rowMins_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
-    .check_unused_arguments(...)
-    .check_rows_cols(rows, cols, "rowMins")
+    check_unused_arguments(...)
+    check_rows_cols(rows, cols, "rowMins", "SparseArray")
     .rowStats_SparseArray("min", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
 setMethod("rowMins", "SparseArray", .rowMins_SparseArray)
@@ -409,8 +398,8 @@ setMethod("rowMins", "SparseArray", .rowMins_SparseArray)
 .colMaxs_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
-    .check_unused_arguments(...)
-    .check_rows_cols(rows, cols, "colMaxs")
+    check_unused_arguments(...)
+    check_rows_cols(rows, cols, "colMaxs", "SparseArray")
     .colStats_SparseArray("max", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
 setMethod("colMaxs", "SparseArray", .colMaxs_SparseArray)
@@ -418,8 +407,8 @@ setMethod("colMaxs", "SparseArray", .colMaxs_SparseArray)
 .rowMaxs_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
-    .check_unused_arguments(...)
-    .check_rows_cols(rows, cols, "rowMaxs")
+    check_unused_arguments(...)
+    check_rows_cols(rows, cols, "rowMaxs", "SparseArray")
     .rowStats_SparseArray("max", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
 setMethod("rowMaxs", "SparseArray", .rowMaxs_SparseArray)
@@ -444,8 +433,8 @@ setMethod("rowMaxs", "SparseArray", .rowMaxs_SparseArray)
 .colRanges_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
-    .check_unused_arguments(...)
-    .check_rows_cols(rows, cols, "colRanges")
+    check_unused_arguments(...)
+    check_rows_cols(rows, cols, "colRanges", "SparseArray")
     ## Using two passes at the moment and binding the two results in R.
     ## TODO: Do all this in a single pass by calling
     ## '.colStats_SparseArray("range", ...)' and modifying .Call ENTRY POINT
@@ -461,8 +450,8 @@ setMethod("colRanges", "SparseArray", .colRanges_SparseArray)
 .rowRanges_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
-    .check_unused_arguments(...)
-    .check_rows_cols(rows, cols, "rowRanges")
+    check_unused_arguments(...)
+    check_rows_cols(rows, cols, "rowRanges", "SparseArray")
     ## Using two passes at the moment and binding the two results in R.
     ## TODO: Do all this in a single pass by calling
     ## '.rowStats_SparseArray("range", ...)' and modifying .Call ENTRY POINT
@@ -497,8 +486,8 @@ setMethod("rowSums", "SparseArray", .rowSums_SparseArray)
 .colProds_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
-    .check_unused_arguments(...)
-    .check_rows_cols(rows, cols, "colProds")
+    check_unused_arguments(...)
+    check_rows_cols(rows, cols, "colProds", "SparseArray")
     .colStats_SparseArray("prod", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
 setMethod("colProds", "SparseArray", .colProds_SparseArray)
@@ -506,8 +495,8 @@ setMethod("colProds", "SparseArray", .colProds_SparseArray)
 .rowProds_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
-    .check_unused_arguments(...)
-    .check_rows_cols(rows, cols, "rowProds")
+    check_unused_arguments(...)
+    check_rows_cols(rows, cols, "rowProds", "SparseArray")
     .rowStats_SparseArray("prod", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
 setMethod("rowProds", "SparseArray", .rowProds_SparseArray)
@@ -534,8 +523,8 @@ setMethod("rowMeans", "SparseArray", .rowMeans_SparseArray)
 .colSums2_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
-    .check_unused_arguments(...)
-    .check_rows_cols(rows, cols, "colSums2")
+    check_unused_arguments(...)
+    check_rows_cols(rows, cols, "colSums2", "SparseArray")
     .colStats_SparseArray("sum", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
 setMethod("colSums2", "SparseArray", .colSums2_SparseArray)
@@ -543,8 +532,8 @@ setMethod("colSums2", "SparseArray", .colSums2_SparseArray)
 .rowSums2_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
-    .check_unused_arguments(...)
-    .check_rows_cols(rows, cols, "rowSums2")
+    check_unused_arguments(...)
+    check_rows_cols(rows, cols, "rowSums2", "SparseArray")
     .rowStats_SparseArray("sum", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
 setMethod("rowSums2", "SparseArray", .rowSums2_SparseArray)
@@ -552,8 +541,8 @@ setMethod("rowSums2", "SparseArray", .rowSums2_SparseArray)
 .colMeans2_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
-    .check_unused_arguments(...)
-    .check_rows_cols(rows, cols, "colMeans2")
+    check_unused_arguments(...)
+    check_rows_cols(rows, cols, "colMeans2", "SparseArray")
     .colStats_SparseArray("mean", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
 setMethod("colMeans2", "SparseArray", .colMeans2_SparseArray)
@@ -561,8 +550,8 @@ setMethod("colMeans2", "SparseArray", .colMeans2_SparseArray)
 .rowMeans2_SparseArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 {
-    .check_unused_arguments(...)
-    .check_rows_cols(rows, cols, "rowMeans2")
+    check_unused_arguments(...)
+    check_rows_cols(rows, cols, "rowMeans2", "SparseArray")
     .rowStats_SparseArray("mean", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
 setMethod("rowMeans2", "SparseArray", .rowMeans2_SparseArray)
@@ -615,7 +604,7 @@ setMethod("rowMeans2", "SparseArray", .rowMeans2_SparseArray)
 {
     if (!isTRUEorFALSE(na.rm))
         stop(wmsg("'na.rm' must be TRUE or FALSE"))
-    useNames <- .normarg_useNames(useNames)
+    useNames <- normarg_useNames(useNames)
     x_nrow <- nrow(x)
     x_ncol <- ncol(x)
     if (x_nrow <= 1L) {
@@ -645,8 +634,8 @@ setMethod("rowMeans2", "SparseArray", .rowMeans2_SparseArray)
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
                 dims=1, ..., useNames=NA)
 {
-    .check_unused_arguments(...)
-    .check_rows_cols(rows, cols, "colVars")
+    check_unused_arguments(...)
+    check_rows_cols(rows, cols, "colVars", "SparseArray")
     .colStats_SparseArray("var1", x, na.rm=na.rm, center=center,
                                   dims=dims, useNames=useNames)
 }
@@ -656,8 +645,8 @@ setMethod("colVars", "SparseArray", .colVars_SparseArray)
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
                 dims=1, ..., useNames=NA)
 {
-    .check_unused_arguments(...)
-    .check_rows_cols(rows, cols, "rowVars")
+    check_unused_arguments(...)
+    check_rows_cols(rows, cols, "rowVars", "SparseArray")
     nvals <- .rowCountVals_SparseArray(x, na.rm=na.rm, dims=dims)
     if (is.null(center)) {
         sums <- .rowSums_SparseArray(x, na.rm=na.rm, dims=dims)
@@ -674,8 +663,8 @@ setMethod("rowVars", "SparseArray", .rowVars_SparseArray)
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
                 dims=1, ..., useNames=NA)
 {
-    .check_unused_arguments(...)
-    .check_rows_cols(rows, cols, "colSds")
+    check_unused_arguments(...)
+    check_rows_cols(rows, cols, "colSds", "SparseArray")
     .colStats_SparseArray("sd1", x, na.rm=na.rm, center=center,
                                  dims=dims, useNames=useNames)
 }
@@ -685,8 +674,8 @@ setMethod("colSds", "SparseArray", .colSds_SparseArray)
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
                 dims=1, ..., useNames=NA)
 {
-    .check_unused_arguments(...)
-    .check_rows_cols(rows, cols, "rowSds")
+    check_unused_arguments(...)
+    check_rows_cols(rows, cols, "rowSds", "SparseArray")
     row_vars <- .rowVars_SparseArray(x, na.rm=na.rm, center=center,
                                      dims=dims, useNames=useNames)
     sqrt(row_vars)
@@ -773,7 +762,7 @@ setMethod("rowSds", "SparseArray", .rowSds_SparseArray)
     check_svt_version(x)
     if (!isTRUEorFALSE(na.rm))
         stop(wmsg("'na.rm' must be TRUE or FALSE"))
-    useNames <- .normarg_useNames(useNames)
+    useNames <- normarg_useNames(useNames)
     x_nrow <- nrow(x)
     x_ncol <- ncol(x)
     if (x_nrow == 0L) {
@@ -800,9 +789,9 @@ setMethod("rowSds", "SparseArray", .rowSds_SparseArray)
 setMethod("colMedians", "SparseArray",
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
     {
-        .check_unused_arguments(...)
-        .stopifnot_2D_object(x, "colMedians")
-        .check_rows_cols(rows, cols, "colMedians")
+        check_unused_arguments(...)
+        stopifnot_2D_object(x, "colMedians", "SparseArray", "SparseMatrix")
+        check_rows_cols(rows, cols, "colMedians", "SparseArray")
         if (!is(x, "SVT_SparseArray"))
             x <- as(x, "SVT_SparseArray")
         .colMedians_SVT_SparseMatrix(x, na.rm=na.rm, useNames=useNames)
@@ -812,12 +801,12 @@ setMethod("colMedians", "SparseArray",
 setMethod("rowMedians", "SparseArray",
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, ..., useNames=NA)
     {
-        .check_unused_arguments(...)
-        .stopifnot_2D_object(x, "rowMedians")
-        .check_rows_cols(rows, cols, "rowMedians")
+        check_unused_arguments(...)
+        stopifnot_2D_object(x, "rowMedians", "SparseArray", "SparseMatrix")
+        check_rows_cols(rows, cols, "rowMedians", "SparseArray")
         tx <- t(x)
         if (!is(tx, "SVT_SparseArray"))
-            x <- as(tx, "SVT_SparseArray")
+            tx <- as(tx, "SVT_SparseArray")
         .colMedians_SVT_SparseMatrix(tx, na.rm=na.rm, useNames=useNames, ...)
     }
 )

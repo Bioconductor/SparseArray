@@ -14,6 +14,8 @@
 \title{Combine multidimensional NaArray objects}
 
 \description{
+  EXPERIMENTAL!!!
+
   Like ordinary matrices and arrays in base R, \link{NaMatrix} objects
   can be combined by rows or columns, with \code{rbind()} or \code{cbind()},
   and multidimensional \link{NaArray} objects can be bound along

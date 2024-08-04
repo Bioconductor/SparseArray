@@ -61,11 +61,11 @@ set_SparseArray_nthread(nthread=NULL)
 
 \seealso{
   \itemize{
+    \item \link{SparseArray_matrixStats} for SparseArray col/row
+          summarization methods.
+
     \item \link{SparseMatrix_mult} for SparseMatrix multiplication and
           cross-product.
-
-    \item \link{matrixStats_methods} for SparseArray col/row summarization
-          methods.
 
     \item \link{SparseArray} objects.
   }

@@ -1,7 +1,7 @@
-\name{matrixStats-methods}
+\name{SparseArray-matrixStats}
 
-\alias{matrixStats-methods}
-\alias{matrixStats_methods}
+\alias{SparseArray-matrixStats}
+\alias{SparseArray_matrixStats}
 
 \alias{colAnyNAs}
 \alias{colAnyNAs,SparseArray-method}
@@ -73,7 +73,7 @@
 \alias{rowMedians}
 \alias{rowMedians,SparseArray-method}
 
-\title{SparseArray col/row summarization methods}
+\title{SparseArray col/row summarization}
 
 \description{
   The \pkg{SparseArray} package provides memory-efficient col/row
@@ -134,7 +134,7 @@
     Not supported.
   }
   \item{na.rm, useNames, center}{
-    See man pages for the corresponding generics in the \pkg{MatrixGenerics}
+    See man pages of the corresponding generics in the \pkg{MatrixGenerics}
     package (e.g. \code{?MatrixGenerics::\link[MatrixGenerics]{rowVars}})
     for a description of these arguments.
 
@@ -155,13 +155,13 @@
 
 \details{
   All these methods operate \emph{natively} on the \link{SVT_SparseArray}
-  representation, for maximum efficiency.
+  internal representation, for maximum efficiency.
 
   Note that more col/row summarization methods might be added in the future.
 }
 
 \value{
-  See man pages for the corresponding generics in the \pkg{MatrixGenerics}
+  See man pages of the corresponding generics in the \pkg{MatrixGenerics}
   package (e.g. \code{?MatrixGenerics::\link[MatrixGenerics]{colRanges}})
   for the value returned by these methods.
 }
@@ -176,7 +176,7 @@
   \itemize{
     \item \link{SparseArray} objects.
 
-    \item The man pages for the various generic functions defined
+    \item The man pages of the various generic functions defined
           in the \pkg{MatrixGenerics} package e.g.
           \code{MatrixGenerics::\link[MatrixGenerics]{colVars}} etc...
   }

@@ -38,7 +38,7 @@
 }
 
 \value{
-  See man pages for the corresponding default methods in the
+  See man pages of the corresponding default methods in the
   \pkg{base} package (e.g. \code{?base::\link[base]{range}},
   \code{?base::\link[base]{mean}}, etc...) for the value returned
   by these methods.
@@ -48,7 +48,7 @@
   \itemize{
     \item \link{SparseArray} objects.
 
-    \item The man pages for the various default methods defined in
+    \item The man pages of the various default methods defined in
           the \pkg{base} package e.g. \code{base::\link[base]{range}},
 	  \code{base::\link[base]{mean}}, \code{base::\link[base]{anyNA}},
 	  etc...

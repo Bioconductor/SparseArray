@@ -1,5 +1,5 @@
-#ifndef _MATRIXSTATS_METHODS_H_
-#define	_MATRIXSTATS_METHODS_H_
+#ifndef _SPARSEARRAY_MATRIXSTATS_H_
+#define	_SPARSEARRAY_MATRIXSTATS_H_
 
 #include <Rdefines.h>
 
@@ -25,5 +25,5 @@ SEXP C_rowStats_SVT(
 	SEXP dims
 );
 
-#endif  /* _MATRIXSTATS_METHODS_H_ */
+#endif  /* _SPARSEARRAY_MATRIXSTATS_H_ */
 

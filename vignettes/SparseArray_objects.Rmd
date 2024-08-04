@@ -349,7 +349,7 @@ colAnyNAs(svt2)
 colAnyNAs(svt2, dims=2)
 ```
 
-See `?matrixStats_methods` for more information and additional examples.
+See `?SparseArray_matrixStats` for more information and additional examples.
 
 ## `rowsum()` and `colsum()`
 

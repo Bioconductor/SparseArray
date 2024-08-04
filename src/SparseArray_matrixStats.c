@@ -2,12 +2,12 @@
  ****************************************************************************
  **									   **
  **									   **
- **              matrixStats methods for SparseMatrix objects              **
+ **              matrixStats methods for SparseArray objects               **
  **									   **
  **									   **
  ****************************************************************************
  ****************************************************************************/
-#include "matrixStats_methods.h"
+#include "SparseArray_matrixStats.h"
 
 #include "thread_control.h"  /* for which_max() */
 #include "Rvector_utils.h"

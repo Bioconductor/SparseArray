@@ -81,7 +81,7 @@
 }
 
 \value{
-  See man pages for the corresponding base functions (e.g.
+  See man pages of the corresponding base functions (e.g.
   \code{?base::\link[base]{is.na}}, \code{?base::\link[base]{nchar}},
   \code{?base::\link[base]{pmin}}, etc...) for the value returned by
   these methods.
