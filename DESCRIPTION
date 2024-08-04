@@ -54,9 +54,9 @@ Collate: utils.R
 	SparseArray-Math-methods.R
 	SparseArray-Complex-methods.R
 	SparseArray-misc-methods.R
-	SparseMatrix-mult.R
 	matrixStats-methods.R
 	rowsum-methods.R
+	SparseMatrix-mult.R
 	randomSparseArray.R
 	readSparseCSV.R
 	NaArray-class.R

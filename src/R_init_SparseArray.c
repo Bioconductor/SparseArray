@@ -17,9 +17,9 @@
 #include "SparseArray_Math_methods.h"
 #include "SparseArray_Complex_methods.h"
 #include "SparseArray_misc_methods.h"
-#include "SparseMatrix_mult.h"
 #include "matrixStats_methods.h"
 #include "rowsum_methods.h"
+#include "SparseMatrix_mult.h"
 #include "randomSparseArray.h"
 #include "readSparseCSV.h"
 #include "test.h"
@@ -107,12 +107,6 @@ static const R_CallMethodDef callMethods[] = {
 /* SparseArray_misc_methods.c */
 	CALLMETHOD_DEF(C_SVT_apply_isFUN, 4),
 
-/* SparseMatrix_mult.c */
-	CALLMETHOD_DEF(C_crossprod2_SVT_mat, 7),
-	CALLMETHOD_DEF(C_crossprod2_mat_SVT, 7),
-	CALLMETHOD_DEF(C_crossprod2_SVT_SVT, 8),
-	CALLMETHOD_DEF(C_crossprod1_SVT, 5),
-
 /* matrixStats_methods.h.c */
 	CALLMETHOD_DEF(C_colStats_SVT, 8),
 	CALLMETHOD_DEF(C_rowStats_SVT, 8),
@@ -122,6 +116,12 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_rowsum_dgCMatrix, 4),
 	CALLMETHOD_DEF(C_colsum_SVT, 6),
 	CALLMETHOD_DEF(C_colsum_dgCMatrix, 4),
+
+/* SparseMatrix_mult.c */
+	CALLMETHOD_DEF(C_crossprod2_SVT_mat, 7),
+	CALLMETHOD_DEF(C_crossprod2_mat_SVT, 7),
+	CALLMETHOD_DEF(C_crossprod2_SVT_SVT, 8),
+	CALLMETHOD_DEF(C_crossprod1_SVT, 5),
 
 /* randomSparseArray.c */
 	CALLMETHOD_DEF(C_simple_rpois, 2),

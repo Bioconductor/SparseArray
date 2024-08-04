@@ -171,14 +171,14 @@ SparseArray(x, type=NA)
     \item \link{SparseArray_misc} for miscellaneous operations on a
           SparseArray object.
 
-    \item \link{SparseMatrix_mult} for SparseMatrix multiplication and
-          cross-product.
-
     \item \link{matrixStats_methods} for SparseArray col/row summarization
           methods.
 
     \item \link{rowsum_methods} for \code{rowsum()} methods for sparse
           matrices.
+
+    \item \link{SparseMatrix_mult} for SparseMatrix multiplication and
+          cross-product.
 
     \item \code{\link{randomSparseArray}} to generate a random SparseArray
           object.

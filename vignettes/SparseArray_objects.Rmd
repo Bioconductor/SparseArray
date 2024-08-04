@@ -3,7 +3,7 @@ title: "SparseArray objects"
 author:
 - name: Hervé Pagès
   affiliation: Fred Hutchinson Cancer Research Center, Seattle, WA
-date: "Compiled `r BiocStyle::doc_date()`; Modified 20 July 2024"
+date: "Compiled `r BiocStyle::doc_date()`; Modified 4 August 2024"
 package: SparseArray
 vignette: |
   %\VignetteIndexEntry{SparseArray objects}
@@ -210,10 +210,15 @@ nzwhich(svt1)
 ## nonzero array elements in 'svt1':
 nzwhich(svt1, arr.ind=TRUE)
 
-## Extract the values of the nonzero array elements in 'svt1' and return
-## them in a vector "parallel" to 'nzwhich(svt1)':
+## Extract the values of the nonzero array elements in 'svt1':
 nzvals(svt1)
+```
+Note that the vectors produced by `nzwhich()` and `nzvals()` are _parallel_,
+that is, they have the same length and the i-th element in one vector
+corresponds to the i-th element in the other vector.
 
+A convenience function that just does `1 - nzcount(x) / length(x)`:
+```{r}
 sparsity(svt1)
 ```
 
@@ -324,29 +329,14 @@ abind(svt6a, svt6b, svt6c, along=2)
 
 See `?SparseArray_abind` for more information and additional examples.
 
-## Matrix multiplication and cross-product
-
-Like ordinary matrices in base R, SVT\_SparseMatrix objects can be
-multiplied with the `%*%` operator:
-```{r}
-svt7 <- SVT_SparseArray(dim=5:6, dimnames=list(letters[1:5], LETTERS[1:6]))
-svt7[c(2, 6, 12:17, 22:30)] <- 101:117
-
-svt7 %*% svt4
-```
-
-They also support `crossprod()` and `tcrossprod()`:
-```{r}
-crossprod(svt4)
-```
-
-See `?SparseMatrix_mult` for more information and additional examples.
-
 ## matrixStats methods
 
 The `r Biocpkg("SparseArray")` package provides memory-efficient col/row
 summarization methods for SVT\_SparseMatrix objects:
 ```{r}
+svt7 <- SVT_SparseArray(dim=5:6, dimnames=list(letters[1:5], LETTERS[1:6]))
+svt7[c(2, 6, 12:17, 22:30)] <- 101:117
+
 colVars(svt7)
 ```
 
@@ -354,6 +344,7 @@ Note that multidimensional objects are supported:
 ```{r}
 colVars(svt2)
 colVars(svt2, dims=2)
+
 colAnyNAs(svt2)
 colAnyNAs(svt2, dims=2)
 ```
@@ -370,6 +361,20 @@ colsum(svt7, group=c("A", "B", "A", "B", "B", "A"))
 ```
 
 See `?rowsum_methods` for more information and additional examples.
+
+## Matrix multiplication and cross-product
+
+SVT\_SparseMatrix objects support matrix multiplication:
+```{r}
+svt7 %*% svt4
+```
+
+as well as `crossprod()` and `tcrossprod()`:
+```{r}
+crossprod(svt4)
+```
+
+See `?SparseMatrix_mult` for more information and additional examples.
 
 ## Read/write a sparse matrix from/to a CSV file
 
