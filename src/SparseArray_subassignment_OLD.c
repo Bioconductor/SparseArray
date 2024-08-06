@@ -520,7 +520,7 @@ static SEXP make_offval_pairs_from_sorted_offsets(
 						 ans_vals);
 	/* Use the "leaf representation" even though this is NOT a 1D SVT!
 	   See above. */
-	SEXP ans = PROTECT(zip_leaf(ans_vals, ans_offs));
+	SEXP ans = PROTECT(zip_leaf(ans_vals, ans_offs, 0));
 	UNPROTECT(3);
 	return ans;
 }
@@ -535,7 +535,7 @@ static SEXP make_offval_pairs_from_sorted_lloffsets(
 						   ans_vals);
 	/* Use the "leaf representation" even though this is NOT a 1D SVT!
 	   See above. */
-	SEXP ans = PROTECT(zip_leaf(ans_vals, ans_offs));
+	SEXP ans = PROTECT(zip_leaf(ans_vals, ans_offs, 0));
 	UNPROTECT(3);
 	return ans;
 }
@@ -586,7 +586,7 @@ static SEXP subassign_xleaf3_with_offval_pairs(SEXP xleaf3,
 	/* Turn "extended leaf" into regular leaf. */
 	SEXP nzvals, nzoffs;
 	unzip_leaf(xleaf3, &nzvals, &nzoffs);  /* ignore returned nzcount */
-	SEXP leaf = PROTECT(zip_leaf(nzvals, nzoffs));
+	SEXP leaf = PROTECT(zip_leaf(nzvals, nzoffs, 0));
 
 	SEXP offs = get_leaf_nzoffs(offval_pairs);
 	SEXP vals = get_leaf_nzvals(offval_pairs);
@@ -594,7 +594,9 @@ static SEXP subassign_xleaf3_with_offval_pairs(SEXP xleaf3,
 
 	/* We've made sure that 'offs_buf' is big enough (its length is
 	   at least 'max_postsubassign_nzcount'). */
-	ans = _INPLACE_remove_zeros_from_leaf(ans, offs_buf);
+	int new_nzcount = _INPLACE_remove_zeros_from_leaf(ans, offs_buf);
+	if (new_nzcount == 0)
+		ans = R_NilValue;
 	UNPROTECT(2);
 	return ans;
 }
@@ -645,10 +647,13 @@ static SEXP postprocess_xleaf_using_Mindex(SEXP xleaf, int dim0,
 		   should be safe to call _INPLACE_remove_zeros_from_leaf()
 		   on it. Also we've made sure that 'sort_bufs.offs' is big
 		   enough for this (its length is at least 'worst_nzcount'). */
-		SEXP ans = _INPLACE_remove_zeros_from_leaf(offval_pairs,
-							   sort_bufs->offs);
+		int new_nzcount = _INPLACE_remove_zeros_from_leaf(
+							offval_pairs,
+							sort_bufs->offs);
+		if (new_nzcount == 0)
+			offval_pairs = R_NilValue;
 		UNPROTECT(1);
-		return ans;
+		return offval_pairs;
 	}
 	int xleaf_type = LENGTH(xleaf);
 	if (xleaf_type == 2) {
@@ -680,10 +685,13 @@ static SEXP postprocess_xleaf_using_Lindex(SEXP xleaf, int dim0,
 		   should be safe to call _INPLACE_remove_zeros_from_leaf()
 		   on it. Also we've made sure that 'sort_bufs.offs' is big
 		   enough for this (its length is at least 'worst_nzcount'). */
-		SEXP ans = _INPLACE_remove_zeros_from_leaf(offval_pairs,
-							   sort_bufs->offs);
+		int new_nzcount = _INPLACE_remove_zeros_from_leaf(
+							offval_pairs,
+							sort_bufs->offs);
+		if (new_nzcount == 0)
+			offval_pairs = R_NilValue;
 		UNPROTECT(1);
-		return ans;
+		return offval_pairs;
 	}
 	int xleaf_type = LENGTH(xleaf);
 	if (xleaf_type == 2) {
@@ -807,7 +815,7 @@ static SEXP make_offval_pairs_from_Lindex_vals(SEXP Lindex, SEXP vals,
 	_copy_selected_Rsubvec_elts(vals, 0, sort_bufs->order, ans_vals);
 	/* Use the "leaf representation" even though this is NOT a 1D SVT!
 	   See above. */
-	SEXP ans = PROTECT(zip_leaf(ans_vals, ans_offs));
+	SEXP ans = PROTECT(zip_leaf(ans_vals, ans_offs, 0));
 	UNPROTECT(3);
 	return ans;
 }
@@ -847,10 +855,12 @@ static SEXP subassign_leaf_by_Lindex_OLD(SEXP leaf, int dim0,
 	   should be safe to use _INPLACE_remove_zeros_from_leaf() on it.
 	   Also we've made sure that 'sort_bufs.offs' is big enough for this
 	   (its length is at least 'worst_nzcount'). */
-	SEXP ans = _INPLACE_remove_zeros_from_leaf(offval_pairs,
-						   sort_bufs.offs);
+	int new_nzcount = _INPLACE_remove_zeros_from_leaf(offval_pairs,
+							  sort_bufs.offs);
+	if (new_nzcount == 0)
+		offval_pairs = R_NilValue;
 	UNPROTECT(leaf != R_NilValue ? 2 : 1);
-	return ans;
+	return offval_pairs;
 }
 
 

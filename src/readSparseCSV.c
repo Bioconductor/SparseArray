@@ -181,7 +181,7 @@ static SEXP make_leaf_from_AEbufs(const IntAE *nzvals_buf,
 {
 	SEXP ans_nzvals = PROTECT(new_INTEGER_from_IntAE(nzvals_buf));
 	SEXP ans_nzoffs = PROTECT(new_INTEGER_from_IntAE(nzoffs_buf));
-	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs);  // unprotected!
+	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs, 1);  // unprotected!
 	UNPROTECT(2);
 	return ans;
 }

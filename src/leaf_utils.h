@@ -45,7 +45,8 @@ static inline void replace_leaf_nzoffs(SEXP leaf, SEXP nzoffs)
 	SET_VECTOR_ELT(leaf, 1, nzoffs);
 }
 
-static inline SEXP zip_leaf(SEXP nzvals, SEXP nzoffs)
+static inline SEXP zip_leaf(SEXP nzvals, SEXP nzoffs,
+			    int go_lacunar_if_all_ones)
 {
 	/* Sanity checks (should never fail). */
 	if (!IS_INTEGER(nzoffs))
@@ -53,8 +54,16 @@ static inline SEXP zip_leaf(SEXP nzvals, SEXP nzoffs)
 	R_xlen_t nzcount = XLENGTH(nzoffs);
 	if (nzcount == 0 || nzcount > INT_MAX)
 		goto on_error;
-	if (nzvals != R_NilValue && XLENGTH(nzvals) != nzcount)
-		goto on_error;
+	if (nzvals != R_NilValue) {
+		if (XLENGTH(nzvals) != nzcount)
+			goto on_error;
+		if (go_lacunar_if_all_ones && LACUNAR_MODE_IS_ON) {
+			int all_ones =
+				_all_Rsubvec_elts_equal_one(nzvals, 0, nzcount);
+			if (all_ones)
+				nzvals = R_NilValue;
+		}
+	}
 
 	SEXP leaf = PROTECT(NEW_LIST(2));
 	replace_leaf_nzvals(leaf, nzvals);
@@ -180,23 +189,23 @@ SEXP _make_naleaf_from_Rsubvec(
 	int avoid_copy_if_all_nonNAs
 );
 
-SEXP _order_leaf_by_nzoff(
+int _INPLACE_turn_into_lacunar_leaf_if_all_ones(SEXP leaf);
+
+int _INPLACE_remove_zeros_from_leaf(
+	SEXP leaf,
+	int *selection_buf
+);
+
+int _INPLACE_remove_NAs_from_leaf(
+	SEXP leaf,
+	int *selection_buf
+);
+
+void _INPLACE_order_leaf_by_nzoff(
 	SEXP leaf,
 	int *order_buf,
 	unsigned short int *rxbuf1,
 	int *rxbuf2
-);
-
-void _INPLACE_turn_into_lacunar_leaf_if_all_ones(SEXP leaf);
-
-SEXP _INPLACE_remove_zeros_from_leaf(
-	SEXP leaf,
-	int *selection_buf
-);
-
-SEXP _INPLACE_remove_NAs_from_leaf(
-	SEXP leaf,
-	int *selection_buf
 );
 
 SEXP _coerce_leaf(

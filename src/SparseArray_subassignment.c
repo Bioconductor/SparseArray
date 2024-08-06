@@ -205,7 +205,7 @@ static SEXP make_offval_pairs_from_Lindex_vals(SEXP Lindex, SEXP vals,
 	_copy_selected_Rsubvec_elts(vals, 0, sort_bufs->order, ans_vals);
 	/* Use the "leaf representation" even though this is NOT a 1D SVT!
 	   See above. */
-	SEXP ans = PROTECT(zip_leaf(ans_vals, ans_offs));
+	SEXP ans = PROTECT(zip_leaf(ans_vals, ans_offs, 0));
 	UNPROTECT(3);
 	return ans;
 }
@@ -248,10 +248,12 @@ static SEXP subassign_leaf_by_Lindex(SEXP leaf, int dim0,
 	   should be safe to use _INPLACE_remove_zeros_from_leaf() on it.
 	   Also we've made sure that 'sort_bufs.offs' is big enough for this
 	   (its length is at least 'worst_nzcount'). */
-	SEXP ans = _INPLACE_remove_zeros_from_leaf(offval_pairs,
-						   sort_bufs.offs);
+	int new_nzcount = _INPLACE_remove_zeros_from_leaf(offval_pairs,
+							  sort_bufs.offs);
+	if (new_nzcount == 0)
+		offval_pairs = R_NilValue;
 	UNPROTECT(leaf != R_NilValue ? 2 : 1);
-	return ans;
+	return offval_pairs;
 }
 
 
@@ -447,15 +449,6 @@ static SameRVectorVals_FUNType select_same_Rvector_vals_FUN(SEXPTYPE Rtype)
 	return NULL;
 }
 
-static SEXP zip_leaf_and_go_lacunar_if_all_ones(SEXP nzvals, SEXP nzoffs)
-{
-	SEXP ans = PROTECT(zip_leaf(nzvals, nzoffs));
-	if (LACUNAR_MODE_IS_ON)
-		_INPLACE_turn_into_lacunar_leaf_if_all_ones(ans);
-	UNPROTECT(1);
-	return ans;
-}
-
 static SEXP subassign_NULL_by_OPBuf(int dim0,
 		const OPBuf *opbuf, SEXP vals,
 		RVectorEltIsZero_FUNType Rvector_elt_is_zero_FUN,
@@ -525,7 +518,7 @@ static SEXP subassign_NULL_by_OPBuf(int dim0,
 		ans_nzoffs_p[ans_nzcount] = idx0;
 		ans_nzcount++;
 	}
-	SEXP ans = zip_leaf_and_go_lacunar_if_all_ones(ans_nzvals, ans_nzoffs);
+	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs, 1);
 	UNPROTECT(2);
 	return ans;
 }
@@ -656,7 +649,7 @@ static SEXP subassign_nonNULL_leaf_by_OPBuf(SEXP leaf, int dim0,
 	do_subassign_nonNULL_leaf_by_OPBuf(leaf, dim0,
 				opbuf, vals, ans_nzvals, ans_nzoffs,
 				fun1, fun3, idx0_to_k_map);
-	SEXP ans = zip_leaf_and_go_lacunar_if_all_ones(ans_nzvals, ans_nzoffs);
+	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs, 1);
 	UNPROTECT(2);
 	return ans;
 }

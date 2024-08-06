@@ -142,7 +142,7 @@ static SEXP make_scalar_lacunar_leaf(SEXPTYPE Rtype)
 {
 	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(1));
 	INTEGER(ans_nzoffs)[0] = 0;
-	SEXP ans = zip_leaf(R_NilValue, ans_nzoffs);
+	SEXP ans = zip_leaf(R_NilValue, ans_nzoffs, 0);
 	UNPROTECT(1);
 	return ans;
 }
@@ -163,7 +163,7 @@ static SEXP wrap_Rvector_elt_in_scalar_leaf(SEXP in_Rvector, int k,
 	}
 	SEXP ans_nzvals = PROTECT(allocVector(TYPEOF(in_Rvector), 1));
 	copy_Rvector_elt_FUN(in_Rvector, k, ans_nzvals, 0);
-	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs);
+	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs, 0);
 	UNPROTECT(2);
 	return ans;
 }

@@ -291,7 +291,7 @@ static SEXP subset_leaf_as_sparse(SEXP leaf, int dim0, SEXP subscript,
 	SEXP ans_nzvals = PROTECT(
 		_subset_Rsubvec(leaf_nzvals, 0, selection_buf, ans_nzcount)
 	);
-	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs);
+	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs, 0);
 	UNPROTECT(2);
 	return ans;
 }

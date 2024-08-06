@@ -166,7 +166,7 @@ static SEXP concatenate_leaves(SEXP *leaves, int nb_objects,
 		}
 		offset += dims_along[n];
 	}
-	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs);
+	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs, 0);
 	UNPROTECT(ans_nzvals == R_NilValue ? 1 : 2);
 	/* Sanity checks (should never fail). */
 	if (k1 != ans_nzcount)

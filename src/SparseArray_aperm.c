@@ -98,7 +98,7 @@ static SEXP alloc_output_leaf(SEXPTYPE Rtype, int nzcount,
 		nzvals = PROTECT(allocVector(Rtype, nzcount));
 	}
 	set_quick_out_nzvals_p(quick_out_nzvals_p, Rtype, nzvals);
-	SEXP ans = PROTECT(zip_leaf(nzvals, nzoffs));
+	SEXP ans = PROTECT(zip_leaf(nzvals, nzoffs, 0));
 	UNPROTECT(nzvals == R_NilValue ? 2 : 3);
 	return ans;
 }

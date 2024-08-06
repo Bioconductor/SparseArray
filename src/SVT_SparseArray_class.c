@@ -676,7 +676,7 @@ static SEXP build_leaf_from_ngCsparseMatrix_col(const int *sloti,
 	       sizeof(int) * col_nzcount);
 	SEXP ans_nzvals = LACUNAR_MODE_IS_ON ?
 		R_NilValue : PROTECT(_new_Rvector1(ans_Rtype, col_nzcount));
-	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs);
+	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs, 0);
 	UNPROTECT(LACUNAR_MODE_IS_ON ? 1 : 2);
 	return ans;
 }
@@ -797,13 +797,10 @@ SEXP build_SVT_from_CSC(int nrow, int ncol, SEXP slotp,
 					&warn, nzoffs_buf);
 		if (ans_elt != R_NilValue) {
 			PROTECT(ans_elt);
-			if (order_buf != NULL) {
-				ans_elt = PROTECT(
-					_order_leaf_by_nzoff(ans_elt,
+			if (order_buf != NULL)
+				_INPLACE_order_leaf_by_nzoff(ans_elt,
 							     order_buf,
-							     rxbuf1, rxbuf2)
-				);
-			}
+							     rxbuf1, rxbuf2);
 			/* We trust that 'sloti' contains no duplicates
 			   within columns. If that's the case then the nzoffs
 			   in 'ans_elt' should now be in strictly ascending
@@ -819,7 +816,7 @@ SEXP build_SVT_from_CSC(int nrow, int ncol, SEXP slotp,
 					nzoffs_p[k]--;
 			}
 			SET_VECTOR_ELT(ans, j, ans_elt);
-			UNPROTECT(order_buf != NULL ? 2 : 1);
+			UNPROTECT(1);
 			is_empty = 0;
 		}
 	}

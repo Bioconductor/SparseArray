@@ -208,7 +208,7 @@ static SEXP make_leaf_from_SparseBuf(SEXPTYPE Rtype,
 	copy_nzvals_FUN(buf->nzvals, ans_nzvals, buf_len);
 	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(buf_len));
 	memcpy(INTEGER(ans_nzoffs), buf->nzoffs, sizeof(int) * buf_len);
-	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs);
+	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs, 1);
 	UNPROTECT(2);
 	return ans;
 }

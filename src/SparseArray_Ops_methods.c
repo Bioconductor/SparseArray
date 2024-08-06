@@ -19,7 +19,7 @@ static SEXP make_noNA_logical_leaf(SEXP nzoffs)
 	if (LACUNAR_MODE_IS_ON)
 		return _make_lacunar_leaf(nzoffs);
 	SEXP nzvals = PROTECT(_new_Rvector1(LGLSXP, LENGTH(nzoffs)));
-	SEXP ans = zip_leaf(nzvals, nzoffs);
+	SEXP ans = zip_leaf(nzvals, nzoffs, 0);
 	UNPROTECT(1);
 	return ans;
 }
@@ -51,7 +51,7 @@ static SEXP unary_minus_leaf(SEXP leaf, SEXPTYPE Rtype, SEXPTYPE ans_Rtype)
 			UNPROTECT(1);
 			return leaf;
 		}
-		SEXP ans = zip_leaf(ans_nzvals, nzoffs);
+		SEXP ans = zip_leaf(ans_nzvals, nzoffs, 0);
 		UNPROTECT(1);
 		return ans;
 	}
@@ -71,7 +71,7 @@ static SEXP unary_minus_leaf(SEXP leaf, SEXPTYPE Rtype, SEXPTYPE ans_Rtype)
 	}
 	if (go_lacunar)
 		ans_nzvals = R_NilValue;
-	SEXP ans = zip_leaf(ans_nzvals, nzoffs);
+	SEXP ans = zip_leaf(ans_nzvals, nzoffs, 0);
 	UNPROTECT(1);
 	return ans;
 }
