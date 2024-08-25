@@ -217,23 +217,31 @@ int _INPLACE_turn_into_lacunar_leaf_if_all_ones(SEXP leaf)
 	return all_ones;
 }
 
-/* The selection is assumed to be non-empty (i.e. n != 0) and sorted in
-   strictly ascending order.
-   Do NOT use on a NULL or lacunar leaf. */
-static void INPLACE_extract_selection_from_leaf(SEXP leaf,
+/* Do NOT use on a NULL or lacunar leaf.
+   Returns a code between 0 and 3, with the following meaning:
+     0: Nothing is selected (i.e. n = 0). So everything **would** need to be
+        removed from the input leaf. However, in this case, please note that
+        the function does NOT touch the input leaf and it's the responsibility
+        of the caller to replace the original leaf with a NULL leaf.
+     1: No-op i.e. everything is selected (so nothing needs to be removed).
+        Note that unlike with code 0 above, the caller does not need to do
+        anything. However, not that the caller could still try to turn the
+        original leaf into a lacunar leaf if that wasn't attempted earlier,
+        by calling _INPLACE_turn_into_lacunar_leaf_if_all_ones() on it.
+     2: The selection is neither nothing or everything, and the modified leaf
+        is lacunar.
+     3: The selection is neither nothing or everything, and the modified leaf
+        is not lacunar (and it cannot be turned into one). */
+static int INPLACE_extract_selection_from_leaf(SEXP leaf,
 		const int *selection, int n)
 {
+	if (n == 0)
+		return 0;
+
 	SEXP nzvals, nzoffs;
 	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
-	if (n == nzcount) {
-		if (LACUNAR_MODE_IS_ON) {
-			int all_ones =
-				_all_Rsubvec_elts_equal_one(nzvals, 0, nzcount);
-			if (all_ones)
-				replace_leaf_nzvals(leaf, R_NilValue);
-		}
-		return;
-	}
+	if (n == nzcount)
+		return 1;  /* no-op */
 
 	/* Shrink 'nzoffs'. */
 	SEXP new_nzoffs = PROTECT(_subset_Rsubvec(nzoffs, 0, selection, n));
@@ -247,21 +255,17 @@ static void INPLACE_extract_selection_from_leaf(SEXP leaf,
 							     selection, n);
 		if (all_ones) {
 			replace_leaf_nzvals(leaf, R_NilValue);
-			return;
+			return 2;
 		}
 	}
 	SEXP new_nzvals = PROTECT(_subset_Rsubvec(nzvals, 0, selection, n));
 	replace_leaf_nzvals(leaf, new_nzvals);
 	UNPROTECT(1);
-	return;
+	return 3;
 }
 
 /* Do NOT use on a NULL or lacunar leaf.
-   Returns new nzcount after removal of the zero vals. Note that 0 means
-   that everything would need to be removed (i.e. the input leaf contains no
-   nonzero vals), However in this case the function does NOT remove anything
-   (no-op), but it's the responsibility of the caller to replace the original
-   leaf with a NULL leaf. */
+   See INPLACE_extract_selection_from_leaf() above for the returned code. */
 int _INPLACE_remove_zeros_from_leaf(SEXP leaf, int *selection_buf)
 {
 	SEXP nzvals, nzoffs;
@@ -269,18 +273,12 @@ int _INPLACE_remove_zeros_from_leaf(SEXP leaf, int *selection_buf)
 	/* 'new_nzcount' will always be >= 0 and <= nzcount. */
 	int new_nzcount = _collect_offsets_of_nonzero_Rsubvec_elts(
 					nzvals, 0, nzcount, selection_buf);
-	if (new_nzcount != 0)
-		INPLACE_extract_selection_from_leaf(leaf,
-						    selection_buf, new_nzcount);
-	return new_nzcount;
+	return INPLACE_extract_selection_from_leaf(leaf,
+					selection_buf, new_nzcount);
 }
 
 /* Do NOT use on a NULL or lacunar leaf.
-   Returns new nzcount after removal of the NA vals. Note that 0 means
-   that everything would need to be removed (i.e. the input leaf contains no
-   non-NA vals). However in this case the function does NOT remove anything
-   (no-op), but it's the responsibility of the caller to replace the original
-   leaf with a NULL leaf. */
+   See INPLACE_extract_selection_from_leaf() above for the returned code. */
 int _INPLACE_remove_NAs_from_leaf(SEXP leaf, int *selection_buf)
 {
 	SEXP nzvals, nzoffs;
@@ -288,10 +286,8 @@ int _INPLACE_remove_NAs_from_leaf(SEXP leaf, int *selection_buf)
 	/* 'new_nzcount' will always be >= 0 and <= nzcount. */
 	int new_nzcount = _collect_offsets_of_nonNA_Rsubvec_elts(
 					nzvals, 0, nzcount, selection_buf);
-	if (new_nzcount != 0)
-		INPLACE_extract_selection_from_leaf(leaf,
-						    selection_buf, new_nzcount);
-	return new_nzcount;
+	return INPLACE_extract_selection_from_leaf(leaf,
+					selection_buf, new_nzcount);
 }
 
 /* Do NOT use on a NULL leaf. Can be used on a lacunar leaf. */
@@ -369,10 +365,12 @@ SEXP _coerce_leaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn,
 	/* The above coercion can introduce zeros in 'ans_nzvals' e.g. when
 	   going from double/complex to int/raw. We need to remove them. */
 	if (_coercion_can_introduce_zeros(TYPEOF(nzvals), new_Rtype)) {
-		int new_nzcount =
-			_INPLACE_remove_zeros_from_leaf(ans, selection_buf);
-		if (new_nzcount == 0)
+		int ret = _INPLACE_remove_zeros_from_leaf(ans, selection_buf);
+		if (ret == 0) {
 			ans = R_NilValue;
+		} if (ret == 1 && LACUNAR_MODE_IS_ON) {
+			_INPLACE_turn_into_lacunar_leaf_if_all_ones(ans);
+		}
 	}
 	UNPROTECT(2);
 	return ans;
@@ -391,10 +389,12 @@ SEXP _coerce_naleaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn,
 	SEXP ans = PROTECT(zip_leaf(ans_nzvals, nzoffs, 0));
 	if (w) {
 		*warn = 1;
-		int new_nzcount =
-			_INPLACE_remove_NAs_from_leaf(ans, selection_buf);
-		if (new_nzcount == 0)
+		int ret = _INPLACE_remove_NAs_from_leaf(ans, selection_buf);
+		if (ret == 0) {
 			ans = R_NilValue;
+		} if (ret == 1 && LACUNAR_MODE_IS_ON) {
+			_INPLACE_turn_into_lacunar_leaf_if_all_ones(ans);
+		}
 	}
 	UNPROTECT(2);
 	return ans;

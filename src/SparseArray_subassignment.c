@@ -248,10 +248,13 @@ static SEXP subassign_leaf_by_Lindex(SEXP leaf, int dim0,
 	   should be safe to use _INPLACE_remove_zeros_from_leaf() on it.
 	   Also we've made sure that 'sort_bufs.offs' is big enough for this
 	   (its length is at least 'worst_nzcount'). */
-	int new_nzcount = _INPLACE_remove_zeros_from_leaf(offval_pairs,
-							  sort_bufs.offs);
-	if (new_nzcount == 0)
+	int ret = _INPLACE_remove_zeros_from_leaf(offval_pairs,
+						  sort_bufs.offs);
+	if (ret == 0) {
 		offval_pairs = R_NilValue;
+	} if (ret == 1 && LACUNAR_MODE_IS_ON) {
+		_INPLACE_turn_into_lacunar_leaf_if_all_ones(offval_pairs);
+	}
 	UNPROTECT(leaf != R_NilValue ? 2 : 1);
 	return offval_pairs;
 }
