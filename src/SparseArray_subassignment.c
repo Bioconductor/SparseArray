@@ -33,8 +33,7 @@ static inline R_xlen_t get_Lidx(SEXP Lindex, long long atid_lloff)
 	} else {
 		double x = REAL(Lindex)[atid_lloff];
 		/* ISNAN(): True for *both* NA and NaN. See <R_ext/Arith.h> */
-		if (ISNAN(x) || x < 1 ||
-		    x >= 1.00 + R_XLEN_T_MAX)
+		if (ISNAN(x) || x < 1 || x >= 1.00 + R_XLEN_T_MAX)
 			error("'Lindex' contains invalid linear indices");
 		Lidx = (R_xlen_t) x;
 	}
@@ -310,7 +309,7 @@ static inline int Rvector_elt_is_double0(SEXP Rvector, R_xlen_t i)
 }
 static inline int Rvector_elt_is_doubleNA(SEXP Rvector, R_xlen_t i)
 {
-	return ISNAN(REAL(Rvector)[i]);
+	return R_IsNA(REAL(Rvector)[i]);
 }
 
 static inline int Rvector_elt_is_Rcomplex0(SEXP Rvector, R_xlen_t i)
@@ -320,7 +319,8 @@ static inline int Rvector_elt_is_Rcomplex0(SEXP Rvector, R_xlen_t i)
 }
 static inline int Rvector_elt_is_RcomplexNA(SEXP Rvector, R_xlen_t i)
 {
-	return RCOMPLEX_IS_NA(COMPLEX(Rvector) + i);
+	const Rcomplex *z = COMPLEX(Rvector) + i;
+	return R_IsNA(z->r) || R_IsNA(z->i);
 }
 
 static inline int Rvector_elt_is_Rbyte0(SEXP Rvector, R_xlen_t i)

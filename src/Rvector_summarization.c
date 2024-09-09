@@ -201,7 +201,7 @@ static inline int anyNA_doubles(const double *x, int n, int outbuf[1])
 static inline int anyNA_Rcomplexes(const Rcomplex *x, int n, int outbuf[1])
 {
 	for (int i = 0; i < n; i++, x++) {
-		if (RCOMPLEX_IS_NA(x)) {
+		if (RCOMPLEX_IS_NA_OR_NaN(x)) {
 			/* Bail out early. */
 			outbuf[0] = 1;
 			return OUTBUF_IS_SET_WITH_BREAKING_VALUE;
@@ -250,7 +250,7 @@ static inline int countNAs_Rcomplexes(const Rcomplex *x, int n,
 {
 	double out0 = outbuf[0];
 	for (int i = 0; i < n; i++, x++) {
-		if (RCOMPLEX_IS_NA(x))
+		if (RCOMPLEX_IS_NA_OR_NaN(x))
 			out0++;
 	}
 	outbuf[0] = out0;
@@ -1029,23 +1029,84 @@ static void summarize_one_zero(const SummarizeOp *summarize_op,
 	return;
 }
 
-
-void _postprocess_SummarizeResult(const SummarizeOp *summarize_op,
-				  SummarizeResult *res)
+/* Does NOT increase 'res->in_length' by 1. */
+static void summarize_one_NA(const SummarizeOp *summarize_op,
+			     SummarizeResult *res)
 {
-	int opcode = summarize_op->opcode;
-	R_xlen_t zerocount = res->in_length - res->in_nzcount;
-	R_xlen_t effective_len = res->in_length;
-
+	if (res->outbuf_status == OUTBUF_IS_SET_WITH_BREAKING_VALUE)
+		error("SparseArray internal error in summarize_one_NA():\n"
+		      "    outbuf already set with breaking value");
 	if (summarize_op->na_rm)
-		effective_len -= res->in_nacount;
+		return;
+	int new_status;
+	switch (summarize_op->in_Rtype) {
+	    case INTSXP: case LGLSXP: {
+		const int val = NA_INTEGER;
+		new_status = summarize_ints(&val, 1,
+				summarize_op->opcode, 0,
+				summarize_op->center, res);
+		break;
+	    }
+	    case REALSXP: {
+		const double val = NA_REAL;
+		new_status = summarize_doubles(&val, 1,
+				summarize_op->opcode, 0,
+				summarize_op->center, res);
+		break;
+	    }
+	    case CPLXSXP: {
+		const Rcomplex val = {{NA_REAL, NA_REAL}};
+		new_status = summarize_Rcomplexes(&val, 1,
+				summarize_op->opcode, 0,
+				summarize_op->center, res);
+		break;
+	    }
+	    case STRSXP: {
+		SEXP val = PROTECT(ScalarString(NA_STRING));
+		new_status = summarize_Rstrings(val,
+				summarize_op->opcode, 0,
+				summarize_op->center, res);
+		UNPROTECT(1);
+		break;
+	    }
+	    default:
+		error("SparseArray internal error in summarize_one_NA():\n"
+		      "    input type \"%s\" is not supported",
+		      type2char(summarize_op->in_Rtype));
+	}
+	res->outbuf_status = new_status;
+	return;
+}
 
-	if (res->postprocess_one_zero && zerocount != 0)
-		summarize_one_zero(summarize_op, res);
-
-	/* Nothing else to do if a break condition was reached. */
+void _postprocess_SummarizeResult(SummarizeResult *res, int na_background,
+				  const SummarizeOp *summarize_op)
+{
+	/* There's nothing to do if a break condition was reached. */
 	if (res->outbuf_status == OUTBUF_IS_SET_WITH_BREAKING_VALUE)
 		return;
+
+	int opcode = summarize_op->opcode;
+	R_xlen_t zerocount = res->in_length - res->in_nzcount;
+	if (opcode == COUNTNAS_OPCODE) {
+		if (na_background)
+			res->outbuf.one_double[0] += zerocount;
+		return;
+	}
+	R_xlen_t effective_len = res->in_length;
+
+	if (summarize_op->na_rm) {
+		if (na_background)
+			effective_len = res->in_nzcount;
+		effective_len -= res->in_nacount;
+	}
+
+	if (zerocount != 0) {
+		if (na_background) {
+			summarize_one_NA(summarize_op, res);
+		} else if (res->postprocess_one_zero) {
+			summarize_one_zero(summarize_op, res);
+		}
+	}
 
 	if (res->outbuf_status == OUTBUF_IS_NOT_SET) {
 		if ((opcode == MIN_OPCODE || opcode == MAX_OPCODE ||
@@ -1056,7 +1117,7 @@ void _postprocess_SummarizeResult(const SummarizeOp *summarize_op,
 			   has length 0 (i.e. 'res->in_length == 0'), or if
 			   it contains only NAs (i.e. 'res->in_nacount ==
 			   res->in_length') and 'summarize_op->na_rm' is True.
-			   This is a case where we intentional deviate from
+			   This is a case where we intentionally deviate from
 			   base::min(), base::max(), and base::range(). */
 			if (opcode == RANGE_OPCODE) {
 				res->outbuf.two_ints[0] =
@@ -1084,7 +1145,9 @@ void _postprocess_SummarizeResult(const SummarizeOp *summarize_op,
 	    }
 	    case CENTERED_X2_SUM_OPCODE: case VAR1_OPCODE: case SD1_OPCODE: {
 		double center = summarize_op->center;
-		res->outbuf.one_double[0] += center * center * zerocount;
+		if (!na_background)
+			res->outbuf.one_double[0] +=
+				center * center * zerocount;
 		if (opcode == CENTERED_X2_SUM_OPCODE)
 			return;
 		if (effective_len <= 1) {
@@ -1286,7 +1349,7 @@ static inline int is_single_NA(SEXP x)
 			return 1;
 	    break;
 	    case CPLXSXP:
-		if (LENGTH(x) == 1 && RCOMPLEX_IS_NA(COMPLEX(x)))
+		if (LENGTH(x) == 1 && RCOMPLEX_IS_NA_OR_NaN(COMPLEX(x)))
 			return 1;
 	    break;
 	    case STRSXP:

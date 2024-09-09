@@ -92,8 +92,9 @@ void _summarize_Rvector(
 );
 
 void _postprocess_SummarizeResult(
-	const SummarizeOp *summarize_op,
-	SummarizeResult *res
+	SummarizeResult *res,
+	int na_background,
+	const SummarizeOp *summarize_op
 );
 
 SEXP _make_SEXP_from_summarize_result(

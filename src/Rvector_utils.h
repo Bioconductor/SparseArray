@@ -19,7 +19,7 @@ static const Rcomplex Rcomplex1 = {{1.0, 0.0}};
 
 #define	IS_EMPTY_CHARSXP(x) ((x) != NA_STRING && isBlankString(CHAR(x)))
 
-#define RCOMPLEX_IS_NA(z) (ISNAN((z)->r) || ISNAN((z)->i))
+#define RCOMPLEX_IS_NA_OR_NaN(z) (ISNAN((z)->r) || ISNAN((z)->i))
 
 typedef void (*CopyRVectorElt_FUNType)(
 	SEXP in,  R_xlen_t in_offset,

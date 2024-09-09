@@ -102,7 +102,7 @@ stopifnot_2D_object <- function(x, method, class1, class2)
 
     x_dimnames <- if (useNames) x@dimnames else NULL
     SparseArray.Call("C_colStats_SVT",
-                     x@dim, x_dimnames, x@type, x@SVT,
+                     x@dim, x_dimnames, x@type, x@SVT, FALSE,
                      op, na.rm, center, dims)
 }
 
@@ -253,7 +253,7 @@ stopifnot_2D_object <- function(x, method, class1, class2)
 
     x_dimnames <- if (useNames) x@dimnames else NULL
     SparseArray.Call("C_rowStats_SVT",
-                     x@dim, x_dimnames, x@type, x@SVT,
+                     x@dim, x_dimnames, x@type, x@SVT, FALSE,
                      op, na.rm, center, dims)
 }
 

@@ -10,6 +10,7 @@
 \alias{range.SVT_SparseArray}
 \alias{range,SVT_SparseArray-method}
 
+\alias{mean.SparseArray}
 \alias{mean,SparseArray-method}
 
 \alias{var,SparseArray,ANY-method}
@@ -56,10 +57,9 @@
 }
 
 \examples{
-m0 <- matrix(0L, nrow=6, ncol=4)
-m0[c(1:2, 8, 10, 15:17, 24)] <- (1:8)*10L
-m0[5, 2] <- NA
-svt0 <- as(m0, "SVT_SparseMatrix")
+svt0 <- SVT_SparseArray(dim=c(4, 5, 2))
+svt0[c(1:2, 8, 10, 15:17, 24:26, 28, 40)] <- (1:12)*10L
+svt0[4, 3, 1] <- NA
 svt0
 
 anyNA(svt0)
@@ -73,13 +73,14 @@ sum(svt0, na.rm=TRUE)
 sd(svt0, na.rm=TRUE)
 
 ## Sanity checks:
+a0 <- as.array(svt0)
 stopifnot(
-  identical(anyNA(svt0), anyNA(m0)),
-  identical(range(svt0), range(m0)),
-  identical(range(svt0, na.rm=TRUE), range(m0, na.rm=TRUE)),
-  identical(sum(svt0), sum(m0)),
-  identical(sum(svt0, na.rm=TRUE), sum(m0, na.rm=TRUE)),
-  all.equal(sd(svt0, na.rm=TRUE), sd(m0, na.rm=TRUE))
+  identical(anyNA(svt0), anyNA(a0)),
+  identical(range(svt0), range(a0)),
+  identical(range(svt0, na.rm=TRUE), range(a0, na.rm=TRUE)),
+  identical(sum(svt0), sum(a0)),
+  identical(sum(svt0, na.rm=TRUE), sum(a0, na.rm=TRUE)),
+  all.equal(sd(svt0, na.rm=TRUE), sd(a0, na.rm=TRUE))
 )
 }
 \keyword{array}

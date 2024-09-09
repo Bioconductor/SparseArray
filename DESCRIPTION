@@ -13,7 +13,7 @@ Description: The SparseArray package provides array-like containers for
 biocViews: Infrastructure, DataRepresentation
 URL: https://bioconductor.org/packages/SparseArray
 BugReports: https://github.com/Bioconductor/SparseArray/issues
-Version: 1.5.31
+Version: 1.5.32
 License: Artistic-2.0
 Encoding: UTF-8
 Authors@R: c(
@@ -64,5 +64,6 @@ Collate: utils.R
 	NaArray-subsetting.R
 	NaArray-subassignment.R
 	NaArray-abind.R
+	NaArray-summarization.R
 	NaArray-matrixStats.R
 	zzz.R

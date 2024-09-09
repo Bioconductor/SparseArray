@@ -47,9 +47,11 @@ S3method(as.array, SVT_SparseArray)
 S3method(as.array, NaArray)
 
 S3method(mean, SparseArray)
+S3method(mean, NaArray)
 
 S3method(range, COO_SparseArray)
 S3method(range, SVT_SparseArray)
+S3method(range, NaArray)
 
 S3method(rowsum, dgCMatrix)
 S3method(rowsum, SparseMatrix)
@@ -68,9 +70,14 @@ export(
 
     as.array.COO_SparseArray,
     as.array.SVT_SparseArray,
+    as.array.NaArray,
+
+    mean.SparseArray,
+    mean.NaArray,
 
     range.COO_SparseArray,
     range.SVT_SparseArray,
+    range.NaArray,
 
     rowsum.dgCMatrix,
     rowsum.SparseMatrix,

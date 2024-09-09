@@ -72,21 +72,7 @@ static int collect_Rcomplex_na_nzoffs(const Rcomplex *nzvals,
 	int out_nzcount = 0;
 	for (int k = 0; k < nzcount; k++) {
 		const Rcomplex *z = nzvals + k;
-		if (RCOMPLEX_IS_NA(z)) {
-			out_nzoffs[out_nzcount] = nzoffs[k];
-			out_nzcount++;
-		}
-	}
-	return out_nzcount;
-}
-
-static int collect_Rcomplex_infinite_nzoffs(const Rcomplex *nzvals,
-		const int *nzoffs, int nzcount, int *out_nzoffs)
-{
-	int out_nzcount = 0;
-	for (int k = 0; k < nzcount; k++) {
-		const Rcomplex *z = nzvals + k;
-		if (IS_INFINITE(z->r) || IS_INFINITE(z->i)) {
+		if (RCOMPLEX_IS_NA_OR_NaN(z)) {
 			out_nzoffs[out_nzcount] = nzoffs[k];
 			out_nzcount++;
 		}
@@ -101,6 +87,20 @@ static int collect_Rcomplex_nan_nzoffs(const Rcomplex *nzvals,
 	for (int k = 0; k < nzcount; k++) {
 		const Rcomplex *z = nzvals + k;
 		if (R_IsNaN(z->r) || R_IsNaN(z->i)) {
+			out_nzoffs[out_nzcount] = nzoffs[k];
+			out_nzcount++;
+		}
+	}
+	return out_nzcount;
+}
+
+static int collect_Rcomplex_infinite_nzoffs(const Rcomplex *nzvals,
+		const int *nzoffs, int nzcount, int *out_nzoffs)
+{
+	int out_nzcount = 0;
+	for (int k = 0; k < nzcount; k++) {
+		const Rcomplex *z = nzvals + k;
+		if (IS_INFINITE(z->r) || IS_INFINITE(z->i)) {
 			out_nzoffs[out_nzcount] = nzoffs[k];
 			out_nzcount++;
 		}

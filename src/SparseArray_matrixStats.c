@@ -228,14 +228,16 @@ static inline void copy_result_to_out(const SummarizeResult *res,
  */
 
 /* Recursive. */
-static void REC_colStats_SVT(SEXP SVT, const int *dims, int ndim,
+static void REC_colStats_SVT(SEXP SVT, int na_background,
+		const int *dims, int ndim,
 		const SummarizeOp *summarize_op,
 		void *out, SEXPTYPE out_Rtype,
 		const R_xlen_t *out_incs, int out_ndim, int pardim,
 		int *warn)
 {
 	if (out_ndim == 0) {
-		SummarizeResult res = _summarize_SVT(SVT, dims, ndim,
+		SummarizeResult res = _summarize_SVT(SVT, na_background,
+						     dims, ndim,
 						     summarize_op);
 		if (res.warn)
 			*warn = 1;
@@ -250,7 +252,7 @@ static void REC_colStats_SVT(SEXP SVT, const int *dims, int ndim,
 		SEXP subSVT = SVT == R_NilValue ? R_NilValue
 						: VECTOR_ELT(SVT, i);
 		void *subout = shift_dataptr(out_Rtype, out, out_inc * i);
-		REC_colStats_SVT(subSVT, dims, ndim - 1,
+		REC_colStats_SVT(subSVT, na_background, dims, ndim - 1,
 				 summarize_op,
 				 subout, out_Rtype,
 				 out_incs, out_ndim - 1, pardim,
@@ -260,7 +262,8 @@ static void REC_colStats_SVT(SEXP SVT, const int *dims, int ndim,
 }
 
 /* --- .Call ENTRY POINT --- */
-SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
+SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type,
+		    SEXP x_SVT, SEXP na_background,
 		    SEXP op, SEXP na_rm, SEXP center, SEXP dims)
 {
 	SEXPTYPE x_Rtype = _get_Rtype_from_Rstring(x_type);
@@ -268,6 +271,11 @@ SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
 		error("SparseArray internal error in "
 		      "C_colStats_SVT():\n"
 		      "    SVT_SparseArray object has invalid type");
+
+	if (!(IS_LOGICAL(na_background) && LENGTH(na_background) == 1))
+		error("SparseArray internal error in "
+		      "C_colStats_SVT():\n"
+		      "    'na_background' must be TRUE or FALSE");
 
 	int opcode = _get_summarize_opcode(op, x_Rtype);
 
@@ -299,7 +307,8 @@ SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
 	propagate_colStats_dimnames(ans, x_dimnames, d);
 
 	int warn = 0;
-	REC_colStats_SVT(x_SVT, INTEGER(x_dim), LENGTH(x_dim),
+	REC_colStats_SVT(x_SVT, LOGICAL(na_background)[0],
+			 INTEGER(x_dim), LENGTH(x_dim),
 			 &summarize_op,
 			 DATAPTR(ans), ans_Rtype,
 			 out_incs, ans_ndim, pardim,
@@ -332,7 +341,7 @@ static inline int is_na(SEXPTYPE Rtype, const void *x, int i)
 	    }
 	    case CPLXSXP: {
 		const Rcomplex *x_p = x;
-		return RCOMPLEX_IS_NA(x_p + i);
+		return RCOMPLEX_IS_NA_OR_NaN(x_p + i);
 	    }
 	    case RAWSXP:
 		return 0;
@@ -534,7 +543,8 @@ static void REC_rowStats_SVT(SEXP SVT, const int *dims, int ndim,
 }
 
 /* --- .Call ENTRY POINT --- */
-SEXP C_rowStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
+SEXP C_rowStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type,
+		    SEXP x_SVT, SEXP na_background,
 		    SEXP op, SEXP na_rm, SEXP center, SEXP dims)
 {
 	SEXPTYPE x_Rtype = _get_Rtype_from_Rstring(x_type);
@@ -542,6 +552,11 @@ SEXP C_rowStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type, SEXP x_SVT,
 		error("SparseArray internal error in "
 		      "C_rowStats_SVT():\n"
 		      "    SVT_SparseArray object has invalid type");
+
+	if (!(IS_LOGICAL(na_background) && LENGTH(na_background) == 1))
+		error("SparseArray internal error in "
+		      "C_rowStats_SVT():\n"
+		      "    'na_background' must be TRUE or FALSE");
 
 	int opcode = _get_summarize_opcode(op, x_Rtype);
 

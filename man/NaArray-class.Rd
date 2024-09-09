@@ -24,6 +24,7 @@
 \alias{nnawhich,ANY-method}
 \alias{nnawhich,NaArray-method}
 
+\alias{as.array.NaArray}
 \alias{as.array,NaArray-method}
 \alias{coerce,array,NaArray-method}
 \alias{coerce,matrix,NaMatrix-method}
@@ -95,6 +96,9 @@ NaArray(x, dim=NULL, dimnames=NULL, type=NA)
 
     \item \link{NaArray_abind} for combining 2D or multidimensional
           NaArray objects.
+
+    \item \link{NaArray_summarization} for NaArray summarization
+          methods.
 
     \item \link{NaArray_matrixStats} for col/row summarization methods
           for NaArray objects.

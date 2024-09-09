@@ -3,17 +3,31 @@
 \alias{NaArray-matrixStats}
 \alias{NaArray_matrixStats}
 
+\alias{colAnyNAs,NaArray-method}
+
+\alias{colAnys,NaArray-method}
+
+\alias{colAlls,NaArray-method}
+
+\alias{colMins,NaArray-method}
+
+\alias{colMaxs,NaArray-method}
+
+\alias{colRanges,NaArray-method}
+
 \alias{colSums,NaArray-method}
-\alias{rowSums,NaArray-method}
+
+\alias{colProds,NaArray-method}
 
 \alias{colMeans,NaArray-method}
-\alias{rowMeans,NaArray-method}
 
 \alias{colSums2,NaArray-method}
-\alias{rowSums2,NaArray-method}
 
 \alias{colMeans2,NaArray-method}
-\alias{rowMeans2,NaArray-method}
+
+\alias{colVars,NaArray-method}
+
+\alias{colSds,NaArray-method}
 
 \title{NaArray col/row summarization}
 
@@ -35,13 +49,33 @@
 ## N.B.: Showing ONLY the col*() methods (usage of row*() methods is
 ## the same):
 
+\S4method{colAnyNAs}{NaArray}(x, rows=NULL, cols=NULL, dims=1, ..., useNames=NA)
+
+\S4method{colAnys}{NaArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+
+\S4method{colAlls}{NaArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+
+\S4method{colMins}{NaArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+
+\S4method{colMaxs}{NaArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+
+\S4method{colRanges}{NaArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+
 \S4method{colSums}{NaArray}(x, na.rm=FALSE, dims=1)
+
+\S4method{colProds}{NaArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 
 \S4method{colMeans}{NaArray}(x, na.rm=FALSE, dims=1)
 
 \S4method{colSums2}{NaArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
 
 \S4method{colMeans2}{NaArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
+
+\S4method{colVars}{NaArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL, dims=1,
+           ..., useNames=NA)
+
+\S4method{colSds}{NaArray}(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL, dims=1,
+          ..., useNames=NA)
 }
 
 \arguments{
@@ -51,10 +85,18 @@
   \item{rows, cols, ...}{
     Not supported.
   }
-  \item{na.rm, useNames}{
+  \item{na.rm, useNames, center}{
     See man pages of the corresponding generics in the \pkg{MatrixGenerics}
-    package (e.g. \code{?MatrixGenerics::\link[MatrixGenerics]{colSums2}})
+    package (e.g. \code{?MatrixGenerics::\link[MatrixGenerics]{colVars}})
     for a description of these arguments.
+
+    Note that, unlike the methods for ordinary matrices defined in
+    the \pkg{matrixStats} package, the \code{center} argument of the
+    \code{colVars()}, \code{rowVars()}, \code{colSds()}, and \code{rowSds()}
+    methods for \link{SparseArray} objects can only be a
+    \emph{single value} (or a \code{NULL}). In particular, if \code{x}
+    has more than one column, then \code{center} cannot be a vector
+    with one value per column in \code{x}.
   }
   \item{dims}{
     See \code{?base::\link[base]{colSums}} for a description of this
@@ -71,7 +113,7 @@
 
 \value{
   See man pages of the corresponding generics in the \pkg{MatrixGenerics}
-  package (e.g. \code{?MatrixGenerics::\link[MatrixGenerics]{colMeans2}})
+  package (e.g. \code{?MatrixGenerics::\link[MatrixGenerics]{colRanges}})
   for the value returned by these methods.
 }
 
@@ -87,7 +129,7 @@
 
     \item The man pages of the various generic functions defined
           in the \pkg{MatrixGenerics} package e.g.
-          \code{MatrixGenerics::\link[MatrixGenerics]{colSums2}} etc...
+          \code{MatrixGenerics::\link[MatrixGenerics]{colVars}} etc...
   }
 }
 

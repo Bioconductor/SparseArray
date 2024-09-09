@@ -88,7 +88,7 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_abind_SVT_SparseArray_objects, 4),
 
 /* SparseArray_summarization.c */
-	CALLMETHOD_DEF(C_summarize_SVT, 6),
+	CALLMETHOD_DEF(C_summarize_SVT, 7),
 
 /* SparseArray_Ops_methods.c */
 	CALLMETHOD_DEF(C_unary_minus_SVT, 3),
@@ -108,8 +108,8 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_SVT_apply_isFUN, 4),
 
 /* SparseArray_matrixStats.c */
-	CALLMETHOD_DEF(C_colStats_SVT, 8),
-	CALLMETHOD_DEF(C_rowStats_SVT, 8),
+	CALLMETHOD_DEF(C_colStats_SVT, 9),
+	CALLMETHOD_DEF(C_rowStats_SVT, 9),
 
 /* rowsum_methods.c */
 	CALLMETHOD_DEF(C_rowsum_SVT, 6),

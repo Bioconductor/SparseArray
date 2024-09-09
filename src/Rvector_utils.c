@@ -574,7 +574,7 @@ static int collect_offsets_of_nonNA_double_elts(
 {
 	const int *out0 = out;
 	for (int i = 0; i < n; i++)
-		if (!ISNAN(x[i]))
+		if (!R_IsNA(x[i]))  // do NOT use ISNAN()!
 			*(out++) = i;
 	return (int) (out - out0);
 }
@@ -595,7 +595,7 @@ static int collect_offsets_of_nonNA_Rcomplex_elts(
 {
 	const int *out0 = out;
 	for (int i = 0; i < n; i++, x++) {
-		if (!RCOMPLEX_IS_NA(x))
+		if (!(R_IsNA(x->r) || R_IsNA(x->i)))
 			*(out++) = i;
 	}
 	return (int) (out - out0);

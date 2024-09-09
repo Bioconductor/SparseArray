@@ -135,7 +135,7 @@
   }
   \item{na.rm, useNames, center}{
     See man pages of the corresponding generics in the \pkg{MatrixGenerics}
-    package (e.g. \code{?MatrixGenerics::\link[MatrixGenerics]{rowVars}})
+    package (e.g. \code{?MatrixGenerics::\link[MatrixGenerics]{colVars}})
     for a description of these arguments.
 
     Note that, unlike the methods for ordinary matrices defined in

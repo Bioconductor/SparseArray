@@ -17,8 +17,6 @@
 .colStats_NaArray <- function(op, x, na.rm=FALSE, center=NULL, dims=1L,
                               useNames=NA)
 {
-    stop("not ready yet")
-
     stopifnot(isSingleString(op), is(x, "NaArray"))
     check_svt_version(x)
 
@@ -48,7 +46,7 @@
 
     x_dimnames <- if (useNames) x@dimnames else NULL
     SparseArray.Call("C_colStats_SVT",
-                     x@dim, x_dimnames, x@type, x@NaSVT,
+                     x@dim, x_dimnames, x@type, x@NaSVT, TRUE,
                      op, na.rm, center, dims)
 }
 
@@ -104,7 +102,7 @@
 
     x_dimnames <- if (useNames) x@dimnames else NULL
     SparseArray.Call("C_rowStats_SVT",
-                     x@dim, x_dimnames, x@type, x@NaSVT,
+                     x@dim, x_dimnames, x@type, x@NaSVT, TRUE,
                      op, na.rm, center, dims)
 }
 
@@ -171,7 +169,7 @@
     check_rows_cols(rows, cols, "colAnyNAs", "NaArray")
     .colStats_NaArray("anyNA", x, dims=dims, useNames=useNames)
 }
-#setMethod("colAnyNAs", "NaArray", .colAnyNAs_NaArray)
+setMethod("colAnyNAs", "NaArray", .colAnyNAs_NaArray)
 
 .rowAnyNAs_NaArray <-
     function(x, rows=NULL, cols=NULL, dims=1, ..., useNames=NA)
@@ -194,7 +192,7 @@
     check_rows_cols(rows, cols, "colAnys", "NaArray")
     .colStats_NaArray("any", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-#setMethod("colAnys", "NaArray", .colAnys_NaArray)
+setMethod("colAnys", "NaArray", .colAnys_NaArray)
 
 .rowAnys_NaArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
@@ -212,7 +210,7 @@
     check_rows_cols(rows, cols, "colAlls", "NaArray")
     .colStats_NaArray("all", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-#setMethod("colAlls", "NaArray", .colAlls_NaArray)
+setMethod("colAlls", "NaArray", .colAlls_NaArray)
 
 .rowAlls_NaArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
@@ -235,7 +233,7 @@
     check_rows_cols(rows, cols, "colMins", "NaArray")
     .colStats_NaArray("min", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-#setMethod("colMins", "NaArray", .colMins_NaArray)
+setMethod("colMins", "NaArray", .colMins_NaArray)
 
 .rowMins_NaArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
@@ -253,7 +251,7 @@
     check_rows_cols(rows, cols, "colMaxs", "NaArray")
     .colStats_NaArray("max", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-#setMethod("colMaxs", "NaArray", .colMaxs_NaArray)
+setMethod("colMaxs", "NaArray", .colMaxs_NaArray)
 
 .rowMaxs_NaArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
@@ -296,7 +294,7 @@
                                          useNames=FALSE)
     .bind_mins_maxs(mins, maxs, dims == length(dim(x)))
 }
-#setMethod("colRanges", "NaArray", .colRanges_NaArray)
+setMethod("colRanges", "NaArray", .colRanges_NaArray)
 
 .rowRanges_NaArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
@@ -332,7 +330,7 @@ setMethod("colSums", "NaArray", .colSums_NaArray)
 {
     .rowStats_NaArray("sum", x, na.rm=na.rm, dims=dims)
 }
-setMethod("rowSums", "NaArray", .rowSums_NaArray)
+#setMethod("rowSums", "NaArray", .rowSums_NaArray)
 
 .colProds_NaArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
@@ -341,7 +339,7 @@ setMethod("rowSums", "NaArray", .rowSums_NaArray)
     check_rows_cols(rows, cols, "colProds", "NaArray")
     .colStats_NaArray("prod", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-#setMethod("colProds", "NaArray", .colProds_NaArray)
+setMethod("colProds", "NaArray", .colProds_NaArray)
 
 .rowProds_NaArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
@@ -364,7 +362,7 @@ setMethod("colMeans", "NaArray", .colMeans_NaArray)
     nvals <- .rowCountVals_NaArray(x, na.rm=na.rm, dims=dims)
     sums / nvals
 }
-setMethod("rowMeans", "NaArray", .rowMeans_NaArray)
+#setMethod("rowMeans", "NaArray", .rowMeans_NaArray)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -387,7 +385,7 @@ setMethod("colSums2", "NaArray", .colSums2_NaArray)
     check_rows_cols(rows, cols, "rowSums2", "NaArray")
     .rowStats_NaArray("sum", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-setMethod("rowSums2", "NaArray", .rowSums2_NaArray)
+#setMethod("rowSums2", "NaArray", .rowSums2_NaArray)
 
 .colMeans2_NaArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
@@ -405,7 +403,7 @@ setMethod("colMeans2", "NaArray", .colMeans2_NaArray)
     check_rows_cols(rows, cols, "rowMeans2", "NaArray")
     .rowStats_NaArray("mean", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-setMethod("rowMeans2", "NaArray", .rowMeans2_NaArray)
+#setMethod("rowMeans2", "NaArray", .rowMeans2_NaArray)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -457,7 +455,7 @@ setMethod("rowMeans2", "NaArray", .rowMeans2_NaArray)
     .colStats_NaArray("var1", x, na.rm=na.rm, center=center,
                                   dims=dims, useNames=useNames)
 }
-#setMethod("colVars", "NaArray", .colVars_NaArray)
+setMethod("colVars", "NaArray", .colVars_NaArray)
 
 .rowVars_NaArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
@@ -486,7 +484,7 @@ setMethod("rowMeans2", "NaArray", .rowMeans2_NaArray)
     .colStats_NaArray("sd1", x, na.rm=na.rm, center=center,
                                  dims=dims, useNames=useNames)
 }
-#setMethod("colSds", "NaArray", .colSds_NaArray)
+setMethod("colSds", "NaArray", .colSds_NaArray)
 
 .rowSds_NaArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,

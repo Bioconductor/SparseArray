@@ -55,3 +55,33 @@ make_lacunar_leaf <- function(mode, nzoffs)
     list(nzvals, nzoffs)
 }
 
+test_summarize_op1 <- function(a, svt, op)
+{
+    FUN <- match.fun(op)
+    expected <- FUN(as.vector(a))
+    current <- FUN(svt)
+    expect_identical(current, expected)
+}
+
+test_summarize_op2 <- function(a, svt, op)
+{
+    FUN <- match.fun(op)
+    if (op %in% c("var", "sd") ||
+        is.double(a) && op %in% c("sum", "prod", "mean"))
+    {
+        EXPECT_FUN <- expect_equal
+    } else {
+        EXPECT_FUN <- expect_identical
+    }
+    expected <- FUN(as.vector(a))
+    current <- FUN(svt)
+    if (op == "prod" && is.integer(current))
+        expected <- as.integer(expected)
+    EXPECT_FUN(current, expected)
+    expected <- FUN(as.vector(a), na.rm=TRUE)
+    current <- FUN(svt, na.rm=TRUE)
+    if (op == "prod" && is.integer(current))
+        expected <- as.integer(expected)
+    EXPECT_FUN(current, expected)
+}
+

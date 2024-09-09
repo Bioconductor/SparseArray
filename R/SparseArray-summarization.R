@@ -12,14 +12,14 @@
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### Workhorse behind all the summarization methods for SVT_SparseArray
-### objects
+### and NaArray objects
 ###
 
 ### 'center' ignored by all ops except "centered_X2_sum".
 ### Returns an integer or numeric vector of length 1 or 2.
-.summarize_SVT <- function(op, x, na.rm=FALSE, center=NULL)
+summarize_SVT <- function(op, x, na.rm=FALSE, center=NULL)
 {
-    stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
+    stopifnot(isSingleString(op), is(x, "SVT_SparseArray") || is(x, "NaArray"))
     check_svt_version(x)
 
     ## Check 'na.rm'.
@@ -36,8 +36,13 @@
             center <- as.double(center)
     }
 
-    SparseArray.Call("C_summarize_SVT",
-                     x@dim, x@type, x@SVT, op, na.rm, center)
+    if (is(x, "NaArray")) {
+        SparseArray.Call("C_summarize_SVT",
+                         x@dim, x@type, x@NaSVT, TRUE, op, na.rm, center)
+    } else {
+        SparseArray.Call("C_summarize_SVT",
+                         x@dim, x@type, x@SVT, FALSE, op, na.rm, center)
+    }
 }
 
 
@@ -55,7 +60,7 @@
         return(anyNA(x@nzdata))
 
     if (is(x, "SVT_SparseArray"))
-        return(.summarize_SVT("anyNA", x))
+        return(summarize_SVT("anyNA", x))
 
     stop(wmsg(class(x)[[1L]], " objects are not supported"))
 }
@@ -75,7 +80,7 @@ setMethod("anyNA", "SparseArray", .anyNA_SparseArray)
                                       # becomes available
 
     if (is(x, "SVT_SparseArray"))
-        return(.summarize_SVT("countNAs", x))
+        return(summarize_SVT("countNAs", x))
 
     stop(wmsg(class(x)[[1L]], " objects are not supported"))
 }
@@ -130,7 +135,7 @@ setMethod("Summary", "SVT_SparseArray",
         if (length(list(...)) != 0L)
             stop(wmsg("the ", .Generic, "() method for SVT_SparseArray ",
                       "objects only accepts a single object"))
-        .summarize_SVT(.Generic, x, na.rm=na.rm)
+        summarize_SVT(.Generic, x, na.rm=na.rm)
     }
 )
 
@@ -181,7 +186,7 @@ range.SVT_SparseArray <- function(..., na.rm=FALSE, finite=FALSE)
         stop(wmsg("the range() method for SVT_SparseArray objects ",
                   "only accepts a single object"))
     x <- objects[[1L]]
-    .summarize_SVT("range", x, na.rm=na.rm)
+    summarize_SVT("range", x, na.rm=na.rm)
 }
 ### The signature of all the members in the 'Summary' group generic is
 ### 'x, ..., na.rm' (see getGeneric("range")) which means that methods
@@ -200,7 +205,7 @@ setMethod("range", "SVT_SparseArray",
 
 .mean_SparseArray <- function(x, na.rm=FALSE)
 {
-    .summarize_SVT("mean", x, na.rm=na.rm)
+    summarize_SVT("mean", x, na.rm=na.rm)
 }
 
 ### S3/S4 combo for mean.SparseArray
@@ -222,11 +227,11 @@ setMethod("var", c("SparseArray", "ANY"),
         if (!missing(use))
             stop(wmsg("the var() method for SparseArray objects ",
                       "does not support the 'use' argument"))
-        .summarize_SVT("var1", x, na.rm=na.rm)
+        summarize_SVT("var1", x, na.rm=na.rm)
     }
 )
 
 setMethod("sd", "SparseArray",
-    function(x, na.rm=FALSE) .summarize_SVT("sd1", x, na.rm=na.rm)
+    function(x, na.rm=FALSE) summarize_SVT("sd1", x, na.rm=na.rm)
 )
 
