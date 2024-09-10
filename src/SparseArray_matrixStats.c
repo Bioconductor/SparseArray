@@ -353,8 +353,11 @@ static inline int is_na(SEXPTYPE Rtype, const void *x, int i)
 	return 0;  /* will never reach this */
 }
 
-static void rowAnyNAs_SV(const SparseVec *sv, int *out)
+static void rowAnyNAs_SV(const SparseVec *sv, int na_background, int *out)
 {
+	if (na_background)
+		error("SparseArray internal error in rowAnyNAs_SV():\n"
+		      "    operation not yet supported on NaArray objects");
 	if (sv->nzvals == NULL)  /* lacunar leaf */
 		return;
 	/* regular leaf */
@@ -367,8 +370,11 @@ static void rowAnyNAs_SV(const SparseVec *sv, int *out)
 	return;
 }
 
-static void rowCountNAs_SV(const SparseVec *sv, double *out)
+static void rowCountNAs_SV(const SparseVec *sv, int na_background, double *out)
 {
+	if (na_background)
+		error("SparseArray internal error in rowCountNAs_SV():\n"
+		      "    operation not yet supported on NaArray objects");
 	if (sv->nzvals == NULL)  /* lacunar leaf */
 		return;
 	/* regular leaf */
@@ -379,54 +385,86 @@ static void rowCountNAs_SV(const SparseVec *sv, double *out)
 	return;
 }
 
-static void rowSums_SV(const SparseVec *sv, int narm, double *out)
+static inline void add_SV_nzval(const SparseVec *sv, int k,
+				int narm, double *out)
+{
+	SEXPTYPE sv_Rtype = get_SV_Rtype(sv);
+	double x;
+	switch (sv_Rtype) {
+	    case INTSXP: case LGLSXP: {
+		const int *nzvals_p = sv->nzvals;
+		int v = nzvals_p[k];
+		if (v == NA_INTEGER) {
+			if (narm)
+				return;
+			x = NA_REAL;
+		} else {
+			x = (double) v;
+		}
+		break;
+	    }
+	    case REALSXP: {
+		const double *nzvals_p = sv->nzvals;
+		x = nzvals_p[k];
+		/* ISNAN(): True for *both* NA and NaN.
+		   See <R_ext/Arith.h> */
+		if (narm && ISNAN(x))
+			return;
+		break;
+	    }
+	    default:
+		error("SparseArray internal error in add_SV_nzval():\n"
+		      "    type \"%s\" is not supported",
+		      type2char(sv_Rtype));
+	}
+	*out += x;
+	return;
+}
+
+static void rowSums_SV(const SparseVec *sv, int na_background,
+		       int narm, double *out)
 {
 	int nzcount = get_SV_nzcount(sv);
-	if (sv->nzvals == NULL) {
-		/* lacunar leaf */
+	if (!na_background || narm) {
+		if (sv->nzvals == NULL) {
+			/* lacunar leaf */
+			for (int k = 0; k < nzcount; k++)
+				out[sv->nzoffs[k]] += double1;
+			return;
+		}
+		/* regular leaf */
 		for (int k = 0; k < nzcount; k++)
-			out[sv->nzoffs[k]] += double1;
+			add_SV_nzval(sv, k, narm, out + sv->nzoffs[k]);
 		return;
 	}
-	/* regular leaf */
-	SEXPTYPE sv_Rtype = get_SV_Rtype(sv);
-	for (int k = 0; k < nzcount; k++) {
-		double x;
-		switch (sv_Rtype) {
-		    case INTSXP: case LGLSXP: {
-			const int *nzvals_p = sv->nzvals;
-			int v = nzvals_p[k];
-			if (v == NA_INTEGER) {
-				if (narm)
-					continue;
-				x = NA_REAL;
+	/* The rowSums(<NaArray>, na.rm=FALSE) case.
+	   Note that using 'na.rm=FALSE' on an NaArray object is atypical.
+	   The implementation below is slow because we walk on _all_ the
+	   values of SparseVec 'sv' i.e. on its non-NA and (implicit) NA
+	   values. */
+	int k = 0;
+	for (int i = 0; i < sv->len; i++) {
+		if (k < get_SV_nzcount(sv) && sv->nzoffs[k] == i) {
+			if (sv->nzvals == NULL) {
+				/* lacunar leaf */
+				out[i] += double1;
 			} else {
-				x = (double) v;
+				add_SV_nzval(sv, k, 0, out + i);
 			}
-			break;
-		    }
-		    case REALSXP: {
-			const double *nzvals_p = sv->nzvals;
-			x = nzvals_p[k];
-			/* ISNAN(): True for *both* NA and NaN.
-			   See <R_ext/Arith.h> */
-			if (narm && ISNAN(x))
-				continue;
-			break;
-		    }
-		    default:
-			error("SparseArray internal error in rowSums_SV():\n"
-			      "    type \"%s\" is not supported",
-			      type2char(sv_Rtype));
+			k++;
+		} else {
+			out[i] = NA_REAL;
 		}
-		out[sv->nzoffs[k]] += x;
 	}
 	return;
 }
 
-static void rowCenteredX2Sum_SV(const SparseVec *sv,
+static void rowCenteredX2Sum_SV(const SparseVec *sv, int na_background,
 		int narm, const double *center, double *out)
 {
+	if (na_background)
+		error("SparseArray internal error in rowCenteredX2Sum_SV():\n"
+		      "    operation not yet supported on NaArray objects");
 	int nzcount = get_SV_nzcount(sv);
 	if (sv->nzvals == NULL) {
 		/* lacunar leaf */
@@ -482,23 +520,24 @@ static void rowCenteredX2Sum_SV(const SparseVec *sv,
 	return;
 }
 
-static void rowStats_leaf(SEXP leaf, int dim0,
+static void rowStats_leaf(SEXP leaf, int dim0, int na_background,
 		const SummarizeOp *summarize_op, const double *center,
 		void *out, SEXPTYPE out_Rtype, int *warn)
 {
 	SparseVec sv = leaf2SV(leaf, summarize_op->in_Rtype, dim0);
 	switch (summarize_op->opcode) {
 	    case ANYNA_OPCODE:
-		rowAnyNAs_SV(&sv, out);
+		rowAnyNAs_SV(&sv, na_background, out);
 		return;
 	    case COUNTNAS_OPCODE:
-		rowCountNAs_SV(&sv, out);
+		rowCountNAs_SV(&sv, na_background, out);
 		return;
 	    case SUM_OPCODE:
-		rowSums_SV(&sv, summarize_op->na_rm, out);
+		rowSums_SV(&sv, na_background, summarize_op->na_rm, out);
 		return;
 	    case CENTERED_X2_SUM_OPCODE:
-		rowCenteredX2Sum_SV(&sv, summarize_op->na_rm, center, out);
+		rowCenteredX2Sum_SV(&sv, na_background,
+				    summarize_op->na_rm, center, out);
 		return;
 	}
 	error("SparseArray internal error in rowStats_leaf():\n"
@@ -507,18 +546,27 @@ static void rowStats_leaf(SEXP leaf, int dim0,
 }
 
 /* Recursive. */
-static void REC_rowStats_SVT(SEXP SVT, const int *dims, int ndim,
+static void REC_rowStats_SVT(SEXP SVT, int na_background,
+		const int *dims, int ndim,
 		const SummarizeOp *summarize_op, const double *center,
 		void *out, SEXPTYPE out_Rtype,
 		const R_xlen_t *out_incs, int out_ndim,
 		int *warn)
 {
-	if (SVT == R_NilValue)
+	if (SVT == R_NilValue) {
+		if (!na_background || summarize_op->na_rm)
+			return;
+		R_xlen_t out_len = 1;
+		for (int along = 0; along < ndim && along < out_ndim; along++)
+			out_len *= dims[along];
+		_set_elts_to_NA(out_Rtype, out, 0, out_len);
 		return;
+	}
 
 	if (ndim == 1) { /* 'out_ndim' also guaranteed to be 1 */
 		/* 'SVT' is a leaf (i.e. a 1D SVT). */
-		rowStats_leaf(SVT, dims[0], summarize_op, center,
+		rowStats_leaf(SVT, dims[0], na_background,
+			      summarize_op, center,
 			      out, out_Rtype, warn);
 		return;
 	}
@@ -533,7 +581,7 @@ static void REC_rowStats_SVT(SEXP SVT, const int *dims, int ndim,
 		SEXP subSVT = VECTOR_ELT(SVT, i);
 		const double *subcenter = center + out_inc * i;
 		void *subout = shift_dataptr(out_Rtype, out, out_inc * i);
-		REC_rowStats_SVT(subSVT, dims, ndim - 1,
+		REC_rowStats_SVT(subSVT, na_background, dims, ndim - 1,
 				 summarize_op, subcenter,
 				 subout, out_Rtype,
 				 out_incs, out_ndim,
@@ -582,7 +630,8 @@ SEXP C_rowStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type,
 	init_rowStats_ans(ans, &summarize_op, center_p, x_dim, d);
 
 	int warn = 0;
-	REC_rowStats_SVT(x_SVT, INTEGER(x_dim), LENGTH(x_dim),
+	REC_rowStats_SVT(x_SVT, LOGICAL(na_background)[0],
+			 INTEGER(x_dim), LENGTH(x_dim),
 			 &summarize_op, center_p,
 			 DATAPTR(ans), ans_Rtype,
 			 out_incs, ans_ndim,

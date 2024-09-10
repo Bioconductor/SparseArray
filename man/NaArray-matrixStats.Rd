@@ -16,12 +16,14 @@
 \alias{colRanges,NaArray-method}
 
 \alias{colSums,NaArray-method}
+\alias{rowSums,NaArray-method}
 
 \alias{colProds,NaArray-method}
 
 \alias{colMeans,NaArray-method}
 
 \alias{colSums2,NaArray-method}
+\alias{rowSums2,NaArray-method}
 
 \alias{colMeans2,NaArray-method}
 
@@ -43,6 +45,10 @@
   \pkg{MatrixGenerics} package, with methods for ordinary matrices
   defined in the \pkg{matrixStats} package. This man page documents
   the methods defined for \link{NaArray} objects.
+
+  WORK IN PROGRESS: All the col*() methods listed below are supported.
+  However, among the row*() methods, only rowSums() and rowSums2() are
+  supported at the moment.
 }
 
 \usage{

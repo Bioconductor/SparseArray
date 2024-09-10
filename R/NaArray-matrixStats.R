@@ -54,8 +54,6 @@
 .rowStats_NaArray <- function(op, x, na.rm=FALSE, center=NULL, dims=1L,
                               useNames=NA)
 {
-    stop("not ready yet")
-
     stopifnot(isSingleString(op), is(x, "NaArray"))
     check_svt_version(x)
 
@@ -330,7 +328,7 @@ setMethod("colSums", "NaArray", .colSums_NaArray)
 {
     .rowStats_NaArray("sum", x, na.rm=na.rm, dims=dims)
 }
-#setMethod("rowSums", "NaArray", .rowSums_NaArray)
+setMethod("rowSums", "NaArray", .rowSums_NaArray)
 
 .colProds_NaArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
@@ -385,7 +383,7 @@ setMethod("colSums2", "NaArray", .colSums2_NaArray)
     check_rows_cols(rows, cols, "rowSums2", "NaArray")
     .rowStats_NaArray("sum", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-#setMethod("rowSums2", "NaArray", .rowSums2_NaArray)
+setMethod("rowSums2", "NaArray", .rowSums2_NaArray)
 
 .colMeans2_NaArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
