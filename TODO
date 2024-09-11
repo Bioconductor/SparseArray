@@ -1,13 +1,42 @@
-- Speed up more row summarization methods by supporting natively more
-  operations in .Call entry point C_rowStats_SVT. Note that doing this
-  for rowAnyNAs(), rowSums(), rowMeans(), rowVars(), and rowSds(), led
-  to speedups of 35x, 20x, 18x, 5x, and 5x, respectively, on big
-  SVT_SparseArray objects, or more.
+- NaArray objects:
 
-- Charlotte's use case: Big sparse matrix where most values are NAs and
-  the number of non-NA values is small. Non-NA values can be zeros.
-  How to efficiently represent this and operate on it? Note that column/row
-  summarization methods (e.g. colSums()/rowSums()) should ignore the NAs.
+  1. Ops methods:
+     o Implement Compare methods for NaArray#NaArray, NaArray#array, and
+       array#NaArray.
+     o Implement Arith and Logic methods.
+     o Implement unary "+" and "-" methods.
+     o Implement logical negation ("!") method.
+     o Add unit tests for Ops methods (-> test-NaArray-Ops-methods.R)
+
+  2. Math methods:
+     o For this group we don't need to support only functions that preserve
+       zeros like we did for SparseArray objects.
+     o Add unit tests for Math methods.
+
+  3. Implement nnavals() getter and setter. Add unit tests for nnacount(),
+     nnawhich(), and nnavals() getter and setter.
+
+  4. Implement linear subsetting (by Lindex and by Mindex). Add unit tests
+     for subsetting.
+
+  5. Implement subassignment by Mindex. Add unit tests for subassignment.
+
+  6. Implement methods rowAnyNAs(), rowMeans(), rowVars(), and rowSds().
+     Add unit tests.
+
+  7. Add vignette for NaArray objects.
+
+- Speed up more row summarization methods for SparseArray and NaArray objects
+  by supporting natively more operations in .Call entry point C_rowStats_SVT.
+  Note that doing this for rowAnyNAs(), rowSums(), rowMeans(), rowVars(),
+  and rowSds(), led to speedups of 35x, 20x, 18x, 5x, and 5x, respectively,
+  on big SVT_SparseArray objects, or more.
+
+- Implement which() methods for SparseArray and NaArray objects of type
+  logical.
+
+- Implement fast nzvals() getter/setter for SVT_SparseMatrix objects.
+  (Default methods work but are not as fast as they could be.)
 
 - Implement efficient coercions from dgTMatrix to COO_SparseMatrix and
   SVT_SparseMatrix. 'as(<dgTMatrix>, "SparseMatrix")' and
@@ -32,12 +61,9 @@
 
       Matrix::writeMM(as(x, "CsparseMatrix"))
 
-- Support names() getter and setter on a 1D SparseArray array as a shortcut
-  for 'dimnames()[[1L]]' and 'dimnames()[[1L]] <- value' respectively.
-  This is to mimic the R base array API.
-
-- Implement fast nzvals() getter/setter for SVT_SparseMatrix objects.
-  (Default methods work but are not as fast as they could be.)
+- Support names() getter and setter on a 1D SparseArray or NaArray object
+  as a shortcut for 'dimnames()[[1L]]' and 'dimnames()[[1L]] <- value'
+  respectively. This is to mimic the R base array API.
 
 - Add is.nonzero() generic with methods for SparseArray objects and other
   sparseMatrix derivatives from the Matrix package ([d|l|n]g[C|R]Matrix
