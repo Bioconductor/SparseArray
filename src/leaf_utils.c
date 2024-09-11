@@ -82,7 +82,7 @@ SEXP _make_lacunar_leaf(SEXP nzoffs)
 /* When 'Rtype' is STRSXP or VECSXP, 'shared_nzval' must be an SEXP.
    Otherwise, it must be a pointer to an int, double, Rcomplex, or Rbyte. */
 SEXP _make_leaf_with_single_shared_nzval(SEXPTYPE Rtype,
-		void *shared_nzval, SEXP nzoffs)
+		const void *shared_nzval, SEXP nzoffs)
 {
 	if (LACUNAR_MODE_IS_ON && _all_elts_equal_one(Rtype, shared_nzval, 1))
 		return _make_lacunar_leaf(nzoffs);

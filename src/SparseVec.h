@@ -14,6 +14,7 @@ typedef struct sparse_vec_t {
 	const int *nzoffs;   /* array of offsets for the nonzero values */
 	int nzcount;         /* nb of nonzero values */
 	int len;             /* vector length (= nzcount + nb of zeros) */
+	int na_background;   /* background value is NA instead of zero */
 } SparseVec;
 
 /* 'Rtype' **must** be set to 'TYPEOF(nzvals)' if 'nzvals' is not R_NilValue.
@@ -21,7 +22,7 @@ typedef struct sparse_vec_t {
    the 'Rtype' in the SparseVec even when the supplied 'nzvals' is R_NilValue
    (lacunar case). */
 static inline SparseVec toSparseVec(SEXP nzvals, SEXP nzoffs,
-				    SEXPTYPE Rtype, int len)
+		SEXPTYPE Rtype, int len, int na_background)
 {
 	/* Sanity checks (should never fail). */
 	if (!IS_INTEGER(nzoffs))
@@ -53,6 +54,7 @@ static inline SparseVec toSparseVec(SEXP nzvals, SEXP nzoffs,
 	sv.nzoffs = INTEGER(nzoffs);
 	sv.nzcount = LENGTH(nzoffs);
 	sv.len = len;
+	sv.na_background = na_background;
 	return sv;
 
     on_error:

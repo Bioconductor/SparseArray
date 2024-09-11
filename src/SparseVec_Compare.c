@@ -226,14 +226,22 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 		const SparseVec *sv1, Rtype y,				\
 		int *out_nzvals, int *out_nzoffs)			\
 {									\
+	int background = sv1->na_background ? NA_INTEGER : int0;	\
 	const Ltype *nzvals1_p = get_ ## Ltype ## SV_nzvals_p(sv1);	\
 	if (nzvals1_p == NULL) {  /* lacunar SparseVec */		\
 		int v = Compare_ ## Ltype ## _ ## Rtype			\
 					(opcode, Ltype ## 1, y);	\
-		if (v == int0)						\
+		if (v == background)					\
 			return 0;					\
-		/* It is assumed that 'y' is not NA or NaN so 'v' */	\
-		/* can only be 'int1' here (cannot be NA_INTEGER). */	\
+		/* What 'v' is expected to be at this point depends  */	\
+		/* on the background of input SparseVec 'sv1':       */	\
+		/* - If its background is zero then 'y' is assumed   */	\
+		/*   to NOT be NA or NaN (i.e. is.na(y) must be      */	\
+		/*   FALSE). This means that 'v' can only be TRUE    */	\
+		/*   (i.e. 'int1'). In particular 'v' cannot be NA   */	\
+		/*   (i.e. NA_INTEGER).                              */	\
+		/* - If its background is NA then 'v' can be TRUE    */	\
+		/*   or FALSE.                                       */	\
 		out_nzvals[0] = v;					\
 		return PROPAGATE_NZOFFS;				\
 	}								\
@@ -244,7 +252,7 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 		Ltype x = nzvals1_p[k];					\
 		int v = Compare_ ## Ltype ## _ ## Rtype			\
 					(opcode, x, y);			\
-		if (v != int0) {					\
+		if (v != background) {					\
 			out_nzvals[out_nzcount] = v;			\
 			out_nzoffs[out_nzcount] = sv1->nzoffs[k];	\
 			out_nzcount++;					\
@@ -603,6 +611,10 @@ int _Compare_sv1_scalar(int opcode, const SparseVec *sv1, SEXP scalar,
 int _Compare_sv1_sv2(int opcode, const SparseVec *sv1, const SparseVec *sv2,
 		int *out_nzvals, int *out_nzoffs)
 {
+	if (sv1->na_background)
+		error("SparseArray internal error in "
+		      "_Compare_sv1_sv2():\n"
+		      "    operation not yet supported on NaArray objects");
 	SEXPTYPE Rtype1 = get_SV_Rtype(sv1);
 	switch (Rtype1) {
 	    case RAWSXP:

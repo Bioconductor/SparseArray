@@ -46,9 +46,9 @@
   defined in the \pkg{matrixStats} package. This man page documents
   the methods defined for \link{NaArray} objects.
 
-  WORK IN PROGRESS: All the col*() methods listed below are supported.
-  However, among the row*() methods, only rowSums() and rowSums2() are
-  supported at the moment.
+  WORK IN PROGRESS: All the \code{col*()} methods listed below are supported.
+  However, among the \code{row*()} methods, only \code{rowSums()}
+  and \code{rowSums2()} are supported on \link{NaArray} objects at the moment.
 }
 
 \usage{

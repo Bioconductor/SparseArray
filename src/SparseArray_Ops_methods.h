@@ -22,6 +22,7 @@ SEXP C_Compare_SVT1_v2(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT,
+	SEXP na_background,
 	SEXP v2,
 	SEXP op
 );

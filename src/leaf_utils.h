@@ -131,11 +131,12 @@ static inline int unzip_leaf(SEXP leaf, SEXP *nzvals, SEXP *nzoffs)
 	return (int) nzcount;
 }
 
-static inline SparseVec leaf2SV(SEXP leaf, SEXPTYPE Rtype, int len)
+static inline SparseVec leaf2SV(SEXP leaf, SEXPTYPE Rtype, int len,
+		int na_background)
 {
 	SEXP nzvals, nzoffs;
 	unzip_leaf(leaf, &nzvals, &nzoffs);
-	return toSparseVec(nzvals, nzoffs, Rtype, len);
+	return toSparseVec(nzvals, nzoffs, Rtype, len, na_background);
 }
 
 SEXP C_lacunar_mode_is_on(void);
@@ -162,7 +163,7 @@ SEXP _make_lacunar_leaf(SEXP nzoffs);
 
 SEXP _make_leaf_with_single_shared_nzval(
 	SEXPTYPE Rtype,
-	void *shared_nzval,
+	const void *shared_nzval,
 	SEXP nzoffs
 );
 

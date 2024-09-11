@@ -229,7 +229,7 @@ static inline void copy_result_to_out(const SummarizeResult *res,
 
 /* Recursive. */
 static void REC_colStats_SVT(SEXP SVT, int na_background,
-		const int *dims, int ndim,
+		const int *dim, int ndim,
 		const SummarizeOp *summarize_op,
 		void *out, SEXPTYPE out_Rtype,
 		const R_xlen_t *out_incs, int out_ndim, int pardim,
@@ -237,14 +237,14 @@ static void REC_colStats_SVT(SEXP SVT, int na_background,
 {
 	if (out_ndim == 0) {
 		SummarizeResult res = _summarize_SVT(SVT, na_background,
-						     dims, ndim,
+						     dim, ndim,
 						     summarize_op);
 		if (res.warn)
 			*warn = 1;
 		copy_result_to_out(&res, out, out_Rtype);
 		return;
 	}
-	int SVT_len = dims[ndim - 1];
+	int SVT_len = dim[ndim - 1];
 	R_xlen_t out_inc = out_incs[out_ndim - 1];
 	/* Parallel execution along the biggest dimension only. */
 	#pragma omp parallel for schedule(static) if(out_ndim == pardim)
@@ -252,7 +252,7 @@ static void REC_colStats_SVT(SEXP SVT, int na_background,
 		SEXP subSVT = SVT == R_NilValue ? R_NilValue
 						: VECTOR_ELT(SVT, i);
 		void *subout = shift_dataptr(out_Rtype, out, out_inc * i);
-		REC_colStats_SVT(subSVT, na_background, dims, ndim - 1,
+		REC_colStats_SVT(subSVT, na_background, dim, ndim - 1,
 				 summarize_op,
 				 subout, out_Rtype,
 				 out_incs, out_ndim - 1, pardim,
@@ -353,9 +353,9 @@ static inline int is_na(SEXPTYPE Rtype, const void *x, int i)
 	return 0;  /* will never reach this */
 }
 
-static void rowAnyNAs_SV(const SparseVec *sv, int na_background, int *out)
+static void rowAnyNAs_SV(const SparseVec *sv, int *out)
 {
-	if (na_background)
+	if (sv->na_background)
 		error("SparseArray internal error in rowAnyNAs_SV():\n"
 		      "    operation not yet supported on NaArray objects");
 	if (sv->nzvals == NULL)  /* lacunar leaf */
@@ -370,9 +370,9 @@ static void rowAnyNAs_SV(const SparseVec *sv, int na_background, int *out)
 	return;
 }
 
-static void rowCountNAs_SV(const SparseVec *sv, int na_background, double *out)
+static void rowCountNAs_SV(const SparseVec *sv, double *out)
 {
-	if (na_background)
+	if (sv->na_background)
 		error("SparseArray internal error in rowCountNAs_SV():\n"
 		      "    operation not yet supported on NaArray objects");
 	if (sv->nzvals == NULL)  /* lacunar leaf */
@@ -421,11 +421,10 @@ static inline void add_SV_nzval(const SparseVec *sv, int k,
 	return;
 }
 
-static void rowSums_SV(const SparseVec *sv, int na_background,
-		       int narm, double *out)
+static void rowSums_SV(const SparseVec *sv, int narm, double *out)
 {
 	int nzcount = get_SV_nzcount(sv);
-	if (!na_background || narm) {
+	if (!sv->na_background || narm) {
 		if (sv->nzvals == NULL) {
 			/* lacunar leaf */
 			for (int k = 0; k < nzcount; k++)
@@ -459,10 +458,10 @@ static void rowSums_SV(const SparseVec *sv, int na_background,
 	return;
 }
 
-static void rowCenteredX2Sum_SV(const SparseVec *sv, int na_background,
+static void rowCenteredX2Sum_SV(const SparseVec *sv,
 		int narm, const double *center, double *out)
 {
-	if (na_background)
+	if (sv->na_background)
 		error("SparseArray internal error in rowCenteredX2Sum_SV():\n"
 		      "    operation not yet supported on NaArray objects");
 	int nzcount = get_SV_nzcount(sv);
@@ -524,20 +523,19 @@ static void rowStats_leaf(SEXP leaf, int dim0, int na_background,
 		const SummarizeOp *summarize_op, const double *center,
 		void *out, SEXPTYPE out_Rtype, int *warn)
 {
-	SparseVec sv = leaf2SV(leaf, summarize_op->in_Rtype, dim0);
+	SparseVec sv = leaf2SV(leaf, summarize_op->in_Rtype, dim0, na_background);
 	switch (summarize_op->opcode) {
 	    case ANYNA_OPCODE:
-		rowAnyNAs_SV(&sv, na_background, out);
+		rowAnyNAs_SV(&sv, out);
 		return;
 	    case COUNTNAS_OPCODE:
-		rowCountNAs_SV(&sv, na_background, out);
+		rowCountNAs_SV(&sv, out);
 		return;
 	    case SUM_OPCODE:
-		rowSums_SV(&sv, na_background, summarize_op->na_rm, out);
+		rowSums_SV(&sv, summarize_op->na_rm, out);
 		return;
 	    case CENTERED_X2_SUM_OPCODE:
-		rowCenteredX2Sum_SV(&sv, na_background,
-				    summarize_op->na_rm, center, out);
+		rowCenteredX2Sum_SV(&sv, summarize_op->na_rm, center, out);
 		return;
 	}
 	error("SparseArray internal error in rowStats_leaf():\n"
@@ -547,7 +545,7 @@ static void rowStats_leaf(SEXP leaf, int dim0, int na_background,
 
 /* Recursive. */
 static void REC_rowStats_SVT(SEXP SVT, int na_background,
-		const int *dims, int ndim,
+		const int *dim, int ndim,
 		const SummarizeOp *summarize_op, const double *center,
 		void *out, SEXPTYPE out_Rtype,
 		const R_xlen_t *out_incs, int out_ndim,
@@ -558,20 +556,20 @@ static void REC_rowStats_SVT(SEXP SVT, int na_background,
 			return;
 		R_xlen_t out_len = 1;
 		for (int along = 0; along < ndim && along < out_ndim; along++)
-			out_len *= dims[along];
+			out_len *= dim[along];
 		_set_elts_to_NA(out_Rtype, out, 0, out_len);
 		return;
 	}
 
 	if (ndim == 1) { /* 'out_ndim' also guaranteed to be 1 */
 		/* 'SVT' is a leaf (i.e. a 1D SVT). */
-		rowStats_leaf(SVT, dims[0], na_background,
+		rowStats_leaf(SVT, dim[0], na_background,
 			      summarize_op, center,
 			      out, out_Rtype, warn);
 		return;
 	}
 
-	int SVT_len = dims[ndim - 1];
+	int SVT_len = dim[ndim - 1];
 	R_xlen_t out_inc = 0;
 	if (ndim <= out_ndim) {
 		out_ndim--;
@@ -581,7 +579,7 @@ static void REC_rowStats_SVT(SEXP SVT, int na_background,
 		SEXP subSVT = VECTOR_ELT(SVT, i);
 		const double *subcenter = center + out_inc * i;
 		void *subout = shift_dataptr(out_Rtype, out, out_inc * i);
-		REC_rowStats_SVT(subSVT, na_background, dims, ndim - 1,
+		REC_rowStats_SVT(subSVT, na_background, dim, ndim - 1,
 				 summarize_op, subcenter,
 				 subout, out_Rtype,
 				 out_incs, out_ndim,

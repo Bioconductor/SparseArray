@@ -264,7 +264,7 @@ static SEXP subset_leaf_as_sparse(SEXP leaf, int dim0, SEXP subscript,
 		return leaf;
 
 	SEXP leaf_nzvals = get_leaf_nzvals(leaf);
-	SparseVec sv = leaf2SV(leaf, TYPEOF(leaf_nzvals), dim0);
+	SparseVec sv = leaf2SV(leaf, TYPEOF(leaf_nzvals), dim0, 0);
 	int ans_nzcount = subset_SV(&sv, subscript,
 				    selection_buf, nzoffs_buf, lookup_table);
 	if (ans_nzcount == 0)
