@@ -133,7 +133,7 @@ setMethod("type", "SVT_SparseArray", function(x) x@type)
         return(x)
 
     new_SVT <- SparseArray.Call("C_set_SVT_SparseArray_type",
-                                x@dim, x@type, x@SVT, value, FALSE)
+                                x@dim, x@type, x@SVT, FALSE, value)
     BiocGenerics:::replaceSlots(x, type=value, SVT=new_SVT, check=FALSE)
 }
 

@@ -7,9 +7,9 @@
  ****************************************************************************/
 #include "SparseArray_subassignment.h"
 
+#include "argcheck_utils.h"
 #include "OPBufTree.h"
 #include "thread_control.h"  /* for which_max() */
-#include "Rvector_utils.h"
 #include "leaf_utils.h"
 
 #include <limits.h>  /* for INT_MAX */
@@ -211,8 +211,8 @@ static SEXP make_offval_pairs_from_Lindex_vals(SEXP Lindex, SEXP vals,
 
 /* 'Lindex' and 'vals' are assumed to have the same nonzero length.
    The returned leaf can be NULL or lacunar. */
-static SEXP subassign_leaf_by_Lindex(SEXP leaf, int dim0,
-		SEXP Lindex, SEXP vals, int na_background)
+static SEXP subassign_leaf_by_Lindex(SEXP leaf, int dim0, int na_background,
+		SEXP Lindex, SEXP vals)
 {
 	if (na_background)
 		error("subassignment of 1D NaArray objects "
@@ -817,20 +817,20 @@ static SEXP REC_subassign_SVT_by_OPBufTree(OPBufTree *opbuf_tree,
    'Lindex' must be a numeric vector (integer or double), possibly a long one.
    NAs are not allowed (they'll trigger an error).
    'vals' must be a vector (atomic or list) of type 'x_type'. */
-SEXP C_subassign_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
-		SEXP Lindex, SEXP vals, SEXP na_background)
+SEXP C_subassign_SVT_by_Lindex(
+		SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP x_na_background,
+		SEXP Lindex, SEXP vals)
 {
-	SEXPTYPE Rtype = _get_Rtype_from_Rstring(x_type);
-	if (Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_subassign_SVT_by_Lindex():\n"
-		      "    SVT_SparseArray object has invalid type");
-
+	SEXPTYPE Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+				"C_subassign_SVT_by_Lindex", "x_type");
 	if (TYPEOF(vals) != Rtype)
 		error("SparseArray internal error in "
 		      "C_subassign_SVT_by_Lindex():\n"
 		      "    SVT_SparseArray object and 'vals' "
 		      "must have the same type");
+
+	int x_has_NAbg = _get_and_check_na_background(x_na_background,
+				"C_subassign_SVT_by_Lindex", "x_na_background");
 
 	if (!(IS_INTEGER(Lindex) || IS_NUMERIC(Lindex)))
 		error("'Lindex' must be an integer or numeric vector");
@@ -842,13 +842,8 @@ SEXP C_subassign_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	if (nvals == 0)
 		return x_SVT;  /* no-op */
 
-	if (!(IS_LOGICAL(na_background) && LENGTH(na_background) == 1))
-		error("SparseArray internal error in "
-		      "C_subassign_SVT_by_Lindex():\n"
-		      "    'na_background' must be TRUE or FALSE");
-
 	RVectorEltIsZero_FUNType fun1;
-	if (LOGICAL(na_background)[0]) {
+	if (x_has_NAbg) {
 		fun1 = select_Rvector_elt_is_NA_FUN(Rtype);
 	} else {
 		fun1 = select_Rvector_elt_is_zero_FUN(Rtype);
@@ -858,8 +853,9 @@ SEXP C_subassign_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 
 	int x_dim0 = INTEGER(x_dim)[0];
 	if (x_ndim == 1)
-		return subassign_leaf_by_Lindex(x_SVT, x_dim0, Lindex, vals,
-						LOGICAL(na_background)[0]);
+		return subassign_leaf_by_Lindex(
+				x_SVT, x_dim0, x_has_NAbg,
+				Lindex, vals);
 
 	/* 1st pass: Build the OPBufTree. */
 	//clock_t t0 = clock();
@@ -931,12 +927,8 @@ static void check_Mindex_dim(SEXP Mindex, R_xlen_t nvals, int ndim,
 SEXP C_subassign_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		SEXP Mindex, SEXP vals)
 {
-	SEXPTYPE Rtype = _get_Rtype_from_Rstring(x_type);
-	if (Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_subassign_SVT_by_Mindex():\n"
-		      "    SVT_SparseArray object has invalid type");
-
+	SEXPTYPE Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+					"C_subassign_SVT_by_Mindex", "x_type");
 	if (TYPEOF(vals) != Rtype)
 		error("SparseArray internal error in "
 		      "C_subassign_SVT_by_Mindex():\n"
@@ -956,7 +948,7 @@ SEXP C_subassign_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 
 	int x_dim0 = INTEGER(x_dim)[0];
 	if (x_ndim == 1)
-		return subassign_leaf_by_Lindex(x_SVT, x_dim0, Mindex, vals, 0);
+		return subassign_leaf_by_Lindex(x_SVT, x_dim0, 0, Mindex, vals);
 
 	/* 1st pass: Build the OPBufTree. */
 	error("C_subassign_SVT_by_Mindex() not ready yet");
@@ -1202,11 +1194,8 @@ static SEXP REC_subassign_SVT_with_short_Rvector(SEXP SVT, SEXP SVT0,
 SEXP C_subassign_SVT_with_short_Rvector(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		SEXP Nindex, SEXP Rvector)
 {
-	SEXPTYPE Rtype = _get_Rtype_from_Rstring(x_type);
-	if (Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_subassign_SVT_with_short_Rvector():\n"
-		      "    SVT_SparseArray object has invalid type");
+	SEXPTYPE Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+				"C_subassign_SVT_with_short_Rvector", "x_type");
 	if (TYPEOF(Rvector) != Rtype)
 		error("SparseArray internal error in "
 		      "C_subassign_SVT_with_short_Rvector():\n"

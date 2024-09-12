@@ -3,7 +3,7 @@
  *****************************************************************************/
 #include "SparseArray_Math_methods.h"
 
-#include "Rvector_utils.h"
+#include "argcheck_utils.h"
 #include "SparseVec.h"
 #include "SparseVec_Math.h"
 #include "leaf_utils.h"
@@ -69,10 +69,8 @@ static SEXP REC_Math_SVT(MathFUN fun, SEXP SVT, double digits,
 /* --- .Call ENTRY POINT --- */
 SEXP C_Math_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP op, SEXP digits)
 {
-	SEXPTYPE x_Rtype = _get_Rtype_from_Rstring(x_type);
-	if (x_Rtype == 0)
-		error("SparseArray internal error in C_Math_SVT():\n"
-		      "    invalid 'x_type' value");
+	/* Returned value ignored for now. */
+	_get_and_check_Rtype_from_Rstring(x_type, "C_Math_SVT", "x_type");
 
 	if (!IS_CHARACTER(op) || LENGTH(op) != 1)
 		error("SparseArray internal error in C_Math_SVT():\n"

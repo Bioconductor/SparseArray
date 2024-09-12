@@ -107,14 +107,14 @@ setMethod("Compare", c("vector", "NaArray"),
     check_Compare_op_on_complex_vals(op, type(x), type(y))
 
     ## Check 'op'.
-    if (!(op %in% c("!=", "<", ">"))) {
-        suggest <- switch(op, `==`="!=", `<=`="<", `>=`=">")
-        suggest <- if (is.null(suggest)) "" else
-                       paste0(", but \"", suggest, "\" is")
-        stop(wmsg("\"", op, "\" is not supported between NaArray ",
-                  "objects (result wouldn't be \"NA-sparse\" in general)",
-                  suggest))
-    }
+    #if (!(op %in% c("!=", "<", ">"))) {
+    #    suggest <- switch(op, `==`="!=", `<=`="<", `>=`=">")
+    #    suggest <- if (is.null(suggest)) "" else
+    #                   paste0(", but \"", suggest, "\" is")
+    #    stop(wmsg("\"", op, "\" is not supported between NaArray ",
+    #              "objects (result wouldn't be \"NA-sparse\" in general)",
+    #              suggest))
+    #}
 
     ## Check array conformability.
     x_dim <- dim(x)
@@ -131,8 +131,8 @@ setMethod("Compare", c("vector", "NaArray"),
         type(x) <- type(y) <- type(c(vector(type(x)), vector(type(y))))
 
     ans_NaSVT <- SparseArray.Call("C_Compare_SVT1_SVT2",
-                                  x_dim, x@type, x@NaSVT,
-                                  y_dim, y@type, y@NaSVT, op)
+                                  x_dim, x@type, x@NaSVT, TRUE,
+                                  y_dim, y@type, y@NaSVT, TRUE, op)
 
     new_NaArray(x_dim, ans_dimnames, "logical", ans_NaSVT, check=FALSE)
 }

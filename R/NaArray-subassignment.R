@@ -16,7 +16,7 @@
     value <- .normalize_right_value(value, type(x), length(Lindex))
 
     new_NaSVT <- SparseArray.Call("C_subassign_SVT_by_Lindex",
-                                  x@dim, x@type, x@NaSVT, Lindex, value, TRUE)
+                                  x@dim, x@type, x@NaSVT, TRUE, Lindex, value)
     BiocGenerics:::replaceSlots(x, NaSVT=new_NaSVT, check=FALSE)
 }
 

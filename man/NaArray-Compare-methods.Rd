@@ -16,11 +16,6 @@
   \link{NaArray} objects support operations from the \code{Compare} group.
   See \code{?\link[methods]{S4groupGeneric}} in the \pkg{methods} package
   for more information about the \code{Compare} group generic.
-
-  IMPORTANT NOTE: This is WORK-IN-PROGRESS! \code{Compare} operations are
-  only supported between an \link{NaArray} object \code{naa} and a single
-  value \code{y} at the moment: \preformatted{    naa op y
-    y op naa}
 }
 
 \details{

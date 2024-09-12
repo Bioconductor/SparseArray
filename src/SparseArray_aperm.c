@@ -12,7 +12,7 @@
  ****************************************************************************/
 #include "SparseArray_aperm.h"
 
-#include "Rvector_utils.h"
+#include "argcheck_utils.h"
 #include "leaf_utils.h"
 
 #include <string.h>  /* for memset() */
@@ -403,11 +403,8 @@ static SEXP transpose_2D_SVT(SEXP SVT, int nrow, int ncol, SEXPTYPE Rtype,
 /* --- .Call ENTRY POINT --- */
 SEXP C_transpose_2D_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT)
 {
-	SEXPTYPE x_Rtype = _get_Rtype_from_Rstring(x_type);
-	if (x_Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_transpose_2D_SVT():\n"
-		      "    SVT_SparseMatrix object has invalid type");
+	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+					"C_transpose_2D_SVT", "x_type");
 
 	if (LENGTH(x_dim) != 2)
 		error("object to transpose must have exactly 2 dimensions");
@@ -972,10 +969,8 @@ static SEXP aperm0_SVT(SEXP SVT, const int *dim, int ndim, SEXPTYPE Rtype,
  */
 SEXP C_aperm0_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP perm)
 {
-	SEXPTYPE Rtype = _get_Rtype_from_Rstring(x_type);
-	if (Rtype == 0)
-		error("SparseArray internal error in C_aperm0_SVT():\n"
-		      "    SVT_SparseArray object has invalid type");
+	SEXPTYPE Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+						"C_aperm0_SVT", "x_type");
 
 	int ndim = LENGTH(x_dim);
 	const int *dim = INTEGER(x_dim);
@@ -1040,10 +1035,8 @@ static SEXP REC_aperm_SVT(SEXP SVT, const int *dim, int ndim, SEXPTYPE Rtype,
  */
 SEXP C_aperm_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP perm)
 {
-	SEXPTYPE Rtype = _get_Rtype_from_Rstring(x_type);
-	if (Rtype == 0)
-		error("SparseArray internal error in C_aperm_SVT():\n"
-		      "    SVT_SparseArray object has invalid type");
+	SEXPTYPE Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+						"C_aperm_SVT", "x_type");
 
 	int ndim = LENGTH(x_dim);
 	const int *dim = INTEGER(x_dim);

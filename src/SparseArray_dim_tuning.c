@@ -3,8 +3,8 @@
  ****************************************************************************/
 #include "SparseArray_dim_tuning.h"
 
-#include "Rvector_utils.h"
-#include "leaf_utils.h"  /* for unzip_leaf() */
+#include "argcheck_utils.h"
+#include "leaf_utils.h"
 
 #include <string.h>  /* for memset() */
 
@@ -138,11 +138,10 @@ static SEXP drop_outermost_dims(SEXP SVT, int ndim_to_drop)
  * Go back and forth between a leaf and a 1x1x..xN SVT
  */
 
-static SEXP make_scalar_lacunar_leaf(SEXPTYPE Rtype)
+static SEXP make_scalar_lacunar_leaf()
 {
-	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(1));
-	INTEGER(ans_nzoffs)[0] = 0;
-	SEXP ans = zip_leaf(R_NilValue, ans_nzoffs, 0);
+	SEXP ans_nzoffs = PROTECT(ScalarInteger(0));
+	SEXP ans = _make_lacunar_leaf(ans_nzoffs);
 	UNPROTECT(1);
 	return ans;
 }
@@ -189,7 +188,7 @@ static void copy_scalar_leaf_val_to_Rvector(SEXP scalar_leaf,
    represents a 1x1x..xN array.
    'ans_ndim' is the number of dimensions of the result. It must be >= 2. */
 static SEXP unroll_leaf_as_SVT(SEXP leaf, int N, int ans_ndim,
-		SEXPTYPE Rtype, CopyRVectorElt_FUNType fun)
+		CopyRVectorElt_FUNType fun)
 {
 	SEXP nzvals, nzoffs;
 	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
@@ -197,7 +196,7 @@ static SEXP unroll_leaf_as_SVT(SEXP leaf, int N, int ans_ndim,
 	for (int k = 0; k < nzcount; k++) {
 		int i = INTEGER(nzoffs)[k];
 		SEXP ans_elt = nzvals == R_NilValue ?
-				make_scalar_lacunar_leaf(Rtype) :
+				make_scalar_lacunar_leaf() :
 				wrap_Rvector_elt_in_scalar_leaf(nzvals, k, fun);
 		PROTECT(ans_elt);
 		ans_elt = PROTECT(add_outermost_dims(ans_elt, ans_ndim - 2));
@@ -282,8 +281,7 @@ static SEXP REC_tune_SVT(SEXP SVT, const int *dim, int ndim,
 		if (ndim == 1) {
 			/* 'ops[nops - 1]' is KEEP_DIM, with only ADD_DIM ops
 			   on its left. 'SVT' is a leaf (i.e. 1D SVT). */
-			return unroll_leaf_as_SVT(SVT, dim[0], nops,
-						  Rtype, fun);
+			return unroll_leaf_as_SVT(SVT, dim[0], nops, fun);
 		}
 		if (nops == ndim && cumallDROP[ndim - 2]) {
 			/* 'ops[nops - 1]' is KEEP_DIM, with only DROP_DIM ops
@@ -327,12 +325,9 @@ static SEXP REC_tune_SVT(SEXP SVT, const int *dim, int ndim,
    in the S4Arrays package for a description of the 'dim_tuner' argument. */
 SEXP C_tune_SVT_dims(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP dim_tuner)
 {
-	SEXPTYPE Rtype = _get_Rtype_from_Rstring(x_type);
+	SEXPTYPE Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+						"C_tune_SVT_dims", "x_type");
 	CopyRVectorElt_FUNType fun = _select_copy_Rvector_elt_FUN(Rtype);
-	if (fun == NULL)
-		error("SparseArray internal error in "
-		      "C_tune_SVT_dims():\n"
-		      "    SVT_SparseArray object has invalid type");
 
 	/* Make sure that: 1 <= ndim <= nops. */
 	int ndim = LENGTH(x_dim);

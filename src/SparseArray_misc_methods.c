@@ -3,6 +3,7 @@
  *****************************************************************************/
 #include "SparseArray_misc_methods.h"
 
+#include "argcheck_utils.h"
 #include "Rvector_summarization.h"
 #include "leaf_utils.h"
 
@@ -255,10 +256,8 @@ static SEXP REC_SVT_apply_isFUN(SEXP SVT, const int *dim, int ndim,
 /* --- .Call ENTRY POINT --- */
 SEXP C_SVT_apply_isFUN(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP isFUN)
 {
-	SEXPTYPE x_Rtype = _get_Rtype_from_Rstring(x_type);
-	if (x_Rtype == 0)
-		error("SparseArray internal error in C_SVT_apply_isFUN():\n"
-		      "    invalid 'x_type' value");
+	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+						"C_SVT_apply_isFUN", "x_type");
 
 	if (!IS_CHARACTER(isFUN) || LENGTH(isFUN) != 1)
 		error("SparseArray internal error in C_SVT_apply_isFUN():\n"

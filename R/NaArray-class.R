@@ -108,7 +108,7 @@ setMethod("type", "NaArray", function(x) x@type)
         return(x)
 
     new_NaSVT <- SparseArray.Call("C_set_SVT_SparseArray_type",
-                                  x@dim, x@type, x@NaSVT, value, TRUE)
+                                  x@dim, x@type, x@NaSVT, TRUE, value)
     BiocGenerics:::replaceSlots(x, type=value, NaSVT=new_NaSVT, check=FALSE)
 }
 

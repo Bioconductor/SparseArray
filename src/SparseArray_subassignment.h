@@ -7,9 +7,9 @@ SEXP C_subassign_SVT_by_Lindex(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT,
+	SEXP x_na_background,
 	SEXP Lindex,
-	SEXP vals,
-	SEXP na_background
+	SEXP vals
 );
 
 SEXP C_subassign_SVT_by_Mindex(

@@ -3,12 +3,10 @@
  ****************************************************************************/
 #include "SparseArray_Compare_methods.h"
 
-#include "Rvector_utils.h"          /* _get_Rtype_from_Rstring() */
+#include "argcheck_utils.h"
 #include "SparseVec.h"
 #include "SparseVec_Compare.h"
 #include "leaf_utils.h"
-
-#include <string.h>  /* for memcmp() */
 
 
 static SEXP make_noNA_logical_leaf(SEXP nzoffs)
@@ -63,11 +61,11 @@ static SEXP Compare_leaf1_zero(int opcode,
 }
 
 static SEXP Compare_leaf1_scalar(int opcode,
-		SEXP leaf1, SEXPTYPE Rtype1, int na_background, SEXP scalar,
+		SEXP leaf1, SEXPTYPE Rtype1, int na_background1, SEXP scalar,
 		int dim0,
 		int *nzvals_buf, int *nzoffs_buf)
 {
-	const SparseVec sv1 = leaf2SV(leaf1, Rtype1, dim0, na_background);
+	const SparseVec sv1 = leaf2SV(leaf1, Rtype1, dim0, na_background1);
 	int buf_len = _Compare_sv1_scalar(opcode, &sv1, scalar,
 					  nzvals_buf, nzoffs_buf);
 	if (buf_len == PROPAGATE_NZOFFS)
@@ -107,7 +105,7 @@ static SEXP Compare_leaf1_leaf2(int opcode,
  */
 
 static SEXP REC_Compare_SVT1_scalar(int opcode,
-		SEXP SVT1, SEXPTYPE Rtype1, int na_background, SEXP scalar,
+		SEXP SVT1, SEXPTYPE Rtype1, int na_background1, SEXP scalar,
 		const int *dim, int ndim,
 		void *nzvals_buf, int *nzoffs_buf)
 {
@@ -117,7 +115,7 @@ static SEXP REC_Compare_SVT1_scalar(int opcode,
 	if (ndim == 1) {
 		/* 'SVT1' is a leaf (i.e. 1D SVT). */
 		return Compare_leaf1_scalar(opcode,
-					SVT1, Rtype1, na_background, scalar,
+					SVT1, Rtype1, na_background1, scalar,
 					dim[0],
 					nzvals_buf, nzoffs_buf);
 	}
@@ -129,7 +127,7 @@ static SEXP REC_Compare_SVT1_scalar(int opcode,
 	for (int i = 0; i < ans_len; i++) {
 		SEXP subSVT1 = VECTOR_ELT(SVT1, i);
 		SEXP ans_elt = REC_Compare_SVT1_scalar(opcode,
-					subSVT1, Rtype1, na_background, scalar,
+					subSVT1, Rtype1, na_background1, scalar,
 					dim, ndim - 1,
 					nzvals_buf, nzoffs_buf);
 		if (ans_elt != R_NilValue) {
@@ -192,51 +190,38 @@ static SEXP REC_Compare_SVT1_SVT2(int opcode,
  */
 
 /* --- .Call ENTRY POINT --- */
-SEXP C_Compare_SVT1_v2(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP na_background,
+SEXP C_Compare_SVT1_v2(
+		SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP x_na_background,
 		SEXP v2, SEXP op)
 {
-	SEXPTYPE x_Rtype = _get_Rtype_from_Rstring(x_type);
-	if (x_Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_Compare_SVT1_v2():\n"
-		      "    invalid 'x_type' value");
+	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+					"C_Compare_SVT1_v2", "x_type");
 
-	if (!(IS_LOGICAL(na_background) && LENGTH(na_background) == 1))
-		error("SparseArray internal error in "
-		      "C_Compare_SVT1_v2():\n"
-		      "    'na_background' must be TRUE or FALSE");
+	int x_has_NAbg = _get_and_check_na_background(x_na_background,
+					"C_Compare_SVT1_v2", "x_na_background");
 
 	int opcode = _get_Compare_opcode(op);
 	int dim0 = INTEGER(x_dim)[0];
 	int *nzvals_buf = (int *) R_alloc(dim0, sizeof(int));
 	int *nzoffs_buf = (int *) R_alloc(dim0, sizeof(int));
 	return REC_Compare_SVT1_scalar(opcode,
-			x_SVT, x_Rtype, LOGICAL(na_background)[0], v2,
+			x_SVT, x_Rtype, x_has_NAbg, v2,
 			INTEGER(x_dim), LENGTH(x_dim),
 			nzvals_buf, nzoffs_buf);
 }
 
-static void check_array_conformability(SEXP x_dim, SEXP y_dim)
-{
-	int ndim = LENGTH(x_dim);
-	if (ndim != LENGTH(y_dim) ||
-	    memcmp(INTEGER(x_dim), INTEGER(y_dim), sizeof(int) * ndim) != 0)
-		error("non-conformable arrays");
-	return;
-}
-
 /* --- .Call ENTRY POINT --- */
-SEXP C_Compare_SVT1_SVT2(SEXP x_dim, SEXP x_type, SEXP x_SVT,
-			 SEXP y_dim, SEXP y_type, SEXP y_SVT,
-			 SEXP op)
+SEXP C_Compare_SVT1_SVT2(
+		SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP x_na_background,
+		SEXP y_dim, SEXP y_type, SEXP y_SVT, SEXP y_na_background,
+		SEXP op)
 {
-	check_array_conformability(x_dim, y_dim);
-	SEXPTYPE x_Rtype = _get_Rtype_from_Rstring(x_type);
-	SEXPTYPE y_Rtype = _get_Rtype_from_Rstring(y_type);
-	if (x_Rtype == 0 || y_Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_Compare_SVT1_SVT2():\n"
-		      "    invalid 'x_type' or 'y_type' value");
+	_check_array_conformability(x_dim, y_dim);
+	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+					"C_Compare_SVT1_SVT2", "x_type");
+	SEXPTYPE y_Rtype = _get_and_check_Rtype_from_Rstring(y_type,
+					"C_Compare_SVT1_SVT2", "y_type");
+
 	int opcode = _get_Compare_opcode(op);
 	if (opcode != NE_OPCODE &&
 	    opcode != LT_OPCODE &&

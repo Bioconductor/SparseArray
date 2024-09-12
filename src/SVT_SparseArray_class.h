@@ -7,8 +7,8 @@ SEXP C_set_SVT_SparseArray_type(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT,
-	SEXP new_type,
-	SEXP na_background
+	SEXP x_na_background,
+	SEXP new_type
 );
 
 SEXP _coerce_SVT(
@@ -41,13 +41,13 @@ SEXP C_from_SVT_SparseArray_to_Rarray(
 	SEXP x_dimnames,
 	SEXP x_type,
 	SEXP x_SVT,
-	SEXP na_background
+	SEXP x_na_background
 );
 
 SEXP C_build_SVT_from_Rarray(
 	SEXP x,
 	SEXP ans_type,
-	SEXP na_background
+	SEXP ans_na_background
 );
 
 SEXP C_from_SVT_SparseMatrix_to_CsparseMatrix(

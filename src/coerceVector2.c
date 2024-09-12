@@ -1,6 +1,6 @@
 #include "coerceVector2.h"
 
-#include "Rvector_utils.h"
+#include "argcheck_utils.h"
 
 
 /****************************************************************************
@@ -68,11 +68,10 @@ int _coercion_can_introduce_NAs(SEXPTYPE from_Rtype, SEXPTYPE to_Rtype)
 /* --- .Call ENTRY POINT --- */
 SEXP C_coercion_can_introduce_zeros(SEXP from_type, SEXP to_type)
 {
-	SEXPTYPE from_Rtype = _get_Rtype_from_Rstring(from_type);
-	SEXPTYPE to_Rtype = _get_Rtype_from_Rstring(to_type);
-	if (from_Rtype == 0 || to_Rtype == 0)
-		error("'from_type' and 'to_type' must be valid "
-		      "vector types specified\n  as single strings");
+	SEXPTYPE from_Rtype = _get_and_check_Rtype_from_Rstring(from_type,
+				"C_coercion_can_introduce_zeros", "from_type");
+	SEXPTYPE to_Rtype = _get_and_check_Rtype_from_Rstring(to_type,
+				"C_coercion_can_introduce_zeros", "to_type");
 	return ScalarLogical(_coercion_can_introduce_zeros(from_Rtype,
 							   to_Rtype));
 }
@@ -80,11 +79,10 @@ SEXP C_coercion_can_introduce_zeros(SEXP from_type, SEXP to_type)
 /* --- .Call ENTRY POINT --- */
 SEXP C_coercion_can_introduce_NAs(SEXP from_type, SEXP to_type)
 {
-	SEXPTYPE from_Rtype = _get_Rtype_from_Rstring(from_type);
-	SEXPTYPE to_Rtype = _get_Rtype_from_Rstring(to_type);
-	if (from_Rtype == 0 || to_Rtype == 0)
-		error("'from_type' and 'to_type' must be valid "
-		      "vector types specified\n  as single strings");
+	SEXPTYPE from_Rtype = _get_and_check_Rtype_from_Rstring(from_type,
+				"C_coercion_can_introduce_NAs", "from_type");
+	SEXPTYPE to_Rtype = _get_and_check_Rtype_from_Rstring(to_type,
+				"C_coercion_can_introduce_NAs", "to_type");
 	return ScalarLogical(_coercion_can_introduce_NAs(from_Rtype,
 							 to_Rtype));
 }

@@ -7,7 +7,7 @@
  ****************************************************************************/
 #include "SparseArray_summarization.h"
 
-#include "Rvector_utils.h"
+#include "argcheck_utils.h"
 #include "Rvector_summarization.h"
 #include "leaf_utils.h"
 
@@ -109,19 +109,15 @@ SummarizeResult _summarize_SVT(
 }
 
 /* --- .Call ENTRY POINT --- */
-SEXP C_summarize_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP na_background,
+SEXP C_summarize_SVT(
+		SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP x_na_background,
 		SEXP op, SEXP na_rm, SEXP center)
 {
-	SEXPTYPE x_Rtype = _get_Rtype_from_Rstring(x_type);
-	if (x_Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_summarize_SVT():\n"
-		      "    SVT_SparseArray object has invalid type");
+	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+					"C_summarize_SVT", "x_type");
 
-	if (!(IS_LOGICAL(na_background) && LENGTH(na_background) == 1))
-		error("SparseArray internal error in "
-		      "C_summarize_SVT():\n"
-		      "    'na_background' must be TRUE or FALSE");
+	int x_has_NAbg = _get_and_check_na_background(x_na_background,
+					"C_summarize_SVT", "x_na_background");
 
 	int opcode = _get_summarize_opcode(op, x_Rtype);
 
@@ -136,7 +132,7 @@ SEXP C_summarize_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP na_background,
 
 	SummarizeOp summarize_op = _make_SummarizeOp(opcode, x_Rtype, narm,
 						     REAL(center)[0]);
-	SummarizeResult res = _summarize_SVT(x_SVT, LOGICAL(na_background)[0],
+	SummarizeResult res = _summarize_SVT(x_SVT, x_has_NAbg,
 					     INTEGER(x_dim), LENGTH(x_dim),
 					     &summarize_op);
 	if (res.warn)

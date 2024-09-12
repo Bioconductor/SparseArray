@@ -3,13 +3,11 @@
  ****************************************************************************/
 #include "SparseArray_Arith_methods.h"
 
-#include "Rvector_utils.h"          /* _get_Rtype_from_Rstring() */
+#include "argcheck_utils.h"
 #include "SparseVec.h"
 #include "SparseVec_Arith.h"
 #include "leaf_utils.h"
 #include "SVT_SparseArray_class.h"  /* for _coerce_SVT() */
-
-#include <string.h>  /* for memcmp() */
 
 
 /****************************************************************************
@@ -248,11 +246,8 @@ static SEXP REC_Arith_SVT1_SVT2(int opcode,
 /* --- .Call ENTRY POINT --- */
 SEXP C_unary_minus_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT)
 {
-	SEXPTYPE x_Rtype = _get_Rtype_from_Rstring(x_type);
-	if (x_Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_unary_minus_SVT():\n"
-		      "    invalid 'x_type' value");
+	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+					"C_unary_minus_SVT", "x_type");
 	SEXP ans = PROTECT(duplicate(x_SVT));
 	REC_unary_minus_SVT(ans, x_Rtype, INTEGER(x_dim), LENGTH(x_dim));
 	UNPROTECT(1);
@@ -263,12 +258,11 @@ SEXP C_unary_minus_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT)
 SEXP C_Arith_SVT1_v2(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP v2,
 		     SEXP op, SEXP ans_type)
 {
-	SEXPTYPE x_Rtype = _get_Rtype_from_Rstring(x_type);
-	SEXPTYPE ans_Rtype = _get_Rtype_from_Rstring(ans_type);
-	if (x_Rtype == 0 || ans_Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_Arith_SVT1_v2():\n"
-		      "    invalid 'x_type' or 'ans_type' value");
+	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+					"C_Arith_SVT1_v2", "x_type");
+	SEXPTYPE ans_Rtype = _get_and_check_Rtype_from_Rstring(ans_type,
+					"C_Arith_SVT1_v2", "ans_type");
+
 	int opcode = _get_Arith_opcode(op);
 	if (opcode != MULT_OPCODE &&
 	    opcode != DIV_OPCODE &&
@@ -296,28 +290,19 @@ SEXP C_Arith_SVT1_v2(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP v2,
 	return ans;
 }
 
-static void check_array_conformability(SEXP x_dim, SEXP y_dim)
-{
-	int ndim = LENGTH(x_dim);
-	if (ndim != LENGTH(y_dim) ||
-	    memcmp(INTEGER(x_dim), INTEGER(y_dim), sizeof(int) * ndim) != 0)
-		error("non-conformable arrays");
-	return;
-}
-
 /* --- .Call ENTRY POINT --- */
 SEXP C_Arith_SVT1_SVT2(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		       SEXP y_dim, SEXP y_type, SEXP y_SVT,
 		       SEXP op, SEXP ans_type)
 {
-	check_array_conformability(x_dim, y_dim);
-	SEXPTYPE x_Rtype = _get_Rtype_from_Rstring(x_type);
-	SEXPTYPE y_Rtype = _get_Rtype_from_Rstring(y_type);
-	SEXPTYPE ans_Rtype = _get_Rtype_from_Rstring(ans_type);
-	if (x_Rtype == 0 || y_Rtype == 0 || ans_Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_Arith_SVT1_SVT2():\n"
-		      "    invalid 'x_type', 'y_type', or 'ans_type' value");
+	_check_array_conformability(x_dim, y_dim);
+	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+					"C_Arith_SVT1_SVT2", "x_type");
+	SEXPTYPE y_Rtype = _get_and_check_Rtype_from_Rstring(y_type,
+					"C_Arith_SVT1_SVT2", "y_type");
+	SEXPTYPE ans_Rtype = _get_and_check_Rtype_from_Rstring(ans_type,
+					"C_Arith_SVT1_SVT2", "ans_type");
+
 	int opcode = _get_Arith_opcode(op);
 	if (opcode != ADD_OPCODE &&
 	    opcode != SUB_OPCODE &&

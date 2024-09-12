@@ -16,7 +16,7 @@ SEXP C_summarize_SVT(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT,
-	SEXP na_background,
+	SEXP x_na_background,
 	SEXP op,
 	SEXP na_rm,
 	SEXP center

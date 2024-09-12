@@ -1,5 +1,5 @@
 /****************************************************************************
- *               Wrappers to OpenMP thread control functions                *
+ *               Wrappers for OpenMP thread control functions               *
  ****************************************************************************/
 #include "thread_control.h"
 

@@ -3,12 +3,10 @@
  ****************************************************************************/
 #include "SparseArray_Logic_methods.h"
 
-#include "Rvector_utils.h"          /* _get_Rtype_from_Rstring() */
+#include "argcheck_utils.h"
 #include "SparseVec.h"
 #include "SparseVec_Logic.h"
 #include "leaf_utils.h"
-
-#include <string.h>  /* for memcmp() */
 
 
 /****************************************************************************
@@ -83,27 +81,17 @@ static SEXP REC_Logic_SVT1_SVT2(int opcode,
  * .Call ENTRY POINTS
  */
 
-static void check_array_conformability(SEXP x_dim, SEXP y_dim)
-{
-	int ndim = LENGTH(x_dim);
-	if (ndim != LENGTH(y_dim) ||
-	    memcmp(INTEGER(x_dim), INTEGER(y_dim), sizeof(int) * ndim) != 0)
-		error("non-conformable arrays");
-	return;
-}
-
 /* --- .Call ENTRY POINT --- */
 SEXP C_Logic_SVT1_SVT2(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		       SEXP y_dim, SEXP y_type, SEXP y_SVT,
 		       SEXP op)
 {
-	check_array_conformability(x_dim, y_dim);
-	SEXPTYPE x_Rtype = _get_Rtype_from_Rstring(x_type);
-	SEXPTYPE y_Rtype = _get_Rtype_from_Rstring(y_type);
-	if (x_Rtype == 0 || y_Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_Logic_SVT1_SVT2():\n"
-		      "    invalid 'x_type' or 'y_type' value");
+	_check_array_conformability(x_dim, y_dim);
+	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+				"C_Logic_SVT1_SVT2", "x_type");
+	SEXPTYPE y_Rtype = _get_and_check_Rtype_from_Rstring(y_type,
+				"C_Logic_SVT1_SVT2", "y_type");
+
 	int opcode = _get_Logic_opcode(op);
 	int dim0 = INTEGER(x_dim)[0];
 	int *nzvals_buf = (int *) R_alloc(dim0, sizeof(int));

@@ -10,7 +10,7 @@
  ****************************************************************************/
 #include "SparseMatrix_mult.h"
 
-#include "Rvector_utils.h"
+#include "argcheck_utils.h"
 #include "SparseVec.h"
 #include "SparseVec_dotprod.h"
 #include "leaf_utils.h"             /* for leaf2SV() */
@@ -941,15 +941,12 @@ static void crossprod1_int(SEXP SVT, int in_nrow, double *out, int out_ncol)
  * and C_crossprod1_SVT()
  */
 
-static SEXPTYPE get_and_check_input_Rtype(SEXP type, const char *what)
+static SEXPTYPE get_and_check_input_Rtype(SEXP type, const char *argname)
 {
 	SEXPTYPE Rtype;
 
-	Rtype = _get_Rtype_from_Rstring(type);
-	if (Rtype == 0)
-		error("SparseArray internal error in "
-		      "get_and_check_input_Rtype():\n"
-		      "    invalid '%s' value", what);
+	Rtype = _get_and_check_Rtype_from_Rstring(type,
+				"get_and_check_input_Rtype", argname);
 	if (Rtype != REALSXP && Rtype != INTSXP)
 		error("SparseArray internal error in "
 		      "get_and_check_input_Rtype():\n"
@@ -988,11 +985,8 @@ SEXP C_crossprod2_SVT_mat(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP y,
 		      "    'x_Rtype != TYPEOF(y)' not supported yet");
 
 	/* Check 'ans_type'. */
-	ans_Rtype = _get_Rtype_from_Rstring(ans_type);
-	if (ans_Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_crossprod2_SVT_mat():\n"
-		      "    invalid 'ans_type' value");
+	ans_Rtype = _get_and_check_Rtype_from_Rstring(ans_type,
+					"C_crossprod2_SVT_mat", "ans_type");
 	if (ans_Rtype != REALSXP)
 		error("SparseArray internal error in "
 		      "C_crossprod2_SVT_mat():\n"
@@ -1043,11 +1037,8 @@ SEXP C_crossprod2_mat_SVT(SEXP x, SEXP y_dim, SEXP y_type, SEXP y_SVT,
 		error("input objects must have the same type() for now");
 
 	/* Check 'ans_type'. */
-	ans_Rtype = _get_Rtype_from_Rstring(ans_type);
-	if (ans_Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_crossprod2_mat_SVT():\n"
-		      "    invalid 'ans_type' value");
+	ans_Rtype = _get_and_check_Rtype_from_Rstring(ans_type,
+				"C_crossprod2_mat_SVT", "ans_type");
 	if (ans_Rtype != REALSXP)
 		error("SparseArray internal error in "
 		      "C_crossprod2_mat_SVT():\n"
@@ -1098,11 +1089,8 @@ SEXP C_crossprod2_SVT_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 		      "must have the same type() for now");
 
 	/* Check 'ans_type'. */
-	ans_Rtype = _get_Rtype_from_Rstring(ans_type);
-	if (ans_Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_crossprod2_SVT_SVT():\n"
-		      "    invalid 'ans_type' value");
+	ans_Rtype = _get_and_check_Rtype_from_Rstring(ans_type,
+				"C_crossprod2_SVT_SVT", "ans_type");
 	if (ans_Rtype != REALSXP)
 		error("SparseArray internal error in "
 		      "C_crossprod2_SVT_SVT():\n"
@@ -1158,11 +1146,8 @@ SEXP C_crossprod1_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	x_Rtype = get_and_check_input_Rtype(x_type, "x_type");
 
 	/* Check 'ans_type'. */
-	ans_Rtype = _get_Rtype_from_Rstring(ans_type);
-	if (ans_Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_crossprod1_SVT():\n"
-		      "    invalid 'ans_type' value");
+	ans_Rtype = _get_and_check_Rtype_from_Rstring(ans_type,
+				"C_crossprod1_SVT", "ans_type");
 	if (ans_Rtype != REALSXP)
 		error("SparseArray internal error in "
 		      "C_crossprod1_SVT():\n"

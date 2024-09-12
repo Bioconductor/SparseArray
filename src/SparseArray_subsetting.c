@@ -7,9 +7,9 @@
  ****************************************************************************/
 #include "SparseArray_subsetting.h"
 
+#include "argcheck_utils.h"
 #include "OPBufTree.h"
 #include "thread_control.h"  /* for which_max() */
-#include "Rvector_utils.h"
 #include "leaf_utils.h"
 
 #include <limits.h>  /* for INT_MAX */
@@ -576,11 +576,8 @@ static void REC_subset_SVT_by_OPBufTree(OPBufTree *opbuf_tree,
    NA indices are accepted. */
 SEXP C_subset_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Lindex)
 {
-	SEXPTYPE Rtype = _get_Rtype_from_Rstring(x_type);
-	if (Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_subset_SVT_by_Lindex():\n"
-		      "    SVT_SparseArray object has invalid type");
+	SEXPTYPE Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+					"C_subset_SVT_by_Lindex", "x_type");
 	CopyRVectorElt_FUNType fun = _select_copy_Rvector_elt_FUN(Rtype);
 
 	if (!(IS_INTEGER(Lindex) || IS_NUMERIC(Lindex)))
@@ -652,11 +649,8 @@ SEXP C_subset_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Lindex)
    moment (they'll trigger an error), except in the 1D case. */
 SEXP C_subset_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Mindex)
 {
-	SEXPTYPE Rtype = _get_Rtype_from_Rstring(x_type);
-	if (Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_subset_SVT_by_Mindex():\n"
-		      "    SVT_SparseArray object has invalid type");
+	SEXPTYPE Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+					"C_subset_SVT_by_Mindex", "x_type");
 	CopyRVectorElt_FUNType fun = _select_copy_Rvector_elt_FUN(Rtype);
 
 	int x_ndim = LENGTH(x_dim);
@@ -795,11 +789,9 @@ static SEXP REC_subset_SVT_by_Nindex(SEXP SVT, SEXP Nindex,
    NAs in the subscripts are forbidden (they'll trigger an error).  */
 SEXP C_subset_SVT_by_Nindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Nindex)
 {
-	SEXPTYPE Rtype = _get_Rtype_from_Rstring(x_type);
-	if (Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_subset_SVT_by_Nindex():\n"
-		      "    SVT_SparseArray object has invalid type");
+	/* Returned value ignored. */
+	_get_and_check_Rtype_from_Rstring(x_type,
+					  "C_subset_SVT_by_Nindex", "x_type");
 
 	SEXP ans_dim = PROTECT(compute_subset_dim(Nindex, x_dim));
 	int ans_dim0 = INTEGER(ans_dim)[0];

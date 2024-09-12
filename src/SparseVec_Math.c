@@ -3,8 +3,6 @@
  ****************************************************************************/
 #include "SparseVec_Math.h"
 
-#include "Rvector_utils.h"
-
 #include <math.h>   /* for fabs(), sqrt(), floor(), ceil(), trunc(),
 		       log1p(), expm1(), sin(), asin(), tan(), atan(),
 		       sinh(), asinh(), tanh(), atanh() */

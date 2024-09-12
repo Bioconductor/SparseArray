@@ -49,7 +49,7 @@ adjust_left_type <- function(x, value)
                                     x@dim, x@type, x@SVT, Lindex, value)
     } else {
         new_SVT <- SparseArray.Call("C_subassign_SVT_by_Lindex",
-                                    x@dim, x@type, x@SVT, Lindex, value, FALSE)
+                                    x@dim, x@type, x@SVT, FALSE, Lindex, value)
     }
     BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
 }

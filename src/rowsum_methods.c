@@ -5,7 +5,7 @@
 
 #include "S4Vectors_interface.h"
 
-#include "Rvector_utils.h"
+#include "argcheck_utils.h"
 #include "leaf_utils.h"
 
 #include <limits.h>  /* for INT_MAX */
@@ -287,11 +287,8 @@ SEXP C_rowsum_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	int x_ncol = INTEGER(x_dim)[1];
 	int narm = LOGICAL(na_rm)[0];
 
-	SEXPTYPE x_Rtype = _get_Rtype_from_Rstring(x_type);
-	if (x_Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_rowsum_SVT():\n"
-		      "    invalid 'x_type' value");
+	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+						"C_rowsum_SVT", "x_type");
 
 	int ans_nrow = INTEGER(ngroup)[0];
 	check_group(group, x_nrow, ans_nrow);
@@ -373,11 +370,8 @@ SEXP C_colsum_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	int x_ncol = INTEGER(x_dim)[1];
 	int narm = LOGICAL(na_rm)[0];
 
-	SEXPTYPE x_Rtype = _get_Rtype_from_Rstring(x_type);
-	if (x_Rtype == 0)
-		error("SparseArray internal error in "
-		      "C_colsum_SVT():\n"
-		      "    invalid 'x_type' value");
+	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+						"C_colsum_SVT", "x_type");
 
 	int ans_ncol = INTEGER(ngroup)[0];
 	check_group(group, x_ncol, ans_ncol);
