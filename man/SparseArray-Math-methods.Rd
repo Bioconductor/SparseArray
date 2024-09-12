@@ -10,6 +10,7 @@
 \alias{SparseArray_Math2}
 
 \alias{Math,SVT_SparseArray-method}
+\alias{Math2,SVT_SparseArray-method}
 \alias{round,SVT_SparseArray-method}
 \alias{signif,SVT_SparseArray-method}
 

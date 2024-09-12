@@ -50,7 +50,9 @@ Collate: utils.R
 	SparseArray-subassignment.R
 	SparseArray-abind.R
 	SparseArray-summarization.R
-	SparseArray-Ops-methods.R
+	SparseArray-Arith-methods.R
+	SparseArray-Compare-methods.R
+	SparseArray-Logic-methods.R
 	SparseArray-Math-methods.R
 	SparseArray-Complex-methods.R
 	SparseArray-misc-methods.R
@@ -65,6 +67,6 @@ Collate: utils.R
 	NaArray-subassignment.R
 	NaArray-abind.R
 	NaArray-summarization.R
-	NaArray-Ops-methods.R
+	NaArray-Compare-methods.R
 	NaArray-matrixStats.R
 	zzz.R

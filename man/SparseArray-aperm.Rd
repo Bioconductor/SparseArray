@@ -15,9 +15,9 @@
 \title{SparseArray transposition}
 
 \description{
-  Transpose a \link{SparseArray} object by permuting its dimensions.
+  EXPERIMENTAL!!!
 
-  WORK-IN-PROGRESS
+  Transpose a \link{SparseArray} object by permuting its dimensions.
 }
 
 \value{

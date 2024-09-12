@@ -1,15 +1,12 @@
 ### =========================================================================
-### 'Ops' methods for NaArray objects
+### 'Compare' operations on NaArray objects
 ### -------------------------------------------------------------------------
 ###
-### The 'Ops' group of methods consists of three sub groups:
-### - 'Arith' group:   "+", "-", "*", "/", "^", "%%", "%/%"
-### - 'Compare' group: "==", "!=", "<=", ">=", "<", ">"
-### - 'Logic' group:   "&", "|"
+### 'Compare' operations: "==", "!=", "<=", ">=", "<", ">"
 ###
 ### See '?S4groupGeneric' for more information.
 ###
-### NaArray objects only support the 'Compare' group for now.
+
 
 ### NOT used at the moment!
 .error_on_NaArray_sparsity_not_preserved <- function(op, when)
@@ -24,11 +21,6 @@
     stop(wmsg(msg, " not supported on NaArray object x ",
               "when ", when, " (result wouldn't be \"NA-sparse\")"))
 }
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### 'Compare' group
-###
 
 ### Supports all 'Compare' ops: "==", "!=", "<=", ">=", "<", ">"
 .Compare_NaSVT1_v2 <- function(op, x, y)

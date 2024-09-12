@@ -82,8 +82,9 @@ setMethod("is.infinite", "SVT_SparseArray",
 ###
 ### Note that:
 ### - All operations from the 'Ops' group are "N-ary isometric"
-###   transformations (see '?S4groupGeneric'). The corresponding methods for
-###   SparseArray objects are implemented in R/SparseArray-Ops-methods.R
+###   transformations (see '?S4groupGeneric'). The corresponding
+###   methods for SparseArray objects are implemented in files
+###   R/SparseArray-[Arith|Compare|Logic]-methods.R.
 ### - If all the input arrays have the same class then the "N-ary isometric"
 ###   methods implemented below return an array-like object of that class
 ###   (endomorphism).

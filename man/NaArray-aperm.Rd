@@ -13,9 +13,9 @@
 \title{NaArray transposition}
 
 \description{
-  Transpose an \link{NaArray} object by permuting its dimensions.
+  EXPERIMENTAL!!!
 
-  WORK-IN-PROGRESS
+  Transpose an \link{NaArray} object by permuting its dimensions.
 }
 
 \value{

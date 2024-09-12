@@ -13,7 +13,9 @@
 #include "SparseArray_subassignment_OLD.h"
 #include "SparseArray_abind.h"
 #include "SparseArray_summarization.h"
-#include "SparseArray_Ops_methods.h"
+#include "SparseArray_Arith_methods.h"
+#include "SparseArray_Compare_methods.h"
+#include "SparseArray_Logic_methods.h"
 #include "SparseArray_Math_methods.h"
 #include "SparseArray_Complex_methods.h"
 #include "SparseArray_misc_methods.h"
@@ -90,12 +92,16 @@ static const R_CallMethodDef callMethods[] = {
 /* SparseArray_summarization.c */
 	CALLMETHOD_DEF(C_summarize_SVT, 7),
 
-/* SparseArray_Ops_methods.c */
+/* SparseArray_Arith_methods.c */
 	CALLMETHOD_DEF(C_unary_minus_SVT, 3),
 	CALLMETHOD_DEF(C_Arith_SVT1_v2, 6),
-	CALLMETHOD_DEF(C_Compare_SVT1_v2, 6),
 	CALLMETHOD_DEF(C_Arith_SVT1_SVT2, 8),
+
+/* SparseArray_Compare_methods.c */
+	CALLMETHOD_DEF(C_Compare_SVT1_v2, 6),
 	CALLMETHOD_DEF(C_Compare_SVT1_SVT2, 7),
+
+/* SparseArray_Logic_methods.c */
 	CALLMETHOD_DEF(C_Logic_SVT1_SVT2, 7),
 
 /* SparseArray_Math_methods.c */
