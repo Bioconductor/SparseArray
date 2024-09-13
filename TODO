@@ -1,8 +1,6 @@
 - NaArray objects:
 
   1. Ops methods:
-     o Implement Compare methods for NaArray#NaArray, NaArray#array, and
-       array#NaArray.
      o Implement Arith and Logic methods.
      o Implement unary "+" and "-" methods.
      o Implement logical negation ("!") method.

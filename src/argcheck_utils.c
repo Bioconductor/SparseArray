@@ -24,7 +24,10 @@ int _get_and_check_na_background(SEXP na_background,
 	if (!(IS_LOGICAL(na_background) && LENGTH(na_background) == 1))
 		error("SparseArray internal error in %s():\n"
 		      "    '%s' must be TRUE or FALSE", fun, argname);
-	return LOGICAL(na_background)[0];
+	/* We use LOGICAL(na_background)[0] != 0 and not just
+	   LOGICAL(na_background)[0] so we ensure that we return either 0
+	   or 1, even if LOGICAL(na_background)[0] is > 1. */
+	return LOGICAL(na_background)[0] != 0;
 }
 
 void _check_array_conformability(SEXP x_dim, SEXP y_dim)

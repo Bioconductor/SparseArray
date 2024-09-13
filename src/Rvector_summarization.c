@@ -1041,22 +1041,19 @@ static void summarize_one_NA(const SummarizeOp *summarize_op,
 	int new_status;
 	switch (summarize_op->in_Rtype) {
 	    case INTSXP: case LGLSXP: {
-		const int val = NA_INTEGER;
-		new_status = summarize_ints(&val, 1,
+		new_status = summarize_ints(&intNA, 1,
 				summarize_op->opcode, 0,
 				summarize_op->center, res);
 		break;
 	    }
 	    case REALSXP: {
-		const double val = NA_REAL;
-		new_status = summarize_doubles(&val, 1,
+		new_status = summarize_doubles(&doubleNA, 1,
 				summarize_op->opcode, 0,
 				summarize_op->center, res);
 		break;
 	    }
 	    case CPLXSXP: {
-		const Rcomplex val = {{NA_REAL, NA_REAL}};
-		new_status = summarize_Rcomplexes(&val, 1,
+		new_status = summarize_Rcomplexes(&RcomplexNA, 1,
 				summarize_op->opcode, 0,
 				summarize_op->center, res);
 		break;

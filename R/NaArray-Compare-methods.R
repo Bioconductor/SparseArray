@@ -23,6 +23,7 @@
 }
 
 ### Supports all 'Compare' ops: "==", "!=", "<=", ">=", "<", ">"
+### Returns an NaArray object.
 .Compare_NaSVT1_v2 <- function(op, x, y)
 {
     stopifnot(isSingleString(op), is(x, "NaArray"))
@@ -40,38 +41,9 @@
     if (length(y) != 1L)
         stop(wmsg("comparison operations are not supported between an ",
                   "NaArray object and a vector of length != 1"))
-    #if (is.na(y))
-    #    .error_on_NaArray_sparsity_not_preserved(op,
-    #                "y is NA or NaN")
-    #if (type(y) %in% c("logical", "raw") && op %in% c("<=", "<"))
-    #    .error_on_NaArray_sparsity_not_preserved(op,
-    #                "y is a logical or raw value")
 
     biggest_type <- type(c(vector(x_type), y))
-    #if (biggest_type == "character" && op %in% c("<=", "<"))
-    #    .error_on_NaArray_sparsity_not_preserved(op,
-    #                "type(x) is \"character\" or y is a string")
-
     type(y) <- biggest_type
-    #zero <- vector(type(y), length=1L)
-    #if (op == "==" && y == zero)
-    #    .error_on_NaArray_sparsity_not_preserved(op,
-    #                "y is 0 or FALSE or the empty string")
-    #if (op == "!=" && y != zero)
-    #    .error_on_NaArray_sparsity_not_preserved(op,
-    #                "y is not 0, FALSE, or the empty string")
-    #if (op == "<=" && y >= zero)
-    #    .error_on_NaArray_sparsity_not_preserved(op,
-    #                "y is >= 0")
-    #if (op == ">=" && y <= zero)
-    #    .error_on_NaArray_sparsity_not_preserved(op,
-    #                "y is <= 0, or FALSE, or the empty string")
-    #if (op == "<" && y > zero)
-    #    .error_on_NaArray_sparsity_not_preserved(op,
-    #                "y is > 0")
-    #if (op == ">" && y < zero)
-    #    .error_on_NaArray_sparsity_not_preserved(op,
-    #                "y is < 0")
 
     ## Handle situations where we need to change the type() of 'x' to
     ## the type() of 'y'. This is possibly expensive so we do it only
@@ -94,7 +66,8 @@ setMethod("Compare", c("vector", "NaArray"),
     function(e1, e2) .Compare_NaSVT1_v2(flip_Compare_op(.Generic), e2, e1)
 )
 
-### Supports: "!=", "<", ">"
+### Supports all 'Compare' ops: "==", "!=", "<=", ">=", "<", ">"
+### Returns an NaArray object.
 .Compare_NaSVT1_NaSVT2 <- function(op, x, y)
 {
     stopifnot(isSingleString(op), is(x, "NaArray"), is(y, "NaArray"))
@@ -105,16 +78,6 @@ setMethod("Compare", c("vector", "NaArray"),
     check_Compare_input_type(type(x), "NaArray object")
     check_Compare_input_type(type(y), "NaArray object")
     check_Compare_op_on_complex_vals(op, type(x), type(y))
-
-    ## Check 'op'.
-    #if (!(op %in% c("!=", "<", ">"))) {
-    #    suggest <- switch(op, `==`="!=", `<=`="<", `>=`=">")
-    #    suggest <- if (is.null(suggest)) "" else
-    #                   paste0(", but \"", suggest, "\" is")
-    #    stop(wmsg("\"", op, "\" is not supported between NaArray ",
-    #              "objects (result wouldn't be \"NA-sparse\" in general)",
-    #              suggest))
-    #}
 
     ## Check array conformability.
     x_dim <- dim(x)
@@ -133,21 +96,96 @@ setMethod("Compare", c("vector", "NaArray"),
     ans_NaSVT <- SparseArray.Call("C_Compare_SVT1_SVT2",
                                   x_dim, x@type, x@NaSVT, TRUE,
                                   y_dim, y@type, y@NaSVT, TRUE, op)
-
     new_NaArray(x_dim, ans_dimnames, "logical", ans_NaSVT, check=FALSE)
 }
 
-#setMethod("Compare", c("NaArray", "NaArray"),
-#    function(e1, e2) .Compare_NaSVT1_NaSVT2(.Generic, e1, e2)
-#)
+setMethod("Compare", c("NaArray", "NaArray"),
+    function(e1, e2) .Compare_NaSVT1_NaSVT2(.Generic, e1, e2)
+)
 
-#setMethod("Compare", c("NaArray", "array"),
-#    function(e1, e2)
-#        .Compare_NaSVT1_NaSVT2(.Generic, e1, as(e2, "NaArray"))
-#)
+setMethod("Compare", c("NaArray", "array"),
+    function(e1, e2)
+        .Compare_NaSVT1_NaSVT2(.Generic, e1, as(e2, "NaArray"))
+)
 
-#setMethod("Compare", c("array", "NaArray"),
-#    function(e1, e2)
-#        .Compare_NaSVT1_NaSVT2(.Generic, as(e1, "NaArray"), e2)
-#)
+setMethod("Compare", c("array", "NaArray"),
+    function(e1, e2)
+        .Compare_NaSVT1_NaSVT2(.Generic, as(e1, "NaArray"), e2)
+)
+
+### Supports all 'Compare' ops: "==", "!=", "<=", ">=", "<", ">"
+### Returns an NaArray object.
+.Compare_NaSVT1_SVT2 <- function(op, x, y)
+{
+    stopifnot(isSingleString(op), is(x, "NaArray"), is(y, "SVT_SparseArray"))
+    check_svt_version(x)
+    check_svt_version(y)
+
+    ## Check types.
+    check_Compare_input_type(type(x), "NaArray object")
+    check_Compare_input_type(type(y), "SparseArray object")
+    check_Compare_op_on_complex_vals(op, type(x), type(y))
+
+    ## Check array conformability.
+    x_dim <- dim(x)
+    y_dim <- dim(y)
+    if (!identical(x_dim, y_dim))
+        stop(wmsg("non-conformable arrays"))
+
+    ## Compute 'ans_dimnames'.
+    ans_dimnames <- S4Arrays:::get_first_non_NULL_dimnames(list(x, y))
+
+    ## Homogenization is possibly expensive so we do it only after all
+    ## the above checks have passed.
+    if (must_homogenize_for_Compare(type(x), type(y)))
+        type(x) <- type(y) <- type(c(vector(type(x)), vector(type(y))))
+
+    ans_NaSVT <- SparseArray.Call("C_Compare_SVT1_SVT2",
+                                  x_dim, x@type, x@NaSVT, TRUE,
+                                  y_dim, y@type, y@SVT, FALSE, op)
+    new_NaArray(x_dim, ans_dimnames, "logical", ans_NaSVT, check=FALSE)
+}
+
+### Supports all 'Compare' ops: "==", "!=", "<=", ">=", "<", ">"
+### Returns an NaArray object.
+.Compare_SVT1_NaSVT2 <- function(op, x, y)
+{
+    stopifnot(isSingleString(op), is(x, "SVT_SparseArray"), is(y, "NaArray"))
+    check_svt_version(x)
+    check_svt_version(y)
+
+    ## Check types.
+    check_Compare_input_type(type(x), "SparseArray object")
+    check_Compare_input_type(type(y), "NaArray object")
+    check_Compare_op_on_complex_vals(op, type(x), type(y))
+
+    ## Check array conformability.
+    x_dim <- dim(x)
+    y_dim <- dim(y)
+    if (!identical(x_dim, y_dim))
+        stop(wmsg("non-conformable arrays"))
+
+    ## Compute 'ans_dimnames'.
+    ans_dimnames <- S4Arrays:::get_first_non_NULL_dimnames(list(x, y))
+
+    ## Homogenization is possibly expensive so we do it only after all
+    ## the above checks have passed.
+    if (must_homogenize_for_Compare(type(x), type(y)))
+        type(x) <- type(y) <- type(c(vector(type(x)), vector(type(y))))
+
+    ans_NaSVT <- SparseArray.Call("C_Compare_SVT1_SVT2",
+                                  x_dim, x@type, x@SVT, FALSE,
+                                  y_dim, y@type, y@NaSVT, TRUE, op)
+    new_NaArray(x_dim, ans_dimnames, "logical", ans_NaSVT, check=FALSE)
+}
+
+setMethod("Compare", c("NaArray", "SVT_SparseArray"),
+    function(e1, e2)
+        .Compare_NaSVT1_SVT2(.Generic, e1, e2)
+)
+
+setMethod("Compare", c("SVT_SparseArray", "NaArray"),
+    function(e1, e2)
+        .Compare_SVT1_NaSVT2(.Generic, e1, e2)
+)
 

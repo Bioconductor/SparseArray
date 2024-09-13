@@ -146,6 +146,8 @@ void R_init_SparseArray(DllInfo *info)
 {
 	R_registerRoutines(info, NULL, callMethods, NULL, NULL);
 	R_useDynamicSymbols(info, 0);
+	intNA = NA_INTEGER;
+	doubleNA = RcomplexNA.r = RcomplexNA.i = NA_REAL;
 	return;
 }
 

@@ -56,6 +56,7 @@ must_homogenize_for_Compare <- function(x_type, y_type)
 }
 
 ### Supports all 'Compare' ops: "==", "!=", "<=", ">=", "<", ">"
+### Returns an SVT_SparseArray object.
 .Compare_SVT1_v2 <- function(op, x, y)
 {
     stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
@@ -128,6 +129,7 @@ setMethod("Compare", c("vector", "SVT_SparseArray"),
 )
 
 ### Supports: "!=", "<", ">"
+### Returns an SVT_SparseArray object.
 .Compare_SVT1_SVT2 <- function(op, x, y)
 {
     stopifnot(isSingleString(op),
@@ -167,7 +169,6 @@ setMethod("Compare", c("vector", "SVT_SparseArray"),
     ans_SVT <- SparseArray.Call("C_Compare_SVT1_SVT2",
                                 x_dim, x@type, x@SVT, FALSE,
                                 y_dim, y@type, y@SVT, FALSE, op)
-
     new_SVT_SparseArray(x_dim, ans_dimnames, "logical", ans_SVT, check=FALSE)
 }
 

@@ -38,6 +38,9 @@ int _get_Compare_opcode(SEXP op)
 
 /****************************************************************************
  * Core Compare_<Ltype>_<Rtype>() functions (10 in total)
+ *
+ * All these functions must return 'int0' (FALSE), 'int1' (TRUE),
+ * or 'intNA' (NA).
  */
 
 static inline int Compare_Rbyte_Rbyte(int opcode, Rbyte x, Rbyte y)
@@ -56,7 +59,7 @@ static inline int Compare_Rbyte_Rbyte(int opcode, Rbyte x, Rbyte y)
 }
 
 /* WARNING: Only valid to use on the int values of an integer vector (INTSXP).
-   Should NOT be used on the int values of a logical vector (LGLSEXP), on
+   Should NOT be used on the int values of a logical vector (LGLSXP), on
    which Compare_Rbyte_int() will generally produce wrong results!
    For example if Rbyte value 'x' is >= 2 and int value 'y' is 1 (TRUE),
    then == and <= will both return 0 when they are expected to return 1. */
@@ -65,7 +68,7 @@ static inline int Compare_Rbyte_int(int opcode, Rbyte x, int y)
 	int x1;
 
 	if (y == NA_INTEGER)
-		return NA_INTEGER;
+		return intNA;
 	x1 = (int) x;
 	switch (opcode) {
 	    case EQ_OPCODE: return x1 == y;
@@ -85,7 +88,7 @@ static inline int Compare_Rbyte_double(int opcode, Rbyte x, double y)
 	double x1;
 
 	if (ISNAN(y))
-		return NA_INTEGER;
+		return intNA;
 	x1 = (double) x;
 	switch (opcode) {
 	    case EQ_OPCODE: return x1 == y;
@@ -105,7 +108,7 @@ static inline int Compare_Rbyte_Rcomplex(int opcode, Rbyte x, Rcomplex y)
 	double x1;
 
 	if (ISNAN(y.r) || ISNAN(y.i))
-		return NA_INTEGER;
+		return intNA;
 	x1 = (double) x;
 	switch (opcode) {
 	    case EQ_OPCODE: return x1 == y.r && 0.0 == y.i;
@@ -119,7 +122,7 @@ static inline int Compare_Rbyte_Rcomplex(int opcode, Rbyte x, Rcomplex y)
 static inline int Compare_int_int(int opcode, int x, int y)
 {
 	if (x == NA_INTEGER || y == NA_INTEGER)
-		return NA_INTEGER;
+		return intNA;
 	switch (opcode) {
 	    case EQ_OPCODE: return x == y;
 	    case NE_OPCODE: return x != y;
@@ -138,7 +141,7 @@ static inline int Compare_int_double(int opcode, int x, double y)
 	double x1;
 
 	if (x == NA_INTEGER || ISNAN(y))
-		return NA_INTEGER;
+		return intNA;
 	x1 = (double) x;
 	switch (opcode) {
 	    case EQ_OPCODE: return x1 == y;
@@ -158,7 +161,7 @@ static inline int Compare_int_Rcomplex(int opcode, int x, Rcomplex y)
 	double x1;
 
 	if (x == NA_INTEGER || ISNAN(y.r) || ISNAN(y.i))
-		return NA_INTEGER;
+		return intNA;
 	x1 = (double) x;
 	switch (opcode) {
 	    case EQ_OPCODE: return x1 == y.r && 0.0 == y.i;
@@ -172,7 +175,7 @@ static inline int Compare_int_Rcomplex(int opcode, int x, Rcomplex y)
 static inline int Compare_double_double(int opcode, double x, double y)
 {
 	if (ISNAN(x) || ISNAN(y))
-		return NA_INTEGER;
+		return intNA;
 	switch (opcode) {
 	    case EQ_OPCODE: return x == y;
 	    case NE_OPCODE: return x != y;
@@ -189,7 +192,7 @@ static inline int Compare_double_double(int opcode, double x, double y)
 static inline int Compare_double_Rcomplex(int opcode, double x, Rcomplex y)
 {
 	if (ISNAN(x) || ISNAN(y.r) || ISNAN(y.i))
-		return NA_INTEGER;
+		return intNA;
 	switch (opcode) {
 	    case EQ_OPCODE: return x == y.r && 0.0 == y.i;
 	    case NE_OPCODE: return x != y.r || 0.0 != y.i;
@@ -202,7 +205,7 @@ static inline int Compare_double_Rcomplex(int opcode, double x, Rcomplex y)
 static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 {
 	if (ISNAN(x.r) || ISNAN(x.i) || ISNAN(y.r) || ISNAN(y.i))
-		return NA_INTEGER;
+		return intNA;
 	switch (opcode) {
 	    case EQ_OPCODE: return x.r == y.r && x.i == y.i;
 	    case NE_OPCODE: return x.r != y.r || x.i != y.i;
@@ -226,12 +229,12 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 		const SparseVec *sv1, Rtype y,				\
 		int *out_nzvals, int *out_nzoffs)			\
 {									\
-	int background = sv1->na_background ? NA_INTEGER : int0;	\
+	int out_background = sv1->na_background ? intNA : int0;		\
 	const Ltype *nzvals1_p = get_ ## Ltype ## SV_nzvals_p(sv1);	\
 	if (nzvals1_p == NULL) {  /* lacunar SparseVec */		\
 		int v = Compare_ ## Ltype ## _ ## Rtype			\
 					(opcode, Ltype ## 1, y);	\
-		if (v == background)					\
+		if (v == out_background)				\
 			return 0;					\
 		/* What 'v' is expected to be at this point depends  */	\
 		/* on the background of input SparseVec 'sv1':       */	\
@@ -239,9 +242,9 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 		/*   to NOT be NA or NaN (i.e. is.na(y) must be      */	\
 		/*   FALSE). This means that 'v' can only be TRUE    */	\
 		/*   (i.e. 'int1'). In particular 'v' cannot be NA   */	\
-		/*   (i.e. NA_INTEGER).                              */	\
+		/*   (i.e. 'intNA') or FALSE (i.e. 'int0').          */	\
 		/* - If its background is NA then 'v' can be TRUE    */	\
-		/*   or FALSE.                                       */	\
+		/*   or FALSE. It cannot be NA.                      */	\
 		out_nzvals[0] = v;					\
 		return PROPAGATE_NZOFFS;				\
 	}								\
@@ -252,7 +255,7 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 		Ltype x = nzvals1_p[k];					\
 		int v = Compare_ ## Ltype ## _ ## Rtype			\
 					(opcode, x, y);			\
-		if (v != background) {					\
+		if (v != out_background) {				\
 			out_nzvals[out_nzcount] = v;			\
 			out_nzoffs[out_nzcount] = sv1->nzoffs[k];	\
 			out_nzcount++;					\
@@ -266,18 +269,19 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 		const SparseVec *sv1, const SparseVec *sv2,		\
 		int *out_nzvals, int *out_nzoffs)			\
 {									\
-	int k1, k2, off;						\
+	int out_background = (sv1->na_background || sv2->na_background)	\
+			     ? intNA : int0;				\
+	int out_nzcount = 0;						\
+	int k1 = 0, k2 = 0;						\
+	int off;							\
 	Ltype x;							\
 	Rtype y;							\
-									\
-	int out_nzcount = 0;						\
-	k1 = k2 = 0;							\
-	while (next_2SV_vals_ ## Ltype ## _ ## Rtype			\
+	while (next_ ## Ltype ## _ ## Rtype ## _vals			\
 		(sv1, sv2, &k1, &k2, &off, &x, &y))			\
 	{								\
 		int v = Compare_ ## Ltype ## _ ## Rtype			\
 					(opcode, x, y);			\
-		if (v != int0) {					\
+		if (v != out_background) {				\
 			out_nzvals[out_nzcount] = v;			\
 			out_nzoffs[out_nzcount] = off;			\
 			out_nzcount++;					\
@@ -483,7 +487,7 @@ static int Compare_intSV_SV(int opcode,
 	SEXPTYPE Rtype2 = get_SV_Rtype(sv2);
 	switch (Rtype2) {
 	    case RAWSXP:
-		return Compare_RbyteSV_intSV(flip_opcode(opcode),
+		return Compare_RbyteSV_intSV(flip_Compare_opcode(opcode),
 				sv2, sv1, out_nzvals, out_nzoffs);
 	    case INTSXP: case LGLSXP:
 		return Compare_intSV_intSV(opcode,
@@ -508,10 +512,10 @@ static int Compare_doubleSV_SV(int opcode,
 	SEXPTYPE Rtype2 = get_SV_Rtype(sv2);
 	switch (Rtype2) {
 	    case RAWSXP:
-		return Compare_RbytesSV_doubleSV(flip_opcode(opcode),
+		return Compare_RbytesSV_doubleSV(flip_Compare_opcode(opcode),
 				sv2, sv1, out_nzvals, out_nzoffs);
 	    case INTSXP: case LGLSXP:
-		return Compare_intSV_doubleSV(flip_opcode(opcode),
+		return Compare_intSV_doubleSV(flip_Compare_opcode(opcode),
 				sv2, sv1, out_nzvals, out_nzoffs);
 	    case REALSXP:
 		return Compare_doubleSV_doubleSV(opcode,
@@ -533,13 +537,13 @@ static int Compare_RcomplexSV_SV(int opcode,
 	SEXPTYPE Rtype2 = get_SV_Rtype(sv2);
 	switch (Rtype2) {
 	    case RAWSXP:
-		return Compare_RbyteSV_RcomplexSV(flip_opcode(opcode),
+		return Compare_RbyteSV_RcomplexSV(flip_Compare_opcode(opcode),
 				sv2, sv1, out_nzvals, out_nzoffs);
 	    case INTSXP: case LGLSXP:
-		return Compare_intSV_RcomplexSV(flip_opcode(opcode),
+		return Compare_intSV_RcomplexSV(flip_Compare_opcode(opcode),
 				sv2, sv1, out_nzvals, out_nzoffs);
 	    case REALSXP:
-		return Compare_doubleSV_RcomplexSV(flip_opcode(opcode),
+		return Compare_doubleSV_RcomplexSV(flip_Compare_opcode(opcode),
 				sv2, sv1, out_nzvals, out_nzoffs);
 	    case CPLXSXP:
 		return Compare_RcomplexSV_RcomplexSV(opcode,
@@ -611,10 +615,6 @@ int _Compare_sv1_scalar(int opcode, const SparseVec *sv1, SEXP scalar,
 int _Compare_sv1_sv2(int opcode, const SparseVec *sv1, const SparseVec *sv2,
 		int *out_nzvals, int *out_nzoffs)
 {
-	if (sv1->na_background)
-		error("SparseArray internal error in "
-		      "_Compare_sv1_sv2():\n"
-		      "    operation not yet supported on NaArray objects");
 	SEXPTYPE Rtype1 = get_SV_Rtype(sv1);
 	switch (Rtype1) {
 	    case RAWSXP:

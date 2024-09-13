@@ -6,6 +6,10 @@
 
 #include <string.h>  /* for memset() and memcpy() */
 
+/* Initialized in R_init_SparseArray(). */
+int intNA;
+double doubleNA;
+Rcomplex RcomplexNA;
 
 /* The 7 types of R vectors (6 types of atomic vectors + the "list" type). */
 static const SEXPTYPE Rvector_types[] = {
@@ -180,8 +184,7 @@ void _set_elts_to_NA(SEXPTYPE Rtype, void *x, R_xlen_t offset, R_xlen_t n)
 {
 	switch (Rtype) {
 	    case INTSXP: {
-		const int val = NA_INTEGER;
-		_set_elts_to_val(Rtype, x, offset, n, &val);
+		_set_elts_to_val(Rtype, x, offset, n, &intNA);
 		return;
 	    }
 	    case LGLSXP: {
@@ -190,13 +193,11 @@ void _set_elts_to_NA(SEXPTYPE Rtype, void *x, R_xlen_t offset, R_xlen_t n)
 		return;
 	    }
 	    case REALSXP: {
-		const double val = NA_REAL;
-		_set_elts_to_val(Rtype, x, offset, n, &val);
+		_set_elts_to_val(Rtype, x, offset, n, &doubleNA);
 		return;
 	    }
 	    case CPLXSXP: {
-		const Rcomplex val = {{NA_REAL, NA_REAL}};
-		_set_elts_to_val(Rtype, x, offset, n, &val);
+		_set_elts_to_val(Rtype, x, offset, n, &RcomplexNA);
 		return;
 	    }
 	}

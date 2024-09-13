@@ -52,9 +52,7 @@ int _Logic_intSV_intSV(int opcode, const SparseVec *sv1, const SparseVec *sv2,
 		int *out_nzvals, int *out_nzoffs)
 {
 	int out_nzcount = 0, k1 = 0, k2 = 0, off, x, y;
-	while (next_2SV_vals_int_int(sv1, sv2,
-				&k1, &k2, &off, &x, &y))
-	{
+	while (next_int_int_vals(sv1, sv2, &k1, &k2, &off, &x, &y)) {
 		int v = Logic_int_int(x, y, opcode);
 		if (v != int0) {
 			out_nzvals[out_nzcount] = v;

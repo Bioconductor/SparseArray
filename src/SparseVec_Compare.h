@@ -13,15 +13,17 @@
 #define	LT_OPCODE	5  /* "<" */
 #define	GT_OPCODE	6  /* ">" */
 
-static inline int flip_opcode(int opcode)
+static inline int flip_Compare_opcode(int opcode)
 {
 	switch (opcode) {
-	    case NE_OPCODE: return opcode;
+	    case EQ_OPCODE: case NE_OPCODE: return opcode;
+	    case LE_OPCODE: return GE_OPCODE;
+	    case GE_OPCODE: return LE_OPCODE;
 	    case LT_OPCODE: return GT_OPCODE;
 	    case GT_OPCODE: return LT_OPCODE;
 	}
-	error("SparseArray internal error in flip_opcode():\n"
-	      "    unsupported 'opcode'");
+	error("SparseArray internal error in flip_Compare_opcode():\n"
+	      "    invalid 'Compare' opcode: %d", opcode);
 	return 0;  /* will never reach this */
 }
 

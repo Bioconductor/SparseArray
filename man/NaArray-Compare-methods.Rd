@@ -7,6 +7,11 @@
 
 \alias{Compare,NaArray,vector-method}
 \alias{Compare,vector,NaArray-method}
+\alias{Compare,NaArray,NaArray-method}
+\alias{Compare,NaArray,array-method}
+\alias{Compare,array,NaArray-method}
+\alias{Compare,NaArray,SVT_SparseArray-method}
+\alias{Compare,SVT_SparseArray,NaArray-method}
 
 \title{'Compare' operations on NaArray objects}
 
@@ -19,7 +24,23 @@
 }
 
 \details{
-  COMING SOON...
+  Three forms of 'Compare' operations involving \link{NaArray} objects are
+  supported:
+  \enumerate{
+    \item Between an \link{NaArray} object \code{naa} and a single
+          value \code{y}: \preformatted{    naa op y
+    y op naa}
+
+    \item Between two \link{NaArray} objects \code{naa1} and
+          \code{naa2} of same dimensions (a.k.a. \emph{conformable arrays}):
+          \preformatted{    naa1 op naa2}
+
+    \item Between an \link{NaArray} object \code{naa} and an
+          \link{SVT_SparseArray} object \code{svt} of same dimensions
+          (a.k.a. \emph{conformable arrays}):
+          \preformatted{    naa op svt
+    svt op naa}
+  }
 }
 
 \value{
@@ -37,18 +58,27 @@
 }
 
 \examples{
-nam <- NaArray(dim=c(15, 6), type="double")
-nam[c(2, 6, 12:17, 22:33, 55, 59:62, 90)] <- runif(26)
-nam
+nam1 <- NaArray(dim=c(15, 6), type="double")
+nam1[c(2, 6, 12:17, 22:33, 55, 59:62, 90)] <- runif(26)
+nam1
 
-nam >= 0.2
-nam != 0
+nam1 >= 0.2
+nam1 != 0
+
+nam2 <- NaArray(dim=dim(nam1), type="integer")
+nam2[cbind(1:15, 2)] <- 100:114
+nam2[cbind(1:15, 5)] <- -(114:100)
+nam2
+
+nam1 < nam2
 
 ## Sanity check:
-m <- as.matrix(nam)
+m1 <- as.matrix(nam1)
+m2 <- as.matrix(nam2)
 stopifnot(
-  identical(as.matrix(nam >= 0.2), m >= 0.2),
-  identical(as.matrix(nam != 0), m != 0)
+  identical(as.matrix(nam1 >= 0.2), m1 >= 0.2),
+  identical(as.matrix(nam1 != 0), m1 != 0),
+  identical(as.matrix(nam1 < nam2), m1 < m2)
 )
 }
 \keyword{array}

@@ -17,6 +17,19 @@ typedef struct sparse_vec_t {
 	int na_background;   /* background value is NA instead of zero */
 } SparseVec;
 
+/* PROPAGATE_NZOFFS is a special value returned by _Arith_sv1_scalar(),
+   _Compare_sv1_scalar(), and other functions that take a single input
+   SparseVec to indicate that the result of the operation is a sparse vector
+   with the same nzoffs as the input ones and with a single nzval shared by
+   all the nzoffs.
+   IMPORTANT: If this is the case then the function doesn't write anything
+   to output buffer 'out_nzoffs' and writes the single shared nzval to
+   'out_nzvals[0]'. */
+#define	PROPAGATE_NZOFFS   -1  /* must be a **negative** int */
+
+/* Another special value used in SparseVec_Arith.c. */
+#define	NZCOUNT_IS_NOT_SET -2  /* must be < 0 and != PROPAGATE_NZOFFS */
+
 /* 'Rtype' **must** be set to 'TYPEOF(nzvals)' if 'nzvals' is not R_NilValue.
    The only reason we have the 'Rtype' argument is so that we can still store
    the 'Rtype' in the SparseVec even when the supplied 'nzvals' is R_NilValue
@@ -30,6 +43,10 @@ static inline SparseVec toSparseVec(SEXP nzvals, SEXP nzoffs,
 	R_xlen_t nzcount = XLENGTH(nzoffs);
 	if (nzcount == 0 || nzcount > INT_MAX)
 		goto on_error;
+
+	if (na_background && Rtype == RAWSXP)
+		error("SparseArray internal error in toSparseVec():\n"
+		      "    NaArray objects of type \"raw\" are not supported");
 
 	SparseVec sv;
 	sv.Rtype = Rtype;
@@ -117,7 +134,7 @@ static inline Rcomplex get_RcomplexSV_nzval(const SparseVec *sv, int k)
 	return nzvals_p == NULL ? Rcomplex1 : nzvals_p[k];
 }
 
-static inline int smallest_offset(
+static inline int next_offset(
 		const int *offs1, int n1,
 		const int *offs2, int n2,
 		int k1, int k2, int *off)
@@ -147,30 +164,75 @@ static inline int smallest_offset(
 	return 0;
 }
 
-#define FUNDEF_next_2SV_vals(Ltype, Rtype)				\
-	(const SparseVec *sv1,						\
-	 const SparseVec *sv2,						\
-	 int *k1, int *k2, int *off, Ltype *val1, Rtype *val2)		\
+
+/****************************************************************************
+ * The next_<Ltype>_<Rtype>_vals() inline functions (11 in total)
+ */
+
+static inline int next_Rbyte_Rbyte_vals(
+	const SparseVec *sv1, const SparseVec *sv2,
+	int *k1, int *k2, int *off, Rbyte *val1, Rbyte *val2)
+{
+	if (sv1->na_background || sv2->na_background)
+		error("SparseArray internal error in "
+		      "next_Rbyte_Rbyte_vals():\n"
+		      "    NaArray objects of type \"raw\" are not supported");
+	int ret = next_offset(sv1->nzoffs, get_SV_nzcount(sv1),
+			      sv2->nzoffs, get_SV_nzcount(sv2),
+			      *k1, *k2, off);
+	switch (ret) {
+	    case 1: {
+		*val1 = get_RbyteSV_nzval(sv1, *k1);
+		*val2 = Rbyte0;
+		(*k1)++;
+		break;
+	    }
+	    case 2: {
+		*val1 = Rbyte0;
+		*val2 = get_RbyteSV_nzval(sv2, *k2);
+		(*k2)++;
+		break;
+	    }
+	    case 3: {
+		*val1 = get_RbyteSV_nzval(sv1, *k1);
+		*val2 = get_RbyteSV_nzval(sv2, *k2);
+		(*k1)++;
+		(*k2)++;
+		break;
+	    }
+	}
+	return ret;
+}
+
+#define DEFINE_next_Rbyte_Rtype_vals_FUN(Rtype)				\
+static inline int next_Rbyte_ ## Rtype ##_vals(				\
+	const SparseVec *sv1, const SparseVec *sv2,			\
+	int *k1, int *k2, int *off, Rbyte *val1, Rtype *val2)		\
 {									\
-	int ret = smallest_offset(sv1->nzoffs, get_SV_nzcount(sv1),	\
-				  sv2->nzoffs, get_SV_nzcount(sv2),	\
-				  *k1, *k2, off);			\
+	if (sv1->na_background)						\
+		error("SparseArray internal error in "			\
+		      "next_Rbyte_<Rtype>_vals():\n"			\
+		      "    NaArray objects of type \"raw\" "		\
+		      "are not supported");				\
+	int ret = next_offset(sv1->nzoffs, get_SV_nzcount(sv1),		\
+			      sv2->nzoffs, get_SV_nzcount(sv2),		\
+			      *k1, *k2, off);				\
 	switch (ret) {							\
 	    case 1: {							\
-		*val1 = get_ ## Ltype  ## SV_nzval(sv1, *k1);		\
-		*val2 = Rtype ## 0;					\
+		*val1 = get_RbyteSV_nzval(sv1, *k1);			\
+		*val2 = sv2->na_background ? Rtype ## NA : Rtype ## 0;	\
 		(*k1)++;						\
 		break;							\
 	    }								\
 	    case 2: {							\
-		*val1 = Ltype ## 0;					\
-		*val2 = get_ ## Rtype  ## SV_nzval(sv2, *k2);		\
+		*val1 = Rbyte0;						\
+		*val2 = get_ ## Rtype ## SV_nzval(sv2, *k2);		\
 		(*k2)++;						\
 		break;							\
 	    }								\
 	    case 3: {							\
-		*val1 = get_ ## Ltype  ## SV_nzval(sv1, *k1);		\
-		*val2 = get_ ## Rtype  ## SV_nzval(sv2, *k2);		\
+		*val1 = get_RbyteSV_nzval(sv1, *k1);			\
+		*val2 = get_ ## Rtype ## SV_nzval(sv2, *k2);		\
 		(*k1)++;						\
 		(*k2)++;						\
 		break;							\
@@ -179,51 +241,48 @@ static inline int smallest_offset(
 	return ret;							\
 }
 
-static inline int next_2SV_vals_Rbyte_Rbyte
-	FUNDEF_next_2SV_vals(Rbyte, Rbyte)
+#define DEFINE_next_Ltype_Rtype_vals_FUN(Ltype, Rtype)			\
+static inline int next_ ## Ltype ## _ ## Rtype ##_vals(			\
+	const SparseVec *sv1, const SparseVec *sv2,			\
+	int *k1, int *k2, int *off, Ltype *val1, Rtype *val2)		\
+{									\
+	int ret = next_offset(sv1->nzoffs, get_SV_nzcount(sv1),		\
+			      sv2->nzoffs, get_SV_nzcount(sv2),		\
+			      *k1, *k2, off);				\
+	switch (ret) {							\
+	    case 1: {							\
+		*val1 = get_ ## Ltype ## SV_nzval(sv1, *k1);		\
+		*val2 = sv2->na_background ? Rtype ## NA : Rtype ## 0;	\
+		(*k1)++;						\
+		break;							\
+	    }								\
+	    case 2: {							\
+		*val1 = sv1->na_background ? Ltype ## NA : Ltype ## 0;	\
+		*val2 = get_ ## Rtype ## SV_nzval(sv2, *k2);		\
+		(*k2)++;						\
+		break;							\
+	    }								\
+	    case 3: {							\
+		*val1 = get_ ## Ltype ## SV_nzval(sv1, *k1);		\
+		*val2 = get_ ## Rtype ## SV_nzval(sv2, *k2);		\
+		(*k1)++;						\
+		(*k2)++;						\
+		break;							\
+	    }								\
+	}								\
+	return ret;							\
+}
 
-static inline int next_2SV_vals_Rbyte_int
-	FUNDEF_next_2SV_vals(Rbyte, int)
-
-static inline int next_2SV_vals_Rbyte_double
-	FUNDEF_next_2SV_vals(Rbyte, double)
-
-static inline int next_2SV_vals_Rbyte_Rcomplex
-	FUNDEF_next_2SV_vals(Rbyte, Rcomplex)
-
-static inline int next_2SV_vals_int_int
-	FUNDEF_next_2SV_vals(int, int)
-
-static inline int next_2SV_vals_int_double
-	FUNDEF_next_2SV_vals(int, double)
-
-static inline int next_2SV_vals_int_Rcomplex
-	FUNDEF_next_2SV_vals(int, Rcomplex)
-
-static inline int next_2SV_vals_double_int
-	FUNDEF_next_2SV_vals(double, int)
-
-static inline int next_2SV_vals_double_double
-	FUNDEF_next_2SV_vals(double, double)
-
-static inline int next_2SV_vals_double_Rcomplex
-	FUNDEF_next_2SV_vals(double, Rcomplex)
-
-static inline int next_2SV_vals_Rcomplex_Rcomplex
-	FUNDEF_next_2SV_vals(Rcomplex, Rcomplex)
-
-/* PROPAGATE_NZOFFS is a special value returned by _Arith_sv1_scalar(),
-   _Compare_sv1_scalar(), and other functions that take a single input
-   SparseVec to indicate that the result of the operation is a sparse vector
-   with the same nzoffs as the input ones and with a single nzval shared by
-   all the nzoffs.
-   IMPORTANT: If this is the case then the function doesn't write anything
-   to output buffer 'out_nzoffs' and writes the single shared nzval to
-   'out_nzvals[0]'. */
-#define	PROPAGATE_NZOFFS   -1  /* must be a **negative** int */
-
-/* Another special value used in SparseVec_Arith.c. */
-#define	NZCOUNT_IS_NOT_SET -2  /* must be < 0 and != PROPAGATE_NZOFFS */
+DEFINE_next_Rbyte_Rtype_vals_FUN(int)
+DEFINE_next_Rbyte_Rtype_vals_FUN(double)
+DEFINE_next_Rbyte_Rtype_vals_FUN(Rcomplex)
+DEFINE_next_Ltype_Rtype_vals_FUN(int, int)
+DEFINE_next_Ltype_Rtype_vals_FUN(int, double)
+DEFINE_next_Ltype_Rtype_vals_FUN(int, Rcomplex)
+DEFINE_next_Ltype_Rtype_vals_FUN(double, int)
+DEFINE_next_Ltype_Rtype_vals_FUN(double, double)
+DEFINE_next_Ltype_Rtype_vals_FUN(double, Rcomplex)
+DEFINE_next_Ltype_Rtype_vals_FUN(Rcomplex, Rcomplex)
 
 #endif  /* _SPARSEVEC_H_ */
 

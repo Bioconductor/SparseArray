@@ -17,6 +17,13 @@ static const double double1 = 1.0;
 static const Rcomplex Rcomplex1 = {{double1, double0}}; */
 static const Rcomplex Rcomplex1 = {{1.0, 0.0}};
 
+/* Unfortunately, R does not define NA_INTEGER or NA_REAL as const
+   variables so we can't define intNA, doubleNA, or RcomplexNA as
+   we do for int0/1, double0/1, or Rcomplex0/1 above. */
+extern int intNA;
+extern double doubleNA;
+extern Rcomplex RcomplexNA;
+
 #define	IS_EMPTY_CHARSXP(x) ((x) != NA_STRING && isBlankString(CHAR(x)))
 
 #define RCOMPLEX_IS_NA_OR_NaN(z) (ISNAN((z)->r) || ISNAN((z)->i))

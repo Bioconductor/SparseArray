@@ -45,13 +45,12 @@ static SEXP make_logical_leaf_with_single_shared_int(int na_background,
  */
 
 static SEXP Compare_leaf1_zero(int opcode,
-		SEXP leaf1, SEXPTYPE Rtype1,
+		SEXP leaf1, SEXPTYPE Rtype1, int na_background1,
 		int dim0,
 		int *nzvals_buf, int *nzoffs_buf)
 {
-	const SparseVec sv1 = leaf2SV(leaf1, Rtype1, dim0, 0);
-	int buf_len = _Compare_sv1_zero(opcode, &sv1,
-					nzvals_buf, nzoffs_buf);
+	const SparseVec sv1 = leaf2SV(leaf1, Rtype1, dim0, na_background1);
+	int buf_len = _Compare_sv1_zero(opcode, &sv1, nzvals_buf, nzoffs_buf);
 	if (buf_len == PROPAGATE_NZOFFS)
 		return make_logical_leaf_with_single_shared_int(
 				sv1.na_background, nzvals_buf[0],
@@ -77,22 +76,29 @@ static SEXP Compare_leaf1_scalar(int opcode,
 }
 
 static SEXP Compare_leaf1_leaf2(int opcode,
-		SEXP leaf1, SEXPTYPE Rtype1, SEXP leaf2, SEXPTYPE Rtype2,
+		SEXP leaf1, SEXPTYPE Rtype1, int na_background1,
+		SEXP leaf2, SEXPTYPE Rtype2, int na_background2,
 		int dim0,
 		int *nzvals_buf, int *nzoffs_buf)
 {
 	if (leaf1 == R_NilValue) {
-		if (leaf2 == R_NilValue)
+		if (na_background1 || leaf2 == R_NilValue)
 			return R_NilValue;
-		return Compare_leaf1_zero(flip_opcode(opcode), leaf2, Rtype2,
+		return Compare_leaf1_zero(flip_Compare_opcode(opcode),
+					  leaf2, Rtype2, na_background2,
 					  dim0,
 					  nzvals_buf, nzoffs_buf);
 	}
-	if (leaf2 == R_NilValue)
-		return Compare_leaf1_zero(opcode, leaf1, Rtype1, dim0,
+	if (leaf2 == R_NilValue) {
+		if (na_background2)
+			return R_NilValue;
+		return Compare_leaf1_zero(opcode,
+					  leaf1, Rtype1, na_background1,
+					  dim0,
 					  nzvals_buf, nzoffs_buf);
-	const SparseVec sv1 = leaf2SV(leaf1, Rtype1, dim0, 0);
-	const SparseVec sv2 = leaf2SV(leaf2, Rtype2, dim0, 0);
+	}
+	const SparseVec sv1 = leaf2SV(leaf1, Rtype1, dim0, na_background1);
+	const SparseVec sv2 = leaf2SV(leaf2, Rtype2, dim0, na_background2);
 	int buf_len = _Compare_sv1_sv2(opcode, &sv1, &sv2,
 				       nzvals_buf, nzoffs_buf);
 	return _make_leaf_from_two_arrays(LGLSXP,
@@ -142,17 +148,23 @@ static SEXP REC_Compare_SVT1_scalar(int opcode,
 }
 
 static SEXP REC_Compare_SVT1_SVT2(int opcode,
-		SEXP SVT1, SEXPTYPE Rtype1, SEXP SVT2, SEXPTYPE Rtype2,
+		SEXP SVT1, SEXPTYPE Rtype1, int na_background1,
+		SEXP SVT2, SEXPTYPE Rtype2, int na_background2,
 		const int *dim, int ndim,
 		int *nzvals_buf, int *nzoffs_buf)
 {
 	if (SVT1 == R_NilValue && SVT2 == R_NilValue)
 		return R_NilValue;
 
+	if ((na_background1 && SVT1 == R_NilValue) ||
+	    (na_background2 && SVT2 == R_NilValue))
+		return R_NilValue;
+
 	if (ndim == 1) {
-		/* 'SVT1' and 'SVT2' are leaves (i.e. 1D SVTs).
-		   They cannot both be NULL. */
-		return Compare_leaf1_leaf2(opcode, SVT1, Rtype1, SVT2, Rtype2,
+		/* 'SVT1' and 'SVT2' are leaves (i.e. 1D SVTs). */
+		return Compare_leaf1_leaf2(opcode,
+					   SVT1, Rtype1, na_background1,
+					   SVT2, Rtype2, na_background2,
 					   dim[0],
 					   nzvals_buf, nzoffs_buf);
 	}
@@ -170,7 +182,8 @@ static SEXP REC_Compare_SVT1_SVT2(int opcode,
 		if (SVT2 != R_NilValue)
 			subSVT2 = VECTOR_ELT(SVT2, i);
 		SEXP ans_elt = REC_Compare_SVT1_SVT2(opcode,
-					subSVT1, Rtype1, subSVT2, Rtype2,
+					subSVT1, Rtype1, na_background1,
+					subSVT2, Rtype2, na_background2,
 					dim, ndim - 1,
 					nzvals_buf, nzoffs_buf);
 		if (ans_elt != R_NilValue) {
@@ -195,10 +208,10 @@ SEXP C_Compare_SVT1_v2(
 		SEXP v2, SEXP op)
 {
 	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
-					"C_Compare_SVT1_v2", "x_type");
+				"C_Compare_SVT1_v2", "x_type");
 
 	int x_has_NAbg = _get_and_check_na_background(x_na_background,
-					"C_Compare_SVT1_v2", "x_na_background");
+				"C_Compare_SVT1_v2", "x_na_background");
 
 	int opcode = _get_Compare_opcode(op);
 	int dim0 = INTEGER(x_dim)[0];
@@ -218,22 +231,30 @@ SEXP C_Compare_SVT1_SVT2(
 {
 	_check_array_conformability(x_dim, y_dim);
 	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
-					"C_Compare_SVT1_SVT2", "x_type");
+				"C_Compare_SVT1_SVT2", "x_type");
+	int x_has_NAbg = _get_and_check_na_background(x_na_background,
+				"C_Compare_SVT1_SVT2", "x_na_background");
 	SEXPTYPE y_Rtype = _get_and_check_Rtype_from_Rstring(y_type,
-					"C_Compare_SVT1_SVT2", "y_type");
+				"C_Compare_SVT1_SVT2", "y_type");
+	int y_has_NAbg = _get_and_check_na_background(y_na_background,
+				"C_Compare_SVT1_SVT2", "y_na_background");
 
 	int opcode = _get_Compare_opcode(op);
-	if (opcode != NE_OPCODE &&
+
+	if (!x_has_NAbg && !y_has_NAbg &&
+	    opcode != NE_OPCODE &&
 	    opcode != LT_OPCODE &&
 	    opcode != GT_OPCODE)
 	{
-		error("\"%s\" is not supported between SVT_SparseArray "
+		error("\"%s\" is not supported between SparseArray "
 		      "objects", CHAR(STRING_ELT(op, 0)));
 	}
 	int dim0 = INTEGER(x_dim)[0];
 	int *nzvals_buf = (int *) R_alloc(dim0, sizeof(int));
 	int *nzoffs_buf = (int *) R_alloc(dim0, sizeof(int));
-	return REC_Compare_SVT1_SVT2(opcode, x_SVT, x_Rtype, y_SVT, y_Rtype,
+	return REC_Compare_SVT1_SVT2(opcode,
+				     x_SVT, x_Rtype, x_has_NAbg,
+				     y_SVT, y_Rtype, y_has_NAbg,
 				     INTEGER(x_dim), LENGTH(x_dim),
 				     nzvals_buf, nzoffs_buf);
 }
