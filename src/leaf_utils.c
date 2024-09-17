@@ -384,7 +384,7 @@ SEXP _coerce_naleaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn,
 	if (nzvals == R_NilValue)  /* lacunar leaf */
 		return coerce_lacunar_leaf(leaf, new_Rtype);
 	/* standard leaf */
-	int w;
+	int w = 0;
 	SEXP ans_nzvals = PROTECT(_coerceVector2(nzvals, new_Rtype, &w));
 	SEXP ans = PROTECT(zip_leaf(ans_nzvals, nzoffs, 0));
 	if (w) {
