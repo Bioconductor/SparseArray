@@ -57,12 +57,12 @@ setMethod("!", "SparseArray",
         stop(wmsg("\"", op, "\" between a SparseArray object ",
                   "and a vector of length != 1 is not supported"))
     if (is.na(y))
-        error_on_sparsity_not_preserved(op, "y is NA")
+        error_on_left_sparsity_not_preserved(op, "y is NA")
 
     if (op == "&" && isFALSE(y))
         return(BiocGenerics:::replaceSlots(x, SVT=NULL, check=FALSE))
     if (op == "|" && isTRUE(y))
-        error_on_sparsity_not_preserved(op, "y is TRUE")
+        error_on_left_sparsity_not_preserved(op, "y is TRUE")
     x
 }
 

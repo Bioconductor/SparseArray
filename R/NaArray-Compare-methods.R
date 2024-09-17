@@ -8,22 +8,8 @@
 ###
 
 
-### NOT used at the moment!
-.error_on_NaArray_sparsity_not_preserved <- function(op, when)
-{
-    flipped_op <- flip_Compare_op(op)
-    show_flipped_op <- flipped_op != op || op_is_commutative(op)
-    if (show_flipped_op) {
-        msg <- c("'x ", op, " y' and 'y ", flipped_op, " x': operations")
-    } else {
-        msg <- c("x ", op, " y: operation")
-    }
-    stop(wmsg(msg, " not supported on NaArray object x ",
-              "when ", when, " (result wouldn't be \"NA-sparse\")"))
-}
-
 ### Supports all 'Compare' ops: "==", "!=", "<=", ">=", "<", ">"
-### Returns an NaArray object.
+### Returns a "logical" NaArray object.
 .Compare_NaSVT1_v2 <- function(op, x, y)
 {
     stopifnot(isSingleString(op), is(x, "NaArray"))
@@ -67,7 +53,7 @@ setMethod("Compare", c("vector", "NaArray"),
 )
 
 ### Supports all 'Compare' ops: "==", "!=", "<=", ">=", "<", ">"
-### Returns an NaArray object.
+### Returns a "logical" NaArray object.
 .Compare_NaSVT1_NaSVT2 <- function(op, x, y)
 {
     stopifnot(isSingleString(op), is(x, "NaArray"), is(y, "NaArray"))
@@ -104,17 +90,15 @@ setMethod("Compare", c("NaArray", "NaArray"),
 )
 
 setMethod("Compare", c("NaArray", "array"),
-    function(e1, e2)
-        .Compare_NaSVT1_NaSVT2(.Generic, e1, as(e2, "NaArray"))
+    function(e1, e2) .Compare_NaSVT1_NaSVT2(.Generic, e1, as(e2, "NaArray"))
 )
 
 setMethod("Compare", c("array", "NaArray"),
-    function(e1, e2)
-        .Compare_NaSVT1_NaSVT2(.Generic, as(e1, "NaArray"), e2)
+    function(e1, e2) .Compare_NaSVT1_NaSVT2(.Generic, as(e1, "NaArray"), e2)
 )
 
 ### Supports all 'Compare' ops: "==", "!=", "<=", ">=", "<", ">"
-### Returns an NaArray object.
+### Returns a "logical" NaArray object.
 .Compare_NaSVT1_SVT2 <- function(op, x, y)
 {
     stopifnot(isSingleString(op), is(x, "NaArray"), is(y, "SVT_SparseArray"))
@@ -147,7 +131,7 @@ setMethod("Compare", c("array", "NaArray"),
 }
 
 ### Supports all 'Compare' ops: "==", "!=", "<=", ">=", "<", ">"
-### Returns an NaArray object.
+### Returns a "logical" NaArray object.
 .Compare_SVT1_NaSVT2 <- function(op, x, y)
 {
     stopifnot(isSingleString(op), is(x, "SVT_SparseArray"), is(y, "NaArray"))
@@ -180,12 +164,10 @@ setMethod("Compare", c("array", "NaArray"),
 }
 
 setMethod("Compare", c("NaArray", "SVT_SparseArray"),
-    function(e1, e2)
-        .Compare_NaSVT1_SVT2(.Generic, e1, e2)
+    function(e1, e2) .Compare_NaSVT1_SVT2(.Generic, e1, e2)
 )
 
 setMethod("Compare", c("SVT_SparseArray", "NaArray"),
-    function(e1, e2)
-        .Compare_SVT1_NaSVT2(.Generic, e1, e2)
+    function(e1, e2) .Compare_SVT1_NaSVT2(.Generic, e1, e2)
 )
 

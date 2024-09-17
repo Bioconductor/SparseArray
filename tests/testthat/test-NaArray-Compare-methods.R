@@ -4,20 +4,16 @@
     ## naa1 == y
     a <- a1 == y
     naa <- naa1 == y
-    check_SparseArray_object(naa, "NaArray", a)
-    expect_identical(naa, as(a, "NaArray"))
+    check_NaArray_object(naa, a)
     naa <- y == naa1
-    check_SparseArray_object(naa, "NaArray", a)
-    expect_identical(naa, as(a, "NaArray"))
+    check_NaArray_object(naa, a)
 
     ## naa1 != y
     a <- a1 != y
     naa <- naa1 != y
-    check_SparseArray_object(naa, "NaArray", a)
-    expect_identical(naa, as(a, "NaArray"))
+    check_NaArray_object(naa, a)
     naa <- y != naa1
-    check_SparseArray_object(naa, "NaArray", a)
-    expect_identical(naa, as(a, "NaArray"))
+    check_NaArray_object(naa, a)
 
     ## naa1 <= y
     if (type(naa1) == "complex" || type(y) == "complex") {
@@ -26,11 +22,9 @@
     } else {
         a <- a1 <= y
         naa <- naa1 <= y
-        check_SparseArray_object(naa, "NaArray", a)
-        expect_identical(naa, as(a, "NaArray"))
+        check_NaArray_object(naa, a)
         naa <- y >= naa1
-        check_SparseArray_object(naa, "NaArray", a)
-        expect_identical(naa, as(a, "NaArray"))
+        check_NaArray_object(naa, a)
     }
 
     ## naa1 >= y
@@ -40,11 +34,9 @@
     } else {
         a <- a1 >= y
         naa <- naa1 >= y
-        check_SparseArray_object(naa, "NaArray", a)
-        expect_identical(naa, as(a, "NaArray"))
+        check_NaArray_object(naa, a)
         naa <- y <= naa1
-        check_SparseArray_object(naa, "NaArray", a)
-        expect_identical(naa, as(a, "NaArray"))
+        check_NaArray_object(naa, a)
     }
 
     ## naa1 < y
@@ -54,11 +46,9 @@
     } else {
         a <- a1 < y
         naa <- naa1 < y
-        check_SparseArray_object(naa, "NaArray", a)
-        expect_identical(naa, as(a, "NaArray"))
+        check_NaArray_object(naa, a)
         naa <- y > naa1
-        check_SparseArray_object(naa, "NaArray", a)
-        expect_identical(naa, as(a, "NaArray"))
+        check_NaArray_object(naa, a)
     }
 
     ## naa1 > y
@@ -68,32 +58,31 @@
     } else {
         a <- a1 > y
         naa <- naa1 > y
-        check_SparseArray_object(naa, "NaArray", a)
-        expect_identical(naa, as(a, "NaArray"))
+        check_NaArray_object(naa, a)
         naa <- y < naa1
-        check_SparseArray_object(naa, "NaArray", a)
-        expect_identical(naa, as(a, "NaArray"))
+        check_NaArray_object(naa, a)
     }
 }
 
-### We also test comparison between an NaArray and SVT_SparseArray object!
+### We also test Compare ops between an NaArray and SVT_SparseArray object!
 .test_Compare_NaSVT1_NaSVT2 <- function(a1, a2, naa1, naa2)
 {
+    svt1 <- as(a1, "SVT_SparseArray")
+    svt2 <- as(a2, "SVT_SparseArray")
+
     ## naa1 == naa2
     a <- a1 == a2
     naa <- naa1 == naa2
-    check_SparseArray_object(naa, "NaArray", a)
-    expect_identical(naa, as(a, "NaArray"))
-    expect_identical(naa, naa1 == as(a2, "SVT_SparseArray"))
-    expect_identical(naa, as(a1, "SVT_SparseArray") == naa2)
+    check_NaArray_object(naa, a)
+    expect_identical(naa, naa1 == svt2)
+    expect_identical(naa, svt1 == naa2)
 
     ## naa1 != naa2
     a <- a1 != a2
     naa <- naa1 != naa2
-    check_SparseArray_object(naa, "NaArray", a)
-    expect_identical(naa, as(a, "NaArray"))
-    expect_identical(naa, naa1 != as(a2, "SVT_SparseArray"))
-    expect_identical(naa, as(a1, "SVT_SparseArray") != naa2)
+    check_NaArray_object(naa, a)
+    expect_identical(naa, naa1 != svt2)
+    expect_identical(naa, svt1 != naa2)
 
     ## naa1 <= naa2
     if (type(naa1) == "complex" || type(naa2) == "complex") {
@@ -101,10 +90,9 @@
     } else {
         a <- a1 <= a2
         naa <- naa1 <= naa2
-        check_SparseArray_object(naa, "NaArray", a)
-        expect_identical(naa, as(a, "NaArray"))
-        expect_identical(naa, naa1 <= as(a2, "SVT_SparseArray"))
-        expect_identical(naa, as(a1, "SVT_SparseArray") <= naa2)
+        check_NaArray_object(naa, a)
+        expect_identical(naa, naa1 <= svt2)
+        expect_identical(naa, svt1 <= naa2)
     }
 
     ## naa1 >= naa2
@@ -113,10 +101,9 @@
     } else {
         a <- a1 >= a2
         naa <- naa1 >= naa2
-        check_SparseArray_object(naa, "NaArray", a)
-        expect_identical(naa, as(a, "NaArray"))
-        expect_identical(naa, naa1 >= as(a2, "SVT_SparseArray"))
-        expect_identical(naa, as(a1, "SVT_SparseArray") >= naa2)
+        check_NaArray_object(naa, a)
+        expect_identical(naa, naa1 >= svt2)
+        expect_identical(naa, svt1 >= naa2)
     }
 
     ## naa1 < naa2
@@ -125,10 +112,9 @@
     } else {
         a <- a1 < a2
         naa <- naa1 < naa2
-        check_SparseArray_object(naa, "NaArray", a)
-        expect_identical(naa, as(a, "NaArray"))
-        expect_identical(naa, naa1 < as(a2, "SVT_SparseArray"))
-        expect_identical(naa, as(a1, "SVT_SparseArray") < naa2)
+        check_NaArray_object(naa, a)
+        expect_identical(naa, naa1 < svt2)
+        expect_identical(naa, svt1 < naa2)
     }
 
     ## naa1 > naa2
@@ -137,10 +123,9 @@
     } else {
         a <- a1 > a2
         naa <- naa1 > naa2
-        check_SparseArray_object(naa, "NaArray", a)
-        expect_identical(naa, as(a, "NaArray"))
-        expect_identical(naa, naa1 > as(a2, "SVT_SparseArray"))
-        expect_identical(naa, as(a1, "SVT_SparseArray") > naa2)
+        check_NaArray_object(naa, a)
+        expect_identical(naa, naa1 > svt2)
+        expect_identical(naa, svt1 > naa2)
     }
 }
 

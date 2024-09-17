@@ -26,7 +26,7 @@ test_that("rbind() on SVT_SparseMatrix objects", {
 
     m <- rbind(a=m1, b=m2, c=m3)
     svt <- rbind(a=svt1, b=svt2, c=svt3)
-    check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+    check_array_like_object(svt, "SVT_SparseMatrix", m)
     expect_identical(svt, as(m, "SVT_SparseMatrix"))
 
     ## Unary form.
@@ -40,17 +40,17 @@ test_that("rbind() on SVT_SparseMatrix objects", {
 
     m <- rbind(a=m1, b=m2)
     svt <- rbind(a=svt1, b=svt2)
-    check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+    check_array_like_object(svt, "SVT_SparseMatrix", m)
     expect_identical(svt, as(m, "SVT_SparseMatrix"))
 
     m <- rbind(a=m2, b=m1)
     svt <- rbind(a=svt2, b=svt1)
-    check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+    check_array_like_object(svt, "SVT_SparseMatrix", m)
     expect_identical(svt, as(m, "SVT_SparseMatrix"))
 
     m <- rbind(a=m1, b=m1)
     svt <- rbind(a=svt1, b=svt1)
-    check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+    check_array_like_object(svt, "SVT_SparseMatrix", m)
     expect_identical(svt, as(m, "SVT_SparseMatrix"))
 })
 
@@ -64,7 +64,7 @@ test_that("cbind() on SVT_SparseMatrix objects", {
 
     m <- cbind(a=m1, b=m2, c=m3)
     svt <- cbind(a=svt1, b=svt2, c=svt3)
-    check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+    check_array_like_object(svt, "SVT_SparseMatrix", m)
     expect_identical(svt, as(m, "SVT_SparseMatrix"))
 
     ## Unary form.
@@ -78,17 +78,17 @@ test_that("cbind() on SVT_SparseMatrix objects", {
 
     m <- cbind(a=m1, b=m2)
     svt <- cbind(a=svt1, b=svt2)
-    check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+    check_array_like_object(svt, "SVT_SparseMatrix", m)
     expect_identical(svt, as(m, "SVT_SparseMatrix"))
 
     m <- cbind(a=m2, b=m1)
     svt <- cbind(a=svt2, b=svt1)
-    check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+    check_array_like_object(svt, "SVT_SparseMatrix", m)
     expect_identical(svt, as(m, "SVT_SparseMatrix"))
 
     m <- cbind(a=m1, b=m1)
     svt <- cbind(a=svt1, b=svt1)
-    check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+    check_array_like_object(svt, "SVT_SparseMatrix", m)
     expect_identical(svt, as(m, "SVT_SparseMatrix"))
 })
 
@@ -102,7 +102,7 @@ test_that("arbind() on 3D SVT_SparseArray objects", {
 
     a <- arbind(a=a1, b=a2, c=a3)
     svt <- arbind(a=svt1, b=svt2, c=svt3)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     expect_identical(svt, as(a, "SVT_SparseArray"))
 
     ## Unary form.
@@ -114,17 +114,17 @@ test_that("arbind() on 3D SVT_SparseArray objects", {
 
     a <- arbind(a=a1, b=a2)
     svt <- arbind(a=svt1, b=svt2)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     expect_identical(svt, as(a, "SVT_SparseArray"))
 
     a <- arbind(a=a2, b=a1)
     svt <- arbind(a=svt2, b=svt1)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     expect_identical(svt, as(a, "SVT_SparseArray"))
 
     a <- arbind(a=a1, b=a1)
     svt <- arbind(a=svt1, b=svt1)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     expect_identical(svt, as(a, "SVT_SparseArray"))
 })
 
@@ -138,7 +138,7 @@ test_that("acbind() on 3D SVT_SparseArray objects", {
 
     a <- acbind(a=a1, b=a2, c=a3)
     svt <- acbind(a=svt1, b=svt2, c=svt3)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     expect_identical(svt, as(a, "SVT_SparseArray"))
 
     ## Unary form.
@@ -150,17 +150,17 @@ test_that("acbind() on 3D SVT_SparseArray objects", {
 
     a <- acbind(a=a1, b=a2)
     svt <- acbind(a=svt1, b=svt2)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     expect_identical(svt, as(a, "SVT_SparseArray"))
 
     a <- acbind(a=a2, b=a1)
     svt <- acbind(a=svt2, b=svt1)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     expect_identical(svt, as(a, "SVT_SparseArray"))
 
     a <- acbind(a=a1, b=a1)
     svt <- acbind(a=svt1, b=svt1)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     expect_identical(svt, as(a, "SVT_SparseArray"))
 })
 
@@ -174,13 +174,13 @@ test_that("handling of lacunar leaves in .abind_SVT_SparseArray_objects()", {
 
     m <- rbind(m1, m1)
     svt <- rbind(svt1, svt1)
-    check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+    check_array_like_object(svt, "SVT_SparseMatrix", m)
     expect_identical(svt@SVT[[3L]], make_lacunar_leaf("integer", c(1L, 4L)))
     expect_identical(svt, as(m, "SVT_SparseMatrix"))
 
     m <- rbind(m2, m2)
     svt <- rbind(svt2, svt2)
-    check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+    check_array_like_object(svt, "SVT_SparseMatrix", m)
     expect_identical(svt@SVT[[1L]], make_lacunar_leaf("integer",
                                                       c(0:1, 3:4)))
     expect_identical(svt@SVT[[2L]], make_lacunar_leaf("integer",
@@ -189,13 +189,13 @@ test_that("handling of lacunar leaves in .abind_SVT_SparseArray_objects()", {
 
     m <- rbind(m1, m2)
     svt <- rbind(svt1, svt2)
-    check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+    check_array_like_object(svt, "SVT_SparseMatrix", m)
     expect_identical(svt@SVT[[2L]], make_lacunar_leaf("integer", c(3L, 5L)))
     expect_identical(svt, as(m, "SVT_SparseMatrix"))
 
     m <- rbind(m2, m1)
     svt <- rbind(svt2, svt1)
-    check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+    check_array_like_object(svt, "SVT_SparseMatrix", m)
     expect_identical(svt@SVT[[2L]], make_lacunar_leaf("integer", c(0L, 2L)))
     expect_identical(svt, as(m, "SVT_SparseMatrix"))
 })
@@ -219,7 +219,7 @@ test_that("abind() default method on SparseArray objects", {
 
     a <- abind(.TEST_arrays, along=1)
     svt <- abind(svt_objects, along=1)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     expect_identical(svt, as(a, "SVT_SparseArray"))
 
     expected_words <- c("all", "objects", "must", "be",
@@ -237,7 +237,7 @@ test_that("abind() default method on SparseArray objects", {
     m2 <- .TEST_matrices[[2]]
     a <- abind(m2, a2)
     svt <- abind(m2, svt2)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     expect_identical(svt, as(a, "SVT_SparseArray"))
 })
 
@@ -251,7 +251,7 @@ test_that("abind(..., rev.along=0) on SparseArray objects", {
 
     a <- abind(a1, a2, a3, rev.along=0)
     svt <- abind(svt1, svt2, svt3, rev.along=0)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     expect_identical(svt, as(a, "SVT_SparseArray"))
     expect_identical(abind(svt1, svt2, svt3, along=4), svt)
 })

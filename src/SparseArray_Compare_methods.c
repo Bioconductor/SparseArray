@@ -241,10 +241,9 @@ SEXP C_Compare_SVT1_SVT2(
 
 	int opcode = _get_Compare_opcode(op);
 
-	if (!x_has_NAbg && !y_has_NAbg &&
-	    opcode != NE_OPCODE &&
-	    opcode != LT_OPCODE &&
-	    opcode != GT_OPCODE)
+	if (!x_has_NAbg && !y_has_NAbg && opcode != NE_OPCODE &&
+					  opcode != LT_OPCODE &&
+					  opcode != GT_OPCODE)
 	{
 		error("\"%s\" is not supported between SparseArray "
 		      "objects", CHAR(STRING_ELT(op, 0)));
@@ -253,9 +252,9 @@ SEXP C_Compare_SVT1_SVT2(
 	int *nzvals_buf = (int *) R_alloc(dim0, sizeof(int));
 	int *nzoffs_buf = (int *) R_alloc(dim0, sizeof(int));
 	return REC_Compare_SVT1_SVT2(opcode,
-				     x_SVT, x_Rtype, x_has_NAbg,
-				     y_SVT, y_Rtype, y_has_NAbg,
-				     INTEGER(x_dim), LENGTH(x_dim),
-				     nzvals_buf, nzoffs_buf);
+				x_SVT, x_Rtype, x_has_NAbg,
+				y_SVT, y_Rtype, y_has_NAbg,
+				INTEGER(x_dim), LENGTH(x_dim),
+				nzvals_buf, nzoffs_buf);
 }
 

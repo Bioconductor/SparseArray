@@ -22,7 +22,7 @@ check_Arith_input_type <- function(type, what)
 op_is_commutative <- function(op)
     (op %in% c("+", "*", "==", "!=", "&", "|"))
 
-error_on_sparsity_not_preserved <- function(op, when)
+error_on_left_sparsity_not_preserved <- function(op, when)
 {
     flipped_op <- flip_Compare_op(op)
     show_flipped_op <- flipped_op != op || op_is_commutative(op)
@@ -33,6 +33,22 @@ error_on_sparsity_not_preserved <- function(op, when)
     }
     stop(wmsg(msg, " not supported on SparseArray object x ",
               "when ", when, " (result wouldn't be sparse)"))
+}
+
+get_Arith_output_type <- function(op, x_type, y_type)
+{
+    if (op %in% c("/", "^") && x_type == "integer" && y_type == "integer")
+        return("double")
+    output_type <- type(c(vector(x_type), vector(y_type)))
+    if (output_type == "complex") {
+        ## temporary
+        stop(wmsg("'x ", op, " y' is not supported yet when 'x' or 'y' ",
+                  "is an SVT_SparseArray or NaArray object ",
+                  "of type() \"complex\""))
+    }
+    if (op %in% c("%%", "%/%") && output_type == "complex")
+        stop(wmsg("unimplemented complex operation"))
+    output_type
 }
 
 
@@ -75,6 +91,7 @@ setMethod("-", c("SparseArray", "missing"),
 ###
 
 ### Supports: "*", "/", "^", "%%", "%/%"
+### Returns an NaArray object.
 .Arith_SVT1_v2 <- function(op, x, y)
 {
     stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
@@ -97,29 +114,21 @@ setMethod("-", c("SparseArray", "missing"),
         stop(wmsg("arithmetic operations are not supported between a ",
                   "SparseArray object and a vector of length != 1"))
     if (is.na(y))
-        error_on_sparsity_not_preserved(op, "y is NA or NaN")
+        error_on_left_sparsity_not_preserved(op, "y is NA or NaN")
     if (op == "*" && is.infinite(y))
-        error_on_sparsity_not_preserved(op, "y is Inf or -Inf")
+        error_on_left_sparsity_not_preserved(op, "y is Inf or -Inf")
     if (op == "^" && y <= 0)
-        error_on_sparsity_not_preserved(op, "y is non-positive")
+        error_on_left_sparsity_not_preserved(op, "y is non-positive")
     if (op != "*" && y == 0)
-        error_on_sparsity_not_preserved(op, "y == 0")
+        error_on_left_sparsity_not_preserved(op, "y == 0")
 
     ## Compute 'ans_type'.
-    if (type(y) == "integer" && (type(x) == "double") || op %in% c("/", "^")) {
-        ans_type <- type(y) <- "double"
-    } else {
-        ans_type <- type(c(vector(type(x)), y))
-        if (ans_type == "complex")  # temporary
-            stop(wmsg("\"", op, "\" is not implemented yet between an ",
-                      "SVT_SparseArray object and a single value when ",
-                      "one or the other is of type() \"", ans_type, "\""))
-        if (op %in% c("%%", "%/%") && ans_type == "complex")
-            stop(wmsg("unimplemented complex operation"))
-    }
+    if (type(x) == "double" && type(y) == "integer" || op %in% c("/", "^"))
+        type(y) <- "double"  # cheap
+    ans_type <- get_Arith_output_type(op, type(x), type(y))
 
     new_SVT <- SparseArray.Call("C_Arith_SVT1_v2",
-                                x@dim, x@type, x@SVT, y, op, ans_type)
+                                x@dim, x@type, x@SVT, FALSE, y, op, ans_type)
     BiocGenerics:::replaceSlots(x, type=ans_type, SVT=new_SVT, check=FALSE)
 }
 
@@ -139,6 +148,7 @@ setMethod("Arith", c("vector", "SVT_SparseArray"),
 )
 
 ### Supports: "+", "-", "*"
+### Returns an NaArray object.
 .Arith_SVT1_SVT2 <- function(op, x, y)
 {
     stopifnot(isSingleString(op),
@@ -166,15 +176,11 @@ setMethod("Arith", c("vector", "SVT_SparseArray"),
     ans_dimnames <- S4Arrays:::get_first_non_NULL_dimnames(list(x, y))
 
     ## Compute 'ans_type'.
-    ans_type <- type(c(vector(type(x)), vector(type(y))))
-    if (ans_type == "complex")  # temporary
-        stop(wmsg("\"", op, "\" is not implemented yet between ",
-                  "SVT_SparseArray objects of type() \"", ans_type, "\""))
+    ans_type <- get_Arith_output_type(op, type(x), type(y))
 
     ans_SVT <- SparseArray.Call("C_Arith_SVT1_SVT2",
-                                x_dim, x@type, x@SVT, y_dim, y@type, y@SVT,
-                                op, ans_type)
-
+                                x_dim, x@type, x@SVT, FALSE,
+                                y_dim, y@type, y@SVT, FALSE, op, ans_type)
     new_SVT_SparseArray(x_dim, ans_dimnames, ans_type, ans_SVT, check=FALSE)
 }
 

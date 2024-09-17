@@ -18,7 +18,7 @@
 \description{
   EXPERIMENTAL!!!
 
-  \link{NaArray} objects support operations from the \code{Compare} group.
+  \link{NaArray} objects support all operations from the \code{Compare} group.
   See \code{?\link[methods]{S4groupGeneric}} in the \pkg{methods} package
   for more information about the \code{Compare} group generic.
 }
@@ -31,8 +31,8 @@
           value \code{y}: \preformatted{    naa op y
     y op naa}
 
-    \item Between two \link{NaArray} objects \code{naa1} and
-          \code{naa2} of same dimensions (a.k.a. \emph{conformable arrays}):
+    \item Between two \link{NaArray} objects \code{naa1} and \code{naa2}
+          of same dimensions (a.k.a. \emph{conformable arrays}):
           \preformatted{    naa1 op naa2}
 
     \item Between an \link{NaArray} object \code{naa} and an
@@ -44,7 +44,8 @@
 }
 
 \value{
-  An \link{NaArray} object of the same dimensions as the input object(s).
+  An \link{NaArray} object of \code{type()} \code{"logical"} and
+  same dimensions as the input object(s).
 }
 
 \seealso{
@@ -52,6 +53,8 @@
     \item \code{\link[methods]{S4groupGeneric}} in the \pkg{methods} package.
 
     \item \link{NaArray} objects.
+
+    \item \link{SVT_SparseArray} objects.
 
     \item Ordinary \link[base]{array} objects in base R.
   }
@@ -72,7 +75,7 @@ nam2
 
 nam1 < nam2
 
-## Sanity check:
+## Sanity checks:
 m1 <- as.matrix(nam1)
 m2 <- as.matrix(nam2)
 stopifnot(

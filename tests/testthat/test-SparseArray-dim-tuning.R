@@ -13,7 +13,7 @@ test_that(".tune_SVT_SparseArray_dims()", {
 
     dim_tuner <- c(0L, 0L, -1L, 0L)
     svt <- .tune_SVT_SparseArray_dims(svt0, dim_tuner)
-    check_SparseArray_object(svt, "SVT_SparseArray", drop(a0))
+    check_array_like_object(svt, "SVT_SparseArray", drop(a0))
     expect_identical(as(drop(a0), "SVT_SparseArray"), svt)
     svt2 <- .tune_SVT_SparseArray_dims(svt, -dim_tuner)
     expect_identical(svt2, svt0)
@@ -22,7 +22,7 @@ test_that(".tune_SVT_SparseArray_dims()", {
     svt <- .tune_SVT_SparseArray_dims(svt0, dim_tuner)
     a <- `dim<-`(a0, c(5, 4, 1, 1, 1, 3))
     dimnames(a)[c(1, 2, 4, 6)] <- dimnames(a0)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     expect_identical(as(a, "SVT_SparseArray"), svt)
     svt2 <- .tune_SVT_SparseArray_dims(svt, -dim_tuner)
     expect_identical(svt2, svt0)
@@ -31,7 +31,7 @@ test_that(".tune_SVT_SparseArray_dims()", {
     svt <- .tune_SVT_SparseArray_dims(svt0, dim_tuner)
     a <- `dim<-`(a0, c(1, 1, 5, 1, 4, 3, 1))
     dimnames(a)[c(3, 5, 6)] <- dimnames(a0)[c(1, 2, 4)]
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     expect_identical(as(a, "SVT_SparseArray"), svt)
     svt2 <- .tune_SVT_SparseArray_dims(svt, -dim_tuner)
     expect_identical(svt2, svt0)
@@ -46,7 +46,7 @@ test_that("`dim<-` and drop() on an SVT_SparseArray object", {
     a <- `dim<-`(m0, c(1L, dim(m0)))
     dimnames(a) <- c(list(NULL), dimnames(m0))
     svt <- `dim<-`(svt0, c(1L, dim(svt0)))
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     expect_identical(as(a, "SVT_SparseArray"), svt)
 
     expect_identical(drop(svt), svt0)
@@ -66,7 +66,7 @@ test_that("`dim<-` and drop() on an SVT_SparseArray object", {
     a <- `dim<-`(m0, c(1L, dim(m0)))
     dimnames(a) <- c(list(NULL), dimnames(m0))
     svt <- `dim<-`(svt0, c(1L, dim(svt0)))
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     expect_identical(as(a, "SVT_SparseArray"), svt)
 
     expect_identical(drop(svt), svt0)

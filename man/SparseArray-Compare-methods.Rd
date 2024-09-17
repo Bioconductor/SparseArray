@@ -46,8 +46,8 @@
 }
 
 \value{
-  A \link{SparseArray} derivative of the same dimensions as the input
-  object(s).
+  A \link{SparseArray} derivative of \code{type()} \code{"logical"} and
+  same dimensions as the input object(s).
 }
 
 \seealso{
@@ -68,7 +68,7 @@ svt1
 svt1 >= 0.2
 svt1 != 0
 
-## Sanity check:
+## Sanity checks:
 m1 <- as.matrix(svt1)
 stopifnot(
   identical(as.matrix(svt1 >= 0.2), m1 >= 0.2),

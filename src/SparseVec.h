@@ -17,6 +17,9 @@ typedef struct sparse_vec_t {
 	int na_background;   /* background value is NA instead of zero */
 } SparseVec;
 
+#define	IS_BACKGROUND_VAL(x, na_background) \
+	(((na_background) && R_IsNA(x)) || (!(na_background) && (x) == double0))
+
 /* PROPAGATE_NZOFFS is a special value returned by _Arith_sv1_scalar(),
    _Compare_sv1_scalar(), and other functions that take a single input
    SparseVec to indicate that the result of the operation is a sparse vector

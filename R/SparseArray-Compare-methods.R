@@ -56,7 +56,7 @@ must_homogenize_for_Compare <- function(x_type, y_type)
 }
 
 ### Supports all 'Compare' ops: "==", "!=", "<=", ">=", "<", ">"
-### Returns an SVT_SparseArray object.
+### Returns a "logical" SVT_SparseArray object.
 .Compare_SVT1_v2 <- function(op, x, y)
 {
     stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
@@ -75,36 +75,36 @@ must_homogenize_for_Compare <- function(x_type, y_type)
         stop(wmsg("comparison operations are not supported between a ",
                   "SparseArray object and a vector of length != 1"))
     if (is.na(y))
-        error_on_sparsity_not_preserved(op,
+        error_on_left_sparsity_not_preserved(op,
                     "y is NA or NaN")
     if (type(y) %in% c("logical", "raw") && op %in% c("<=", "<"))
-        error_on_sparsity_not_preserved(op,
+        error_on_left_sparsity_not_preserved(op,
                     "y is a logical or raw value")
 
     biggest_type <- type(c(vector(x_type), y))
     if (biggest_type == "character" && op %in% c("<=", "<"))
-        error_on_sparsity_not_preserved(op,
+        error_on_left_sparsity_not_preserved(op,
                     "type(x) is \"character\" or y is a string")
 
     type(y) <- biggest_type
     zero <- vector(type(y), length=1L)
     if (op == "==" && y == zero)
-        error_on_sparsity_not_preserved(op,
+        error_on_left_sparsity_not_preserved(op,
                     "y is 0 or FALSE or the empty string")
     if (op == "!=" && y != zero)
-        error_on_sparsity_not_preserved(op,
+        error_on_left_sparsity_not_preserved(op,
                     "y is not 0, FALSE, or the empty string")
     if (op == "<=" && y >= zero)
-        error_on_sparsity_not_preserved(op,
+        error_on_left_sparsity_not_preserved(op,
                     "y is >= 0")
     if (op == ">=" && y <= zero)
-        error_on_sparsity_not_preserved(op,
+        error_on_left_sparsity_not_preserved(op,
                     "y is <= 0, or FALSE, or the empty string")
     if (op == "<" && y > zero)
-        error_on_sparsity_not_preserved(op,
+        error_on_left_sparsity_not_preserved(op,
                     "y is > 0")
     if (op == ">" && y < zero)
-        error_on_sparsity_not_preserved(op,
+        error_on_left_sparsity_not_preserved(op,
                     "y is < 0")
 
     ## Handle situations where we need to change the type() of 'x' to
@@ -129,7 +129,7 @@ setMethod("Compare", c("vector", "SVT_SparseArray"),
 )
 
 ### Supports: "!=", "<", ">"
-### Returns an SVT_SparseArray object.
+### Returns a "logical" SVT_SparseArray object.
 .Compare_SVT1_SVT2 <- function(op, x, y)
 {
     stopifnot(isSingleString(op),

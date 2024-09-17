@@ -3,7 +3,7 @@
     svt <- as(m0, to)
     tm0 <- t(m0)
     tsvt <- t(svt)
-    check_SparseArray_object(tsvt, to, tm0)
+    check_array_like_object(tsvt, to, tm0)
     expect_identical(tsvt, as(tm0, to))
 }
 
@@ -47,7 +47,7 @@ test_that(".aperm_SVT() follows base::aperm() semantic", {
 
     expected <- aperm(m0)
     current <- aperm(svt0)
-    check_SparseArray_object(current, "SVT_SparseMatrix", expected)
+    check_array_like_object(current, "SVT_SparseMatrix", expected)
     expect_identical(aperm(current, 2:1), svt0)
 
     ## --- with 3 dimensions ---
@@ -62,25 +62,25 @@ test_that(".aperm_SVT() follows base::aperm() semantic", {
 
     expected <- aperm(a0)
     current <- aperm(svt0)
-    check_SparseArray_object(current, "SVT_SparseArray", expected)
+    check_array_like_object(current, "SVT_SparseArray", expected)
     expect_identical(aperm(current, 3:1), svt0)
 
     perm <- c(1, 3, 2)
     expected <- aperm(a0, perm)
     current <- aperm(svt0, perm)
-    check_SparseArray_object(current, "SVT_SparseArray", expected)
+    check_array_like_object(current, "SVT_SparseArray", expected)
     expect_identical(aperm(current, perm), svt0)
 
     perm <- c(2, 1, 3)
     expected <- aperm(a0, perm)
     current <- aperm(svt0, perm)
-    check_SparseArray_object(current, "SVT_SparseArray", expected)
+    check_array_like_object(current, "SVT_SparseArray", expected)
     expect_identical(aperm(current, perm), svt0)
 
     perm <- c(2, 3, 1)
     expected <- aperm(a0, perm)
     current <- aperm(svt0, perm)
-    check_SparseArray_object(current, "SVT_SparseArray", expected)
+    check_array_like_object(current, "SVT_SparseArray", expected)
     expect_identical(aperm(current, perm[perm]), svt0)
 
     ## --- with 5 dimensions and dimnames ---
@@ -93,39 +93,39 @@ test_that(".aperm_SVT() follows base::aperm() semantic", {
 
     expected <- aperm(a0)
     current <- aperm(svt0)
-    check_SparseArray_object(current, "SVT_SparseArray", expected)
+    check_array_like_object(current, "SVT_SparseArray", expected)
     expect_identical(aperm(current, 5:1), svt0)
 
     perm <- c(1, 2, 3, 5, 4)
     expected <- aperm(a0, perm)
     current <- aperm(svt0, perm)
-    check_SparseArray_object(current, "SVT_SparseArray", expected)
+    check_array_like_object(current, "SVT_SparseArray", expected)
     expect_identical(aperm(current, perm), svt0)
 
     perm <- c(1, 2, 4, 3, 5)
     expected <- aperm(a0, perm)
     current <- aperm(svt0, perm)
-    check_SparseArray_object(current, "SVT_SparseArray", expected)
+    check_array_like_object(current, "SVT_SparseArray", expected)
     expect_identical(aperm(current, perm), svt0)
 
     perm <- c(3, 1, 2, 4, 5)
     expected <- aperm(a0, perm)
     current <- aperm(svt0, perm)
-    check_SparseArray_object(current, "SVT_SparseArray", expected)
+    check_array_like_object(current, "SVT_SparseArray", expected)
     rperm <- c(2, 3, 1, 4, 5)  # reverse permutation
     expect_identical(aperm(current, rperm), svt0)
 
     perm <- c(1, 2, 5, 3, 4)
     expected <- aperm(a0, perm)
     current <- aperm(svt0, perm)
-    check_SparseArray_object(current, "SVT_SparseArray", expected)
+    check_array_like_object(current, "SVT_SparseArray", expected)
     rperm <- c(1, 2, 4, 5, 3)  # reverse permutation
     expect_identical(aperm(current, rperm), svt0)
 
     perm <- c(4, 3, 5, 1, 2)
     expected <- aperm(a0, perm)
     current <- aperm(svt0, perm)
-    check_SparseArray_object(current, "SVT_SparseArray", expected)
+    check_array_like_object(current, "SVT_SparseArray", expected)
     rperm <- c(4, 5, 2, 1, 3)  # reverse permutation
     expect_identical(aperm(current, rperm), svt0)
 
@@ -138,20 +138,20 @@ test_that(".aperm_SVT() follows base::aperm() semantic", {
 
     expected <- aperm(a)
     current <- aperm(svt)
-    check_SparseArray_object(current, "SVT_SparseArray", expected)
+    check_array_like_object(current, "SVT_SparseArray", expected)
     expect_identical(aperm(current, 5:1), svt)
 
     perm <- c(1, 2, 5, 3, 4)
     expected <- aperm(a, perm)
     current <- aperm(svt, perm)
-    check_SparseArray_object(current, "SVT_SparseArray", expected)
+    check_array_like_object(current, "SVT_SparseArray", expected)
     rperm <- c(1, 2, 4, 5, 3)  # reverse permutation
     expect_identical(aperm(current, rperm), svt)
 
     perm <- c(4, 3, 5, 1, 2)
     expected <- aperm(a, perm)
     current <- aperm(svt, perm)
-    check_SparseArray_object(current, "SVT_SparseArray", expected)
+    check_array_like_object(current, "SVT_SparseArray", expected)
     rperm <- c(4, 5, 2, 1, 3)  # reverse permutation
     expect_identical(aperm(current, rperm), svt)
 
@@ -176,7 +176,7 @@ test_that(".aperm_SVT() supports S4Arrays::aperm2() extended semantic", {
     for (perm in perms) {
         expected <- aperm2(a, perm)
         current <- aperm(svt, perm)
-        check_SparseArray_object(current, "SVT_SparseArray", expected)
+        check_array_like_object(current, "SVT_SparseArray", expected)
     }
 })
 
@@ -192,7 +192,7 @@ test_that("handling of lacunar leaves in t.SVT_SparseMatrix()", {
         svt0 <- as(m0, "SVT_SparseMatrix")
         m <- t(m0)
         svt <- t(svt0)
-        check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+        check_array_like_object(svt, "SVT_SparseMatrix", m)
         expect_identical(svt@SVT[[1L]], make_lacunar_leaf(type0, c(2L, 4L)))
         expect_identical(svt@SVT[[4L]], make_lacunar_leaf(type0, 4L))
         expect_identical(as(m, "SVT_SparseMatrix"), svt)
@@ -227,7 +227,7 @@ test_that("handling of lacunar leaves in .aperm_SVT()", {
 
         a <- aperm(a0, c(2:1, 3L))
         svt <- aperm(svt0, c(2:1, 3L))
-        check_SparseArray_object(svt, "SVT_SparseArray", a)
+        check_array_like_object(svt, "SVT_SparseArray", a)
         expect_identical(svt@SVT[[1L]][[1L]],
                          make_lacunar_leaf(type0, c(1L, 2L, 4L)))
         expect_identical(svt@SVT[[2L]][[2L]],
@@ -237,7 +237,7 @@ test_that("handling of lacunar leaves in .aperm_SVT()", {
 
         a <- aperm(a0, 3:1)
         svt <- aperm(svt0, 3:1)
-        check_SparseArray_object(svt, "SVT_SparseArray", a)
+        check_array_like_object(svt, "SVT_SparseArray", a)
         expect_identical(svt@SVT[[1L]][[2L]],
                          make_lacunar_leaf(type0, c(0L, 1L)))
         expect_identical(as(a, "SVT_SparseArray"), svt)
@@ -245,7 +245,7 @@ test_that("handling of lacunar leaves in .aperm_SVT()", {
 
         a <- aperm(a0, c(2L, 3L, 1L))
         svt <- aperm(svt0, c(2L, 3L, 1L))
-        check_SparseArray_object(svt, "SVT_SparseArray", a)
+        check_array_like_object(svt, "SVT_SparseArray", a)
         expect_identical(svt@SVT[[1L]][[1L]],
                          make_lacunar_leaf(type0, c(1L, 2L, 4L)))
         expect_identical(svt@SVT[[2L]][[2L]],

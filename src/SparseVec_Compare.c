@@ -232,20 +232,21 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 	int out_background = sv1->na_background ? intNA : int0;		\
 	const Ltype *nzvals1_p = get_ ## Ltype ## SV_nzvals_p(sv1);	\
 	if (nzvals1_p == NULL) {  /* lacunar SparseVec */		\
-		int v = Compare_ ## Ltype ## _ ## Rtype			\
+		int out_val = Compare_ ## Ltype ## _ ## Rtype		\
 					(opcode, Ltype ## 1, y);	\
-		if (v == out_background)				\
+		if (out_val == out_background)				\
 			return 0;					\
-		/* What 'v' is expected to be at this point depends  */	\
-		/* on the background of input SparseVec 'sv1':       */	\
-		/* - If its background is zero then 'y' is assumed   */	\
+		/* What 'out_val' is expected to be at this point    */	\
+		/* depends on 'sv1->na_background':                  */	\
+		/* - If background is zero then 'y' is assumed       */	\
 		/*   to NOT be NA or NaN (i.e. is.na(y) must be      */	\
-		/*   FALSE). This means that 'v' can only be TRUE    */	\
-		/*   (i.e. 'int1'). In particular 'v' cannot be NA   */	\
-		/*   (i.e. 'intNA') or FALSE (i.e. 'int0').          */	\
-		/* - If its background is NA then 'v' can be TRUE    */	\
+		/*   FALSE). This means that 'out_val' can only be   */	\
+		/*   TRUE (i.e. 'int1'). In particular 'out_val'     */	\
+		/*   cannot be NA (i.e. 'intNA') or FALSE (i.e.      */	\
+		/*   'int0').                                        */	\
+		/* - If background is NA then 'out_val' can be TRUE  */	\
 		/*   or FALSE. It cannot be NA.                      */	\
-		out_nzvals[0] = v;					\
+		out_nzvals[0] = out_val;				\
 		return PROPAGATE_NZOFFS;				\
 	}								\
 	/* regular SparseVec */						\
@@ -253,13 +254,13 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 	int out_nzcount = 0;						\
 	for (int k = 0; k < nzcount1; k++) {				\
 		Ltype x = nzvals1_p[k];					\
-		int v = Compare_ ## Ltype ## _ ## Rtype			\
+		int out_val = Compare_ ## Ltype ## _ ## Rtype		\
 					(opcode, x, y);			\
-		if (v != out_background) {				\
-			out_nzvals[out_nzcount] = v;			\
-			out_nzoffs[out_nzcount] = sv1->nzoffs[k];	\
-			out_nzcount++;					\
-		}							\
+		if (out_val == out_background)				\
+			continue;					\
+		out_nzvals[out_nzcount] = out_val;			\
+		out_nzoffs[out_nzcount] = sv1->nzoffs[k];		\
+		out_nzcount++;						\
 	}								\
 	return out_nzcount;						\
 }
@@ -269,8 +270,8 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 		const SparseVec *sv1, const SparseVec *sv2,		\
 		int *out_nzvals, int *out_nzoffs)			\
 {									\
-	int out_background = (sv1->na_background || sv2->na_background)	\
-			     ? intNA : int0;				\
+	int out_background =						\
+	    (sv1->na_background || sv2->na_background) ? intNA : int0;	\
 	int out_nzcount = 0;						\
 	int k1 = 0, k2 = 0;						\
 	int off;							\
@@ -279,13 +280,13 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 	while (next_ ## Ltype ## _ ## Rtype ## _vals			\
 		(sv1, sv2, &k1, &k2, &off, &x, &y))			\
 	{								\
-		int v = Compare_ ## Ltype ## _ ## Rtype			\
+		int out_val = Compare_ ## Ltype ## _ ## Rtype		\
 					(opcode, x, y);			\
-		if (v != out_background) {				\
-			out_nzvals[out_nzcount] = v;			\
-			out_nzoffs[out_nzcount] = off;			\
-			out_nzcount++;					\
-		}							\
+		if (out_val == out_background)				\
+			continue;					\
+		out_nzvals[out_nzcount] = out_val;			\
+		out_nzoffs[out_nzcount] = off;				\
+		out_nzcount++;						\
 	}								\
 	return out_nzcount;						\
 }

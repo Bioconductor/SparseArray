@@ -6,13 +6,13 @@
 
     a <- `[<-`(a0, Mindex, value=vals)
     object <- `[<-`(object0, Mindex, value=vals)
-    check_SparseArray_object(object, expected_class, a)
+    check_array_like_object(object, expected_class, a)
     object <- `[<-`(object0, Lindex, value=vals)
-    check_SparseArray_object(object, expected_class, a)
+    check_array_like_object(object, expected_class, a)
     object <- `[<-`(object0, as.double(Lindex), value=vals)
-    check_SparseArray_object(object, expected_class, a)
+    check_array_like_object(object, expected_class, a)
     object <- `[<-`(object0, Lindex + 0.5, value=vals)
-    check_SparseArray_object(object, expected_class, a)
+    check_array_like_object(object, expected_class, a)
 }
 
 test_that("subassign an SVT_SparseArray object by an Mindex or Lindex", {
@@ -85,7 +85,7 @@ test_that("subassign an SVT_SparseArray object by an Mindex or Lindex", {
 
     a <- `[<-`(a0, index, value=vals)
     object <- `[<-`(object0, index, value=vals)
-    check_SparseArray_object(object, expected_class, a)
+    check_array_like_object(object, expected_class, a)
 }
 
 test_that(paste("subassign an SVT_SparseArray object by an Nindex",
@@ -98,13 +98,13 @@ test_that(paste("subassign an SVT_SparseArray object by an Nindex",
     ## Wipe out all nonzeros:
     a <- `[<-`(a0, , , , value=0L)
     svt <- `[<-`(svt0, , , , value=0L)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     expect_null(svt@SVT)
 
     ## Wipe out all nonzeros in a column:
     a <- `[<-`(a0, , 8, 1, value=0L)
     svt <- `[<-`(svt0, , 8, 1, value=0L)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     expect_null(svt@SVT[[1L]][[8L]])
     i0 <- nzwhich(a0[ , 8, 1])
     svt2 <- `[<-`(svt0, i0, 8, 1, value=0L)
@@ -113,7 +113,7 @@ test_that(paste("subassign an SVT_SparseArray object by an Nindex",
     ## Wipe out all nonzeros in a row:
     a <- `[<-`(a0, 17, , 1, value=0L)
     svt <- `[<-`(svt0, 17, , 1, value=0L)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     j0 <- nzwhich(a0[17, , 1])
     svt2 <- `[<-`(svt0, 17, j0, 1, value=0L)
     expect_identical(svt2, svt)
@@ -122,58 +122,58 @@ test_that(paste("subassign an SVT_SparseArray object by an Nindex",
     i <- sample(180L, 20L)
     a <- `[<-`(a0, i, 8, 1, value=0L)
     svt <- `[<-`(svt0, i, 8, 1, value=0L)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
 
     ## Inject zeros at random positions in a row:
     j <- sample(400L, 50L)
     a <- `[<-`(a0, 17, j, 1, value=0L)
     svt <- `[<-`(svt0, 17, j, 1, value=0L)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
 
     ## Inject zeros in a random set of rows:
     a <- `[<-`(a0, i, , 1, value=0L)
     svt <- `[<-`(svt0, i, , 1, value=0L)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
 
     ## Inject zeros in a random set of columns:
     a <- `[<-`(a0, , j, 1, value=0L)
     svt <- `[<-`(svt0, , j, 1, value=0L)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
 
     ## Inject zeros at random positions:
     a <- `[<-`(a0, i, j, 1, value=0L)
     svt <- `[<-`(svt0, i, j, 1, value=0L)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     a <- `[<-`(a0, i, j, , value=0L)
     svt <- `[<-`(svt0, i, j, , value=0L)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
 
     ## Inject fixed nonzero at random positions in a column:
     a <- `[<-`(a0, i, 8, 1, value=-555L)
     svt <- `[<-`(svt0, i, 8, 1, value=-555L)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
 
     ## Inject fixed nonzero at random positions in a row:
     a <- `[<-`(a0, 17, j, 1, value=-555L)
     svt <- `[<-`(svt0, 17, j, 1, value=-555L)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
 
     ## Inject fixed nonzero val at random positions:
     a <- `[<-`(a0, i, j, 1, value=-555L)
     svt <- `[<-`(svt0, i, j, 1, value=-555L)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     a <- `[<-`(a0, i, j, , value=-555L)
     svt <- `[<-`(svt0, i, j, , value=-555L)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
 
     ## Inject short vector with recycling:
     value <- c(-(101:104), 0L)
     a <- `[<-`(a0, i, j, 1, value=value)
     svt <- `[<-`(svt0, i, j, 1, value=value)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     a <- `[<-`(a0, i, , , value=value)
     svt <- `[<-`(svt0, i, , , value=value)
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
 })
 
 if (SparseArray:::SVT_VERSION != 0L) {
@@ -199,7 +199,7 @@ test_that("handling of lacunar leaves in SVT_SparseArray subassignment", {
         svt2[6:7] <- -99L
         svt3[2:3, c(2L, 4:5)] <- -99L
           m3[2:3, c(2L, 4:5)] <- -99L
-        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_array_like_object(svt3, "SVT_SparseMatrix", m3)
         check_svt123_leaves(list(c(-99L, -99L), c(1L, 2L)))
         expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
 
@@ -207,7 +207,7 @@ test_that("handling of lacunar leaves in SVT_SparseArray subassignment", {
         svt2[6:7] <- 0L
         svt3[2:3, c(2L, 4:5)] <- 0L
           m3[2:3, c(2L, 4:5)] <- 0L
-        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_array_like_object(svt3, "SVT_SparseMatrix", m3)
         check_svt123_leaves(NULL)
         expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
 
@@ -215,7 +215,7 @@ test_that("handling of lacunar leaves in SVT_SparseArray subassignment", {
         svt2[5:8] <- 101:104
         svt3[1:4, c(2L, 4:5)] <- 101:104
           m3[1:4, c(2L, 4:5)] <- 101:104
-        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_array_like_object(svt3, "SVT_SparseMatrix", m3)
         check_svt123_leaves(list(101:104, 0:3))
         expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
 
@@ -223,7 +223,7 @@ test_that("handling of lacunar leaves in SVT_SparseArray subassignment", {
         svt2[6:8] <- 1L
         svt3[2:4, c(2L, 4:5)] <- 1L
           m3[2:4, c(2L, 4:5)] <- 1L
-        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_array_like_object(svt3, "SVT_SparseMatrix", m3)
         check_svt123_leaves(list(c(101L, 1L, 1L, 1L), 0:3))
         expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
 
@@ -231,7 +231,7 @@ test_that("handling of lacunar leaves in SVT_SparseArray subassignment", {
         svt2[5:6] <- 0L
         svt3[1:2, c(2L, 4:5)] <- 0L
           m3[1:2, c(2L, 4:5)] <- 0L
-        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_array_like_object(svt3, "SVT_SparseMatrix", m3)
         check_svt123_leaves(make_lacunar_leaf(type, 2:3))
         expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
 
@@ -239,7 +239,7 @@ test_that("handling of lacunar leaves in SVT_SparseArray subassignment", {
         svt2[5L] <- NA
         svt3[1L, c(2L, 4:5)] <- NA
           m3[1L, c(2L, 4:5)] <- NA
-        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_array_like_object(svt3, "SVT_SparseMatrix", m3)
         check_svt123_leaves(list(c(NA, 1L, 1L), c(0L, 2L, 3L)))
         expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
 
@@ -247,7 +247,7 @@ test_that("handling of lacunar leaves in SVT_SparseArray subassignment", {
         svt2[5L] <- 1L
         svt3[1L, c(2L, 4:5)] <- 1L
           m3[1L, c(2L, 4:5)] <- 1L
-        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_array_like_object(svt3, "SVT_SparseMatrix", m3)
         check_svt123_leaves(make_lacunar_leaf(type, c(0L, 2L, 3L)))
         expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
 
@@ -255,7 +255,7 @@ test_that("handling of lacunar leaves in SVT_SparseArray subassignment", {
         svt2[7L] <- 11L
         svt3[3L, c(2L, 4:5)] <- 11L
           m3[3L, c(2L, 4:5)] <- 11L
-        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_array_like_object(svt3, "SVT_SparseMatrix", m3)
         check_svt123_leaves(list(c(1L, 11L, 1L), c(0L, 2L, 3L)))
         expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
 
@@ -263,7 +263,7 @@ test_that("handling of lacunar leaves in SVT_SparseArray subassignment", {
         svt2[6:7] <- 0L
         svt3[2:3, c(2L, 4:5)] <- 0L
           m3[2:3, c(2L, 4:5)] <- 0L
-        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_array_like_object(svt3, "SVT_SparseMatrix", m3)
         check_svt123_leaves(make_lacunar_leaf(type, c(0L, 3L)))
         expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
 
@@ -271,7 +271,7 @@ test_that("handling of lacunar leaves in SVT_SparseArray subassignment", {
         svt2[5:8] <- 1:0
         svt3[1:4, c(2L, 4:5)] <- 1:0
           m3[1:4, c(2L, 4:5)] <- 1:0
-        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_array_like_object(svt3, "SVT_SparseMatrix", m3)
         check_svt123_leaves(make_lacunar_leaf(type, c(0L, 2L)))
         expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
 
@@ -279,7 +279,7 @@ test_that("handling of lacunar leaves in SVT_SparseArray subassignment", {
         svt2[c(5L, 8L)] <- 1L
         svt3[c(1L, 4L), c(2L, 4:5)] <- 1L
           m3[c(1L, 4L), c(2L, 4:5)] <- 1L
-        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_array_like_object(svt3, "SVT_SparseMatrix", m3)
         check_svt123_leaves(make_lacunar_leaf(type, c(0L, 2L, 3L)))
         expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
 
@@ -287,7 +287,7 @@ test_that("handling of lacunar leaves in SVT_SparseArray subassignment", {
         svt2[c(5L, 8:7)] <- c(0L, 1L, 0L)
         svt3[c(1L, 4:3), c(2L, 4:5)] <- c(0L, 1L, 0L)
           m3[c(1L, 4:3), c(2L, 4:5)] <- c(0L, 1L, 0L)
-        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_array_like_object(svt3, "SVT_SparseMatrix", m3)
         check_svt123_leaves(make_lacunar_leaf(type, 3L))
         expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
 
@@ -295,7 +295,7 @@ test_that("handling of lacunar leaves in SVT_SparseArray subassignment", {
         svt2[5:6] <- 2:1
         svt3[1:2, c(2L, 4:5)] <- 2:1
           m3[1:2, c(2L, 4:5)] <- 2:1
-        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_array_like_object(svt3, "SVT_SparseMatrix", m3)
         check_svt123_leaves(list(c(2L, 1L, 1L), c(0L, 1L, 3L)))
         expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
 
@@ -303,7 +303,7 @@ test_that("handling of lacunar leaves in SVT_SparseArray subassignment", {
         svt2[c(7L, 5L)] <- 1L
         svt3[c(3L, 1L), c(2L, 4:5)] <- 1L
           m3[c(3L, 1L), c(2L, 4:5)] <- 1L
-        check_SparseArray_object(svt3, "SVT_SparseMatrix", m3)
+        check_array_like_object(svt3, "SVT_SparseMatrix", m3)
         check_svt123_leaves(make_lacunar_leaf(type, 0:3))
         expect_identical(as(m3, "SVT_SparseMatrix"), svt3)
     }

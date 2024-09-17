@@ -58,7 +58,7 @@ svt2[c(2, 6, 12:17, 22:33, 55, 59:62, 90)] <- c(TRUE, NA)
 svt1 & svt2
 svt1 | svt2
 
-## Sanity check:
+## Sanity checks:
 m1 <- as.matrix(svt1)
 m2 <- as.matrix(svt2)
 stopifnot(

@@ -1,15 +1,15 @@
 - NaArray objects:
 
-  1. Ops methods:
-     o Implement Arith and Logic methods.
-     o Implement unary "+" and "-" methods.
+  1. Logic methods:
+     o Implement Logic methods.
      o Implement logical negation ("!") method.
-     o Add unit tests for Ops methods (-> test-NaArray-Ops-methods.R)
+     o Add unit tests for Logic methods and logical negation (->
+       test-NaArray-Logic-methods.R)
 
-  2. Math methods:
-     o For this group we don't need to support only functions that preserve
-       zeros like we did for SparseArray objects.
-     o Add unit tests for Math methods.
+  2. Math and Math2 methods:
+     o For this group we can support **all** Math functions and not just Math
+       functions that preserve zeros like we did for SparseArray objects.
+     o Add unit tests for Math & Math2 methods (-> test-NaArray-Math-methods.R).
 
   3. Implement nnavals() getter and setter. Add unit tests for nnacount(),
      nnawhich(), and nnavals() getter and setter.

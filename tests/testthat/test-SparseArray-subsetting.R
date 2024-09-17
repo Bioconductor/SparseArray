@@ -80,20 +80,20 @@ test_that("SVT_SparseArray subsetting by an Nindex", {
 
     a   <- a0  [ , c(4:3, 8), 1, drop=FALSE]
     svt <- svt0[ , c(4:3, 8), 1, drop=FALSE]
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     expect_identical(as(a, "SVT_SparseArray"), svt)
     m   <- a0  [ , c(4:3, 8), 1, drop=TRUE]
     svt <- svt0[ , c(4:3, 8), 1, drop=TRUE]
-    check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+    check_array_like_object(svt, "SVT_SparseMatrix", m)
     expect_identical(as(m, "SVT_SparseMatrix"), svt)
 
     a   <- a0  [7, , , drop=FALSE]
     svt <- svt0[7, , , drop=FALSE]
-    check_SparseArray_object(svt, "SVT_SparseArray", a)
+    check_array_like_object(svt, "SVT_SparseArray", a)
     expect_identical(as(a, "SVT_SparseArray"), svt)
     m   <- a0  [7, , , drop=TRUE]
     svt <- svt0[7, , , drop=TRUE]
-    check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+    check_array_like_object(svt, "SVT_SparseMatrix", m)
     expect_identical(as(m, "SVT_SparseMatrix"), svt)
 
     ## --- 2D ---
@@ -104,19 +104,19 @@ test_that("SVT_SparseArray subsetting by an Nindex", {
 
     m   <- m0  [-5 , c(4:3, 8)]
     svt <- svt0[-5 , c(4:3, 8)]
-    check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+    check_array_like_object(svt, "SVT_SparseMatrix", m)
     expect_identical(as(m, "SVT_SparseMatrix"), svt)
 
     expect_identical(svt0[ , 4], m0[ , 4])
     m   <- m0  [ , 4, drop=FALSE]
     svt <- svt0[ , 4, drop=FALSE]
-    check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+    check_array_like_object(svt, "SVT_SparseMatrix", m)
     expect_identical(as(m, "SVT_SparseMatrix"), svt)
 
     expect_identical(svt0[6 , ], m0[6 , ])
     m   <- m0  [6, -1, drop=FALSE]
     svt <- svt0[6, -1, drop=FALSE]
-    check_SparseArray_object(svt, "SVT_SparseMatrix", m)
+    check_array_like_object(svt, "SVT_SparseMatrix", m)
     expect_identical(as(m, "SVT_SparseMatrix"), svt)
 
     ## --- 1D ---
@@ -127,21 +127,21 @@ test_that("SVT_SparseArray subsetting by an Nindex", {
 
     x   <- x0  [c(8:4, 1, 4), drop=FALSE]
     svt <- svt0[c(8:4, 1, 4), drop=FALSE]
-    check_SparseArray_object(svt, "SVT_SparseArray", x)
+    check_array_like_object(svt, "SVT_SparseArray", x)
     expect_identical(as(x, "SVT_SparseArray"), svt)
     x   <- x0  [-4, drop=FALSE]
     svt <- svt0[-4, drop=FALSE]
-    check_SparseArray_object(svt, "SVT_SparseArray", x)
+    check_array_like_object(svt, "SVT_SparseArray", x)
     expect_identical(as(x, "SVT_SparseArray"), svt)
     x   <- x0  [-4, drop=FALSE]
     svt <- svt0[-4, drop=FALSE]
-    check_SparseArray_object(svt, "SVT_SparseArray", x)
+    check_array_like_object(svt, "SVT_SparseArray", x)
     expect_identical(as(x, "SVT_SparseArray"), svt)
 
     subscript <- c("d", "j", "j", "h")
     x   <- x0  [subscript, drop=FALSE]  # 'drop=TRUE' would do the same thing!
     svt <- svt0[subscript, drop=FALSE]
-    check_SparseArray_object(svt, "SVT_SparseArray", x)
+    check_array_like_object(svt, "SVT_SparseArray", x)
     expect_identical(as(x, "SVT_SparseArray"), svt)
     expect_identical(svt0[subscript], S4Arrays:::drop_even_if_1D(x))
 })

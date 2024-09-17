@@ -3,7 +3,7 @@
     FUN <- match.fun(isFUN)
     expected <- FUN(a)
     current  <- FUN(svt)
-    check_SparseArray_object(current, class(svt), expected)
+    check_array_like_object(current, class(svt), expected)
     expect_identical(as(expected, "SVT_SparseArray"), current)
 }
 
@@ -60,18 +60,18 @@ test_that("pmin() and pmax() on SVT_SparseArray objects", {
 
      expected <- pmin(a1, a2)
      current <- pmin(svt1, svt2)
-     check_SparseArray_object(current, "SVT_SparseMatrix", expected)
+     check_array_like_object(current, "SVT_SparseMatrix", expected)
      expected <- pmax(a1, a2)
      current <- pmax(svt1, svt2)
-     check_SparseArray_object(current, "SVT_SparseMatrix", expected)
+     check_array_like_object(current, "SVT_SparseMatrix", expected)
      ## Swaping the order produces the same results **except** for the
      ## dimnames!
      expected <- pmin(a2, a1)
      current <- pmin(svt2, svt1)
-     check_SparseArray_object(current, "SVT_SparseMatrix", expected)
+     check_array_like_object(current, "SVT_SparseMatrix", expected)
      expected <- pmax(a2, a1)
      current <- pmax(svt2, svt1)
-     check_SparseArray_object(current, "SVT_SparseMatrix", expected)
+     check_array_like_object(current, "SVT_SparseMatrix", expected)
 
      ## --- with NAs ---
 
@@ -92,18 +92,18 @@ test_that("pmin() and pmax() on SVT_SparseArray objects", {
 
      expected <- .fix_NAs_for_no_narm(pmin(a1, a2), a1, a2)
      current <- .fix_NAs_for_no_narm(pmin(svt1, svt2), a1, a2)
-     check_SparseArray_object(current, "SVT_SparseMatrix", expected)
+     check_array_like_object(current, "SVT_SparseMatrix", expected)
      expected <- .fix_NAs_for_no_narm(pmax(a1, a2), a1, a2)
      current <- .fix_NAs_for_no_narm(pmax(svt1, svt2), a1, a2)
-     check_SparseArray_object(current, "SVT_SparseMatrix", expected)
+     check_array_like_object(current, "SVT_SparseMatrix", expected)
      ## Swaping the order produces the same results **except** for the
      ## dimnames!
      expected <- .fix_NAs_for_no_narm(pmin(a2, a1), a2, a1)
      current <- .fix_NAs_for_no_narm(pmin(svt2, svt1), a2, a1)
-     check_SparseArray_object(current, "SVT_SparseMatrix", expected)
+     check_array_like_object(current, "SVT_SparseMatrix", expected)
      expected <- .fix_NAs_for_no_narm(pmax(a2, a1), a2, a1)
      current <- .fix_NAs_for_no_narm(pmax(svt2, svt1), a2, a1)
-     check_SparseArray_object(current, "SVT_SparseMatrix", expected)
+     check_array_like_object(current, "SVT_SparseMatrix", expected)
 
      .fix_NAs_for_narm <- function(ans, x, y) {
          NA_idx <- which(is.na(x) & is.nan(y) | is.nan(x) & is.na(y))
@@ -113,17 +113,17 @@ test_that("pmin() and pmax() on SVT_SparseArray objects", {
 
      expected <- .fix_NAs_for_narm(pmin(a1, a2, na.rm=TRUE), a1, a2)
      current <- .fix_NAs_for_narm(pmin(svt1, svt2, na.rm=TRUE), a1, a2)
-     check_SparseArray_object(current, "SVT_SparseMatrix", expected)
+     check_array_like_object(current, "SVT_SparseMatrix", expected)
      expected <- .fix_NAs_for_narm(pmax(a1, a2, na.rm=TRUE), a1, a2)
      current <- .fix_NAs_for_narm(pmax(svt1, svt2, na.rm=TRUE), a1, a2)
-     check_SparseArray_object(current, "SVT_SparseMatrix", expected)
+     check_array_like_object(current, "SVT_SparseMatrix", expected)
      ## Swaping the order produces the same results **except** for the
      ## dimnames!
      expected <- .fix_NAs_for_narm(pmin(a2, a1, na.rm=TRUE), a2, a1)
      current <- .fix_NAs_for_narm(pmin(svt2, svt1, na.rm=TRUE), a2, a1)
-     check_SparseArray_object(current, "SVT_SparseMatrix", expected)
+     check_array_like_object(current, "SVT_SparseMatrix", expected)
      expected <- .fix_NAs_for_narm(pmax(a2, a1, na.rm=TRUE), a2, a1)
      current <- .fix_NAs_for_narm(pmax(svt2, svt1, na.rm=TRUE), a2, a1)
-     check_SparseArray_object(current, "SVT_SparseMatrix", expected)
+     check_array_like_object(current, "SVT_SparseMatrix", expected)
 })
 

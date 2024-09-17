@@ -5,95 +5,63 @@
         expect_error(svt1 * v2, "not supported")
         expect_error(v2 * svt1, "not supported")
     } else {
-        expected <- a1 * v2
+        a <- a1 * v2
         svt <- svt1 * v2
-        expect_true(is(svt, "SVT_SparseArray"))
-        expect_true(validObject(svt))
-        expect_identical(as.array(svt), expected)
+        check_SVT_SparseArray_object(svt, a)
         svt <- v2 * svt1
-        expect_true(is(svt, "SVT_SparseArray"))
-        expect_true(validObject(svt))
-        expect_identical(as.array(svt), expected)
+        check_SVT_SparseArray_object(svt, a)
     }
 
     if (v2 == 0)
         return()
 
-    expected <- a1 / v2
+    a <- a1 / v2
     svt <- svt1 / v2
-    expect_true(is(svt, "SVT_SparseArray"))
-    expect_true(validObject(svt))
-    expect_identical(as.array(svt), expected)
+    check_SVT_SparseArray_object(svt, a)
 
     if (v2 > 0) {
-        expected <- a1 ^ v2
+        a <- a1 ^ v2
         svt <- svt1 ^ v2
         expect_true(is(svt, "SVT_SparseArray"))
         expect_true(validObject(svt))
-        expect_equal(as.array(svt), expected)
+        expect_equal(as.array(svt), a)
     }
 
     if (relax.MOD.and.IDIV) {
         reconstructed <- as.array(svt1 %% v2) + v2 * as.array(svt1 %/% v2)
         expect_equal(reconstructed, a1)
     } else {
-        expected <- a1 %% v2
+        a <- a1 %% v2
         svt <- svt1 %% v2
         expect_true(is(svt, "SVT_SparseArray"))
         expect_true(validObject(svt))
-        expect_equal(as.array(svt), expected)
+        expect_equal(as.array(svt), a)
 
-        expected <- a1 %/% v2
+        a <- a1 %/% v2
         svt <- svt1 %/% v2
-        expect_true(is(svt, "SVT_SparseArray"))
-        expect_true(validObject(svt))
-        expect_identical(as.array(svt), expected)
+        check_SVT_SparseArray_object(svt, a)
     }
 }
 
 .test_Arith_SVT1_SVT2 <- function(a1, a2, svt1, svt2)
 {
-    expected <- a1 + a2
+    a <- a1 + a2
     svt <- svt1 + svt2
-    expect_true(is(svt, "SVT_SparseArray"))
-    expect_true(validObject(svt))
-    expect_identical(as.array(svt), expected)
-    svt <- svt1 + a2
-    expect_true(is(svt, "SVT_SparseArray"))
-    expect_true(validObject(svt))
-    expect_identical(as.array(svt), expected)
-    svt <- a1 + svt2
-    expect_true(is(svt, "SVT_SparseArray"))
-    expect_true(validObject(svt))
-    expect_identical(as.array(svt), expected)
+    check_SVT_SparseArray_object(svt, a)
+    expect_identical(svt1 + a2, svt)
+    expect_identical(a1 + svt2, svt)
 
-    expected <- a1 - a2
+    a <- a1 - a2
     svt <- svt1 - svt2
-    expect_true(is(svt, "SVT_SparseArray"))
-    expect_true(validObject(svt))
-    expect_identical(as.array(svt), expected)
-    svt <- svt1 - a2
-    expect_true(is(svt, "SVT_SparseArray"))
-    expect_true(validObject(svt))
-    expect_identical(as.array(svt), expected)
-    svt <- a1 - svt2
-    expect_true(is(svt, "SVT_SparseArray"))
-    expect_true(validObject(svt))
-    expect_identical(as.array(svt), expected)
+    check_SVT_SparseArray_object(svt, a)
+    expect_identical(svt1 - a2, svt)
+    expect_identical(a1 - svt2, svt)
 
-    expected <- a1 * a2
+    a <- a1 * a2
     svt <- svt1 * svt2
-    expect_true(is(svt, "SVT_SparseArray"))
-    expect_true(validObject(svt))
-    expect_identical(as.array(svt), expected)
-    svt <- svt1 * a2
-    expect_true(is(svt, "SVT_SparseArray"))
-    expect_true(validObject(svt))
-    expect_identical(as.array(svt), expected)
-    svt <- a1 * svt2
-    expect_true(is(svt, "SVT_SparseArray"))
-    expect_true(validObject(svt))
-    expect_identical(as.array(svt), expected)
+    check_SVT_SparseArray_object(svt, a)
+    expect_identical(svt1 * a2, svt)
+    expect_identical(a1 * svt2, svt)
 }
 
 test_that("'Arith' ops between SVT_SparseArray object and single value", {
@@ -249,20 +217,17 @@ test_that("'Arith' ops between 2 SVT_SparseArray objects", {
 test_that("unary minus on a SVT_SparseArray object", {
     a1 <- make_3D_integer_array()
     svt1 <- as(a1, "SVT_SparseArray")
-    check_SparseArray_object(- svt1, "SVT_SparseArray", - a1)
-    expect_identical(- svt1, as(- a1, "SVT_SparseArray"))
+    check_SVT_SparseArray_object(- svt1, - a1)
     expect_identical(- (- svt1), svt1)
 
     a2 <- make_3D_double_array()
     svt2 <- as(a2, "SVT_SparseArray")
-    check_SparseArray_object(- svt2, "SVT_SparseArray", - a2)
-    expect_identical(- svt2, as(- a2, "SVT_SparseArray"))
+    check_SVT_SparseArray_object(- svt2, - a2)
     expect_identical(- (- svt2), svt2)
 
     a3 <- make_3D_complex_array()
     svt3 <- as(a3, "SVT_SparseArray")
-    check_SparseArray_object(- svt3, "SVT_SparseArray", - a3)
-    expect_identical(- svt3, as(- a3, "SVT_SparseArray"))
+    check_SVT_SparseArray_object(- svt3, - a3)
     expect_identical(- (- svt3), svt3)
 })
 

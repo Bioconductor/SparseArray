@@ -27,8 +27,8 @@
     \item Only \link{SVT_SparseArray} objects are supported at the moment.
           Support for \link{COO_SparseArray} objects might be added in the
           future.
-    \item \code{Arith} operations don't support \link{SVT_SparseArray}
-          objects of \code{type()} \code{"complex"} at the moment.
+    \item \link{SVT_SparseArray} of \code{type()} \code{"complex"} don't
+          support \code{Arith} operations at the moment.
   }
 }
 
@@ -101,7 +101,7 @@ svt1 * svt2
 
 svt2 * (0.1 * svt1 - svt2 ^ 2) + svt1 / sum(svt2)
 
-## Sanity check:
+## Sanity checks:
 m1 <- as.matrix(svt1)
 m2 <- as.matrix(svt2)
 stopifnot(

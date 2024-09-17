@@ -7,7 +7,7 @@ test_that("nzwhich(), nzvals(), `nzvals<-`() on COO_SparseArray objects", {
     coo0 <- COO_SparseArray(dim, nzcoo, nzdata)
     a0 <- as.array(coo0)
 
-    check_SparseArray_object(coo0, "COO_SparseArray", a0)
+    check_array_like_object(coo0, "COO_SparseArray", a0)
     expect_identical(nzwhich(coo0), nzwhich(a0))
     expect_identical(nzvals(coo0), nzvals(a0))
 
@@ -15,12 +15,12 @@ test_that("nzwhich(), nzvals(), `nzvals<-`() on COO_SparseArray objects", {
     a <- a0
 
     nzvals(coo) <- nzvals(a) <- nzvals(a) + 0.99
-    check_SparseArray_object(coo, "COO_SparseArray", a)
+    check_array_like_object(coo, "COO_SparseArray", a)
     expect_identical(nzwhich(coo0), nzwhich(a0))
     expect_identical(nzvals(coo0), nzvals(a0))
 
     nzvals(coo) <- nzvals(a) <- -0.1 * (11:15)
-    check_SparseArray_object(coo, "COO_SparseArray", a)
+    check_array_like_object(coo, "COO_SparseArray", a)
     expect_identical(nzwhich(coo0), nzwhich(a0))
     expect_identical(nzvals(coo0), nzvals(a0))
 })

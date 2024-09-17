@@ -26,9 +26,48 @@ int _Arith_sv1_scalar(
 	int *ovflow
 );
 
-int _mult_SV_zero(
-	const SparseVec *sv,
-	SEXPTYPE outRtype,
+int _Arith_scalar_sv2(
+	int opcode,
+	SEXP scalar,
+	const SparseVec *sv2,
+	SEXPTYPE expected_outRtype,
+	void *out_nzvals,
+	int *out_nzoffs,
+	int *ovflow
+);
+
+int _Arith_sv1_zero(
+	int opcode,
+	const SparseVec *sv1,
+	SEXPTYPE Rtype2,
+	SEXPTYPE expected_outRtype,
+	void *out_nzvals,
+	int *out_nzoffs
+);
+
+int _Arith_sv1_na(
+	int opcode,
+	const SparseVec *sv1,
+	SEXPTYPE Rtype2,
+	SEXPTYPE expected_outRtype,
+	void *out_nzvals,
+	int *out_nzoffs
+);
+
+int _Arith_zero_sv2(
+	int opcode,
+	SEXPTYPE Rtype1,
+	const SparseVec *sv2,
+	SEXPTYPE expected_outRtype,
+	void *out_nzvals,
+	int *out_nzoffs
+);
+
+int _Arith_na_sv2(
+	int opcode,
+	SEXPTYPE Rtype1,
+	const SparseVec *sv2,
+	SEXPTYPE expected_outRtype,
 	void *out_nzvals,
 	int *out_nzoffs
 );

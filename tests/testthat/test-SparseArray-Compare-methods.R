@@ -1,159 +1,114 @@
 
-.test_Compare_SVT_val <- function(a, svt, y)
+.test_Compare_SVT1_v2 <- function(a1, svt1, y)
 {
-    ## svt == y
+    ## svt1 == y
     if (y == 0) {
-	expect_error(svt == y, "not supported")
-	expect_error(y == svt, "not supported")
+	expect_error(svt1 == y, "not supported")
+	expect_error(y == svt1, "not supported")
     } else {
-        expected <- a == y
-        current <- svt == y
-        expect_true(is(current, "SVT_SparseArray"))
-        expect_true(validObject(current))
-        expect_identical(type(current), "logical")
-        expect_identical(as.array(current), expected)
-        current <- y == svt
-        expect_true(is(current, "SVT_SparseArray"))
-        expect_true(validObject(current))
-        expect_identical(type(current), "logical")
-        expect_identical(as.array(current), expected)
+        a <- a1 == y
+        svt <- svt1 == y
+        check_SVT_SparseArray_object(svt, a)
+        svt <- y == svt1
+        check_SVT_SparseArray_object(svt, a)
     }
 
-    ## svt != y
+    ## svt1 != y
     if (y != 0) {
-	expect_error(svt != y, "not supported")
-	expect_error(y != svt, "not supported")
+	expect_error(svt1 != y, "not supported")
+	expect_error(y != svt1, "not supported")
     } else {
-        expected <- a != y
-        current <- svt != y
-        expect_true(is(current, "SVT_SparseArray"))
-        expect_true(validObject(current))
-        expect_identical(type(current), "logical")
-        expect_identical(as.array(current), expected)
-        current <- y != svt
-        expect_true(is(current, "SVT_SparseArray"))
-        expect_true(validObject(current))
-        expect_identical(type(current), "logical")
-        expect_identical(as.array(current), expected)
+        a <- a1 != y
+        svt <- svt1 != y
+        check_SVT_SparseArray_object(svt, a)
+        svt <- y != svt1
+        check_SVT_SparseArray_object(svt, a)
     }
 
-    ## svt <= y
-    if (type(svt) == "complex" || type(y) == "complex") {
-	expect_error(svt <= y, "invalid comparison with complex values")
-	expect_error(y >= svt, "invalid comparison with complex values")
+    ## svt1 <= y
+    if (type(svt1) == "complex" || type(y) == "complex") {
+	expect_error(svt1 <= y, "invalid comparison with complex values")
+	expect_error(y >= svt1, "invalid comparison with complex values")
     } else if (y >= 0) {
-	expect_error(svt <= y, "not supported")
-	expect_error(y >= svt, "not supported")
+	expect_error(svt1 <= y, "not supported")
+	expect_error(y >= svt1, "not supported")
     } else {
-        expected <- a <= y
-        current <- svt <= y
-        expect_true(is(current, "SVT_SparseArray"))
-        expect_true(validObject(current))
-        expect_identical(type(current), "logical")
-        expect_identical(as.array(current), expected)
-        current <- y >= svt
-        expect_true(is(current, "SVT_SparseArray"))
-        expect_true(validObject(current))
-        expect_identical(type(current), "logical")
-        expect_identical(as.array(current), expected)
+        a <- a1 <= y
+        svt <- svt1 <= y
+        check_SVT_SparseArray_object(svt, a)
+        svt <- y >= svt1
+        check_SVT_SparseArray_object(svt, a)
     }
 
-    ## svt >= y
-    if (type(svt) == "complex" || type(y) == "complex") {
-	expect_error(svt >= y, "invalid comparison with complex values")
-	expect_error(y <= svt, "invalid comparison with complex values")
+    ## svt1 >= y
+    if (type(svt1) == "complex" || type(y) == "complex") {
+	expect_error(svt1 >= y, "invalid comparison with complex values")
+	expect_error(y <= svt1, "invalid comparison with complex values")
     } else if (y <= 0) {
-	expect_error(svt >= y, "not supported")
-	expect_error(y <= svt, "not supported")
+	expect_error(svt1 >= y, "not supported")
+	expect_error(y <= svt1, "not supported")
     } else {
-        expected <- a >= y
-        current <- svt >= y
-        expect_true(is(current, "SVT_SparseArray"))
-        expect_true(validObject(current))
-        expect_identical(type(current), "logical")
-        expect_identical(as.array(current), expected)
-        current <- y <= svt
-        expect_true(is(current, "SVT_SparseArray"))
-        expect_true(validObject(current))
-        expect_identical(type(current), "logical")
-        expect_identical(as.array(current), expected)
+        a <- a1 >= y
+        svt <- svt1 >= y
+        check_SVT_SparseArray_object(svt, a)
+        svt <- y <= svt1
+        check_SVT_SparseArray_object(svt, a)
     }
 
-    ## svt < y
-    if (type(svt) == "complex" || type(y) == "complex") {
-        expect_error(svt < y, "invalid comparison with complex values")
-        expect_error(y > svt, "invalid comparison with complex values")
+    ## svt1 < y
+    if (type(svt1) == "complex" || type(y) == "complex") {
+        expect_error(svt1 < y, "invalid comparison with complex values")
+        expect_error(y > svt1, "invalid comparison with complex values")
     } else if (type(y) %in% c("raw", "logical") || y > 0) {
-	expect_error(svt < y, "not supported")
-        expect_error(y > svt, "not supported")
+	expect_error(svt1 < y, "not supported")
+        expect_error(y > svt1, "not supported")
     } else {
-        expected <- a < y
-        current <- svt < y
-        expect_true(is(current, "SVT_SparseArray"))
-        expect_true(validObject(current))
-        expect_identical(type(current), "logical")
-        expect_identical(as.array(current), expected)
-        current <- y > svt
-        expect_true(is(current, "SVT_SparseArray"))
-        expect_true(validObject(current))
-        expect_identical(type(current), "logical")
-        expect_identical(as.array(current), expected)
+        a <- a1 < y
+        svt <- svt1 < y
+        check_SVT_SparseArray_object(svt, a)
+        svt <- y > svt1
+        check_SVT_SparseArray_object(svt, a)
     }
 
-    ## svt > y
-    if (type(svt) == "complex" || type(y) == "complex") {
-        expect_error(svt > y, "invalid comparison with complex values")
-        expect_error(y < svt, "invalid comparison with complex values")
+    ## svt1 > y
+    if (type(svt1) == "complex" || type(y) == "complex") {
+        expect_error(svt1 > y, "invalid comparison with complex values")
+        expect_error(y < svt1, "invalid comparison with complex values")
     } else if (y < 0) {
-        expect_error(svt > y, "not supported")
-        expect_error(y < svt, "not supported")
+        expect_error(svt1 > y, "not supported")
+        expect_error(y < svt1, "not supported")
     } else {
-        expected <- a > y
-        current <- svt > y
-        expect_true(is(current, "SVT_SparseArray"))
-        expect_true(validObject(current))
-        expect_identical(type(current), "logical")
-        expect_identical(as.array(current), expected)
-        current <- y < svt
-        expect_true(is(current, "SVT_SparseArray"))
-        expect_true(validObject(current))
-        expect_identical(type(current), "logical")
-        expect_identical(as.array(current), expected)
+        a <- a1 > y
+        svt <- svt1 > y
+        check_SVT_SparseArray_object(svt, a)
+        svt <- y < svt1
+        check_SVT_SparseArray_object(svt, a)
     }
 }
 
 .test_Compare_SVT1_SVT2 <- function(a1, a2, svt1, svt2)
 {
     ## svt1 != svt2
-    expected <- a1 != a2
-    current <- svt1 != svt2
-    expect_true(is(current, "SVT_SparseArray"))
-    expect_true(validObject(current))
-    expect_identical(type(current), "logical")
-    expect_identical(as.array(current), expected)
+    a <- a1 != a2
+    svt <- svt1 != svt2
+    check_SVT_SparseArray_object(svt, a)
 
     ## svt1 < svt2
     if (type(svt1) == "complex" || type(svt2) == "complex") {
         expect_error(svt1 < svt2, "invalid comparison with complex values")
     } else {
-        expected <- a1 < a2
-        current <- svt1 < svt2
-        expect_true(is(current, "SVT_SparseArray"))
-        expect_true(validObject(current))
-        expect_identical(type(current), "logical")
-        expect_identical(as.array(current), expected)
+        a <- a1 < a2
+        svt <- svt1 < svt2
+        check_SVT_SparseArray_object(svt, a)
     }
 
     ## svt1 > svt2
     if (type(svt1) == "complex" || type(svt2) == "complex") {
         expect_error(svt1 > svt2, "invalid comparison with complex values")
     } else {
-        expected <- a1 > a2
-        current <- svt1 > svt2
-        expect_true(is(current, "SVT_SparseArray"))
-        expect_true(validObject(current))
-        expect_identical(type(current), "logical")
-        expect_identical(as.array(current), expected)
+        a <- a1 > a2
+        svt <- svt1 > svt2
+        check_SVT_SparseArray_object(svt, a)
     }
 }
 
@@ -189,24 +144,24 @@ test_that("'Compare' ops between SVT_SparseArray object and single value", {
 
     for (a in list(a1, a2, a3, a4, a5, a0)) {
         svt <- as(a, "SVT_SparseArray")
-        .test_Compare_SVT_val(a, svt, integer(1))
-        .test_Compare_SVT_val(a, svt, 102L)
-        .test_Compare_SVT_val(a, svt, -302L)
-        .test_Compare_SVT_val(a, svt, raw(1))
-        .test_Compare_SVT_val(a, svt, as.raw(102L))
-        .test_Compare_SVT_val(a, svt, FALSE)
-        .test_Compare_SVT_val(a, svt, TRUE)
-        .test_Compare_SVT_val(a, svt, double(1))
-        .test_Compare_SVT_val(a, svt, 102.5)
-        .test_Compare_SVT_val(a, svt, -302.0)
-        .test_Compare_SVT_val(a, svt, Inf)
-        .test_Compare_SVT_val(a, svt, -Inf)
-        .test_Compare_SVT_val(a, svt, complex(1))
-        .test_Compare_SVT_val(a, svt, 0+9.5i)
-        .test_Compare_SVT_val(a, svt, -302+0i)
-        .test_Compare_SVT_val(a, svt, -302+9.5i)
-        .test_Compare_SVT_val(a, svt, Inf+9.5i)
-        .test_Compare_SVT_val(a, svt, -Inf+9.5i)
+        .test_Compare_SVT1_v2(a, svt, integer(1))
+        .test_Compare_SVT1_v2(a, svt, 102L)
+        .test_Compare_SVT1_v2(a, svt, -302L)
+        .test_Compare_SVT1_v2(a, svt, raw(1))
+        .test_Compare_SVT1_v2(a, svt, as.raw(102L))
+        .test_Compare_SVT1_v2(a, svt, FALSE)
+        .test_Compare_SVT1_v2(a, svt, TRUE)
+        .test_Compare_SVT1_v2(a, svt, double(1))
+        .test_Compare_SVT1_v2(a, svt, 102.5)
+        .test_Compare_SVT1_v2(a, svt, -302.0)
+        .test_Compare_SVT1_v2(a, svt, Inf)
+        .test_Compare_SVT1_v2(a, svt, -Inf)
+        .test_Compare_SVT1_v2(a, svt, complex(1))
+        .test_Compare_SVT1_v2(a, svt, 0+9.5i)
+        .test_Compare_SVT1_v2(a, svt, -302+0i)
+        .test_Compare_SVT1_v2(a, svt, -302+9.5i)
+        .test_Compare_SVT1_v2(a, svt, Inf+9.5i)
+        .test_Compare_SVT1_v2(a, svt, -Inf+9.5i)
     }
 
     ## Not expected to work.
