@@ -9,12 +9,12 @@
 
 /* Set 'nzvals' to R_NilValue to represent a lacunar SparseVec. */
 typedef struct sparse_vec_t {
-	SEXPTYPE Rtype;      /* type of the values in 'nzvals' */
-	const void *nzvals;  /* NULL or array of nonzero values */
-	const int *nzoffs;   /* array of offsets for the nonzero values */
-	int nzcount;         /* nb of nonzero values */
-	int len;             /* vector length (= nzcount + nb of zeros) */
-	int na_background;   /* background value is NA instead of zero */
+	SEXPTYPE Rtype;     /* type of the values in 'nzvals' */
+	void *nzvals;       /* NULL or array of nonzero values */
+	int *nzoffs;        /* array of offsets for the nonzero values */
+	int nzcount;        /* nb of nonzero values */
+	int len;            /* vector length (= nzcount + nb of zeros) */
+	int na_background;  /* background value is NA instead of zero */
 } SparseVec;
 
 #define	IS_BACKGROUND_VAL(x, na_background) \
@@ -81,6 +81,28 @@ static inline SparseVec toSparseVec(SEXP nzvals, SEXP nzoffs,
 	error("SparseArray internal error in toSparseVec():\n"
 	      "    supplied 'nzvals' and/or 'nzoffs' "
 	      "are invalid or incompatible");
+}
+
+static inline SparseVec alloc_SparseVec(SEXPTYPE Rtype,
+		int len, int na_background)
+{
+	size_t Rtype_size = _get_Rtype_size(Rtype);
+	if (Rtype_size == 0)
+		error("SparseArray internal error in alloc_SparseVec():\n"
+		      "    type \"%s\" is not supported", type2char(Rtype));
+
+	if (na_background && Rtype == RAWSXP)
+		error("SparseArray internal error in alloc_SparseVec():\n"
+		      "    NaArray objects of type \"raw\" are not supported");
+
+	SparseVec sv;
+	sv.Rtype = Rtype;
+	sv.nzvals = R_alloc(len, Rtype_size);
+	sv.nzoffs = (int *) R_alloc(len, sizeof(int));
+	sv.nzcount = 0;
+	sv.len = len;
+	sv.na_background = na_background;
+	return sv;
 }
 
 static inline SEXPTYPE get_SV_Rtype(const SparseVec *sv)

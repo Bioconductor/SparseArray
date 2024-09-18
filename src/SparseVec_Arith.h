@@ -16,69 +16,55 @@
 
 int _get_Arith_opcode(SEXP op);
 
-int _Arith_sv1_scalar(
+void _Arith_sv1_scalar(
 	int opcode,
 	const SparseVec *sv1,
 	SEXP scalar,
-	SEXPTYPE expected_outRtype,
-	void *out_nzvals,
-	int *out_nzoffs,
+	SparseVec *out_sv,
 	int *ovflow
 );
 
-int _Arith_scalar_sv2(
+void _Arith_scalar_sv2(
 	int opcode,
 	SEXP scalar,
 	const SparseVec *sv2,
-	SEXPTYPE expected_outRtype,
-	void *out_nzvals,
-	int *out_nzoffs,
+	SparseVec *out_sv,
 	int *ovflow
 );
 
-int _Arith_sv1_zero(
+void _Arith_sv1_zero(
 	int opcode,
 	const SparseVec *sv1,
 	SEXPTYPE Rtype2,
-	SEXPTYPE expected_outRtype,
-	void *out_nzvals,
-	int *out_nzoffs
+	SparseVec *out_sv
 );
 
-int _Arith_sv1_na(
+void _Arith_sv1_na(
 	int opcode,
 	const SparseVec *sv1,
 	SEXPTYPE Rtype2,
-	SEXPTYPE expected_outRtype,
-	void *out_nzvals,
-	int *out_nzoffs
+	SparseVec *out_sv
 );
 
-int _Arith_zero_sv2(
+void _Arith_zero_sv2(
 	int opcode,
 	SEXPTYPE Rtype1,
 	const SparseVec *sv2,
-	SEXPTYPE expected_outRtype,
-	void *out_nzvals,
-	int *out_nzoffs
+	SparseVec *out_sv
 );
 
-int _Arith_na_sv2(
+void _Arith_na_sv2(
 	int opcode,
 	SEXPTYPE Rtype1,
 	const SparseVec *sv2,
-	SEXPTYPE expected_outRtype,
-	void *out_nzvals,
-	int *out_nzoffs
+	SparseVec *out_sv
 );
 
-int _Arith_sv1_sv2(
+void _Arith_sv1_sv2(
 	int opcode,
 	const SparseVec *sv1,
 	const SparseVec *sv2,
-	SEXPTYPE expected_outRtype,
-	void *out_nzvals,
-	int *out_nzoffs,
+	SparseVec *out_sv,
 	int *ovflow
 );
 
