@@ -72,8 +72,7 @@ static SEXP Arith_leaf1_scalar(int opcode,
 		return _make_leaf_with_single_shared_nzval(
 					      buf_sv->Rtype, buf_sv->nzvals,
 					      get_leaf_nzoffs(leaf1));
-	return _make_leaf_from_two_arrays(buf_sv->Rtype, buf_sv->nzvals,
-					  buf_sv->nzoffs, buf_sv->nzcount);
+	return SV2leaf(buf_sv);
 }
 
 static SEXP Arith_scalar_leaf2(int opcode,
@@ -87,8 +86,7 @@ static SEXP Arith_scalar_leaf2(int opcode,
 		return _make_leaf_with_single_shared_nzval(
 					      buf_sv->Rtype, buf_sv->nzvals,
 					      get_leaf_nzoffs(leaf2));
-	return _make_leaf_from_two_arrays(buf_sv->Rtype, buf_sv->nzvals,
-					  buf_sv->nzoffs, buf_sv->nzcount);
+	return SV2leaf(buf_sv);
 }
 
 static SEXP Arith_NULL_leaf2(int opcode,
@@ -116,8 +114,7 @@ static SEXP Arith_NULL_leaf2(int opcode,
 		return _make_leaf_with_single_shared_nzval(
 					      buf_sv->Rtype, buf_sv->nzvals,
 					      get_leaf_nzoffs(leaf2));
-	return _make_leaf_from_two_arrays(buf_sv->Rtype, buf_sv->nzvals,
-					  buf_sv->nzoffs, buf_sv->nzcount);
+	return SV2leaf(buf_sv);
 }
 
 static SEXP Arith_leaf1_NULL(int opcode,
@@ -140,8 +137,7 @@ static SEXP Arith_leaf1_NULL(int opcode,
 		return _make_leaf_with_single_shared_nzval(
 					      buf_sv->Rtype, buf_sv->nzvals,
 					      get_leaf_nzoffs(leaf1));
-	return _make_leaf_from_two_arrays(buf_sv->Rtype, buf_sv->nzvals,
-					  buf_sv->nzoffs, buf_sv->nzcount);
+	return SV2leaf(buf_sv);
 }
 
 static SEXP Arith_leaf1_leaf2(int opcode,
@@ -164,8 +160,7 @@ static SEXP Arith_leaf1_leaf2(int opcode,
 	const SparseVec sv2 = leaf2SV(leaf2, Rtype2,
 				      buf_sv->len, na_background2);
 	_Arith_sv1_sv2(opcode, &sv1, &sv2, buf_sv, ovflow);
-	return _make_leaf_from_two_arrays(buf_sv->Rtype, buf_sv->nzvals,
-					  buf_sv->nzoffs, buf_sv->nzcount);
+	return SV2leaf(buf_sv);
 }
 
 
@@ -361,7 +356,7 @@ SEXP C_Arith_SVT1_v2(
 			   opcode != MOD_OPCODE &&
 			   opcode != IDIV_OPCODE)
 	{
-		error("\"%s\" is not supported between an SVT_SparseArray "
+		error("\"%s\" is not supported between a SparseArray "
 		      "object and a numeric vector", CHAR(STRING_ELT(op, 0)));
 	}
 
@@ -403,7 +398,7 @@ SEXP C_Arith_v1_SVT2(SEXP v1,
 			   opcode != IDIV_OPCODE)
 	{
 		error("\"%s\" is not supported between a numeric vector and "
-		      "an SVT_SparseArray object", CHAR(STRING_ELT(op, 0)));
+		      "a SparseArray object", CHAR(STRING_ELT(op, 0)));
 	}
 
 	int dim0 = INTEGER(y_dim)[0];
@@ -441,14 +436,14 @@ SEXP C_Arith_SVT1_SVT2(
 					"C_Arith_SVT1_SVT2", "ans_type");
 
 	int opcode = _get_Arith_opcode(op);
-
 	if (!x_has_NAbg && !y_has_NAbg && opcode != ADD_OPCODE &&
 					  opcode != SUB_OPCODE &&
 					  opcode != MULT_OPCODE)
 	{
-		error("\"%s\" is not supported between SVT_SparseArray "
+		error("\"%s\" is not supported between SparseArray "
 		      "objects", CHAR(STRING_ELT(op, 0)));
 	}
+
 	int dim0 = INTEGER(x_dim)[0];
 	SparseVec buf_sv = alloc_SparseVec(ans_Rtype, dim0,
 					   x_has_NAbg || y_has_NAbg);

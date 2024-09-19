@@ -29,27 +29,24 @@ static inline int flip_Compare_opcode(int opcode)
 
 int _get_Compare_opcode(SEXP op);
 
-int _Compare_sv1_zero(
+void _Compare_sv1_zero(
 	int opcode,
 	const SparseVec *sv1,
-	int *out_nzvals,
-	int *out_nzoffs
+	SparseVec *out_sv
 );
 
-int _Compare_sv1_scalar(
+void _Compare_sv1_scalar(
 	int opcode,
 	const SparseVec *sv1,
 	SEXP scalar,
-	int *out_nzvals,
-	int *out_nzoffs
+	SparseVec *out_sv
 );
 
-int _Compare_sv1_sv2(
+void _Compare_sv1_sv2(
 	int opcode,
 	const SparseVec *sv1,
 	const SparseVec *sv2,
-	int *out_nzvals,
-	int *out_nzoffs
+	SparseVec *out_sv
 );
 
 #endif  /* _SPARSEVEC_COMPARE_H_ */

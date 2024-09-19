@@ -160,60 +160,68 @@ static inline void check_outRtype(SEXPTYPE expected_outRtype,
 	      fun, type2char(expected_outRtype), type2char(effective_outRtype));
 }
 
-static int Arith_intSV_int(int opcode,
-		const SparseVec *sv1, int y,
-		int *out_nzvals, int *out_nzoffs, int out_has_NAbg,
-		int *ovflow)
+static void Arith_intSV_int(int opcode,
+		const SparseVec *sv1, int y, SparseVec *out_sv, int *ovflow)
 {
-	int out_background = out_has_NAbg ? intNA : int0;
+	if (out_sv->len != sv1->len)
+		error("SparseArray internal error in "
+		      "Arith_intSV_int():\n"
+		      "    'sv1' and 'out_sv' are incompatible");
+	check_outRtype(out_sv->Rtype, INTSXP, "Arith_intSV_int");
+	int *out_nzvals = (int *) out_sv->nzvals;
+	out_sv->nzcount = 0;
+	int out_background = out_sv->na_background ? intNA : int0;
 	const int *nzvals1_p = get_intSV_nzvals_p(sv1);
 	if (nzvals1_p == NULL) {  /* lacunar SparseVec */
 		int out_val = Arith_int(opcode, int1, y, ovflow);
 		if (out_val == out_background)
-			return 0;
+			return;
 		out_nzvals[0] = out_val;
-		return PROPAGATE_NZOFFS;
+		out_sv->nzcount = PROPAGATE_NZOFFS;
+		return;
 	}
 	/* regular SparseVec */
 	int nzcount1 = get_SV_nzcount(sv1);
-	int out_nzcount = 0;
 	for (int k = 0; k < nzcount1; k++) {
 		int out_val = Arith_int(opcode, nzvals1_p[k], y, ovflow);
 		if (out_val == out_background)
 			continue;
-		out_nzvals[out_nzcount] = out_val;
-		out_nzoffs[out_nzcount] = sv1->nzoffs[k];
-		out_nzcount++;
+		APPEND_TO_NZVALS_NZOFFS(out_val, sv1->nzoffs[k],
+				out_nzvals, out_sv->nzoffs, out_sv->nzcount);
 	}
-	return out_nzcount;
+	return;
 }
 
-static int Arith_int_intSV(int opcode,
-		int x, const SparseVec *sv2,
-		int *out_nzvals, int *out_nzoffs, int out_has_NAbg,
-		int *ovflow)
+static void Arith_int_intSV(int opcode,
+		int x, const SparseVec *sv2, SparseVec *out_sv, int *ovflow)
 {
-	int out_background = out_has_NAbg ? intNA : int0;
+	if (out_sv->len != sv2->len)
+		error("SparseArray internal error in "
+		      "Arith_int_intSV():\n"
+		      "    'sv2' and 'out_sv' are incompatible");
+	check_outRtype(out_sv->Rtype, INTSXP, "Arith_int_intSV");
+	int *out_nzvals = (int *) out_sv->nzvals;
+	out_sv->nzcount = 0;
+	int out_background = out_sv->na_background ? intNA : int0;
 	const int *nzvals2_p = get_intSV_nzvals_p(sv2);
 	if (nzvals2_p == NULL) {  /* lacunar SparseVec */
 		int out_val = Arith_int(opcode, x, int1, ovflow);
 		if (out_val == out_background)
-			return 0;
+			return;
 		out_nzvals[0] = out_val;
-		return PROPAGATE_NZOFFS;
+		out_sv->nzcount = PROPAGATE_NZOFFS;
+		return;
 	}
 	/* regular SparseVec */
 	int nzcount2 = get_SV_nzcount(sv2);
-	int out_nzcount = 0;
 	for (int k = 0; k < nzcount2; k++) {
 		int out_val = Arith_int(opcode, x, nzvals2_p[k], ovflow);
 		if (out_val == out_background)
 			continue;
-		out_nzvals[out_nzcount] = out_val;
-		out_nzoffs[out_nzcount] = sv2->nzoffs[k];
-		out_nzcount++;
+		APPEND_TO_NZVALS_NZOFFS(out_val, sv2->nzoffs[k],
+				out_nzvals, out_sv->nzoffs, out_sv->nzcount);
 	}
-	return out_nzcount;
+	return;
 }
 
 static void div_intSV_intSV(const SparseVec *sv1, const SparseVec *sv2,
@@ -228,9 +236,8 @@ static void div_intSV_intSV(const SparseVec *sv1, const SparseVec *sv2,
 		double out_val = xx / yy;
 		if (IS_BACKGROUND_VAL(out_val, out_sv->na_background))
 			continue;
-		out_nzvals[out_nzcount] = out_val;
-		out_sv->nzoffs[out_nzcount] = off;
-		out_nzcount++;
+		APPEND_TO_NZVALS_NZOFFS(out_val, off,
+				out_nzvals, out_sv->nzoffs, out_nzcount);
 	}
 	out_sv->nzcount = out_nzcount;
 	return;
@@ -248,22 +255,21 @@ static void pow_intSV_intSV(const SparseVec *sv1, const SparseVec *sv2,
 		double out_val = Rpow_double(xx, yy);
 		if (IS_BACKGROUND_VAL(out_val, out_sv->na_background))
 			continue;
-		out_nzvals[out_nzcount] = out_val;
-		out_sv->nzoffs[out_nzcount] = off;
-		out_nzcount++;
+		APPEND_TO_NZVALS_NZOFFS(out_val, off,
+				out_nzvals, out_sv->nzoffs, out_nzcount);
 	}
 	out_sv->nzcount = out_nzcount;
 	return;
 }
 
 static void Arith_intSV_intSV(int opcode,
-		const SparseVec *sv1, const SparseVec *sv2,
-		SparseVec *out_sv, int *ovflow)
+		const SparseVec *sv1, const SparseVec *sv2, SparseVec *out_sv,
+		int *ovflow)
 {
 	if (out_sv->len != sv1->len || out_sv->len != sv2->len)
 		error("SparseArray internal error in "
 		      "Arith_intSV_intSV():\n"
-		      "    sv1, sv2, out_sv are incompatible");
+		      "    'sv1', 'sv2', and 'out_sv' are incompatible");
 	if (opcode == DIV_OPCODE) {
 		div_intSV_intSV(sv1, sv2, out_sv);
 		return;
@@ -280,78 +286,86 @@ static void Arith_intSV_intSV(int opcode,
 		int out_val = Arith_int(opcode, x, y, ovflow);
 		if (out_val == out_background)
 			continue;
-		out_nzvals[out_nzcount] = out_val;
-		out_sv->nzoffs[out_nzcount] = off;
-		out_nzcount++;
+		APPEND_TO_NZVALS_NZOFFS(out_val, off,
+				out_nzvals, out_sv->nzoffs, out_nzcount);
 	}
 	out_sv->nzcount = out_nzcount;
 	return;
 }
 
-static int Arith_intSV_double(int opcode,
-		const SparseVec *sv1, double y,
-		double *out_nzvals, int *out_nzoffs, int out_has_NAbg)
+static void Arith_intSV_double(int opcode,
+		const SparseVec *sv1, double y, SparseVec *out_sv)
 {
+	if (out_sv->len != sv1->len)
+		error("SparseArray internal error in "
+		      "Arith_intSV_double():\n"
+		      "    'sv1' and 'out_sv' are incompatible");
+	check_outRtype(out_sv->Rtype, REALSXP, "Arith_intSV_double");
+	double *out_nzvals = (double *) out_sv->nzvals;
+	out_sv->nzcount = 0;
 	const int *nzvals1_p = get_intSV_nzvals_p(sv1);
 	if (nzvals1_p == NULL) {  /* lacunar SparseVec */
 		double out_val = Arith_double(opcode, double1, y);
-		if (IS_BACKGROUND_VAL(out_val, out_has_NAbg))
-			return 0;
+		if (IS_BACKGROUND_VAL(out_val, out_sv->na_background))
+			return;
 		out_nzvals[0] = out_val;
-		return PROPAGATE_NZOFFS;
+		out_sv->nzcount = PROPAGATE_NZOFFS;
+		return;
 	}
 	/* regular SparseVec */
 	int nzcount1 = get_SV_nzcount(sv1);
-	int out_nzcount = 0;
 	for (int k = 0; k < nzcount1; k++) {
 		int x = nzvals1_p[k];
 		double xx = x == intNA ? doubleNA : (double) x;
 		double out_val = Arith_double(opcode, xx, y);
-		if (IS_BACKGROUND_VAL(out_val, out_has_NAbg))
+		if (IS_BACKGROUND_VAL(out_val, out_sv->na_background))
 			continue;
-		out_nzvals[out_nzcount] = out_val;
-		out_nzoffs[out_nzcount] = sv1->nzoffs[k];
-		out_nzcount++;
+		APPEND_TO_NZVALS_NZOFFS(out_val, sv1->nzoffs[k],
+				out_nzvals, out_sv->nzoffs, out_sv->nzcount);
 	}
-	return out_nzcount;
+	return;
 }
 
-static int Arith_double_intSV(int opcode,
-		double x, const SparseVec *sv2,
-		double *out_nzvals, int *out_nzoffs, int out_has_NAbg)
+static void Arith_double_intSV(int opcode,
+		double x, const SparseVec *sv2, SparseVec *out_sv)
 {
+	if (out_sv->len != sv2->len)
+		error("SparseArray internal error in "
+		      "Arith_double_intSV():\n"
+		      "    'sv2' and 'out_sv' are incompatible");
+	check_outRtype(out_sv->Rtype, REALSXP, "Arith_double_intSV");
+	double *out_nzvals = (double *) out_sv->nzvals;
+	out_sv->nzcount = 0;
 	const int *nzvals2_p = get_intSV_nzvals_p(sv2);
 	if (nzvals2_p == NULL) {  /* lacunar SparseVec */
 		double out_val = Arith_double(opcode, x, double1);
-		if (IS_BACKGROUND_VAL(out_val, out_has_NAbg))
-			return 0;
+		if (IS_BACKGROUND_VAL(out_val, out_sv->na_background))
+			return;
 		out_nzvals[0] = out_val;
-		return PROPAGATE_NZOFFS;
+		out_sv->nzcount = PROPAGATE_NZOFFS;
+		return;
 	}
 	/* regular SparseVec */
 	int nzcount2 = get_SV_nzcount(sv2);
-	int out_nzcount = 0;
 	for (int k = 0; k < nzcount2; k++) {
 		int y = nzvals2_p[k];
 		double yy = y == intNA ? doubleNA : (double) y;
 		double out_val = Arith_double(opcode, x, yy);
-		if (IS_BACKGROUND_VAL(out_val, out_has_NAbg))
+		if (IS_BACKGROUND_VAL(out_val, out_sv->na_background))
 			continue;
-		out_nzvals[out_nzcount] = out_val;
-		out_nzoffs[out_nzcount] = sv2->nzoffs[k];
-		out_nzcount++;
+		APPEND_TO_NZVALS_NZOFFS(out_val, sv2->nzoffs[k],
+				out_nzvals, out_sv->nzoffs, out_sv->nzcount);
 	}
-	return out_nzcount;
+	return;
 }
 
 static void Arith_intSV_doubleSV(int opcode,
-		const SparseVec *sv1, const SparseVec *sv2,
-		SparseVec *out_sv)
+		const SparseVec *sv1, const SparseVec *sv2, SparseVec *out_sv)
 {
 	if (out_sv->len != sv1->len || out_sv->len != sv2->len)
 		error("SparseArray internal error in "
 		      "Arith_intSV_doubleSV():\n"
-		      "    sv1, sv2, out_sv are incompatible");
+		      "    'sv1', 'sv2', and 'out_sv' are incompatible");
 	check_outRtype(out_sv->Rtype, REALSXP, "Arith_intSV_doubleSV");
 	double *out_nzvals = (double *) out_sv->nzvals;
 	int out_nzcount = 0, k1 = 0, k2 = 0, off, x;
@@ -361,112 +375,117 @@ static void Arith_intSV_doubleSV(int opcode,
 		double out_val = Arith_double(opcode, xx, y);
 		if (IS_BACKGROUND_VAL(out_val, out_sv->na_background))
 			continue;
-		out_nzvals[out_nzcount] = out_val;
-		out_sv->nzoffs[out_nzcount] = off;
-		out_nzcount++;
+		APPEND_TO_NZVALS_NZOFFS(out_val, off,
+				out_nzvals, out_sv->nzoffs, out_nzcount);
 	}
 	out_sv->nzcount = out_nzcount;
 	return;
 }
 
 static void Arith_doubleSV_intSV(int opcode,
-		const SparseVec *sv1, const SparseVec *sv2,
-		SparseVec *out_sv)
+		const SparseVec *sv1, const SparseVec *sv2, SparseVec *out_sv)
 {
 	if (out_sv->len != sv1->len || out_sv->len != sv2->len)
 		error("SparseArray internal error in "
 		      "Arith_doubleSV_intSV():\n"
-		      "    sv1, sv2, out_sv are incompatible");
+		      "    'sv1', 'sv2', and 'out_sv' are incompatible");
 	check_outRtype(out_sv->Rtype, REALSXP, "Arith_doubleSV_intSV");
 	double *out_nzvals = (double *) out_sv->nzvals;
-	int out_nzcount = 0, k1 = 0, k2 = 0, off, y;
+	out_sv->nzcount = 0;
+	int k1 = 0, k2 = 0, off, y;
 	double x;
 	while (next_double_int_vals(sv1, sv2, &k1, &k2, &off, &x, &y)) {
 		double yy = y == intNA ? doubleNA : (double) y;
 		double out_val = Arith_double(opcode, x, yy);
 		if (IS_BACKGROUND_VAL(out_val, out_sv->na_background))
 			continue;
-		out_nzvals[out_nzcount] = out_val;
-		out_sv->nzoffs[out_nzcount] = off;
-		out_nzcount++;
+		APPEND_TO_NZVALS_NZOFFS(out_val, off,
+				out_nzvals, out_sv->nzoffs, out_sv->nzcount);
 	}
-	out_sv->nzcount = out_nzcount;
 	return;
 }
 
-static int Arith_doubleSV_double(int opcode,
-		const SparseVec *sv1, double y,
-		double *out_nzvals, int *out_nzoffs, int out_has_NAbg)
+static void Arith_doubleSV_double(int opcode,
+		const SparseVec *sv1, double y, SparseVec *out_sv)
 {
+	if (out_sv->len != sv1->len)
+		error("SparseArray internal error in "
+		      "Arith_doubleSV_double():\n"
+		      "    'sv1' and 'out_sv' are incompatible");
+	check_outRtype(out_sv->Rtype, REALSXP, "Arith_doubleSV_double");
+	double *out_nzvals = (double *) out_sv->nzvals;
+	out_sv->nzcount = 0;
 	const double *nzvals1_p = get_doubleSV_nzvals_p(sv1);
 	if (nzvals1_p == NULL) {  /* lacunar SparseVec */
 		double out_val = Arith_double(opcode, double1, y);
-		if (IS_BACKGROUND_VAL(out_val, out_has_NAbg))
-			return 0;
+		if (IS_BACKGROUND_VAL(out_val, out_sv->na_background))
+			return;
 		out_nzvals[0] = out_val;
-		return PROPAGATE_NZOFFS;
+		out_sv->nzcount = PROPAGATE_NZOFFS;
+		return;
 	}
 	/* regular SparseVec */
 	int nzcount1 = get_SV_nzcount(sv1);
-	int out_nzcount = 0;
 	for (int k = 0; k < nzcount1; k++) {
 		double out_val = Arith_double(opcode, nzvals1_p[k], y);
-		if (IS_BACKGROUND_VAL(out_val, out_has_NAbg))
+		if (IS_BACKGROUND_VAL(out_val, out_sv->na_background))
 			continue;
-		out_nzvals[out_nzcount] = out_val;
-		out_nzoffs[out_nzcount] = sv1->nzoffs[k];
-		out_nzcount++;
+		APPEND_TO_NZVALS_NZOFFS(out_val, sv1->nzoffs[k],
+				out_nzvals, out_sv->nzoffs, out_sv->nzcount);
 	}
-	return out_nzcount;
+	return;
 }
 
-static int Arith_double_doubleSV(int opcode,
-		double x, const SparseVec *sv2,
-		double *out_nzvals, int *out_nzoffs, int out_has_NAbg)
+static void Arith_double_doubleSV(int opcode,
+		double x, const SparseVec *sv2, SparseVec *out_sv)
 {
+	if (out_sv->len != sv2->len)
+		error("SparseArray internal error in "
+		      "Arith_double_doubleSV():\n"
+		      "    'sv2' and 'out_sv' are incompatible");
+	check_outRtype(out_sv->Rtype, REALSXP, "Arith_double_doubleSV");
+	double *out_nzvals = (double *) out_sv->nzvals;
+	out_sv->nzcount = 0;
 	const double *nzvals2_p = get_doubleSV_nzvals_p(sv2);
 	if (nzvals2_p == NULL) {  /* lacunar SparseVec */
 		double out_val = Arith_double(opcode, x, double1);
-		if (IS_BACKGROUND_VAL(out_val, out_has_NAbg))
-			return 0;
+		if (IS_BACKGROUND_VAL(out_val, out_sv->na_background))
+			return;
 		out_nzvals[0] = out_val;
-		return PROPAGATE_NZOFFS;
+		out_sv->nzcount = PROPAGATE_NZOFFS;
+		return;
 	}
 	/* regular SparseVec */
 	int nzcount2 = get_SV_nzcount(sv2);
-	int out_nzcount = 0;
 	for (int k = 0; k < nzcount2; k++) {
 		double out_val = Arith_double(opcode, x, nzvals2_p[k]);
-		if (IS_BACKGROUND_VAL(out_val, out_has_NAbg))
+		if (IS_BACKGROUND_VAL(out_val, out_sv->na_background))
 			continue;
-		out_nzvals[out_nzcount] = out_val;
-		out_nzoffs[out_nzcount] = sv2->nzoffs[k];
-		out_nzcount++;
+		APPEND_TO_NZVALS_NZOFFS(out_val, sv2->nzoffs[k],
+				out_nzvals, out_sv->nzoffs, out_sv->nzcount);
 	}
-	return out_nzcount;
+	return;
 }
 
 static void Arith_doubleSV_doubleSV(int opcode,
-		const SparseVec *sv1, const SparseVec *sv2,
-		SparseVec *out_sv)
+		const SparseVec *sv1, const SparseVec *sv2, SparseVec *out_sv)
 {
 	if (out_sv->len != sv1->len || out_sv->len != sv2->len)
 		error("SparseArray internal error in "
 		      "Arith_doubleSV_doubleSV():\n"
-		      "    sv1, sv2, out_sv are incompatible");
+		      "    'sv1', 'sv2', and 'out_sv' are incompatible");
 	check_outRtype(out_sv->Rtype, REALSXP, "Arith_doubleSV_doubleSV");
 	double *out_nzvals = (double *) out_sv->nzvals;
-	int out_nzcount = 0, k1 = 0, k2 = 0, off;
+	out_sv->nzcount = 0;
+	int k1 = 0, k2 = 0, off;
 	double x, y;
 	while (next_double_double_vals(sv1, sv2, &k1, &k2, &off, &x, &y)) {
 		double out_val = Arith_double(opcode, x, y);
 		if (IS_BACKGROUND_VAL(out_val, out_sv->na_background))
 			continue;
-		out_nzvals[out_nzcount] = out_val;
-		out_sv->nzoffs[out_nzcount] = off;
-		out_nzcount++;
+		APPEND_TO_NZVALS_NZOFFS(out_val, off,
+				out_nzvals, out_sv->nzoffs, out_sv->nzcount);
 	}
-	out_sv->nzcount = out_nzcount;
 	return;
 }
 
@@ -483,27 +502,16 @@ static void Arith_sv1_int(int opcode, const SparseVec *sv1, int y,
 {
 	SEXPTYPE Rtype1 = get_SV_Rtype(sv1);
 	if (Rtype1 == INTSXP && opcode != DIV_OPCODE && opcode != POW_OPCODE) {
-		check_outRtype(out_sv->Rtype, INTSXP, "Arith_sv1_int");
-		out_sv->nzcount =
-			Arith_intSV_int(opcode, sv1, y,
-				(int *) out_sv->nzvals, out_sv->nzoffs,
-				out_sv->na_background, ovflow);
+		Arith_intSV_int(opcode, sv1, y, out_sv, ovflow);
 		return;
 	}
-	check_outRtype(out_sv->Rtype, REALSXP, "Arith_sv1_int");
 	double yy = y == intNA ? doubleNA : (double) y;
 	switch (Rtype1) {
 	    case INTSXP:
-		out_sv->nzcount =
-			Arith_intSV_double(opcode, sv1, yy,
-				(double *) out_sv->nzvals, out_sv->nzoffs,
-				out_sv->na_background);
+		Arith_intSV_double(opcode, sv1, yy, out_sv);
 		return;
 	    case REALSXP:
-		out_sv->nzcount =
-			Arith_doubleSV_double(opcode, sv1, yy,
-				(double *) out_sv->nzvals, out_sv->nzoffs,
-				out_sv->na_background);
+		Arith_doubleSV_double(opcode, sv1, yy, out_sv);
 		return;
 	}
 	error("SparseArray internal error in Arith_sv1_int():\n"
@@ -516,27 +524,16 @@ static void Arith_int_sv2(int opcode, int x, const SparseVec *sv2,
 {
 	SEXPTYPE Rtype2 = get_SV_Rtype(sv2);
 	if (Rtype2 == INTSXP && opcode != DIV_OPCODE && opcode != POW_OPCODE) {
-		check_outRtype(out_sv->Rtype, INTSXP, "Arith_int_sv2");
-		out_sv->nzcount =
-			Arith_int_intSV(opcode, x, sv2,
-				(int *) out_sv->nzvals, out_sv->nzoffs,
-				out_sv->na_background, ovflow);
+		Arith_int_intSV(opcode, x, sv2, out_sv, ovflow);
 		return;
 	}
-	check_outRtype(out_sv->Rtype, REALSXP, "Arith_int_sv2");
 	double xx = x == intNA ? doubleNA : (double) x;
 	switch (Rtype2) {
 	    case INTSXP:
-		out_sv->nzcount =
-			Arith_double_intSV(opcode, xx, sv2,
-				(double *) out_sv->nzvals, out_sv->nzoffs,
-				out_sv->na_background);
+		Arith_double_intSV(opcode, xx, sv2, out_sv);
 		return;
 	    case REALSXP:
-		out_sv->nzcount =
-			Arith_double_doubleSV(opcode, xx, sv2,
-				(double *) out_sv->nzvals, out_sv->nzoffs,
-				out_sv->na_background);
+		Arith_double_doubleSV(opcode, xx, sv2, out_sv);
 		return;
 	}
 	error("SparseArray internal error in Arith_int_sv2():\n"
@@ -547,20 +544,13 @@ static void Arith_int_sv2(int opcode, int x, const SparseVec *sv2,
 static void Arith_sv1_double(int opcode, const SparseVec *sv1, double y,
 		SparseVec *out_sv)
 {
-	check_outRtype(out_sv->Rtype, REALSXP, "Arith_sv1_double");
 	SEXPTYPE Rtype1 = get_SV_Rtype(sv1);
 	switch (Rtype1) {
 	    case INTSXP:
-		out_sv->nzcount =
-			Arith_intSV_double(opcode, sv1, y,
-				out_sv->nzvals, out_sv->nzoffs,
-				out_sv->na_background);
+		Arith_intSV_double(opcode, sv1, y, out_sv);
 		return;
 	    case REALSXP:
-		out_sv->nzcount =
-			Arith_doubleSV_double(opcode, sv1, y,
-				out_sv->nzvals, out_sv->nzoffs,
-				out_sv->na_background);
+		Arith_doubleSV_double(opcode, sv1, y, out_sv);
 		return;
 	}
 	error("SparseArray internal error in Arith_sv1_double():\n"
@@ -571,20 +561,13 @@ static void Arith_sv1_double(int opcode, const SparseVec *sv1, double y,
 static void Arith_double_sv2(int opcode, double x, const SparseVec *sv2,
 		SparseVec *out_sv)
 {
-	check_outRtype(out_sv->Rtype, REALSXP, "Arith_double_sv2");
 	SEXPTYPE Rtype2 = get_SV_Rtype(sv2);
 	switch (Rtype2) {
 	    case INTSXP:
-		out_sv->nzcount =
-			Arith_double_intSV(opcode, x, sv2,
-				out_sv->nzvals, out_sv->nzoffs,
-				out_sv->na_background);
+		Arith_double_intSV(opcode, x, sv2, out_sv);
 		return;
 	    case REALSXP:
-		out_sv->nzcount =
-			Arith_double_doubleSV(opcode, x, sv2,
-				out_sv->nzvals, out_sv->nzoffs,
-				out_sv->na_background);
+		Arith_double_doubleSV(opcode, x, sv2, out_sv);
 		return;
 	}
 	error("SparseArray internal error in Arith_double_sv2():\n"
@@ -650,61 +633,64 @@ void _Arith_scalar_sv2(int opcode, SEXP scalar, const SparseVec *sv2,
  * _Arith_sv1_na()
  */
 
-/* Multiplies the vals in 'sv' with zero. Will return 0 (i.e. no output) if
-   the nonzero values in 'sv' are finite (i.e. no NA, NaN, Inf, or -Inf).
+/* Multiplies the vals in 'sv1' with zero. Will return 0 (i.e. no output) if
+   the nonzero values in 'sv1' are finite (i.e. no NA, NaN, Inf, or -Inf).
    Note that this could simply be achieved by calling:
 
      _Arith_sv1_scalar(MULT_OPCODE, sv1, 0, ...)
 
    but mult_sv1_zero() takes a lot of shortcuts so is A LOT more efficient.
-   Assumes that 'outRtype' is equal or bigger than the type of the
+   Assumes that 'out_sv->Rtype' is equal or bigger than the type of the
    nonzero values in 'sv1'. */
-static int mult_sv1_zero(const SparseVec *sv1,
-		SEXPTYPE outRtype, void *out_nzvals, int *out_nzoffs)
+static void mult_sv1_zero(const SparseVec *sv1, SparseVec *out_sv)
 {
 	const int *nzvals_p = get_intSV_nzvals_p(sv1);
-	if (nzvals_p == NULL)  /* lacunar SparseVec */
-		return 0;
+	if (nzvals_p == NULL)  { /* lacunar SparseVec */
+		out_sv->nzcount = 0;
+		return;
+	}
 	/* regular SparseVec */
-	int nzcount = NZCOUNT_IS_NOT_SET;
 	SEXPTYPE Rtype = get_SV_Rtype(sv1);
 	if (Rtype == INTSXP) {
-		int in_nzcount = get_SV_nzcount(sv1);
-		if (outRtype == INTSXP) {
+		int nzcount, in_nzcount = get_SV_nzcount(sv1);
+		if (out_sv->Rtype == INTSXP) {
 			/* We only keep NAs. */
-			int *out_nzvals_p = (int *) out_nzvals;
+			int *out_nzvals = (int *) out_sv->nzvals;
 			for (int k = nzcount = 0; k < in_nzcount; k++) {
 				int x = nzvals_p[k];
-				if (x == NA_INTEGER) {
-					out_nzvals_p[nzcount] = NA_INTEGER;
-					out_nzoffs[nzcount] = sv1->nzoffs[k];
+				if (x == intNA) {
+					out_nzvals[nzcount] = intNA;
+					out_sv->nzoffs[nzcount] =
+						sv1->nzoffs[k];
 					nzcount++;
 				}
 			}
-		} else if (outRtype == REALSXP) {
+			out_sv->nzcount = nzcount;
+			return;
+		}
+		if (out_sv->Rtype == REALSXP) {
 			/* We only keep NAs. */
-			double *out_nzvals_p = (double *) out_nzvals;
+			double *out_nzvals = (double *) out_sv->nzvals;
 			for (int k = nzcount = 0; k < in_nzcount; k++) {
 				int x = nzvals_p[k];
-				if (x == NA_INTEGER) {
-					out_nzvals_p[nzcount] = NA_REAL;
-					out_nzoffs[nzcount] = sv1->nzoffs[k];
+				if (x == intNA) {
+					out_nzvals[nzcount] = doubleNA;
+					out_sv->nzoffs[nzcount] =
+						sv1->nzoffs[k];
 					nzcount++;
 				}
 			}
+			out_sv->nzcount = nzcount;
+			return;
 		}
 	} else if (Rtype == REALSXP) {
-		if (outRtype == REALSXP) {
-			nzcount = Arith_doubleSV_double(MULT_OPCODE,
-					sv1, 0.0,
-					(double *) out_nzvals, out_nzoffs,
-					sv1->na_background);
+		if (out_sv->Rtype == REALSXP) {
+			Arith_doubleSV_double(MULT_OPCODE, sv1, 0.0, out_sv);
+			return;
 		}
 	}
-	if (nzcount == NZCOUNT_IS_NOT_SET)
-		error("mult_sv1_zero() only supports input of "
-		      "type \"integer\" or \"double\" at the moment");
-	return nzcount;
+	error("mult_sv1_zero() only supports input of "
+	      "type \"integer\" or \"double\" at the moment");
 }
 
 void _Arith_sv1_zero(int opcode, const SparseVec *sv1, SEXPTYPE Rtype2,
@@ -715,9 +701,7 @@ void _Arith_sv1_zero(int opcode, const SparseVec *sv1, SEXPTYPE Rtype2,
 		      "_Arith_sv1_zero():\n"
 		      "    out_sv->na_background != sv1->na_background");
 	if (!sv1->na_background && opcode == MULT_OPCODE) {
-		out_sv->nzcount =
-			mult_sv1_zero(sv1, out_sv->Rtype,
-				      out_sv->nzvals, out_sv->nzoffs);
+		mult_sv1_zero(sv1, out_sv);
 		return;
 	}
 	switch (Rtype2) {
@@ -833,7 +817,8 @@ void _Arith_sv1_sv2(int opcode, const SparseVec *sv1, const SparseVec *sv2,
 {
 	SEXPTYPE Rtype1 = get_SV_Rtype(sv1);
 	SEXPTYPE Rtype2 = get_SV_Rtype(sv2);
-	if (Rtype1 == INTSXP) {
+	switch (Rtype1) {
+	    case INTSXP:
 		if (Rtype2 == INTSXP) {
 			Arith_intSV_intSV(opcode, sv1, sv2, out_sv, ovflow);
 			return;
@@ -842,7 +827,8 @@ void _Arith_sv1_sv2(int opcode, const SparseVec *sv1, const SparseVec *sv2,
 			Arith_intSV_doubleSV(opcode, sv1, sv2, out_sv);
 			return;
 		}
-	} else if (Rtype1 == REALSXP) {
+		break;
+	    case REALSXP:
 		if (Rtype2 == INTSXP) {
 			Arith_doubleSV_intSV(opcode, sv1, sv2, out_sv);
 			return;
@@ -851,6 +837,7 @@ void _Arith_sv1_sv2(int opcode, const SparseVec *sv1, const SparseVec *sv2,
 			Arith_doubleSV_doubleSV(opcode, sv1, sv2, out_sv);
 			return;
 		}
+		break;
 	}
 	error("_Arith_sv1_sv2() only supports input of "
 	      "type \"integer\" or \"double\" at the moment");

@@ -20,6 +20,13 @@ typedef struct sparse_vec_t {
 #define	IS_BACKGROUND_VAL(x, na_background) \
 	(((na_background) && R_IsNA(x)) || (!(na_background) && (x) == double0))
 
+#define	APPEND_TO_NZVALS_NZOFFS(val, off, out_nzvals, out_nzoffs, out_nzcount) \
+{									\
+	(out_nzvals)[out_nzcount] = (val);				\
+	(out_nzoffs)[out_nzcount] = (off);				\
+	(out_nzcount)++;						\
+}
+
 /* PROPAGATE_NZOFFS is a special value returned by _Arith_sv1_scalar(),
    _Compare_sv1_scalar(), and other functions that take a single input
    SparseVec to indicate that the result of the operation is a sparse vector
@@ -29,9 +36,6 @@ typedef struct sparse_vec_t {
    to output buffer 'out_nzoffs' and writes the single shared nzval to
    'out_nzvals[0]'. */
 #define	PROPAGATE_NZOFFS   -1  /* must be a **negative** int */
-
-/* Another special value used in SparseVec_Arith.c. */
-#define	NZCOUNT_IS_NOT_SET -2  /* must be < 0 and != PROPAGATE_NZOFFS */
 
 /* 'Rtype' **must** be set to 'TYPEOF(nzvals)' if 'nzvals' is not R_NilValue.
    The only reason we have the 'Rtype' argument is so that we can still store

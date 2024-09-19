@@ -229,5 +229,11 @@ SEXP _subassign_leaf_with_Rvector(
 	SEXP Rvector
 );
 
+static inline SEXP SV2leaf(const SparseVec *sv)
+{
+	return _make_leaf_from_two_arrays(sv->Rtype, sv->nzvals,
+                                          sv->nzoffs, sv->nzcount);
+}
+
 #endif  /* _LEAF_UTILS_H_ */
 
