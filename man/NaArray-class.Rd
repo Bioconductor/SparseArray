@@ -100,8 +100,9 @@ NaArray(x, dim=NULL, dimnames=NULL, type=NA)
     \item \link{NaArray_summarization} for NaArray summarization
           methods.
 
-    \item \link{NaArray_Arith} and \link{NaArray_Compare} for operations
-          from the \code{Arith} and \code{Compare} groups on NaArray objects.
+    \item \link{NaArray_Arith}, \link{NaArray_Compare}, and
+          \link{NaArray_Logic}, for operations from the \code{Arith},
+          \code{Compare}, and \code{Arith} groups on NaArray objects.
 
     \item \link{NaArray_matrixStats} for col/row summarization methods
           for NaArray objects.

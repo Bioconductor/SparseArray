@@ -11,12 +11,18 @@
 
 int _get_Logic_opcode(SEXP op);
 
-int _Logic_intSV_intSV(
+void _Logic_intSV_na(
+	int opcode,
+	const SparseVec *sv1,
+	SEXPTYPE Rtype2,
+	SparseVec *out_sv
+);
+
+void _Logic_intSV_intSV(
 	int opcode,
 	const SparseVec *sv1,
 	const SparseVec *sv2,
-	int *out_nzvals,
-	int *out_nzoffs
+	SparseVec *out_sv
 );
 
 #endif  /* _SPARSEVEC_LOGIC_H_ */

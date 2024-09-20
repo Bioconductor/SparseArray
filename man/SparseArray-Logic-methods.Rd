@@ -17,7 +17,7 @@
 
 \description{
   \link{SparseArray} derivatives support operations from the \code{Logic}
-  group, with some restrictions.
+  group (i.e. \code{&} and \code{|}), with some restrictions.
   See \code{?\link[methods]{S4groupGeneric}} in the \pkg{methods} package
   for more information about the \code{Logic} group generic.
 
@@ -26,17 +26,17 @@
     \item Only \link{SVT_SparseArray} objects are supported at the moment.
           Support for \link{COO_SparseArray} objects might be added in the
           future.
-    \item In base R, \code{Logic} operations (i.e. \code{&} and \code{|})
-          support input of \code{type()} \code{"logical"}, \code{"integer"},
-          \code{"double"}, or \code{"complex"}. However, the corresponding
-          methods for \link{SVT_SparseArray} objects only support objects
-          of \code{type()} \code{"logical"} for now.
+    \item In base R, \code{Logic} operations support input of \code{type()}
+          \code{"logical"}, \code{"integer"}, \code{"double"}, or
+          \code{"complex"}. However, the corresponding methods for
+          \link{SVT_SparseArray} objects only support objects of
+          \code{type()} \code{"logical"} for now.
   }
 }
 
 \value{
-  A \link{SparseArray} derivative of the same dimensions as the input
-  object(s).
+  A \link{SparseArray} derivative of \code{type()} \code{"logical"} and
+  same dimensions as the input object(s).
 }
 
 \seealso{

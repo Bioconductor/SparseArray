@@ -44,8 +44,8 @@
 }
 
 \value{
-  An \link{NaArray} object of \code{type()} \code{"logical"} and
-  same dimensions as the input object(s).
+  An \link{NaArray} object of \code{type()} \code{"logical"} and same
+  dimensions as the input object(s).
 }
 
 \seealso{

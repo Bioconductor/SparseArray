@@ -96,9 +96,8 @@ setMethod("Logic", c("vector", "SVT_SparseArray"),
     ans_dimnames <- S4Arrays:::get_first_non_NULL_dimnames(list(x, y))
 
     ans_SVT <- SparseArray.Call("C_Logic_SVT1_SVT2",
-                                x_dim, x@type, x@SVT,
-                                y_dim, y@type, y@SVT, op)
-
+                                x_dim, x@type, x@SVT, FALSE,
+                                y_dim, y@type, y@SVT, FALSE, op)
     new_SVT_SparseArray(x_dim, ans_dimnames, "logical", ans_SVT, check=FALSE)
 }
 

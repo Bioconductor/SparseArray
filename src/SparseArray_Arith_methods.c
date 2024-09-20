@@ -40,7 +40,7 @@ static SEXP unary_minus_leaf(SEXP leaf, SEXPTYPE Rtype, SEXPTYPE ans_Rtype)
 		UNPROTECT(1);
 		return ans;
 	}
-	/* input leaf is standard */
+	/* input leaf is regular */
 	if (ans_Rtype == 0) {  /* in-place replacement! */
 		ans_nzvals = leaf_nzvals;
 	} else {

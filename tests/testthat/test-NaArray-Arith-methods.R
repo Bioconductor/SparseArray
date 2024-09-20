@@ -120,7 +120,7 @@
 
     a <- a1 ^ a2
     naa <- naa1 ^ naa2
-    check_NaArray_object(naa, a)
+    check_NaArray_object(naa, a, strict=FALSE)
     expect_identical(naa, naa1 ^ a2)
     expect_identical(naa, a1 ^ naa2)
     expect_error(naa1 ^ svt2, "not supported")

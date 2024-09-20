@@ -1,3 +1,20 @@
+make_3D_logical_array <- function(background=FALSE)
+{
+    a <- array(background, 6:4,
+               dimnames=list(letters[1:6], NULL, LETTERS[1:4]))
+    a[c(2:3, 6), 2, 1] <- TRUE
+    a[ , 3, 1] <- c(TRUE, FALSE, NA, FALSE, FALSE, TRUE)
+    a[2:3, 4:5, 1] <- NA
+    a[c(1, 6), 1 , 2] <- FALSE
+    a[ 2, , 2] <- FALSE
+    a[ , 3, 2] <- TRUE
+    a[3:5, 4:5, 2] <- NA
+    a[c(1, 6), -5, 3] <- NA
+    a[3:5, 1:3, 3] <- FALSE
+    a[-3, 5, 3] <- TRUE
+    a
+}
+
 make_3D_integer_array <- function(background=0L)
 {
     a <- array(background, 6:4,

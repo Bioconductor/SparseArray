@@ -43,12 +43,14 @@ error_on_right_NAsparsity_not_preserved <- function(op, when)
 
 .unary_plus_NaArray <- function(x)
 {
+    stopifnot(is(x, "NaArray"))
     check_Arith_input_type(type(x), "NaArray object")
     x  # no-op
 }
 
 .unary_minus_NaArray <- function(x)
 {
+    stopifnot(is(x, "NaArray"))
     check_Arith_input_type(type(x), "NaArray object")
     check_svt_version(x)
     new_NaSVT <- SparseArray.Call("C_unary_minus_SVT", x@dim, x@type, x@NaSVT)

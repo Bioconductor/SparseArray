@@ -160,7 +160,7 @@ SparseArray(x, type=NA)
           methods.
 
     \item \link{SparseArray_Arith}, \link{SparseArray_Compare}, and
-          \link{SparseArray_Logic} for operations from the \code{Arith},
+          \link{SparseArray_Logic}, for operations from the \code{Arith},
           \code{Compare}, and \code{Logic} groups on SparseArray objects.
 
     \item \link{SparseArray_Math} for operations from the \code{Math} and

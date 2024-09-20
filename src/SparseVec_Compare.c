@@ -230,6 +230,10 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 		const SparseVec *sv1, Rtype y,				\
 		SparseVec *out_sv)					\
 {									\
+        if (out_sv->len != sv1->len)					\
+                error("SparseArray internal error in "			\
+                      "Compare_<Ltype>SV_<Rtype>():\n"			\
+                      "    'sv1' and 'out_sv' are incompatible");	\
 	int *out_nzvals = (int *) out_sv->nzvals;			\
 	out_sv->nzcount = 0;						\
 	int out_background = out_sv->na_background ? intNA : int0;	\
@@ -271,6 +275,10 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 		const SparseVec *sv1, const SparseVec *sv2,		\
 		SparseVec *out_sv)					\
 {									\
+        if (out_sv->len != sv1->len || out_sv->len != sv2->len)		\
+                error("SparseArray internal error in "			\
+                      "Compare_<Ltype>SV_<Rtype>SV()():\n"		\
+                      "    'sv1', 'sv2', and 'out_sv' are incompatible"); \
 	int *out_nzvals = (int *) out_sv->nzvals;			\
 	out_sv->nzcount = 0;						\
 	int out_background = out_sv->na_background ? intNA : int0;	\
