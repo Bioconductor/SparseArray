@@ -342,7 +342,6 @@ SEXP C_Arith_SVT1_v2(
 {
 	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
 					"C_Arith_SVT1_v2", "x_type");
-
 	int x_has_NAbg = _get_and_check_na_background(x_na_background,
 					"C_Arith_SVT1_v2", "x_na_background");
 
@@ -383,7 +382,6 @@ SEXP C_Arith_v1_SVT2(SEXP v1,
 {
 	SEXPTYPE y_Rtype = _get_and_check_Rtype_from_Rstring(y_type,
 					"C_Arith_v1_SVT2", "y_type");
-
 	int y_has_NAbg = _get_and_check_na_background(y_na_background,
 					"C_Arith_v1_SVT2", "y_na_background");
 

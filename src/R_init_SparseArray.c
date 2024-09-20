@@ -108,7 +108,7 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_Logic_SVT1_SVT2, 9),
 
 /* SparseArray_Math_methods.c */
-	CALLMETHOD_DEF(C_Math_SVT, 5),
+	CALLMETHOD_DEF(C_Math_SVT, 6),
 
 /* SparseArray_Complex_methods.c */
 	CALLMETHOD_DEF(C_Complex_SVT, 4),

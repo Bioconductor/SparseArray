@@ -9,18 +9,16 @@
 #include "leaf_utils.h"
 
 
-static SEXP Math_leaf(MathFUN fun, SEXP leaf, double digits, int dim0,
-		double *nzvals_buf, int *nzoffs_buf, int *newNaNs)
+static SEXP Math_leaf(MathFUN fun, SEXP leaf, double digits,
+		SparseVec *buf_sv, int *newNaNs)
 {
-	const SparseVec sv = leaf2SV(leaf, REALSXP, dim0, 0);
-	int buf_len = _Math_doubleSV(fun, &sv, digits,
-				     nzvals_buf, nzoffs_buf, newNaNs);
-	if (buf_len == PROPAGATE_NZOFFS)
+	const SparseVec sv = leaf2SV(leaf, REALSXP, buf_sv->len, 0);
+	_Math_doubleSV(fun, &sv, digits, buf_sv, newNaNs);
+	if (buf_sv->len == PROPAGATE_NZOFFS)
 		return _make_leaf_with_single_shared_nzval(
-					      REALSXP, nzvals_buf,
+					      buf_sv->Rtype, buf_sv->nzvals,
 					      get_leaf_nzoffs(leaf));
-	return _make_leaf_from_two_arrays(REALSXP,
-					  nzvals_buf, nzoffs_buf, buf_len);
+	return SV2leaf(buf_sv);
 }
 
 
@@ -30,15 +28,14 @@ static SEXP Math_leaf(MathFUN fun, SEXP leaf, double digits, int dim0,
 
 static SEXP REC_Math_SVT(MathFUN fun, SEXP SVT, double digits,
 			 const int *dim, int ndim,
-			 double *nzvals_buf, int *nzoffs_buf, int *newNaNs)
+			 SparseVec *buf_sv, int *newNaNs)
 {
 	if (SVT == R_NilValue)
 		return R_NilValue;
 
 	if (ndim == 1) {
 		/* 'SVT' is a leaf (i.e. 1D SVT). */
-		return Math_leaf(fun, SVT, digits, dim[0],
-				 nzvals_buf, nzoffs_buf, newNaNs);
+		return Math_leaf(fun, SVT, digits, buf_sv, newNaNs);
 	}
 
 	/* 'SVT' is a list. */
@@ -49,7 +46,7 @@ static SEXP REC_Math_SVT(MathFUN fun, SEXP SVT, double digits,
 		SEXP subSVT = VECTOR_ELT(SVT, i);
 		SEXP ans_elt = REC_Math_SVT(fun, subSVT, digits,
 					    dim, ndim - 1,
-					    nzvals_buf, nzoffs_buf, newNaNs);
+					    buf_sv, newNaNs);
 		if (ans_elt != R_NilValue) {
 			PROTECT(ans_elt);
 			SET_VECTOR_ELT(ans, i, ans_elt);
@@ -67,10 +64,13 @@ static SEXP REC_Math_SVT(MathFUN fun, SEXP SVT, double digits,
  */
 
 /* --- .Call ENTRY POINT --- */
-SEXP C_Math_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP op, SEXP digits)
+SEXP C_Math_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP x_na_background,
+		SEXP op, SEXP digits)
 {
 	/* Returned value ignored for now. */
 	_get_and_check_Rtype_from_Rstring(x_type, "C_Math_SVT", "x_type");
+	int x_has_NAbg = _get_and_check_na_background(x_na_background,
+				"C_Math_SVT", "x_na_background");
 
 	if (!IS_CHARACTER(op) || LENGTH(op) != 1)
 		error("SparseArray internal error in C_Math_SVT():\n"
@@ -83,14 +83,13 @@ SEXP C_Math_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP op, SEXP digits)
 	MathFUN fun = _get_MathFUN(CHAR(op));
 	double digits0 = REAL(digits)[0];
 
-	double *nzvals_buf = (double *)
-		R_alloc(INTEGER(x_dim)[0], sizeof(double));
-	int *nzoffs_buf = (int *)
-		R_alloc(INTEGER(x_dim)[0], sizeof(int));
+	int dim0 = INTEGER(x_dim)[0];
+	SparseVec buf_sv = alloc_SparseVec(REALSXP, dim0, x_has_NAbg);
+
 	int newNaNs = 0;
 	SEXP ans = REC_Math_SVT(fun, x_SVT, digits0,
 				INTEGER(x_dim), LENGTH(x_dim),
-				nzvals_buf, nzoffs_buf, &newNaNs);
+				&buf_sv, &newNaNs);
 	if (newNaNs) {
 		PROTECT(ans);
 		warning("NaNs produced");

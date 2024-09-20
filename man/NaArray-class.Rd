@@ -104,6 +104,9 @@ NaArray(x, dim=NULL, dimnames=NULL, type=NA)
           \link{NaArray_Logic}, for operations from the \code{Arith},
           \code{Compare}, and \code{Arith} groups on NaArray objects.
 
+    \item \link{NaArray_Math} for operations from the \code{Math} and
+          \code{Math2} groups on NaArray objects.
+
     \item \link{NaArray_matrixStats} for col/row summarization methods
           for NaArray objects.
 

@@ -1,3 +1,9 @@
+IS_INTEL_MAC <- Sys.info()[["sysname"]] == "Darwin" &&
+                Sys.info()[["machine"]] == "x86_64"
+
+IS_ARM64_MAC <- Sys.info()[["sysname"]] == "Darwin" &&
+                Sys.info()[["machine"]] == "arm64"
+
 make_3D_logical_array <- function(background=FALSE)
 {
     a <- array(background, 6:4,

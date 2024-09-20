@@ -7,6 +7,7 @@ SEXP C_Math_SVT(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT,
+	SEXP x_na_background,
 	SEXP op,
 	SEXP digits
 );

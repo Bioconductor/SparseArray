@@ -9,12 +9,11 @@ typedef double (*MathFUN)(double);
 
 MathFUN _get_MathFUN(const char *op);
 
-int _Math_doubleSV(
+void _Math_doubleSV(
 	MathFUN fun,
 	const SparseVec *sv,
 	double digits,
-	double *out_nzvals,
-	int *out_nzoffs,
+	SparseVec *out_sv,
 	int *newNaNs
 );
 
