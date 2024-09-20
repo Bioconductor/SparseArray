@@ -4,10 +4,18 @@
 \alias{SparseArray_Math_methods}
 \alias{SparseArray-Math}
 \alias{SparseArray_Math}
+\alias{SparseArray-math-methods}
+\alias{SparseArray_math_methods}
+\alias{SparseArray-math}
+\alias{SparseArray_math}
 \alias{SparseArray-Math2-methods}
 \alias{SparseArray_Math2_methods}
 \alias{SparseArray-Math2}
 \alias{SparseArray_Math2}
+\alias{SparseArray-math2-methods}
+\alias{SparseArray_math2_methods}
+\alias{SparseArray-math2}
+\alias{SparseArray_math2}
 
 \alias{Math,SVT_SparseArray-method}
 \alias{Math2,SVT_SparseArray-method}

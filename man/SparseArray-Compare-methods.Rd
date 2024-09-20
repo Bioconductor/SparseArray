@@ -4,6 +4,10 @@
 \alias{SparseArray_Compare-methods}
 \alias{SparseArray-Compare}
 \alias{SparseArray_Compare}
+\alias{SparseArray-compare-methods}
+\alias{SparseArray_compare-methods}
+\alias{SparseArray-compare}
+\alias{SparseArray_compare}
 
 \alias{Compare,SVT_SparseArray,vector-method}
 \alias{Compare,vector,SVT_SparseArray-method}

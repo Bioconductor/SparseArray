@@ -4,6 +4,10 @@
 \alias{NaArray_Logic-methods}
 \alias{NaArray-Logic}
 \alias{NaArray_Logic}
+\alias{NaArray-logic-methods}
+\alias{NaArray_logic-methods}
+\alias{NaArray-logic}
+\alias{NaArray_logic}
 
 \alias{!,NaArray-method}
 

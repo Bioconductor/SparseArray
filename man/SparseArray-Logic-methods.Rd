@@ -4,6 +4,10 @@
 \alias{SparseArray_Logic-methods}
 \alias{SparseArray-Logic}
 \alias{SparseArray_Logic}
+\alias{SparseArray-logic-methods}
+\alias{SparseArray_logic-methods}
+\alias{SparseArray-logic}
+\alias{SparseArray_logic}
 
 \alias{!,SparseArray-method}
 

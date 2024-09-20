@@ -4,6 +4,10 @@
 \alias{SparseArray_Arith-methods}
 \alias{SparseArray-Arith}
 \alias{SparseArray_Arith}
+\alias{SparseArray-arith-methods}
+\alias{SparseArray_arith-methods}
+\alias{SparseArray-arith}
+\alias{SparseArray_arith}
 
 \alias{+,SparseArray,missing-method}
 \alias{-,SparseArray,missing-method}

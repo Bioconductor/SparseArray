@@ -4,6 +4,10 @@
 \alias{SparseArray_Complex_methods}
 \alias{SparseArray-Complex}
 \alias{SparseArray_Complex}
+\alias{SparseArray-complex-methods}
+\alias{SparseArray_complex_methods}
+\alias{SparseArray-complex}
+\alias{SparseArray_complex}
 
 \alias{Complex,SVT_SparseArray-method}
 

@@ -4,6 +4,10 @@
 \alias{NaArray_Compare-methods}
 \alias{NaArray-Compare}
 \alias{NaArray_Compare}
+\alias{NaArray-compare-methods}
+\alias{NaArray_compare-methods}
+\alias{NaArray-compare}
+\alias{NaArray_compare}
 
 \alias{Compare,NaArray,vector-method}
 \alias{Compare,vector,NaArray-method}

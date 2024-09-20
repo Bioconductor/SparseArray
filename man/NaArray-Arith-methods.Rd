@@ -4,6 +4,10 @@
 \alias{NaArray_Arith-methods}
 \alias{NaArray-Arith}
 \alias{NaArray_Arith}
+\alias{NaArray-arith-methods}
+\alias{NaArray_arith-methods}
+\alias{NaArray-arith}
+\alias{NaArray_arith}
 
 \alias{+,NaArray,missing-method}
 \alias{-,NaArray,missing-method}
