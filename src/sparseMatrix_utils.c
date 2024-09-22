@@ -8,8 +8,8 @@
  * colMins(), colMaxs(), colRanges()
  */
 
-typedef double (*Extremum_FUNType)(const double *x, int x_len, int narm,
-				   int start_on_zero);
+typedef double (*ExtremumFUN)(const double *x, int x_len, int narm,
+			      int start_on_zero);
 
 static double min_double(const double *x, int x_len, int narm,
 			 int start_on_zero)
@@ -103,7 +103,7 @@ static void minmax_double(const double *x, int x_len, int narm,
 	return;
 }
 
-static SEXP C_colExtrema_dgCMatrix(Extremum_FUNType extremum_FUN,
+static SEXP C_colExtrema_dgCMatrix(ExtremumFUN extremum_FUN,
 		SEXP x, SEXP na_rm)
 {
 	SEXP x_Dim = GET_SLOT(x, install("Dim"));

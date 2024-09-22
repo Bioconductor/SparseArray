@@ -148,7 +148,7 @@ static SEXP make_scalar_lacunar_leaf()
 
 /* Returns a leaf representing a single nonzero value ("scalar leaf"). */
 static SEXP wrap_Rvector_elt_in_scalar_leaf(SEXP in_Rvector, int k,
-		CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
+		CopyRVectorEltFUN copy_Rvector_elt_FUN)
 {
 	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(1));
 	INTEGER(ans_nzoffs)[0] = 0;
@@ -169,7 +169,7 @@ static SEXP wrap_Rvector_elt_in_scalar_leaf(SEXP in_Rvector, int k,
 
 static void copy_scalar_leaf_val_to_Rvector(SEXP scalar_leaf,
 		SEXP out_Rvector, int k,
-		CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
+		CopyRVectorEltFUN copy_Rvector_elt_FUN)
 {
 	SEXP nzvals, nzoffs;
 	int nzcount = unzip_leaf(scalar_leaf, &nzvals, &nzoffs);
@@ -188,7 +188,7 @@ static void copy_scalar_leaf_val_to_Rvector(SEXP scalar_leaf,
    represents a 1x1x..xN array.
    'ans_ndim' is the number of dimensions of the result. It must be >= 2. */
 static SEXP unroll_leaf_as_SVT(SEXP leaf, int N, int ans_ndim,
-		CopyRVectorElt_FUNType fun)
+		CopyRVectorEltFUN fun)
 {
 	SEXP nzvals, nzoffs;
 	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
@@ -215,7 +215,7 @@ static SEXP unroll_leaf_as_SVT(SEXP leaf, int N, int ans_ndim,
    roll_SVT_into_leaf() turns 'SVT' into a leaf that represents a
    sparse vector of length N (i.e. its dense form would be of length N). */
 static SEXP roll_SVT_into_leaf(SEXP SVT, int ndim,
-		SEXPTYPE Rtype, CopyRVectorElt_FUNType fun)
+		SEXPTYPE Rtype, CopyRVectorEltFUN fun)
 {
 	int N = LENGTH(SVT);
 	int ans_nzcount = 0;
@@ -259,7 +259,7 @@ static SEXP roll_SVT_into_leaf(SEXP SVT, int ndim,
 static SEXP REC_tune_SVT(SEXP SVT, const int *dim, int ndim,
 		const int *ops, int nops,
 		const int *cumallKEEP, const int *cumallDROP,
-		SEXPTYPE Rtype, CopyRVectorElt_FUNType fun)
+		SEXPTYPE Rtype, CopyRVectorEltFUN fun)
 {
 	if (SVT == R_NilValue || (nops == ndim && cumallKEEP[ndim - 1]))
 		return SVT;
@@ -327,7 +327,7 @@ SEXP C_tune_SVT_dims(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP dim_tuner)
 {
 	SEXPTYPE Rtype = _get_and_check_Rtype_from_Rstring(x_type,
 						"C_tune_SVT_dims", "x_type");
-	CopyRVectorElt_FUNType fun = _select_copy_Rvector_elt_FUN(Rtype);
+	CopyRVectorEltFUN fun = _select_copy_Rvector_elt_FUN(Rtype);
 
 	/* Make sure that: 1 <= ndim <= nops. */
 	int ndim = LENGTH(x_dim);

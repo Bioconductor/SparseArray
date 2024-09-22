@@ -29,34 +29,11 @@ setMethod("tune_Array_dims", "NaArray", .tune_NaArray_dims)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### .subset_NaSVT_by_logical_array()
-###
-### Returns a vector (atomic or list) of the same type() as 'x'.
-###
-
-.subset_NaSVT_by_logical_array <- function(x, y)
-    stop("subsetting operation not supported yet")
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### .subset_NaSVT_by_Lindex()
 ### .subset_NaSVT_by_Mindex()
 ###
 ### Both return a vector (atomic or list) of the same type() as 'x'.
 ###
-
-.propagate_names_if_1D <- function(ans, x_dimnames, index)
-{
-    if (length(x_dimnames) != 1L)
-        return(ans)
-    stopifnot(is.list(x_dimnames))
-    x_names <- x_dimnames[[1L]]
-    if (is.null(x_names))
-        return(ans)
-    stopifnot(is.character(x_names),
-              identical(length(ans), length(index)))
-    setNames(ans, x_names[index])
-}
 
 ### 'Lindex' must be a numeric vector (integer or double), possibly a long one.
 ### NA indices are accepted.
@@ -66,10 +43,12 @@ setMethod("tune_Array_dims", "NaArray", .tune_NaArray_dims)
     check_svt_version(x)
     stopifnot(is.vector(Lindex), is.numeric(Lindex))
     on.exit(free_global_OPBufTree())
-    ans <- SparseArray.Call("C_subset_NaSVT_by_Lindex",
-                            x@dim, x@type, x@NaSVT, Lindex)
-    .propagate_names_if_1D(ans, dimnames(x), Lindex)
+    ans <- SparseArray.Call("C_subset_SVT_by_Lindex",
+                            x@dim, x@type, x@NaSVT, TRUE, Lindex)
+    propagate_names_if_1D(ans, dimnames(x), Lindex)
 }
+
+setMethod("subset_Array_by_Lindex", "NaArray", .subset_NaSVT_by_Lindex)
 
 ### Alright, '.subset_NaSVT_by_Mindex(x, Mindex)' could just have done:
 ###
@@ -98,10 +77,12 @@ setMethod("tune_Array_dims", "NaArray", .tune_NaArray_dims)
              "is not supported at the moment")
     }
     on.exit(free_global_OPBufTree())
-    ans <- SparseArray.Call("C_subset_NaSVT_by_Mindex",
-                            x@dim, x@type, x@NaSVT, Mindex)
-    .propagate_names_if_1D(ans, x_dimnames, Mindex)
+    ans <- SparseArray.Call("C_subset_SVT_by_Mindex",
+                            x@dim, x@type, x@NaSVT, TRUE, Mindex)
+    propagate_names_if_1D(ans, x_dimnames, Mindex)
 }
+
+setMethod("subset_Array_by_Mindex", "NaArray", .subset_NaSVT_by_Mindex)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -146,47 +127,9 @@ subset_NaSVT_by_Nindex <- function(x, Nindex, ignore.dimnames=FALSE)
                                    check=FALSE)
 }
 
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Single-bracket subsetting method (`[`) for NaArray objects
-###
-
-.subset_NaArray <- function(x, i, j, ..., drop=TRUE)
-{
-    if (missing(x))
-        stop(wmsg("'x' is missing"))
-    if (!isTRUEorFALSE(drop))
-        stop(wmsg("'drop' must be TRUE or FALSE"))
-    Nindex <- S4Arrays:::extract_Nindex_from_syscall(sys.call(), parent.frame())
-    nsubscript <- length(Nindex)
-    if (nsubscript == 0L)
-        return(x)  # no-op
-    x_dim <- dim(x)
-    if (nsubscript == 1L && drop) {
-        i <- Nindex[[1L]]
-        if (type(i) == "logical" && identical(x_dim, dim(i)))
-            return(.subset_NaSVT_by_logical_array(x, i))
-        if (is.matrix(i))
-            return(.subset_NaSVT_by_Mindex(x, i))
-        if (is.numeric(i))
-            return(.subset_NaSVT_by_Lindex(x, i))
-    }
-    if (nsubscript != length(x_dim))
-        stop(wmsg("incorrect number of subscripts"))
-    ## Note that this normalization will coerce the numeric subscripts
-    ## in 'Nindex' to integer. This no longer necessary because now
-    ## subset_NaSVT_by_Nindex() can handle subscripts of type "double" at
-    ## the C level.
-    ## TODO: Consider using a normalization process here that preserves
-    ## the numeric subscripts.
-    Nindex <- S4Arrays:::normalize_Nindex(Nindex, x)
-    ans <- subset_NaSVT_by_Nindex(x, Nindex)
-    if (drop)
-        ans <- drop(ans)
-    ans
-}
-
-setMethod("[", "NaArray", .subset_NaArray)
+setMethod("subset_Array_by_Nindex", "NaArray",
+    function(x, Nindex) subset_NaSVT_by_Nindex(x, Nindex)
+)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

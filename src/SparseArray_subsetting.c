@@ -146,7 +146,7 @@ static int subset_NULL_by_Lindex(int dim0, SEXP Lindex, SEXP ans)
    1D SVT_SparseArray object, 'dim0' is also the length of the object).
    NA indices are ok. */
 static int subset_leaf_by_Lindex(SEXP leaf, int dim0, SEXP Lindex, SEXP ans,
-		CopyRVectorElt_FUNType copy_Rvector_elt_FUN)
+		CopyRVectorEltFUN copy_Rvector_elt_FUN)
 {
 	if (leaf == R_NilValue)
 		return subset_NULL_by_Lindex(dim0, Lindex, ans);
@@ -176,7 +176,7 @@ static int subset_leaf_by_Lindex(SEXP leaf, int dim0, SEXP Lindex, SEXP ans,
 }
 
 static void subset_leaf_by_OPBuf(SEXP leaf, const OPBuf *opbuf, SEXP ans,
-		CopyRVectorElt_FUNType copy_Rvector_elt_FUN, int *lookup_table)
+		CopyRVectorEltFUN copy_Rvector_elt_FUN, int *lookup_table)
 {
 	if (leaf == R_NilValue || opbuf->nelt == 0)
 		return;
@@ -298,21 +298,12 @@ static SEXP subset_leaf_as_sparse(SEXP leaf, int dim0, SEXP subscript,
 
 
 /****************************************************************************
- * C_subset_SVT_by_[L|M]index()
+ * build_OPBufTree_from_Lindex()
+ * build_OPBufTree_from_Mindex()
+ *
+ * Both are used by .Call ENTRY POINTs C_subset_SVT_by_[L|M]index() below
+ * in this file.
  */
-
-static int check_Mindex(SEXP Mindex, int ndim,
-		const char *what1, const char *what2)
-{
-	SEXP Mindex_dim = GET_DIM(Mindex);
-	if (Mindex_dim == R_NilValue || LENGTH(Mindex_dim) != 2)
-		error("'%s' must be a matrix", what1);
-	if (!(IS_INTEGER(Mindex) || IS_NUMERIC(Mindex)))
-		error("'%s' must be an integer matrix", what1);
-	if (INTEGER(Mindex_dim)[1] != ndim)
-		error("ncol(%s) != %s", what1, what2);
-	return INTEGER(Mindex_dim)[0];
-}
 
 /* 'Lidx0' is trusted to be a non-NA value >= 0 and < 'dimcumprod[ndim - 1]'.
    'SVT' is trusted to not be NULL.
@@ -535,11 +526,23 @@ static int build_OPBufTree_from_Mindex(OPBufTree *opbuf_tree, SEXP Mindex,
 	return max_outleaf_len;
 }
 
+
+/****************************************************************************
+ * C_subset_SVT_by_[L|M]index()
+ */
+
+static SEXP new_Rvector(SEXPTYPE Rtype, R_xlen_t len, int na_background)
+{
+	if (na_background)
+		return _new_RvectorNA(Rtype, len);
+	return _new_Rvector0(Rtype, len);
+}
+
 /* Recursive tree traversal must be guided by 'opbuf_tree', not by 'SVT'. See
-   long comment above why. */
+   IMPORTANT comment for build_OPBufTree_from_Lindex() above. */
 static void REC_subset_SVT_by_OPBufTree(OPBufTree *opbuf_tree,
 		SEXP SVT, const int *dim, int ndim, SEXP ans,
-		CopyRVectorElt_FUNType fun, int *lookup_table, int pardim)
+		CopyRVectorEltFUN fun, int *lookup_table, int pardim)
 {
 	if (opbuf_tree->node_type == NULL_NODE)
 		return;
@@ -574,11 +577,15 @@ static void REC_subset_SVT_by_OPBufTree(OPBufTree *opbuf_tree,
 /* --- .Call ENTRY POINT ---
    'Lindex' must be a numeric vector (integer or double), possibly a long one.
    NA indices are accepted. */
-SEXP C_subset_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Lindex)
+SEXP C_subset_SVT_by_Lindex(
+		SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP x_na_background,
+		SEXP Lindex)
 {
 	SEXPTYPE Rtype = _get_and_check_Rtype_from_Rstring(x_type,
-					"C_subset_SVT_by_Lindex", "x_type");
-	CopyRVectorElt_FUNType fun = _select_copy_Rvector_elt_FUN(Rtype);
+				"C_subset_SVT_by_Lindex", "x_type");
+	CopyRVectorEltFUN fun = _select_copy_Rvector_elt_FUN(Rtype);
+	int x_has_NAbg = _get_and_check_na_background(x_na_background,
+				"C_subset_SVT_by_Lindex", "x_na_background");
 
 	if (!(IS_INTEGER(Lindex) || IS_NUMERIC(Lindex)))
 		error("'Lindex' must be an integer or numeric vector");
@@ -586,7 +593,7 @@ SEXP C_subset_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Lindex)
 	int x_ndim = LENGTH(x_dim);
 	int x_dim0 = INTEGER(x_dim)[0];
 	R_xlen_t ans_len = XLENGTH(Lindex);
-	SEXP ans = PROTECT(_new_Rvector0(Rtype, ans_len));
+	SEXP ans = PROTECT(new_Rvector(Rtype, ans_len, x_has_NAbg));
 
 	if (x_ndim == 1) {
 		int ret = subset_leaf_by_Lindex(x_SVT, x_dim0, Lindex, ans,
@@ -643,20 +650,37 @@ SEXP C_subset_SVT_by_Lindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Lindex)
 	return ans;
 }
 
+static int check_Mindex(SEXP Mindex, int ndim,
+		const char *what1, const char *what2)
+{
+	SEXP Mindex_dim = GET_DIM(Mindex);
+	if (Mindex_dim == R_NilValue || LENGTH(Mindex_dim) != 2)
+		error("'%s' must be a matrix", what1);
+	if (!(IS_INTEGER(Mindex) || IS_NUMERIC(Mindex)))
+		error("'%s' must be an integer matrix", what1);
+	if (INTEGER(Mindex_dim)[1] != ndim)
+		error("ncol(%s) != %s", what1, what2);
+	return INTEGER(Mindex_dim)[0];
+}
+
 /* --- .Call ENTRY POINT ---
    'Mindex' must be a numeric matrix (integer or double) with one column per
    dimension in the array to subset. NAs in the matrix are forbidden at the
    moment (they'll trigger an error), except in the 1D case. */
-SEXP C_subset_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Mindex)
+SEXP C_subset_SVT_by_Mindex(
+		SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP x_na_background,
+		SEXP Mindex)
 {
 	SEXPTYPE Rtype = _get_and_check_Rtype_from_Rstring(x_type,
-					"C_subset_SVT_by_Mindex", "x_type");
-	CopyRVectorElt_FUNType fun = _select_copy_Rvector_elt_FUN(Rtype);
+				"C_subset_SVT_by_Mindex", "x_type");
+	CopyRVectorEltFUN fun = _select_copy_Rvector_elt_FUN(Rtype);
+	int x_has_NAbg = _get_and_check_na_background(x_na_background,
+				"C_subset_SVT_by_Mindex", "x_na_background");
 
 	int x_ndim = LENGTH(x_dim);
 	int x_dim0 = INTEGER(x_dim)[0];
 	int ans_len = check_Mindex(Mindex, x_ndim, "Mindex", "length(dim(x))");
-	SEXP ans = PROTECT(_new_Rvector0(Rtype, (R_xlen_t) ans_len));
+	SEXP ans = PROTECT(new_Rvector(Rtype, (R_xlen_t) ans_len, x_has_NAbg));
 
 	if (x_ndim == 1) {
 		int ret = subset_leaf_by_Lindex(x_SVT, x_dim0, Mindex, ans,

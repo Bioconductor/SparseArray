@@ -90,7 +90,7 @@ static inline R_xlen_t get_Lidx(SEXP Lindex, long long atid_lloff)
  * the first column of the sparse matrix! A very atypical situation.
  */
 
-typedef SEXP (*NewIDS_FUNType)(void);
+typedef SEXP (*NewIDS_FUN)(void);
 
 static SEXP new_IDS(void)
 {
@@ -107,7 +107,7 @@ static SEXP new_llIDS(void)
 	return R_MakeExternalPtr(atid_lloffs_buf, R_NilValue, R_NilValue);
 }
 
-static SEXP new_extended_leaf(SEXP leaf, NewIDS_FUNType new_IDS_FUN)
+static SEXP new_extended_leaf(SEXP leaf, NewIDS_FUN new_IDS_FUN)
 {
 	SEXP nzvals, nzoffs;
 	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
@@ -128,7 +128,7 @@ static SEXP new_extended_leaf(SEXP leaf, NewIDS_FUNType new_IDS_FUN)
    - If 'leaf' is R_NilValue, it gets replaced with an IDS.
    - If 'leaf' is not R_NilValue, it gets replaced with an "extended leaf". */
 static inline int get_IDS(SEXP leaf_parent, int i, SEXP leaf,
-			  NewIDS_FUNType new_IDS_FUN, int *nzcount, SEXP *IDS)
+			  NewIDS_FUN new_IDS_FUN, int *nzcount, SEXP *IDS)
 {
 	if (leaf == R_NilValue) {
 		*nzcount = 0;

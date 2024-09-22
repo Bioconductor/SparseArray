@@ -148,7 +148,8 @@ static SEXP make_leaf_from_selected_Rsubvec_elts(
 	}
 
 	if (avoid_copy_if_all_selected &&
-	    subvec_offset == 0 && n == XLENGTH(Rvector))
+	    subvec_offset == 0 && n == XLENGTH(Rvector) &&
+	    ATTRIB(Rvector) == R_NilValue)
 	{
 		/* The full 'Rvector' is selected so can be reused as-is
 		   with no need to copy the selected elements to a new SEXP. */
@@ -461,7 +462,7 @@ SEXP _subassign_leaf_with_Rvector(SEXP leaf, SEXP index, SEXP Rvector)
 		ans_nzcount += index_len - k2;
 	}
 
-	CopyRVectorElt_FUNType copy_Rvector_elt_FUN =
+	CopyRVectorEltFUN copy_Rvector_elt_FUN =
 		_select_copy_Rvector_elt_FUN(Rtype);
 	if (copy_Rvector_elt_FUN == NULL)
 		error("SparseArray internal error in "

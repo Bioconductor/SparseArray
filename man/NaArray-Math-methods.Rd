@@ -61,7 +61,7 @@ nam[c(2, 6, 12:17, 22:33, 55, 59:62, 90)] <-
 log(nam)
 exp(nam)
 cos(nam)
-gamma(nam)
+lgamma(nam)
 
 ## Sanity checks:
 m <- as.matrix(nam)
@@ -69,7 +69,7 @@ stopifnot(
   suppressWarnings(identical(as.matrix(log(nam)), log(m))),
   identical(as.matrix(exp(nam)), exp(m)),
   suppressWarnings(identical(as.matrix(cos(nam)), cos(m))),
-  suppressWarnings(identical(as.matrix(gamma(nam)), gamma(m)))
+  suppressWarnings(identical(as.matrix(lgamma(nam)), lgamma(m)))
 )
 }
 \keyword{array}

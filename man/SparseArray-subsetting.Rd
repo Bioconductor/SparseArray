@@ -7,7 +7,6 @@
 \alias{extract_array,COO_SparseArray-method}
 \alias{extract_sparse_array,SVT_SparseArray-method}
 
-\alias{[,SVT_SparseArray,ANY,ANY,ANY-method}
 \alias{extract_array,SVT_SparseArray-method}
 
 \title{Subsetting a SparseArray object}
@@ -70,10 +69,13 @@ drop(svt2)
 ## ---------------------------------------------------------------------
 
 ## Using a numeric vector (L-index):
-svt[c(60,24,56)]
+svt[c(60, 24, 21, 56)]
 
 ## Using a matrix subscript (M-index):
-m <- rbind(c(5,4,3),c(4,1,2),c(1,4,3))
+m <- rbind(c(5, 4, 3),
+           c(4, 1, 2),
+           c(1, 1, 2),
+           c(1, 4, 3))
 svt[m]
 
 ## See '?Lindex2Mindex' in the S4Arrays package for how to convert an
@@ -113,7 +115,7 @@ stopifnot(identical(as.array(svt2), a2), identical(svt2, SparseArray(a2)))
 svt2 <- drop(svt2)
 a2 <- drop(a2)
 stopifnot(identical(as.array(svt2), a2), identical(svt2, SparseArray(a2)))
-stopifnot(identical(svt[c(60,24,56)], svt[m]))
+stopifnot(identical(svt[c(60, 24, 21, 56)], svt[m]))
 }
 \keyword{array}
 \keyword{methods}

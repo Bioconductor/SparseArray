@@ -54,6 +54,20 @@ make_3D_complex_array <- function(background=0L)
     a
 }
 
+make_lacunar_leaf <- function(mode, nzoffs)
+{
+    stopifnot(isSingleString(mode))
+    stopifnot(is.integer(nzoffs))
+    if (SparseArray:::lacunar_mode_is_on()) {
+        nzvals <- NULL
+    } else {
+        as.fun <- base::get(paste0("as.", mode), envir=asNamespace("base"),
+                            mode="function")
+        nzvals <- rep.int(as.fun(1L), length(nzoffs))
+    }
+    list(nzvals, nzoffs)
+}
+
 check_array_like_object <- function(object, expected_class, a0, strict=TRUE)
 {
     expect_true(class(object) == expected_class)
@@ -83,29 +97,59 @@ check_NaArray_object <- function(naa, a0, strict=TRUE)
         expect_identical(naa, as(a0, expected_class))
 }
 
-make_lacunar_leaf <- function(mode, nzoffs)
+### Subsetting a 1D ordinary array always preserves the "dim" and "dimnames"
+### attributes i.e. it always returns another 1D array. This is inconsistent
+### with the multidimensional case where, for example, linear subsetting (i.e.
+### subsetting by a numeric vector or matrix) returns an ordinary vector
+### (atomic or list). At the root of the problem is the behavior of
+### base::drop() on a 1D array (see drop_even_if_1D() function in S4Arrays,
+### in file R/dim-tuning-utils.R). So we "fix" subsetting of a 1D ordinary
+### array by passing the result of the subsetting operation thru
+### S4Arrays:::drop_even_if_1D().
+test_linear_subsetting <- function(a, object, Mindex0)
 {
-    stopifnot(isSingleString(mode))
-    stopifnot(is.integer(nzoffs))
-    if (SparseArray:::lacunar_mode_is_on()) {
-        nzvals <- NULL
-    } else {
-        as.fun <- base::get(paste0("as.", mode), envir=asNamespace("base"),
-                            mode="function")
-        nzvals <- rep.int(as.fun(1L), length(nzoffs))
-    }
-    list(nzvals, nzoffs)
+    stopifnot(is.array(a))
+    Lindex0 <- Mindex2Lindex(Mindex0, dim(a))
+
+    expected <- S4Arrays:::drop_even_if_1D(a[Mindex0])
+    expect_identical(object[Lindex0], expected)
+    expect_identical(object[Mindex0], expected)
+    expect_identical(object[Lindex0 + 0.99], expected)
+    expect_identical(object[Mindex0 + 0.99], expected)
+
+    revLindex <- rev(Lindex0)
+    revMindex <- Lindex2Mindex(revLindex, dim(a))
+    expected <- S4Arrays:::drop_even_if_1D(a[revLindex])
+    expect_identical(object[revLindex], expected)
+    expect_identical(object[revMindex], expected)
+    type(revLindex) <- "double"
+    type(revMindex) <- "double"
+    expect_identical(object[revLindex], expected)
+    expect_identical(object[revMindex], expected)
+    expect_identical(object[revLindex + 0.99], expected)
+    expect_identical(object[revMindex + 0.99], expected)
+
+    Lindex <- c(NA, Lindex0, NA, NA, Lindex0, NA, rev(Lindex0))
+    ## Lindex2Mindex() and 'object[Mindex]' don't accept NAs at the moment.
+    #Mindex <- Lindex2Mindex(Lindex, dim(a))
+    expected <- S4Arrays:::drop_even_if_1D(a[Lindex])
+    expect_identical(object[Lindex], expected)
+    #expect_identical(object[Mindex], expected)
+    Lindex[1L] <- NaN      # this coerces 'Lindex' to "numeric"
+    #Mindex[1L, 1L] <- NaN  # this coerces 'Mindex' to "numeric"
+    expect_identical(object[Lindex], expected)
+    #expect_identical(object[Mindex], expected)
 }
 
-test_summarize_op1 <- function(a, svt, op)
+test_summarize_op1 <- function(a, object, op)
 {
     FUN <- match.fun(op)
     expected <- FUN(as.vector(a))
-    current <- FUN(svt)
+    current <- FUN(object)
     expect_identical(current, expected)
 }
 
-test_summarize_op2 <- function(a, svt, op)
+test_summarize_op2 <- function(a, object, op)
 {
     FUN <- match.fun(op)
     if (op %in% c("var", "sd") ||
@@ -116,12 +160,12 @@ test_summarize_op2 <- function(a, svt, op)
         EXPECT_FUN <- expect_identical
     }
     expected <- FUN(as.vector(a))
-    current <- FUN(svt)
+    current <- FUN(object)
     if (op == "prod" && is.integer(current))
         expected <- as.integer(expected)
     EXPECT_FUN(current, expected)
     expected <- FUN(as.vector(a), na.rm=TRUE)
-    current <- FUN(svt, na.rm=TRUE)
+    current <- FUN(object, na.rm=TRUE)
     if (op == "prod" && is.integer(current))
         expected <- as.integer(expected)
     EXPECT_FUN(current, expected)

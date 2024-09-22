@@ -464,6 +464,7 @@ void _set_selected_Rsubvec_elts_to_one(SEXP Rvector, R_xlen_t subvec_offset,
  * _new_Rmatrix0()
  * _new_Rarray0()
  * _new_Rvector1()
+ * _new_RvectorNA()
  * _new_RarrayNA()
  */
 
@@ -471,7 +472,7 @@ void _set_selected_Rsubvec_elts_to_one(SEXP Rvector, R_xlen_t subvec_offset,
 SEXP _new_Rvector0(SEXPTYPE Rtype, R_xlen_t len)
 {
 	SEXP ans = PROTECT(allocVector(Rtype, len));
-	/* allocVector() does NOT initialize the vector elements, except
+	/* allocVector() does NOT initialize the vector elements, except for
 	   a character vector or a list. */
 	if (Rtype != STRSXP && Rtype != VECSXP)
 		_set_Rvector_elts_to_zero(ans);
@@ -517,6 +518,18 @@ SEXP _new_Rvector1(SEXPTYPE Rtype, int len)
 {
 	SEXP ans = PROTECT(allocVector(Rtype, (R_xlen_t) len));
 	_set_Rvector_elts_to_one(ans);
+	UNPROTECT(1);
+	return ans;
+}
+
+/* Like _new_Rvector0() but:
+   - initializes the array elements to NA;
+   - restricted to types "integer", "logical", "double", "complex",
+     and "character". */
+SEXP _new_RvectorNA(SEXPTYPE Rtype, R_xlen_t len)
+{
+	SEXP ans = PROTECT(allocVector(Rtype, len));
+	_set_Rvector_elts_to_NA(ans);
 	UNPROTECT(1);
 	return ans;
 }
@@ -900,7 +913,7 @@ int _all_selected_Rsubvec_elts_equal_one(SEXP Rvector, R_xlen_t subvec_offset,
  * _select_copy_Rvector_elt_FUN()
  */
 
-CopyRVectorElt_FUNType _select_copy_Rvector_elt_FUN(SEXPTYPE Rtype)
+CopyRVectorEltFUN _select_copy_Rvector_elt_FUN(SEXPTYPE Rtype)
 {
 	switch (Rtype) {
 	    case INTSXP: case LGLSXP: return copy_INTEGER_elt;

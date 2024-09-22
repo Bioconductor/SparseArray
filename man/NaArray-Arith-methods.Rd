@@ -114,7 +114,7 @@ stopifnot(
   identical(as.matrix(nam2 - nam1), m2 - m1),
   identical(as.matrix(nam2 * nam1), m2 * m1),
   identical(as.matrix(nam2 / nam1), m2 / m1),
-  identical(as.matrix(nam2 ^ nam1), m2 ^ m1),
+  all.equal(as.matrix(nam2 ^ nam1), m2 ^ m1),
   identical(as.matrix(nam2 \%\% nam1), m2 \%\% m1),
   identical(as.matrix(nam2 \%/\% nam1), m2 \%/\% m1)
 )

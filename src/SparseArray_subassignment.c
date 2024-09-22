@@ -87,8 +87,6 @@ static inline R_xlen_t get_Lidx(SEXP Lindex, long long atid_lloff)
  */
 #include "S4Vectors_interface.h"
 
-typedef SEXP (*NewIDS_FUNType)(void);
-
 
 /****************************************************************************
  * REC_postprocess_SVT_using_[M|L]index()
@@ -342,9 +340,9 @@ static inline int Rvector_elt_is_R_NilValue(SEXP Rvector, R_xlen_t i)
 	return VECTOR_ELT(Rvector, i) == R_NilValue;
 }
 
-typedef int (*RVectorEltIsZero_FUNType)(SEXP Rvector, R_xlen_t i);
+typedef int (*RVectorEltIsZeroFUN)(SEXP Rvector, R_xlen_t i);
 
-static RVectorEltIsZero_FUNType select_Rvector_elt_is_zero_FUN(SEXPTYPE Rtype)
+static RVectorEltIsZeroFUN select_Rvector_elt_is_zero_FUN(SEXPTYPE Rtype)
 {
 	switch (Rtype) {
 	    case INTSXP: case LGLSXP: return Rvector_elt_is_int0;
@@ -359,7 +357,7 @@ static RVectorEltIsZero_FUNType select_Rvector_elt_is_zero_FUN(SEXPTYPE Rtype)
 	      "    type \"%s\" is not supported", type2char(Rtype));
 }
 
-static RVectorEltIsZero_FUNType select_Rvector_elt_is_NA_FUN(SEXPTYPE Rtype)
+static RVectorEltIsZeroFUN select_Rvector_elt_is_NA_FUN(SEXPTYPE Rtype)
 {
 	switch (Rtype) {
 	    case INTSXP: case LGLSXP: return Rvector_elt_is_intNA;
@@ -436,10 +434,10 @@ static inline int same_LIST_vals(
 	return VECTOR_ELT(Rvector1, i1) == VECTOR_ELT(Rvector2, i2);
 }
 
-typedef int (*SameRVectorVals_FUNType)(SEXP Rvector1, R_xlen_t i1,
-				       SEXP Rvector2, R_xlen_t i2);
+typedef int (*SameRVectorValsFUN)(SEXP Rvector1, R_xlen_t i1,
+				  SEXP Rvector2, R_xlen_t i2);
 
-static SameRVectorVals_FUNType select_same_Rvector_vals_FUN(SEXPTYPE Rtype)
+static SameRVectorValsFUN select_same_Rvector_vals_FUN(SEXPTYPE Rtype)
 {
 	switch (Rtype) {
 	    case INTSXP: case LGLSXP: return same_INTEGER_vals;
@@ -454,8 +452,8 @@ static SameRVectorVals_FUNType select_same_Rvector_vals_FUN(SEXPTYPE Rtype)
 
 static SEXP subassign_NULL_by_OPBuf(int dim0,
 		const OPBuf *opbuf, SEXP vals,
-		RVectorEltIsZero_FUNType Rvector_elt_is_zero_FUN,
-		CopyRVectorElt_FUNType copy_Rvector_elt_FUN,
+		RVectorEltIsZeroFUN Rvector_elt_is_zero_FUN,
+		CopyRVectorEltFUN copy_Rvector_elt_FUN,
 		int *idx0_order_buf, unsigned short int *rxbuf1, int *rxbuf2,
 		int *idx0_to_k_map)
 {
@@ -529,8 +527,8 @@ static SEXP subassign_NULL_by_OPBuf(int dim0,
 /* Returns -1 if subassignment is a no-op. */
 static int compute_subassignment_nzcount(SEXP leaf, int dim0,
 		const OPBuf *opbuf, SEXP vals,
-		RVectorEltIsZero_FUNType Rvector_elt_is_zero_FUN,
-		SameRVectorVals_FUNType same_Rvector_vals_FUN,
+		RVectorEltIsZeroFUN Rvector_elt_is_zero_FUN,
+		SameRVectorValsFUN same_Rvector_vals_FUN,
 		int *idx0_to_k_map)
 {
 	SEXP nzvals, nzoffs;
@@ -586,8 +584,8 @@ static int compute_subassignment_nzcount(SEXP leaf, int dim0,
 static void do_subassign_nonNULL_leaf_by_OPBuf(SEXP leaf, int dim0,
 		const OPBuf *opbuf, SEXP vals,
 		SEXP ans_nzvals, SEXP ans_nzoffs,
-		RVectorEltIsZero_FUNType Rvector_elt_is_zero_FUN,
-		CopyRVectorElt_FUNType copy_Rvector_elt_FUN,
+		RVectorEltIsZeroFUN Rvector_elt_is_zero_FUN,
+		CopyRVectorEltFUN copy_Rvector_elt_FUN,
 		const int *idx0_to_k_map)
 {
 	SEXP nzvals, nzoffs;
@@ -636,9 +634,9 @@ static void do_subassign_nonNULL_leaf_by_OPBuf(SEXP leaf, int dim0,
 /* 'leaf' cannot be R_NilValue. */
 static SEXP subassign_nonNULL_leaf_by_OPBuf(SEXP leaf, int dim0,
 		const OPBuf *opbuf, SEXP vals,
-		RVectorEltIsZero_FUNType fun1,
-		SameRVectorVals_FUNType fun2,
-		CopyRVectorElt_FUNType fun3,
+		RVectorEltIsZeroFUN fun1,
+		SameRVectorValsFUN fun2,
+		CopyRVectorEltFUN fun3,
 		int *idx0_to_k_map)
 {
 	int ans_nzcount = compute_subassignment_nzcount(leaf, dim0,
@@ -659,9 +657,9 @@ static SEXP subassign_nonNULL_leaf_by_OPBuf(SEXP leaf, int dim0,
 
 static SEXP subassign_leaf_by_OPBuf(SEXP leaf, int dim0,
 		const OPBuf *opbuf, SEXP vals,
-		RVectorEltIsZero_FUNType fun1,
-		SameRVectorVals_FUNType fun2,
-		CopyRVectorElt_FUNType fun3,
+		RVectorEltIsZeroFUN fun1,
+		SameRVectorValsFUN fun2,
+		CopyRVectorEltFUN fun3,
 		int *idx0_order_buf, unsigned short int *rxbuf1, int *rxbuf2,
 		int *idx0_to_k_map)
 {
@@ -764,9 +762,9 @@ static int build_OPBufTree_from_Lindex(OPBufTree *opbuf_tree, SEXP Lindex,
 /* Recursive tree traversal of 'opbuf_tree'. */
 static SEXP REC_subassign_SVT_by_OPBufTree(OPBufTree *opbuf_tree,
 		SEXP SVT, const int *dim, int ndim, SEXP vals,
-		RVectorEltIsZero_FUNType fun1,
-		SameRVectorVals_FUNType fun2,
-		CopyRVectorElt_FUNType fun3,
+		RVectorEltIsZeroFUN fun1,
+		SameRVectorValsFUN fun2,
+		CopyRVectorEltFUN fun3,
 		int *idx0_order_buf, unsigned short int *rxbuf1, int *rxbuf2,
 		int *idx0_to_k_map, int pardim)
 {
@@ -842,14 +840,14 @@ SEXP C_subassign_SVT_by_Lindex(
 	if (nvals == 0)
 		return x_SVT;  /* no-op */
 
-	RVectorEltIsZero_FUNType fun1;
+	RVectorEltIsZeroFUN fun1;
 	if (x_has_NAbg) {
 		fun1 = select_Rvector_elt_is_NA_FUN(Rtype);
 	} else {
 		fun1 = select_Rvector_elt_is_zero_FUN(Rtype);
 	}
-	SameRVectorVals_FUNType fun2 = select_same_Rvector_vals_FUN(Rtype);
-	CopyRVectorElt_FUNType fun3 = _select_copy_Rvector_elt_FUN(Rtype);
+	SameRVectorValsFUN fun2 = select_same_Rvector_vals_FUN(Rtype);
+	CopyRVectorEltFUN fun3 = _select_copy_Rvector_elt_FUN(Rtype);
 
 	int x_dim0 = INTEGER(x_dim)[0];
 	if (x_ndim == 1)
@@ -942,9 +940,9 @@ SEXP C_subassign_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	if (nvals == 0)
 		return x_SVT;  /* no-op */
 
-	//RVectorEltIsZero_FUNType fun1 = select_Rvector_elt_is_zero_FUN(Rtype);
-	//SameRVectorVals_FUNType fun2 = select_same_Rvector_vals_FUN(Rtype);
-	//CopyRVectorElt_FUNType fun3 = _select_copy_Rvector_elt_FUN(Rtype);
+	//RVectorEltIsZeroFUN fun1 = select_Rvector_elt_is_zero_FUN(Rtype);
+	//SameRVectorValsFUN fun2 = select_same_Rvector_vals_FUN(Rtype);
+	//CopyRVectorEltFUN fun3 = _select_copy_Rvector_elt_FUN(Rtype);
 
 	int x_dim0 = INTEGER(x_dim)[0];
 	if (x_ndim == 1)
@@ -1005,7 +1003,7 @@ static inline SEXP make_SVT_node(SEXP SVT, int d, SEXP SVT0)
  */
 
 typedef struct left_bufs_t {
-	CopyRVectorElt_FUNType copy_Rvector_elt_FUN;
+	CopyRVectorEltFUN copy_Rvector_elt_FUN;
 	SEXP Rvector;
 	int *offs;
 	SEXP precomputed_leaf;

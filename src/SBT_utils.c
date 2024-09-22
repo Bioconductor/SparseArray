@@ -175,10 +175,10 @@ static void copy_SparseBuf_SEXPs_to_list(const SparseBufNzVals nzvals,
 	return;
 }
 
-typedef void (*copy_nzvals_FUNType)(const SparseBufNzVals nzvals,
-				    SEXP Rvector, int n);
+typedef void (*CopyNzvalsFUN)(const SparseBufNzVals nzvals,
+			      SEXP Rvector, int n);
 
-static copy_nzvals_FUNType _select_copy_nzvals_FUN(SEXPTYPE Rtype)
+static CopyNzvalsFUN _select_copy_nzvals_FUN(SEXPTYPE Rtype)
 {
 	switch (Rtype) {
 	    case INTSXP: case LGLSXP:
@@ -201,7 +201,7 @@ static copy_nzvals_FUNType _select_copy_nzvals_FUN(SEXPTYPE Rtype)
 
 /* 'buf' can NOT be empty! */
 static SEXP make_leaf_from_SparseBuf(SEXPTYPE Rtype,
-		const SparseBuf *buf, copy_nzvals_FUNType copy_nzvals_FUN)
+		const SparseBuf *buf, CopyNzvalsFUN copy_nzvals_FUN)
 {
 	int buf_len = buf->nelt;
 	SEXP ans_nzvals = PROTECT(allocVector(Rtype, buf_len));
@@ -292,7 +292,7 @@ static inline int push_SEXP_to_leaf_buffer
 	FUNDEF_push_val_to_leaf_buffer(SEXP, SEXPs)
 
 static SEXP lb2leaf(SEXP lb, SEXPTYPE Rtype,
-		    copy_nzvals_FUNType copy_nzvals_FUN)
+		    CopyNzvalsFUN copy_nzvals_FUN)
 {
 	return make_leaf_from_SparseBuf(Rtype, R_ExternalPtrAddr(lb),
 					copy_nzvals_FUN);
@@ -365,7 +365,7 @@ void _push_SEXP_to_SBT		FUNDEF_push_val_to_SBT(SEXP)
 
 /* Recursive. 'SBT' can NOT be R_NilValue! */
 static void REC_SBT2SVT(SEXP SBT, const int *dim, int ndim,
-		SEXPTYPE Rtype, copy_nzvals_FUNType copy_nzvals_FUN)
+		SEXPTYPE Rtype, CopyNzvalsFUN copy_nzvals_FUN)
 {
 	int SBT_len, i;
 	SEXP subSBT, leaf;
@@ -393,7 +393,7 @@ static void REC_SBT2SVT(SEXP SBT, const int *dim, int ndim,
    'SBT' can NOT be R_NilValue! Must be called with 'ndim' >= 2. */
 void _SBT2SVT(SEXP SBT, const int *dim, int ndim, SEXPTYPE Rtype)
 {
-	copy_nzvals_FUNType copy_nzvals_FUN;
+	CopyNzvalsFUN copy_nzvals_FUN;
 
 	copy_nzvals_FUN = _select_copy_nzvals_FUN(Rtype);
 	REC_SBT2SVT(SBT, dim, ndim, Rtype, copy_nzvals_FUN);

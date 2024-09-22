@@ -268,7 +268,6 @@ SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type,
 {
 	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
 					"C_colStats_SVT", "x_type");
-
 	int x_has_NAbg = _get_and_check_na_background(x_na_background,
 					"C_colStats_SVT", "x_na_background");
 
@@ -589,7 +588,6 @@ SEXP C_rowStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type,
 {
 	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
 					"C_rowStats_SVT", "x_type");
-
 	int x_has_NAbg = _get_and_check_na_background(x_na_background,
 					"C_colStats_SVT", "x_na_background");
 

@@ -170,7 +170,7 @@ static void collect_stats_on_input_rows(SEXP SVT, int nrow, int ncol,
 	return;
 }
 
-typedef void (*TransposeCol_FUNType)(int col_idx, SEXP col,
+typedef void (*TransposeColFUN)(int col_idx, SEXP col,
 		void **quick_out_nzvals_p, int **quick_out_nzoffs_p,
 		int *nzcount_buf);
 
@@ -332,7 +332,7 @@ static void transpose_list_col(int col_idx, SEXP col,
 	return;
 }
 
-static TransposeCol_FUNType select_transpose_col_FUN(SEXPTYPE Rtype)
+static TransposeColFUN select_transpose_col_FUN(SEXPTYPE Rtype)
 {
 	switch (Rtype) {
 	    case INTSXP: case LGLSXP: return transpose_integer_col;
@@ -348,7 +348,7 @@ static TransposeCol_FUNType select_transpose_col_FUN(SEXPTYPE Rtype)
 static SEXP transpose_2D_SVT(SEXP SVT, int nrow, int ncol, SEXPTYPE Rtype,
 		int *nzcount_buf, int *onecount_buf)
 {
-	TransposeCol_FUNType transpose_col_FUN =
+	TransposeColFUN transpose_col_FUN =
 			select_transpose_col_FUN(Rtype);
 	if (transpose_col_FUN == NULL)
 		error("SparseArray internal error in "

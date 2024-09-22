@@ -28,7 +28,7 @@ extern Rcomplex RcomplexNA;
 
 #define RCOMPLEX_IS_NA_OR_NaN(z) (ISNAN((z)->r) || ISNAN((z)->i))
 
-typedef void (*CopyRVectorElt_FUNType)(
+typedef void (*CopyRVectorEltFUN)(
 	SEXP in,  R_xlen_t in_offset,
 	SEXP out, R_xlen_t out_offset);
 
@@ -254,6 +254,11 @@ SEXP _new_Rvector1(
 	int len
 );
 
+SEXP _new_RvectorNA(
+	SEXPTYPE Rtype,
+	R_xlen_t len
+);
+
 SEXP _new_RarrayNA(
 	SEXPTYPE Rtype,
 	SEXP dim,
@@ -295,7 +300,7 @@ int _all_selected_Rsubvec_elts_equal_one(
 	int n
 );
 
-CopyRVectorElt_FUNType _select_copy_Rvector_elt_FUN(SEXPTYPE Rtype);
+CopyRVectorEltFUN _select_copy_Rvector_elt_FUN(SEXPTYPE Rtype);
 
 void _copy_Rvector_elts(
 	SEXP in,
