@@ -3,7 +3,7 @@ title: "SparseArray objects"
 author:
 - name: Hervé Pagès
   affiliation: Fred Hutchinson Cancer Research Center, Seattle, WA
-date: "Compiled `r BiocStyle::doc_date()`; Modified 11 September 2024"
+date: "Compiled `r BiocStyle::doc_date()`; Modified 22 September 2024"
 package: SparseArray
 vignette: |
   %\VignetteIndexEntry{SparseArray objects}
@@ -18,7 +18,9 @@ output:
 library(BiocStyle)
 ```
 
+
 # Introduction
+
 
 `r Biocpkg("SparseArray")` is an infrastructure package that enables
 high-performance sparse data representation and manipulation in R.
@@ -27,6 +29,7 @@ efficient in-memory representation of multidimensional sparse data in R.
 
 
 # Install and load the package
+
 
 Use `BiocManager::install()` to install the `r Biocpkg("SparseArray")`
 package:
@@ -43,6 +46,7 @@ library(SparseArray)
 
 
 # The SparseArray virtual class and its two concrete subclasses
+
 
 The package defines the SparseArray virtual class and two concrete
 subclasses: COO\_SparseArray and SVT\_SparseArray.
@@ -63,6 +67,7 @@ is almost always preferred over using COO\_SparseArray objects.
 
 
 # SVT\_SparseArray objects
+
 
 The SVT\_SparseArray container provides an efficient representation of the
 nonzero multidimensional data via a novel layout called the "SVT layout".
@@ -175,9 +180,13 @@ as.array(svt1)  # same as as.matrix(svt1)
 as.array(svt2)
 ```
 
-## Accessors
 
-The standard array accessors are supported:
+# The SparseArray API
+
+
+## The core array API
+
+SVT\_SparseArray objects support the "core array API" defined in base R:
 ```{r}
 dim(svt2)
 
@@ -187,8 +196,11 @@ dimnames(svt2) <- list(NULL, letters[1:4], LETTERS[1:3])
 svt2
 ```
 
-Some additional accessors defined in the `r Biocpkg("S4Arrays")` /
-`r Biocpkg("SparseArray")` framework:
+## type() and is\_sparse()
+
+`type()` and `is_sparse()` are generic functions defined in
+`r Biocpkg("BiocGenerics")` and `r Biocpkg("S4Arrays")`, respectively.
+They extend the "core array API" defined in base R:
 ```{r}
 type(svt1)
 
@@ -198,7 +210,13 @@ svt1
 is_sparse(svt1)
 ```
 
-Other accessors/extractors specific to sparse arrays:
+See `?SparseArray` for more information and additional examples.
+
+## The nz\*() functions
+
+A set of functions is provided for direct manipulation of the nonzero
+array elements:
+
 ```{r}
 ## Get the number of nonzero array elements in 'svt1':
 nzcount(svt1)
@@ -217,12 +235,7 @@ Note that the vectors produced by `nzwhich()` and `nzvals()` are _parallel_,
 that is, they have the same length and the i-th element in one vector
 corresponds to the i-th element in the other vector.
 
-A convenience function that just does `1 - nzcount(x) / length(x)`:
-```{r}
-sparsity(svt1)
-```
-
-See `?SparseArray` for more information and additional examples.
+See `?nzfunctions` for more information and additional examples.
 
 ## Subsetting and subassignment
 
@@ -273,20 +286,11 @@ See `?SparseArray_Arith`, `?SparseArray_Compare`, `?SparseArray_Logic`,
 `?SparseArray_Math`, and `?SparseArray_Complex` for more information
 and additional examples.
 
-## Generate a random SVT\_SparseArray object
 
-Two convenience functions are provided for this:
-```{r}
-randomSparseArray(c(5, 6, 2), density=0.5)
-
-poissonSparseArray(c(5, 6, 2), density=0.5)
-```
-
-See `?randomSparseArray` for more information and additional examples.
+# The 2D API
 
 
-# 2D case: SVT\_SparseMatrix objects
-
+## SVT\_SparseMatrix objects
 
 SVT\_SparseMatrix objects are just two-dimensional SVT\_SparseArray objects.
 See `?SparseArray` for a diagram of the SparseArray class hierarchy.
@@ -377,6 +381,21 @@ crossprod(svt4)
 
 See `?SparseMatrix_mult` for more information and additional examples.
 
+
+# Other operations
+
+
+## Generate a random SVT\_SparseArray object
+
+Two convenience functions are provided for this:
+```{r}
+randomSparseArray(c(5, 6, 2), density=0.5)
+
+poissonSparseArray(c(5, 6, 2), density=0.5)
+```
+
+See `?randomSparseArray` for more information and additional examples.
+
 ## Read/write a sparse matrix from/to a CSV file
 
 Use `writeSparseCSV()` to write a sparse matrix to a CSV file:
@@ -395,6 +414,7 @@ See `?readSparseCSV` for more information and additional examples.
 
 
 # Comparison with dgCMatrix objects
+
 
 ## "SVT layout" vs "CSC layout"
 
@@ -463,6 +483,7 @@ as(oneM, "dgCMatrix")
 
 # Learn more
 
+
 Please consult the individual man pages in the `r Biocpkg("SparseArray")`
 package to learn more about SVT\_SparseArray objects and about the
 package. A good starting point is the man page for SparseArray
@@ -470,6 +491,7 @@ objects: `?SparseArray`
 
 
 # Session information
+
 
 ```{r}
 sessionInfo()

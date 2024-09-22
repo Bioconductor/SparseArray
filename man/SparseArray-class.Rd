@@ -15,24 +15,6 @@
 
 \alias{is_sparse,SparseArray-method}
 
-\alias{nzcount}
-\alias{nzcount,CsparseMatrix-method}
-\alias{nzcount,RsparseMatrix-method}
-\alias{nzwhich}
-\alias{nzwhich,ANY-method}
-\alias{nzwhich,CsparseMatrix-method}
-\alias{nzwhich,RsparseMatrix-method}
-\alias{nzvals}
-\alias{nzvals,ANY-method}
-\alias{nzvals,dgCMatrix-method}
-\alias{nzvals,lgCMatrix-method}
-\alias{nzvals,ngCMatrix-method}
-\alias{nzvals,ngRMatrix-method}
-\alias{nzvals<-}
-\alias{nzvals<-,ANY-method}
-
-\alias{sparsity}
-
 \alias{show,SparseArray-method}
 
 \title{SparseArray objects}
@@ -68,9 +50,10 @@ SparseArray(x, type=NA)
   \item{type}{
     A single string specifying the requested type of the object.
 
-    Normally, the SparseArray object returned by the constructor
-    function has the same \code{type()} as \code{x} but the user can use
-    the \code{type} argument to request a different type. Note that doing:
+    By default, the SparseArray object returned by the constructor
+    function has the same \code{type()} as \code{x}. However the
+    user can use the \code{type} argument to request a different type.
+    Note that doing:
     \preformatted{    sa <- SparseArray(x, type=type)}
     is equivalent to doing:
     \preformatted{    sa <- SparseArray(x)
@@ -115,11 +98,6 @@ SparseArray(x, type=NA)
   SparseArray derivatives also support \code{type()}, \code{`type<-`()},
   \code{is_sparse()}, \code{nzcount()}, \code{nzwhich()}, \code{nzvals()},
   \code{`nzvals<-`()}, \code{sparsity()}, \code{arbind()}, and \code{acbind()}.
-
-  \code{sparsity(x)} returns the ratio between the number of zero-valued
-  elements in array-like object \code{x} and its total number of elements
-  (\code{length(x)} or \code{prod(dim(x))}).
-  More precisely, \code{sparsity(x)} is \code{1 - nzcount(x)/length(x)}.
 }
 
 \value{
@@ -145,6 +123,9 @@ SparseArray(x, type=NA)
 \seealso{
   \itemize{
     \item The \link{COO_SparseArray} and \link{SVT_SparseArray} classes.
+
+    \item \link{nzfunctions} for \code{nz*()} functions \code{nzcount()},
+          \code{nzwhich()}, etc...
 
     \item \link{SparseArray_aperm} for permuting the dimensions of a
           SparseArray object (e.g. transposition).

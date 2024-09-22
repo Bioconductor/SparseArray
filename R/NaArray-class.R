@@ -23,6 +23,22 @@ setClass("NaArray",
     )
 )
 
+.SUPPORTED_NAARRAY_TYPES <-
+    c("integer", "logical", "double", "complex", "character")
+
+.validate_NaArray <- function(x)
+{
+    if (!isSingleString(x@type))
+        return("'type' slot must be a single string")
+    if (!(x@type %in% .SUPPORTED_NAARRAY_TYPES)) {
+        in1string <- paste(paste0('"', .SUPPORTED_NAARRAY_TYPES, '"'),
+                           collapse=", ")
+        return(paste0("'type' slot must be one of ", in1string))
+    }
+    TRUE
+}
+setValidity2("NaArray", .validate_NaArray)
+
 ### Extending RectangularData gives us a few things for free (e.g. validity
 ### method for RectangularData objects, head(), tail(), etc...). Note
 ### that even though NaMatrix already extends Array (via NaArray),
@@ -97,12 +113,26 @@ setReplaceMethod("dimnames", "NaArray",
 
 setMethod("type", "NaArray", function(x) x@type)
 
+.normarg_NaArray_type <- function(type, what="'type'")
+{
+    if (!isSingleString(type))
+        stop(wmsg(what, " must be a single string"))
+    if (type == "numeric")
+        return("double")
+    if (!(type %in% .SUPPORTED_NAARRAY_TYPES)) {
+        in1string <- paste(paste0('"', .SUPPORTED_NAARRAY_TYPES, '"'),
+                           collapse=", ")
+        stop(wmsg(what, " must be one of ", in1string))
+    }
+    type
+}
+
 .set_NaArray_type <- function(x, value)
 {
     stopifnot(is(x, "NaArray"))
     check_svt_version(x)
 
-    value <- S4Arrays:::normarg_array_type(value, "the supplied type")
+    value <- .normarg_NaArray_type(value, "the supplied type")
     x_type <- type(x)
     if (value == x_type)
         return(x)
@@ -116,11 +146,8 @@ setReplaceMethod("type", "NaArray", .set_NaArray_type)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### nnacount() and nnawhich()
+### The nnacount(), nnawhich(), nnavals(), and `nnavals<-`() methods
 ###
-
-### Returns the number of non-NA array elements in 'x'.
-setGeneric("nnacount", function(x) standardGeneric("nnacount"))
 
 ### Note that like for the length of atomic vectors in base R, the "non-NA
 ### count" will be returned as a double if it's > .Machine$integer.max
@@ -130,23 +157,7 @@ setGeneric("nnacount", function(x) standardGeneric("nnacount"))
     check_svt_version(x)
     SparseArray.Call("C_nzcount_SVT_SparseArray", x@dim, x@NaSVT)
 }
-
 setMethod("nnacount", "NaArray", .get_NaArray_nnacount)
-
-### Returns the indices of the non-NA array elements in 'x', either as
-### an L-index (if 'arr.ind=FALSE') or as an M-index (if 'arr.ind=TRUE').
-setGeneric("nnawhich", signature="x",
-    function(x, arr.ind=FALSE) standardGeneric("nnawhich")
-)
-
-### Works on any vector-like or array-like object that supports is.na().
-.default_nnawhich <- function(x, arr.ind=FALSE)
-{
-    if (!isTRUEorFALSE(arr.ind))
-        stop(wmsg("'arr.ind' must be TRUE or FALSE"))
-    which(!is.na(x), arr.ind=arr.ind, useNames=FALSE)
-}
-setMethod("nnawhich", "ANY", .default_nnawhich)
 
 ### Returns an integer vector of length nnacount(x) if 'arr.ind=FALSE', or
 ### a matrix with nnacount(x) rows if 'arr.ind=TRUE'.
@@ -158,8 +169,9 @@ setMethod("nnawhich", "ANY", .default_nnawhich)
         stop(wmsg("'arr.ind' must be TRUE or FALSE"))
     SparseArray.Call("C_nzwhich_SVT_SparseArray", x@dim, x@NaSVT, arr.ind)
 }
-
 setMethod("nnawhich", "NaArray", .nnawhich_NaArray)
+
+### TODO: Implement nnavals() and `nnavals<-`() methods for NaArray objects.
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -167,7 +179,7 @@ setMethod("nnawhich", "NaArray", .nnawhich_NaArray)
 ###
 
 new_NaArray <- function(dim, dimnames=NULL,
-                         type="logical", NaSVT=NULL, check=TRUE)
+                        type="logical", NaSVT=NULL, check=TRUE)
 {
     stopifnot(is.integer(dim))
     if (length(dim) == 2L) {
@@ -233,8 +245,7 @@ setAs("matrix", "NaMatrix",
 .NaArray <- function(x, dimnames=NULL, type=NA)
 {
     if (is.array(x))
-        return(.build_NaArray_from_array(x,
-                                      dimnames=dimnames, type=type))
+        return(.build_NaArray_from_array(x, dimnames=dimnames, type=type))
 
     ans <- as(x, "NaArray")
     ans <- S4Arrays:::set_dimnames(ans, dimnames)
@@ -246,7 +257,7 @@ setAs("matrix", "NaMatrix",
 NaArray <- function(x, dim=NULL, dimnames=NULL, type=NA)
 {
     if (!identical(type, NA))
-        type <- S4Arrays:::normarg_array_type(type, "the requested type")
+        type <- .normarg_NaArray_type(type, "the requested type")
 
     if (is.null(dim)) {
         if (missing(x))

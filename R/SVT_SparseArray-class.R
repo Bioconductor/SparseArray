@@ -74,6 +74,14 @@ check_svt_version <- function(x)
 ### Validity
 ###
 
+.validate_SVT_SparseArray <- function(x)
+{
+    if (!isSingleString(x@type))
+        return("'type' slot must be a single string")
+    TRUE
+}
+setValidity2("SVT_SparseArray", .validate_SVT_SparseArray)
+
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### Going back and forth between SVT_SparseArray and SVT_SparseMatrix

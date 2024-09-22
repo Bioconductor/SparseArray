@@ -179,7 +179,7 @@ export(
     read_block_as_sparse,
 
     ## NaArray-class.R:
-    nnacount, nnawhich,
+    nnacount, nnawhich, nnavals, "nnavals<-",
 
     ## NaArray-subsetting.R:
     extract_na_array
@@ -191,7 +191,7 @@ exportMethods(
     nzcoo, nzdata,
     extract_sparse_array,
     read_block_as_sparse,
-    nnacount, nnawhich,
+    nnacount, nnawhich, nnavals, "nnavals<-",
     extract_na_array
 )
 

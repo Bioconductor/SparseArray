@@ -18,10 +18,7 @@
 \alias{type,NaArray-method}
 \alias{type<-,NaArray-method}
 
-\alias{nnacount}
 \alias{nnacount,NaArray-method}
-\alias{nnawhich}
-\alias{nnawhich,ANY-method}
 \alias{nnawhich,NaArray-method}
 
 \alias{as.array.NaArray}
@@ -52,8 +49,8 @@ NaArray(x, dim=NULL, dimnames=NULL, type=NA)
     matrix-like or array-like object that supports coercion to NaArray.
 
     If \code{dim} is provided then \code{x} can either be missing, a
-    vector (atomic or list), or an array-like object. If missing, then an
-    all-NA NaArray object will be constructed. Otherwise \code{x}
+    vector (atomic or list), or an array-like object. If missing, then
+    an all-NA NaArray object will be constructed. Otherwise \code{x}
     will be used to fill the returned object (\code{length(x)} must be
     \code{<= prod(dim)}). Note that if \code{x} is an array-like object
     then its dimensions are ignored i.e. it's treated as a vector.
@@ -73,21 +70,43 @@ NaArray(x, dim=NULL, dimnames=NULL, type=NA)
     array-like object \code{x}.
   }
   \item{type}{
-    COMING SOON...
+    A single string specifying the requested type of the object.
+
+    By default the NaArray object returned by the constructor
+    function will have the same \code{type()} as \code{x}. However the
+    user can use the \code{type} argument to request a different type.
+    Note that doing:
+    \preformatted{    naa <- NaArray(x, type=type)}
+    is equivalent to doing:
+    \preformatted{    naa <- NaArray(x)
+    type(naa) <- type}
+    but the former is more convenient and will generally be more efficient.
+
+    The supported types for NaArray objects are \code{"integer"},
+    \code{"logical"}, \code{"double"}, \code{"complex"}, and
+    \code{"character"}.
   }
 }
 
 \details{
-  COMING SOON...
+  NaArray is a concrete subclass of the \link{Array} virtual class.
+  This makes NaArray objects Array derivatives.
+
+  Like with \link{SVT_SparseArray} objects, the non-NA data in an NaArray
+  object is stored in a \emph{Sparse Vector Tree}.
+  See \code{?\link{SVT_SparseArray}} for more information.
 }
 
 \value{
-  COMING SOON...
+  An NaArray or NaMatrix object.
 }
 
 \seealso{
   \itemize{
     \item The \link{SVT_SparseArray} class.
+
+    \item \link{nnafunctions} for \code{nna*()} functions \code{nnacount()},
+          \code{nnawhich()}, etc...
 
     \item \link{NaArray_aperm} for permuting the dimensions of an
           NaArray object (e.g. transposition).
