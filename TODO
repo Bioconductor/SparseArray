@@ -1,28 +1,11 @@
 - NaArray objects:
 
-  1. Logic methods:
-     o Implement Logic methods.
-     o Implement logical negation ("!") method.
-     o Add unit tests for Logic methods and logical negation (->
-       test-NaArray-Logic-methods.R)
+  1. Implement subassignment by Mindex. Add unit tests for subassignment.
 
-  2. Math and Math2 methods:
-     o For this group we can support **all** Math functions and not just Math
-       functions that preserve zeros like we did for SparseArray objects.
-     o Add unit tests for Math & Math2 methods (-> test-NaArray-Math-methods.R).
-
-  3. Implement nnavals() getter and setter. Add unit tests for nnacount(),
-     nnawhich(), and nnavals() getter and setter.
-
-  4. Implement linear subsetting (by Lindex and by Mindex). Add unit tests
-     for subsetting.
-
-  5. Implement subassignment by Mindex. Add unit tests for subassignment.
-
-  6. Implement methods rowAnyNAs(), rowMeans(), rowVars(), and rowSds().
+  2. Implement methods rowAnyNAs(), rowMeans(), rowVars(), and rowSds().
      Add unit tests.
 
-  7. Add vignette for NaArray objects.
+  3. Add vignette for NaArray objects.
 
 - Speed up more row summarization methods for SparseArray and NaArray objects
   by supporting natively more operations in .Call entry point C_rowStats_SVT.
@@ -33,8 +16,12 @@
 - Implement which() methods for SparseArray and NaArray objects of type
   logical.
 
-- Implement fast nzvals() getter/setter for SVT_SparseMatrix objects.
-  (Default methods work but are not as fast as they could be.)
+- Implement fast nzvals() getter/setter for SVT_SparseMatrix objects and
+  fast nnavals() getter/setter for NaArray objects. Default methods work
+  fine but are not as fast as they could be.
+
+- Add unit tests for nzcount(), nzwhich(), and nzvals() getter and setter,
+  and for nnacount(), nnawhich(), and nnavals() getter and setter.
 
 - Implement efficient coercions from dgTMatrix to COO_SparseMatrix and
   SVT_SparseMatrix. 'as(<dgTMatrix>, "SparseMatrix")' and
