@@ -271,10 +271,10 @@ var(svt2, na.rm=TRUE)
 
 See `?SparseArray_summarization` for more information and additional examples.
 
-## Operations from the 'Arith', 'Compare', 'Logic', 'Math', 'Math2', and 'Complex' groups
+## Operations from the Arith, Compare, Logic, Math, Math2, and Complex groups
 
-SVT\_SparseArray objects support operations from the 'Arith', 'Compare',
-'Logic', 'Math', `Math2`, and 'Complex' groups, with some restrictions.
+SVT\_SparseArray objects support operations from the `Arith`, `Compare`,
+`Logic`, `Math`, `Math2`, and `Complex` groups, with some restrictions.
 See `?S4groupGeneric` in the `r Biocpkg("methods")` package for more
 information about these group generics.
 
