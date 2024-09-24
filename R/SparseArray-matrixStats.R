@@ -210,7 +210,8 @@ stopifnot_2D_object <- function(x, method, class1, class2)
         return(.colStats_SparseArray(op, x, na.rm=na.rm, center=center,
                                      dims=length(x@dim), useNames=useNames))
 
-    if (!(op %in% c("countNAs", "anyNA", "sum", "centered_X2_sum")))
+    if (!(op %in% c("countNAs", "anyNA", "min", "max",
+                    "sum", "centered_X2_sum")))
         return(.OLD_rowStats_SparseArray(op, x, na.rm=na.rm,
                                          center=center, dims=dims,
                                          useNames=useNames))

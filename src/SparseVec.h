@@ -313,5 +313,22 @@ DEFINE_next_Ltype_Rtype_vals_FUN(double, double)
 DEFINE_next_Ltype_Rtype_vals_FUN(double, Rcomplex)
 DEFINE_next_Ltype_Rtype_vals_FUN(Rcomplex, Rcomplex)
 
+
+/****************************************************************************
+ * Function prototypes
+ */
+
+void _expand_intSV(
+	const SparseVec *sv,
+	int *out,
+	int set_background
+);
+
+void _expand_doubleSV(
+	const SparseVec *sv,
+	double *out,
+	int set_background
+);
+
 #endif  /* _SPARSEVEC_H_ */
 

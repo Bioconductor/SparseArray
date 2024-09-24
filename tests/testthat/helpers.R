@@ -171,3 +171,63 @@ test_summarize_op2 <- function(a, object, op)
     EXPECT_FUN(current, expected)
 }
 
+simple_colMins3D <- function(x, na.rm=FALSE, dims=1)
+{
+    stopifnot(length(dim(x)) == 3L, isSingleNumber(dims))
+    if (dims == 1) {
+        ans <- apply(x, MARGIN=3, colMins, na.rm=na.rm)
+    } else if (dims == 2) {
+        ans <- apply(x, MARGIN=3, min, na.rm=na.rm)
+    } else {
+        stop("unsupported 'dims'")
+    }
+    if (type(x) == "integer" && type(ans) == "double")
+        suppressWarnings(type(ans) <- "integer")
+    ans
+}
+
+simple_colMaxs3D <- function(x, na.rm=FALSE, dims=1)
+{
+    stopifnot(length(dim(x)) == 3L, isSingleNumber(dims))
+    if (dims == 1) {
+        ans <- apply(x, MARGIN=3, colMaxs, na.rm=na.rm)
+    } else if (dims == 2) {
+        ans <- apply(x, MARGIN=3, max, na.rm=na.rm)
+    } else {
+        stop("unsupported 'dims'")
+    }
+    if (type(x) == "integer" && type(ans) == "double")
+        suppressWarnings(type(ans) <- "integer")
+    ans
+}
+
+simple_rowMins3D <- function(x, na.rm=FALSE, dims=1)
+{
+    stopifnot(length(dim(x)) == 3L, isSingleNumber(dims))
+    if (dims == 1) {
+        ans <- apply(x, MARGIN=1, min, na.rm=na.rm)
+    } else if (dims == 2) {
+        ans <- apply(x, MARGIN=2, rowMins, na.rm=na.rm)
+    } else {
+        stop("unsupported 'dims'")
+    }
+    if (type(x) == "integer" && type(ans) == "double")
+        suppressWarnings(type(ans) <- "integer")
+    ans
+}
+
+simple_rowMaxs3D <- function(x, na.rm=FALSE, dims=1)
+{
+    stopifnot(length(dim(x)) == 3L, isSingleNumber(dims))
+    if (dims == 1) {
+        ans <- apply(x, MARGIN=1, max, na.rm=na.rm)
+    } else if (dims == 2) {
+        ans <- apply(x, MARGIN=2, rowMaxs, na.rm=na.rm)
+    } else {
+        stop("unsupported 'dims'")
+    }
+    if (type(x) == "integer" && type(ans) == "double")
+        suppressWarnings(type(ans) <- "integer")
+    ans
+}
+

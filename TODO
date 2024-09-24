@@ -9,9 +9,10 @@
 
 - Speed up more row summarization methods for SparseArray and NaArray objects
   by supporting natively more operations in .Call entry point C_rowStats_SVT.
-  Note that doing this for rowAnyNAs(), rowSums(), rowMeans(), rowVars(),
-  and rowSds(), led to speedups of 35x, 20x, 18x, 5x, and 5x, respectively,
-  on big SVT_SparseArray objects, or more.
+  Note that doing this for rowAnyNAs(), rowMins(), rowMaxs(), rowSums(),
+  rowMeans(), rowVars(), and rowSds(), led to speedups of 35x, 6x, 6x, 20x,
+  18x, 5x, and 5x, respectively, on big SVT_SparseArray objects, or more.
+  It also reduced memory usage significantly.
 
 - Implement which() methods for SparseArray and NaArray objects of type
   logical.
