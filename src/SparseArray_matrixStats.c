@@ -19,6 +19,10 @@
 #include <string.h>  /* for memcpy() */
 
 
+/****************************************************************************
+ * Some helper functions used by C_colStats_SVT() and/or C_rowStats_SVT()
+ */
+
 static SEXPTYPE compute_ans_Rtype(const SummarizeOp *summarize_op)
 {
 	SummarizeResult res;
@@ -34,24 +38,6 @@ static int check_dims(SEXP dims, int min, int max)
 	if (d == NA_INTEGER || d < min || d > max)
 		error("'dims' must be >= %d and <= %d", min, max);
 	return d;
-}
-
-static const double *check_rowStats_center(SEXP center,
-		SEXP x_dim, int ans_ndim)
-{
-	if (center == R_NilValue)
-		return NULL;
-	if (!IS_NUMERIC(center))
-		error("SparseArray internal error in check_rowStats_center():\n"
-		      "    'center' must be NULL or a numeric array");
-	/* We only check the length of 'center', not its actual dimensions. */
-	R_xlen_t ans_len = 1;
-	for (int along = 0; along < ans_ndim; along++)
-		ans_len *= INTEGER(x_dim)[along];
-	if (LENGTH(center) != ans_len)
-		error("SparseArray internal error in check_rowStats_center():\n"
-		      "    unexpected 'center' length");
-	return REAL(center);
 }
 
 /* Returns 'tail(dim(x), n=-dims)'. */
@@ -182,43 +168,12 @@ static void propagate_rowStats_dimnames(SEXP ans, SEXP x_dimnames, int dims)
 	return;
 }
 
-static void init_rowStats_ans(SEXP ans, const SummarizeOp *summarize_op,
-		const double *center_p, R_xlen_t nstrata)
-{
-	if (summarize_op->opcode == MIN_OPCODE ||
-	    summarize_op->opcode == MAX_OPCODE)
-	{
-		if (nstrata != 0) {
-			_set_Rvector_elts_to_zero(ans);
-			return;
-		}
-		if (TYPEOF(ans) == REALSXP) {
-			double init = summarize_op->opcode == MIN_OPCODE ?
-						R_PosInf : R_NegInf;
-			double *ans_p = REAL(ans);
-			for (int i = 0; i < LENGTH(ans); i++)
-				ans_p[i] = init;
-			return;
-		}
-		_set_Rvector_elts_to_NA(ans);
-		warning("NAs introduced by coercion of "
-			"infinite values to integers");
-		return;
-	}
 
-	if (summarize_op->opcode != CENTERED_X2_SUM_OPCODE ||
-	    center_p == NULL)
-	{
-		_set_Rvector_elts_to_zero(ans);
-		return;
-	}
-	double *ans_p = REAL(ans);
-	for (int i = 0; i < LENGTH(ans); i++) {
-		double c = center_p[i];
-		ans_p[i] = nstrata * c * c;
-	}
-	return;
-}
+
+/****************************************************************************
+ * C_colStats_SVT()                                                         *
+ ****************************************************************************/
+
 
 /* Only the first value in 'res->outbuf' gets copied. */
 static inline void copy_result_to_out(const SummarizeResult *res,
@@ -240,11 +195,6 @@ static inline void copy_result_to_out(const SummarizeResult *res,
 	      "    output type \"%s\" is not supported", type2char(out_Rtype));
 	return;  /* will never reach this */
 }
-
-
-/****************************************************************************
- * C_colStats_SVT()
- */
 
 /* Recursive. */
 static void REC_colStats_SVT(SEXP SVT, int na_background,
@@ -334,8 +284,15 @@ SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type,
 }
 
 
+
 /****************************************************************************
- * A bunch of low-level helpers to support the various row*_SV() functions
+ * C_rowStats_SVT()                                                         *
+ ****************************************************************************/
+
+
+/****************************************************************************
+ * A bunch of low-level helpers to support mid-level functions
+ * update_out_for_rowStats() and update_out_for_rowStats_NULL(), both
  * used by C_rowStats_SVT()
  *
  * TODO: Consider moving this stuff to a different file, maybe.
@@ -502,7 +459,10 @@ static inline void add_nzval_to_out(const SparseVec *sv, int k,
 
 
 /****************************************************************************
- * C_rowStats_SVT()
+ * update_out_for_rowStats()
+ * update_out_for_rowStats_NULL()
+ *
+ * The two workhorses behind REC_rowStats_SVT().
  */
 
 static inline void check_out_Rtype(SEXPTYPE out_Rtype, SEXPTYPE expected,
@@ -615,7 +575,6 @@ static void update_out_for_int_rowMaxs(const SparseVec *sv, int narm, int *out)
 	}
 	return;
 }
-
 
 /* Same as 'update_out_for_int_rowMins()' above but operates on an implicit
    vector of zeros instead of 'sv'. Said otherwise, it computes:
@@ -821,7 +780,7 @@ static void update_out_for_rowCenteredX2Sum(const SparseVec *sv,
 
 static void update_out_for_rowStats(const SparseVec *sv,
 		const SummarizeOp *summarize_op, const double *center,
-		void *out, SEXPTYPE out_Rtype, R_xlen_t strata_counter)
+		void *out, SEXPTYPE out_Rtype)
 {
 	switch (summarize_op->opcode) {
 	    case ANYNA_OPCODE:
@@ -875,8 +834,7 @@ static void update_out_for_rowStats(const SparseVec *sv,
 
 static void update_out_for_rowStats0(
 		const SummarizeOp *summarize_op, const double *center,
-		void *out, R_xlen_t out_len, SEXPTYPE out_Rtype,
-		R_xlen_t strata_counter)
+		void *out, R_xlen_t out_len, SEXPTYPE out_Rtype)
 {
 	SEXPTYPE in_Rtype = summarize_op->in_Rtype;
 	switch (summarize_op->opcode) {
@@ -915,8 +873,7 @@ static void update_out_for_rowStats0(
 
 static void update_out_for_rowStats_NULL(int na_background,
 		const SummarizeOp *summarize_op, const double *center,
-		void *out, int out_len, SEXPTYPE out_Rtype,
-		R_xlen_t strata_counter)
+		void *out, int out_len, SEXPTYPE out_Rtype)
 {
 	if (na_background) {
 		if (!summarize_op->na_rm)
@@ -924,12 +881,16 @@ static void update_out_for_rowStats_NULL(int na_background,
 		return;
 	}
 	update_out_for_rowStats0(summarize_op, center,
-				 out, out_len, out_Rtype,
-				 strata_counter);
+				 out, out_len, out_Rtype);
 	return;
 }
 
-/* Recursive. */
+
+/****************************************************************************
+ * REC_rowStats_SVT()
+ */
+
+/* Recursive. 'strata_counter' not used for anything at the moment. */
 static void REC_rowStats_SVT(SEXP SVT, int na_background,
 		const int *dim, int ndim,
 		const SummarizeOp *summarize_op, const double *center,
@@ -943,8 +904,7 @@ static void REC_rowStats_SVT(SEXP SVT, int na_background,
 			out_len *= dim[along];
 		update_out_for_rowStats_NULL(na_background,
 			summarize_op, center,
-			out, out_len, out_Rtype,
-			*strata_counter);
+			out, out_len, out_Rtype);
 		if (ndim >= out_ndim) {
 			R_xlen_t inc = 1;
 			for (int along = out_ndim; along < ndim; along++)
@@ -959,7 +919,7 @@ static void REC_rowStats_SVT(SEXP SVT, int na_background,
 		SparseVec sv = leaf2SV(SVT, summarize_op->in_Rtype,
 				       dim[0], na_background);
 		update_out_for_rowStats(&sv, summarize_op, center,
-					out, out_Rtype, *strata_counter);
+					out, out_Rtype);
 		if (out_ndim == 1)
 			(*strata_counter)++;
 		return;
@@ -980,6 +940,88 @@ static void REC_rowStats_SVT(SEXP SVT, int na_background,
 	}
 	if (ndim == out_ndim)
 		(*strata_counter)++;
+	return;
+}
+
+
+/****************************************************************************
+ * C_rowStats_SVT()
+ */
+
+static const double *check_rowStats_center(SEXP center,
+		SEXP x_dim, int ans_ndim)
+{
+	if (center == R_NilValue)
+		return NULL;
+	if (!IS_NUMERIC(center))
+		error("SparseArray internal error in check_rowStats_center():\n"
+		      "    'center' must be NULL or a numeric array");
+	/* We only check the length of 'center', not its actual dimensions. */
+	R_xlen_t ans_len = 1;
+	for (int along = 0; along < ans_ndim; along++)
+		ans_len *= INTEGER(x_dim)[along];
+	if (LENGTH(center) != ans_len)
+		error("SparseArray internal error in check_rowStats_center():\n"
+		      "    unexpected 'center' length");
+	return REAL(center);
+}
+
+/* Compute 'nstrata', the number of "strata" in an array-like object 'x'.
+   The "strata" are the generalized **columns** in 'x'. Their number and
+   geometry are determined by the dimensions of 'x' and the 'dims' argument:
+     o dimensions of each strata = head(dim(x), n=dims)
+     o number of strata = prod(tail(dim(x), n=-dims))
+   Note that:
+     o The dimensions of a strata are the dimensions of 'ans', where 'ans'
+       is the output of a row*() function.
+     o length(ans) * nstrata = length(x)
+     o 'x' can be seen as a pile of strata stacked up on top of each others.
+       An row*() function summarizes vertically i.e. **across** strata, and
+       not **within** each strata. */
+static R_xlen_t compute_nstrata(const int *x_dim, int x_ndim, int dims)
+{
+	R_xlen_t nstrata = 1;
+	for (int along = dims; along < x_ndim; along++)
+		nstrata *= x_dim[along];
+	//printf("nstrata = %ld\n", nstrata);
+	return nstrata;
+}
+
+static void init_rowStats_ans(SEXP ans, const SummarizeOp *summarize_op,
+		const double *center_p, R_xlen_t nstrata)
+{
+	if (summarize_op->opcode == MIN_OPCODE ||
+	    summarize_op->opcode == MAX_OPCODE)
+	{
+		if (nstrata != 0) {
+			_set_Rvector_elts_to_zero(ans);
+			return;
+		}
+		if (TYPEOF(ans) == REALSXP) {
+			double init = summarize_op->opcode == MIN_OPCODE ?
+						R_PosInf : R_NegInf;
+			double *ans_p = REAL(ans);
+			for (int i = 0; i < LENGTH(ans); i++)
+				ans_p[i] = init;
+			return;
+		}
+		_set_Rvector_elts_to_NA(ans);
+		warning("NAs introduced by coercion of "
+			"infinite values to integers");
+		return;
+	}
+
+	if (summarize_op->opcode != CENTERED_X2_SUM_OPCODE ||
+	    center_p == NULL)
+	{
+		_set_Rvector_elts_to_zero(ans);
+		return;
+	}
+	double *ans_p = REAL(ans);
+	for (int i = 0; i < LENGTH(ans); i++) {
+		double c = center_p[i];
+		ans_p[i] = nstrata * c * c;
+	}
 	return;
 }
 
@@ -1079,10 +1121,8 @@ SEXP C_rowStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type,
 		return ans;
 	}
 
-	R_xlen_t nstrata = 1;
-	for (int along = ans_ndim; along < LENGTH(x_dim); along++)
-		nstrata *= INTEGER(x_dim)[along];
-	//printf("nstrata = %ld\n", nstrata);
+	R_xlen_t nstrata =
+		compute_nstrata(INTEGER(x_dim), LENGTH(x_dim), ans_ndim);
 
 	init_rowStats_ans(ans, &summarize_op, center_p, nstrata);
 

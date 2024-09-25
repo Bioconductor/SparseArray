@@ -71,49 +71,70 @@
 {
     a <- as.array(object)
 
+    ## Base R does NOT allow an ordinay array with dimensions of extent
+    ## zero to carry a character(0) in its dimnames, only a NULL. This means
+    ## that, if 'object' is an Array derivative, then 'dimnames(object)'
+    ## and 'dimnames(as.array(object))' are not guaranteed to be identical
+    ## because a character(0) in the former will be replaced with a NULL in
+    ## the latter.
+    ## As a consequence, calling colMins/Maxs() or rowMins/Maxs()
+    ## on 'object' won't necessarily produce the exact same result as
+    ## calling simple_colMins3D/Maxs3D() or simple_rowMins3D/Maxs3D()
+    ## on 'as.array(object)' when the result is a vector of length 0.
+    ## More precisely, one can be named while the other is not.
+
+    ## Does not look at the names if 'a1' and 'a2' are vectors of length 0.
+    expect_almost_identical <- function(a1, a2) {
+        if (is.vector(a1) && length(a1) == 0L) {
+            a1 <- unname(a1)
+            a2 <- unname(a2)
+        }
+        expect_identical(a1, a2)
+    }
+
     ## dims == 1 (default)
 
     expected <- simple_colMins3D(a)
-    expect_identical(colMins(object), expected)
+    expect_almost_identical(colMins(object), expected)
     expected <- simple_colMaxs3D(a)
-    expect_identical(colMaxs(object), expected)
+    expect_almost_identical(colMaxs(object), expected)
 
     expected <- simple_rowMins3D(a)
-    expect_identical(rowMins(object), expected)
+    expect_almost_identical(rowMins(object), expected)
     expected <- simple_rowMaxs3D(a)
-    expect_identical(rowMaxs(object), expected)
+    expect_almost_identical(rowMaxs(object), expected)
 
     expected <- simple_colMins3D(a, na.rm=TRUE)
-    expect_identical(colMins(object, na.rm=TRUE), expected)
+    expect_almost_identical(colMins(object, na.rm=TRUE), expected)
     expected <- simple_colMaxs3D(a, na.rm=TRUE)
-    expect_identical(colMaxs(object, na.rm=TRUE), expected)
+    expect_almost_identical(colMaxs(object, na.rm=TRUE), expected)
 
     expected <- simple_rowMins3D(a, na.rm=TRUE)
-    expect_identical(rowMins(object, na.rm=TRUE), expected)
+    expect_almost_identical(rowMins(object, na.rm=TRUE), expected)
     expected <- simple_rowMaxs3D(a, na.rm=TRUE)
-    expect_identical(rowMaxs(object, na.rm=TRUE), expected)
+    expect_almost_identical(rowMaxs(object, na.rm=TRUE), expected)
 
     ## dims == 2
 
     expected <- simple_colMins3D(a, dims=2)
-    expect_identical(colMins(object, dims=2), expected)
+    expect_almost_identical(colMins(object, dims=2), expected)
     expected <- simple_colMaxs3D(a, dims=2)
-    expect_identical(colMaxs(object, dims=2), expected)
+    expect_almost_identical(colMaxs(object, dims=2), expected)
 
     expected <- simple_rowMins3D(a, dims=2)
-    expect_identical(rowMins(object, dims=2), expected)
+    expect_almost_identical(rowMins(object, dims=2), expected)
     expected <- simple_rowMaxs3D(a, dims=2)
-    expect_identical(rowMaxs(object, dims=2), expected)
+    expect_almost_identical(rowMaxs(object, dims=2), expected)
 
     expected <- simple_colMins3D(a, na.rm=TRUE, dims=2)
-    expect_identical(colMins(object, na.rm=TRUE, dims=2), expected)
+    expect_almost_identical(colMins(object, na.rm=TRUE, dims=2), expected)
     expected <- simple_colMaxs3D(a, na.rm=TRUE, dims=2)
-    expect_identical(colMaxs(object, na.rm=TRUE, dims=2), expected)
+    expect_almost_identical(colMaxs(object, na.rm=TRUE, dims=2), expected)
 
     expected <- simple_rowMins3D(a, na.rm=TRUE, dims=2)
-    expect_identical(rowMins(object, na.rm=TRUE, dims=2), expected)
+    expect_almost_identical(rowMins(object, na.rm=TRUE, dims=2), expected)
     expected <- simple_rowMaxs3D(a, na.rm=TRUE, dims=2)
-    expect_identical(rowMaxs(object, na.rm=TRUE, dims=2), expected)
+    expect_almost_identical(rowMaxs(object, na.rm=TRUE, dims=2), expected)
 }
 
 test_that("colAnyNAs/rowAnyNAs() methods for 2D SparseArray objects", {
@@ -319,17 +340,46 @@ test_that("matrixStats methods for 3D SparseArray objects", {
 
 })
 
-test_that("beating up the *Mins() and *Maxs() methods on a 3D SVT_SparseArray object", {
+test_that("more torturing of the *Mins() and *Maxs() methods for SparseArray", {
+    ## We use a 3D SVT_SparseArray object for the torture.
+
     ## input of type() "integer"
-    svt <- SVT_SparseArray(dim=5:3, type="integer")
-    svt[c(1, 6, 16, 20:22, 36, 39:40, 60)] <-
+    svt0 <- SVT_SparseArray(dim=5:3,
+                dimnames=list(letters[1:5], letters[23:26], LETTERS[1:3]),
+                type="integer")
+    svt0[c(1, 6, 16, 20:22, 36, 39:40, 60)] <-
                 c(2L, -5L, NA, NA, -11L, 99L, -8L, NA, NA, NA)
-    .test_colrowMinsMaxs_3D(svt)
-     expect_warning(rowMins(svt, na.rm=TRUE, dims=2), "NAs introduced")
-     expect_warning(rowMaxs(svt, na.rm=TRUE, dims=2), "NAs introduced")
+
+    suppressWarnings(.test_colrowMinsMaxs_3D(svt0))
+    expect_warning(rowMins(svt0, na.rm=TRUE, dims=2), "NAs introduced")
+    expect_warning(rowMaxs(svt0, na.rm=TRUE, dims=2), "NAs introduced")
+
+    svt <- svt0[ , , 0]
+    suppressWarnings(.test_colrowMinsMaxs_3D(svt))
+    expect_warning(rowMins(svt), "NAs introduced")
+    expect_warning(rowMaxs(svt), "NAs introduced")
+    expect_warning(rowMins(svt, dims=2), "NAs introduced")
+    expect_warning(rowMaxs(svt, dims=2), "NAs introduced")
+
+    svt <- svt0[ , 0, ]
+    suppressWarnings(.test_colrowMinsMaxs_3D(svt))
+    expect_warning(rowMins(svt), "NAs introduced")
+    expect_warning(rowMaxs(svt), "NAs introduced")
+    expect_warning(colMins(svt, dims=2), "NAs introduced")
+    expect_warning(colMaxs(svt, dims=2), "NAs introduced")
+
+    svt <- svt0[ 0, , ]
+    suppressWarnings(.test_colrowMinsMaxs_3D(svt))
+    expect_warning(colMins(svt), "NAs introduced")
+    expect_warning(colMaxs(svt), "NAs introduced")
+    expect_warning(colMins(svt, dims=2), "NAs introduced")
+    expect_warning(colMaxs(svt, dims=2), "NAs introduced")
 
     ## input of type() "double"
-    svt[39:40] <- c(NaN, NaN)
-    .test_colrowMinsMaxs_3D(svt)
+    svt0[39:40] <- c(NaN, NaN)
+    .test_colrowMinsMaxs_3D(svt0)
+    .test_colrowMinsMaxs_3D(svt0[ , , 0])
+    .test_colrowMinsMaxs_3D(svt0[ , 0, ])
+    .test_colrowMinsMaxs_3D(svt0[ 0, , ])
 })
 
