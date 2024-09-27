@@ -1,6 +1,7 @@
-\name{nnafunctions}
+\name{is_nonna}
 
-\alias{nnafunctions}
+\alias{is_nonna}
+\alias{is_nonna,ANY-method}
 
 \alias{nnacount}
 \alias{nnacount,ANY-method}
@@ -14,7 +15,7 @@
 \alias{nnavals<-}
 \alias{nnavals<-,ANY-method}
 
-\title{The nna*() functions}
+\title{is_nonna() and the nna*() functions}
 
 \description{
   A set of functions for direct manipulation of the non-NA elements
@@ -22,6 +23,8 @@
 }
 
 \usage{
+is_nonna(x)
+
 nnacount(x)
 nnawhich(x, arr.ind=FALSE)
 nnavals(x)
@@ -57,8 +60,12 @@ nnavals(x) <- value
 }
 
 \details{
+  \code{nnacount(x)} and \code{nnawhich(x)} are equivalent to, but
+  typically more efficient than, \code{sum(is_nonna(x))} and
+  \code{which(is_nonna(x))}, respectively.
+
   \code{nnavals(x)} is equivalent to, but typically more efficient than,
-  \code{x[nnawhich(x)]}.
+  \code{x[nnawhich(x)]} (or \code{x[is_nonna(x)]}).
 
   \code{nnavals(x) <- value} replaces the values of the non-NA array
   elements in \code{x} with the supplied values. It's equivalent to,
@@ -68,6 +75,9 @@ nnavals(x) <- value
 }
 
 \value{
+  \code{is_nonna()}: An array-like object of \code{type()} \code{"logical"}
+  and same dimensions as the input object.
+
   \code{nnacount()}: The number of non-NA array elements in \code{x}.
 
   \code{nnawhich()}: The indices of the non-NA array elements in \code{x},
@@ -83,8 +93,8 @@ nnavals(x) <- value
 
 \seealso{
   \itemize{
-    \item \link{nzfunctions} for \code{nz*()} functions \code{nzcount()},
-          \code{nzwhich()}, etc...
+    \item \link{is_nonzero} for \code{is_nonzero()} and \code{nz*()} functions
+          \code{nzcount()}, \code{nzwhich()}, etc...
 
     \item \link{NaArray} objects.
 
@@ -97,6 +107,8 @@ nnavals(x) <- value
 \examples{
 a <- array(NA_integer_, dim=c(5, 12, 2))
 a[sample(length(a), 20)] <- (-9):10
+
+is_nonna(a)
 
 ## Get the number of non-NA array elements in 'a':
 nnacount(a)

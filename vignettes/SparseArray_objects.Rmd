@@ -3,7 +3,7 @@ title: "SparseArray objects"
 author:
 - name: Hervé Pagès
   affiliation: Fred Hutchinson Cancer Research Center, Seattle, WA
-date: "Compiled `r BiocStyle::doc_date()`; Modified 22 September 2024"
+date: "Compiled `r BiocStyle::doc_date()`; Modified 27 September 2024"
 package: SparseArray
 vignette: |
   %\VignetteIndexEntry{SparseArray objects}
@@ -212,12 +212,14 @@ is_sparse(svt1)
 
 See `?SparseArray` for more information and additional examples.
 
-## The nz\*() functions
+## is\_nonzero() and the nz\*() functions
 
 A set of functions is provided for direct manipulation of the nonzero
 array elements:
 
 ```{r}
+is_nonzero(svt1)
+
 ## Get the number of nonzero array elements in 'svt1':
 nzcount(svt1)
 
@@ -235,7 +237,7 @@ Note that the vectors produced by `nzwhich()` and `nzvals()` are _parallel_,
 that is, they have the same length and the i-th element in one vector
 corresponds to the i-th element in the other vector.
 
-See `?nzfunctions` for more information and additional examples.
+See `?is_nonzero` for more information and additional examples.
 
 ## Subsetting and subassignment
 

@@ -1,6 +1,8 @@
-\name{nzfunctions}
+\name{is_nonzero}
 
-\alias{nzfunctions}
+\alias{is_nonzero}
+\alias{is_nonzero,ANY-method}
+\alias{is_nonzero,sparseMatrix-method}
 
 \alias{nzcount}
 \alias{nzcount,ANY-method}
@@ -24,7 +26,7 @@
 
 \alias{sparsity}
 
-\title{The nz*() functions}
+\title{is_nonzero() and the nz*() functions}
 
 \description{
   A set of functions for direct manipulation of the nonzero elements
@@ -32,6 +34,8 @@
 }
 
 \usage{
+is_nonzero(x)
+
 nzcount(x)
 nzwhich(x, arr.ind=FALSE)
 nzvals(x)
@@ -70,8 +74,12 @@ sparsity(x)
 }
 
 \details{
+  \code{nzcount(x)} and \code{nzwhich(x)} are equivalent to, but
+  typically more efficient than, \code{sum(is_nonzero(x))} and
+  \code{which(is_nonzero(x))}, respectively.
+
   \code{nzvals(x)} is equivalent to, but typically more efficient than,
-  \code{x[nzwhich(x)]}.
+  \code{x[nzwhich(x)]} (or \code{x[is_nonzero(x)]}).
 
   \code{nzvals(x) <- value} replaces the values of the nonzero array
   elements in \code{x} with the supplied values. It's equivalent to,
@@ -81,6 +89,9 @@ sparsity(x)
 }
 
 \value{
+  \code{is_nonzero()}: An array-like object of \code{type()} \code{"logical"}
+  and same dimensions as the input object.
+
   \code{nzcount()}: The number of nonzero array elements in \code{x}.
 
   \code{nzwhich()}: The indices of the nonzero array elements in \code{x},
@@ -101,8 +112,8 @@ sparsity(x)
 
 \seealso{
   \itemize{
-    \item \link{nnafunctions} for \code{nna*()} functions \code{nnacount()},
-          \code{nnawhich()}, etc...
+    \item \link{is_nonna} for \code{is_nonna()} and \code{nna*()} functions
+          \code{nnacount()}, \code{nnawhich()}, etc...
 
     \item \link{SparseArray} objects.
 
@@ -117,6 +128,8 @@ sparsity(x)
 
 \examples{
 a <- array(rpois(120, lambda=0.3), dim=c(5, 12, 2))
+
+is_nonzero(a)
 
 ## Get the number of nonzero array elements in 'a':
 nzcount(a)

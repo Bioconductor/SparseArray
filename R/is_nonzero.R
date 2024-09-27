@@ -1,5 +1,5 @@
 ### =========================================================================
-### The nz*() functions
+### The is_nonzero() and nz*() functions
 ### -------------------------------------------------------------------------
 ###
 ### A set of generic functions for direct manipulation of the nonzero
@@ -7,17 +7,33 @@
 ###
 
 
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### is_nonzero()
+###
+### Returns an array-like object of type "logical".
+
+setGeneric("is_nonzero", function(x) standardGeneric("is_nonzero"))
+
 ### Works on any vector-like or array-like object 'x' that supports 'type(x)'
 ### and comparison with zero ('x != zero'). One notable exception are
 ### ngRMatrix objects from the Matrix package because 'x != FALSE' is
 ### broken on these objects.
-.is_nonzero <- function(x)
+.default_is_nonzero <- function(x)
 {
     ## Make sure to use 'type()' and not 'typeof()'.
     zero <- vector(type(x), length=1L)
     is_nonzero <- x != zero  # broken on ngRMatrix objects!
     is_nonzero | is.na(is_nonzero)
 }
+
+setMethod("is_nonzero", "ANY", .default_is_nonzero)
+
+### Not 100% reliable on [d|l]gCMatrix objects because these objects
+### are allowed to have zeros in their @x slot!
+### See src/SVT_SparseArray_class.c for an example.
+### On such objects 'as(x, "nMatrix")' will report more nonzero
+### elements than there really are (false positives).
+setMethod("is_nonzero", "sparseMatrix", function(x) as(x, "nMatrix"))
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -27,11 +43,13 @@
 
 setGeneric("nzcount", function(x) standardGeneric("nzcount"))
 
-setMethod("nzcount", "ANY", function(x) sum(.is_nonzero(x)))
+setMethod("nzcount", "ANY", function(x) sum(is_nonzero(x)))
 
-### Not 100% reliable on [d|l]gCMatrix objects because these objects are
-### allowed to have zeros in their @x slot!
+### Not 100% reliable on [d|l]gCMatrix objects because these objects
+### are allowed to have zeros in their @x slot!
 ### See src/SVT_SparseArray_class.c for an example.
+### On such objects 'length(x@i)' will report more nonzero
+### elements than there really are (false positives).
 setMethod("nzcount", "CsparseMatrix", function(x) length(x@i))
 setMethod("nzcount", "RsparseMatrix", function(x) length(x@j))
 
@@ -52,7 +70,7 @@ default_nzwhich <- function(x, arr.ind=FALSE)
 {
     if (!isTRUEorFALSE(arr.ind))
         stop(wmsg("'arr.ind' must be TRUE or FALSE"))
-    which(.is_nonzero(x), arr.ind=arr.ind, useNames=FALSE)
+    which(is_nonzero(x), arr.ind=arr.ind, useNames=FALSE)
 }
 
 setMethod("nzwhich", "ANY", default_nzwhich)
@@ -137,6 +155,7 @@ setGeneric("nzvals", function(x) standardGeneric("nzvals"))
 ###   or list). However, in the case of a 1D ordinary array, it's not!
 ###   For example, 'array(11:15)[matrix(3:1)]' is a 1D array.
 ###   Consider this a bug in base::`[`.
+### TODO: Maybe change this to 'x[is_nonzero(x)]'? But do some timings first.
 setMethod("nzvals", "ANY", function(x) as.vector(x[nzwhich(x)]))
 
 ### Not 100% reliable because [d|l]gCMatrix objects can have zeros in
@@ -164,6 +183,8 @@ setGeneric("nzvals<-", signature="x",
     function(x, value) standardGeneric("nzvals<-")
 )
 
+### TODO: Maybe change this to 'x[is_nonzero(x)] <- value'? But do some
+### timings first.
 setReplaceMethod("nzvals", "ANY",
     function(x, value)
     {

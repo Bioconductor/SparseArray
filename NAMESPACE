@@ -166,8 +166,8 @@ export(
 ###
 
 export(
-    ## SparseArray-class.R:
-    nzcount, nzwhich, nzvals, "nzvals<-",
+    ## is_nonzero.R:
+    is_nonzero, nzcount, nzwhich, nzvals, "nzvals<-",
 
     ## COO_SparseArray-class.R:
     nzcoo, nzdata,
@@ -178,8 +178,8 @@ export(
     ## read_block_as_sparse.R:
     read_block_as_sparse,
 
-    ## NaArray-class.R:
-    nnacount, nnawhich, nnavals, "nnavals<-",
+    ## is_nonna.R:
+    is_nonna, nnacount, nnawhich, nnavals, "nnavals<-",
 
     ## NaArray-subsetting.R:
     extract_na_array
@@ -187,11 +187,11 @@ export(
 
 ### Same list as above.
 exportMethods(
-    nzcount, nzwhich, nzvals, "nzvals<-",
+    is_nonzero, nzcount, nzwhich, nzvals, "nzvals<-",
     nzcoo, nzdata,
     extract_sparse_array,
     read_block_as_sparse,
-    nnacount, nnawhich, nnavals, "nnavals<-",
+    is_nonna, nnacount, nnawhich, nnavals, "nnavals<-",
     extract_na_array
 )
 

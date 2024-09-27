@@ -8,13 +8,24 @@
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### is_nonna()
+###
+### Returns an array-like object of type "logical".
+
+setGeneric("is_nonna", function(x) standardGeneric("is_nonna"))
+
+### Works on any vector-like or array-like object that supports is.na().
+setMethod("is_nonna", "ANY", function(x) !is.na(x))
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### nnacount()
 ###
 ### Returns the number of non-NA array elements in 'x'.
 
 setGeneric("nnacount", function(x) standardGeneric("nnacount"))
 
-setMethod("nnacount", "ANY", function(x) sum(!is.na(x)))
+setMethod("nnacount", "ANY", function(x) sum(is_nonna(x)))
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -29,12 +40,11 @@ setGeneric("nnawhich", signature="x",
     function(x, arr.ind=FALSE) standardGeneric("nnawhich")
 )
 
-### Works on any vector-like or array-like object that supports is.na().
 .default_nnawhich <- function(x, arr.ind=FALSE)
 {
     if (!isTRUEorFALSE(arr.ind))
         stop(wmsg("'arr.ind' must be TRUE or FALSE"))
-    which(!is.na(x), arr.ind=arr.ind, useNames=FALSE)
+    which(is_nonna(x), arr.ind=arr.ind, useNames=FALSE)
 }
 
 setMethod("nnawhich", "ANY", .default_nnawhich)
@@ -62,6 +72,7 @@ setGeneric("nnavals", function(x) standardGeneric("nnavals"))
 ###   or list). However, in the case of a 1D ordinary array, it's not!
 ###   For example, 'array(11:15)[matrix(3:1)]' is a 1D array.
 ###   Consider this a bug in base::`[`.
+### TODO: Maybe change this to 'x[is_nonna(x)]'? But do some timings first.
 setMethod("nnavals", "ANY", function(x) as.vector(x[nnawhich(x)]))
 
 
@@ -80,6 +91,8 @@ setGeneric("nnavals<-", signature="x",
     function(x, value) standardGeneric("nnavals<-")
 )
 
+### TODO: Maybe change this to 'x[is_nonna(x)] <- value'? But do some
+### timings first.
 setReplaceMethod("nnavals", "ANY",
     function(x, value)
     {

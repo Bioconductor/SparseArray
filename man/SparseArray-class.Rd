@@ -124,8 +124,8 @@ SparseArray(x, type=NA)
   \itemize{
     \item The \link{COO_SparseArray} and \link{SVT_SparseArray} classes.
 
-    \item \link{nzfunctions} for \code{nz*()} functions \code{nzcount()},
-          \code{nzwhich()}, etc...
+    \item \link{is_nonzero} for \code{is_nonzero()} and \code{nz*()} functions
+          \code{nzcount()}, \code{nzwhich()}, etc...
 
     \item \link{SparseArray_aperm} for permuting the dimensions of a
           SparseArray object (e.g. transposition).

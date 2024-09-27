@@ -105,8 +105,8 @@ NaArray(x, dim=NULL, dimnames=NULL, type=NA)
   \itemize{
     \item The \link{SVT_SparseArray} class.
 
-    \item \link{nnafunctions} for \code{nna*()} functions \code{nnacount()},
-          \code{nnawhich()}, etc...
+    \item \link{is_nonna} for \code{is_nonna()} and \code{nna*()} functions
+          \code{nnacount()}, \code{nnawhich()}, etc...
 
     \item \link{NaArray_aperm} for permuting the dimensions of an
           NaArray object (e.g. transposition).
