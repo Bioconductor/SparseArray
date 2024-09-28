@@ -18,6 +18,7 @@
 \alias{type,NaArray-method}
 \alias{type<-,NaArray-method}
 
+\alias{is_nonna,NaArray-method}
 \alias{nnacount,NaArray-method}
 \alias{nnawhich,NaArray-method}
 
@@ -125,6 +126,9 @@ NaArray(x, dim=NULL, dimnames=NULL, type=NA)
 
     \item \link{NaArray_Math} for operations from the \code{Math} and
           \code{Math2} groups on NaArray objects.
+
+    \item \link{NaArray_misc} for miscellaneous operations on an
+          NaArray object.
 
     \item \link{NaArray_matrixStats} for col/row summarization methods
           for NaArray objects.

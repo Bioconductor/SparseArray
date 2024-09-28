@@ -34,7 +34,7 @@ nnavals(x) <- value
 \arguments{
   \item{x}{
     Typically (but not necessarily) an array-like object that is
-    \emph{NA-sparse}, like an \link{NaArray} object.
+    \emph{non-NA sparse}, like an \link{NaArray} object.
 
     However, \code{x} can also be an ordinary matrix or array, or any
     matrix-like or array-like object.

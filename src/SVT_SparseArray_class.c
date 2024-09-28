@@ -95,12 +95,12 @@ static int REC_INPLACE_modify_SVT_type(SEXP SVT, int na_background,
 }
 
 /* --- .Call ENTRY POINT --- */
-SEXP C_set_SVT_SparseArray_type(
+SEXP C_set_SVT_type(
 		SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP x_na_background,
 		SEXP new_type)
 {
 	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
-			    "C_set_SVT_SparseArray_type", "x_type");
+					"C_set_SVT_type", "x_type");
 	SEXPTYPE new_Rtype = _get_Rtype_from_Rstring(new_type);
 	if (new_Rtype == 0)
 		error("invalid supplied type");
@@ -109,7 +109,7 @@ SEXP C_set_SVT_SparseArray_type(
 		return x_SVT;
 
 	int x_has_NAbg = _get_and_check_na_background(x_na_background,
-			    "C_set_SVT_SparseArray_type", "x_na_background");
+					"C_set_SVT_type", "x_na_background");
 
 	int *nzoffs_buf = (int *) R_alloc(INTEGER(x_dim)[0], sizeof(int));
 	SEXP ans = PROTECT(duplicate(x_SVT));
@@ -120,7 +120,7 @@ SEXP C_set_SVT_SparseArray_type(
 	if (ret < 0) {
 		UNPROTECT(1);
 		error("SparseArray internal error in "
-		      "C_set_SVT_SparseArray_type():\n"
+		      "C_set_SVT_type():\n"
 		      "    REC_INPLACE_modify_SVT_type() returned an error");
 	}
 	if (warn)
@@ -152,7 +152,48 @@ SEXP _coerce_SVT(SEXP SVT, const int *dim, int ndim,
 
 
 /****************************************************************************
- * C_nzcount_SVT_SparseArray()
+ * C_is_nonzero_SVT()
+ */
+
+static SEXP REC_is_nonzero_SVT(SEXP SVT, const int *dim, int ndim)
+{
+	if (SVT == R_NilValue)
+		return R_NilValue;
+
+	if (ndim == 1) {
+		/* 'SVT' is a leaf (i.e. 1D SVT). */
+		return _make_lacunar_leaf(get_leaf_nzoffs(SVT));
+	}
+
+	/* 'SVT' is a list. */
+	int ans_len = dim[ndim - 1];  /* same as 'LENGTH(SVT)' */
+	SEXP ans = PROTECT(NEW_LIST(ans_len));
+	int is_empty = 1;
+	for (int i = 0; i < ans_len; i++) {
+		SEXP subSVT = VECTOR_ELT(SVT, i);
+		SEXP ans_elt = REC_is_nonzero_SVT(subSVT, dim, ndim - 1);
+		if (ans_elt != R_NilValue) {
+			PROTECT(ans_elt);
+			SET_VECTOR_ELT(ans, i, ans_elt);
+			UNPROTECT(1);
+			is_empty = 0;
+		}
+	}
+	UNPROTECT(1);
+	return is_empty ? R_NilValue : ans;
+}
+
+/* --- .Call ENTRY POINT ---
+   Simple strips off the "nzvals" part from the non-empty leaves.
+   Returns a fully lacunar SVT. */
+SEXP C_is_nonzero_SVT(SEXP x_dim, SEXP x_SVT)
+{
+	return REC_is_nonzero_SVT(x_SVT, INTEGER(x_dim), LENGTH(x_dim));
+}
+
+
+/****************************************************************************
+ * C_nzcount_SVT()
  */
 
 /* Recursive. */
@@ -177,7 +218,7 @@ R_xlen_t _REC_nzcount_SVT(SEXP SVT, int ndim)
 }
 
 /* --- .Call ENTRY POINT --- */
-SEXP C_nzcount_SVT_SparseArray(SEXP x_dim, SEXP x_SVT)
+SEXP C_nzcount_SVT(SEXP x_dim, SEXP x_SVT)
 {
 	R_xlen_t nzcount = _REC_nzcount_SVT(x_SVT, LENGTH(x_dim));
 	if (nzcount > INT_MAX)
@@ -187,7 +228,7 @@ SEXP C_nzcount_SVT_SparseArray(SEXP x_dim, SEXP x_SVT)
 
 
 /****************************************************************************
- * C_nzwhich_SVT_SparseArray()
+ * C_nzwhich_SVT()
  */
 
 static inline void from_offs_to_int_Lindex(const int *offs, int n,
@@ -365,7 +406,7 @@ static SEXP extract_nzcoo_and_nzvals_from_SVT(SEXP SVT,
 }
 
 /* --- .Call ENTRY POINT --- */
-SEXP C_nzwhich_SVT_SparseArray(SEXP x_dim, SEXP x_SVT, SEXP arr_ind)
+SEXP C_nzwhich_SVT(SEXP x_dim, SEXP x_SVT, SEXP arr_ind)
 {
 	int x_ndim = LENGTH(x_dim);
 	R_xlen_t nzcount = _REC_nzcount_SVT(x_SVT, x_ndim);
@@ -670,54 +711,13 @@ static SEXP build_leaf_from_ngCsparseMatrix_col(const int *sloti,
 
 /* Returns R_NilValue or a leaf with an nzcount <= 'col_nzcount'.
 
-   Note that, quite surprisingly, and unfortunately, [d|l]gCMatrix objects
-   can sometimes have zeros in their "x" slot.
-   For example, with Matrix 1.3-4:
-
-       dgcm <- as(matrix(c(11:13, 0, 0, 21:25), ncol=2), "dgCMatrix")
-
-    In an lgCMatrix object:
-
-       lgcm <- dgcm >= 13
-       lgcm
-       # 5 x 2 sparse Matrix of class "lgCMatrix"
-       # [1,] : |
-       # [2,] : |
-       # [3,] | |
-       # [4,] . |
-       # [5,] . |
-       lgcm@x
-       # [1] FALSE FALSE  TRUE  TRUE  TRUE  TRUE  TRUE  TRUE
-
-    In a dgCMatrix object:
-
-       dgcm[cbind(3:4, 2)] <- 0
-       dgcm
-       # 5 x 2 sparse Matrix of class "dgCMatrix"
-       # [1,] 11 21
-       # [2,] 12 22
-       # [3,] 13  0
-       # [4,]  .  0
-       # [5,]  . 25
-       dgcm@x
-       # [1] 11 12 13 21 22  0  0 25
-
-   This is still considered a valid dgCMatrix object:
-
-       validObject(dgcm)
-       [1] TRUE
-
-   Interestingly this doesn't happen when using a linear index in the
-   subassignment:
-
-       dgcm[1:2] <- 0
-       dgcm@x
-       # [1] 13 21 22 25
-
-   We want to make sure that these zeros don't end up in the leaf returned
+   Note that [d|l]gCMatrix objects are allowed to have zeros in their '@x'
+   slot. See IMPORTANT NOTE in R/is_nonzero.R.
+   So we want to make sure that these zeros don't end up in the leaf returned
    by build_leaf_from_CsparseMatrix_col(). Unfortunately, this introduces
    an additional cost to coercion from [d|l]gCMatrix to SVT_SparseMatrix.
-   This cost is a slowdown that is (approx.) between 1.3x and 1.5x. */
+   E.g. some quick testing seems to indicate a slowdown for this coercion
+   that is (approx.) between 1.3x and 1.5x. */
 static SEXP build_leaf_from_CsparseMatrix_col(const int *sloti, SEXP slotx,
 		R_xlen_t ix_offset, int col_nzcount,
 		SEXPTYPE ans_Rtype, int *warn, int *nzoffs_buf)

@@ -137,7 +137,7 @@ setMethod("type", "NaArray", function(x) x@type)
     if (value == x_type)
         return(x)
 
-    new_NaSVT <- SparseArray.Call("C_set_SVT_SparseArray_type",
+    new_NaSVT <- SparseArray.Call("C_set_SVT_type",
                                   x@dim, x@type, x@NaSVT, TRUE, value)
     BiocGenerics:::replaceSlots(x, type=value, NaSVT=new_NaSVT, check=FALSE)
 }
@@ -146,32 +146,44 @@ setReplaceMethod("type", "NaArray", .set_NaArray_type)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### The nnacount(), nnawhich(), nnavals(), and `nnavals<-`() methods
+### is_nonna(), nnacount(), nnawhich(), nnavals(), `nnavals<-`()
 ###
 
-### Note that like for the length of atomic vectors in base R, the "non-NA
-### count" will be returned as a double if it's > .Machine$integer.max
-.get_NaArray_nnacount <- function(x)
+### Returns a "logical" **SVT_SparseArray** object!
+.is_nonna_NaSVT <- function(x)
 {
     stopifnot(is(x, "NaArray"))
     check_svt_version(x)
-    SparseArray.Call("C_nzcount_SVT_SparseArray", x@dim, x@NaSVT)
+    ans_SVT <- SparseArray.Call("C_is_nonzero_SVT", x@dim, x@NaSVT)
+    new_SVT_SparseArray(x@dim, x@dimnames, "logical", ans_SVT, check=FALSE)
 }
-setMethod("nnacount", "NaArray", .get_NaArray_nnacount)
+
+setMethod("is_nonna", "NaArray", .is_nonna_NaSVT)
+
+### Note that like for the length of atomic vectors in base R, the "non-NA
+### count" will be returned as a double if it's > .Machine$integer.max
+.nnacount_NaSVT <- function(x)
+{
+    stopifnot(is(x, "NaArray"))
+    check_svt_version(x)
+    SparseArray.Call("C_nzcount_SVT", x@dim, x@NaSVT)
+}
+setMethod("nnacount", "NaArray", .nnacount_NaSVT)
 
 ### Returns an integer vector of length nnacount(x) if 'arr.ind=FALSE', or
 ### a matrix with nnacount(x) rows if 'arr.ind=TRUE'.
-.nnawhich_NaArray <- function(x, arr.ind=FALSE)
+.nnawhich_NaSVT <- function(x, arr.ind=FALSE)
 {
     stopifnot(is(x, "NaArray"))
     check_svt_version(x)
     if (!isTRUEorFALSE(arr.ind))
         stop(wmsg("'arr.ind' must be TRUE or FALSE"))
-    SparseArray.Call("C_nzwhich_SVT_SparseArray", x@dim, x@NaSVT, arr.ind)
+    SparseArray.Call("C_nzwhich_SVT", x@dim, x@NaSVT, arr.ind)
 }
-setMethod("nnawhich", "NaArray", .nnawhich_NaArray)
+setMethod("nnawhich", "NaArray", .nnawhich_NaSVT)
 
-### TODO: Implement nnavals() and `nnavals<-`() methods for NaArray objects.
+### TODO: Implement optimized nnavals() and `nnavals<-`() methods for
+### NaArray objects.
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

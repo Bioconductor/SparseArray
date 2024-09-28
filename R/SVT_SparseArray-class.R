@@ -140,7 +140,7 @@ setMethod("type", "SVT_SparseArray", function(x) x@type)
     if (value == x_type)
         return(x)
 
-    new_SVT <- SparseArray.Call("C_set_SVT_SparseArray_type",
+    new_SVT <- SparseArray.Call("C_set_SVT_type",
                                 x@dim, x@type, x@SVT, FALSE, value)
     BiocGenerics:::replaceSlots(x, type=value, SVT=new_SVT, check=FALSE)
 }
@@ -149,32 +149,46 @@ setReplaceMethod("type", "SVT_SparseArray", .set_SVT_SparseArray_type)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### nzcount() and nzwhich()
+### is_nonzero(), nzcount(), nzwhich(), nzvals(), `nzvals<-`()
 ###
 
-### Note that like for the length of atomic vectors in base R, the "nonzero
-### count" will be returned as a double if it's > .Machine$integer.max
-.get_SVT_SparseArray_nzcount <- function(x)
+### Returns a "logical" SVT_SparseArray object.
+.is_nonzero_SVT <- function(x)
 {
     stopifnot(is(x, "SVT_SparseArray"))
     check_svt_version(x)
-    SparseArray.Call("C_nzcount_SVT_SparseArray", x@dim, x@SVT)
+    new_SVT <- SparseArray.Call("C_is_nonzero_SVT", x@dim, x@SVT)
+    BiocGenerics:::replaceSlots(x, type="logical", SVT=new_SVT, check=FALSE)
 }
 
-setMethod("nzcount", "SVT_SparseArray", .get_SVT_SparseArray_nzcount)
+setMethod("is_nonzero", "SVT_SparseArray", .is_nonzero_SVT)
+
+### Note that like for the length of atomic vectors in base R, the "nonzero
+### count" will be returned as a double if it's > .Machine$integer.max
+.nzcount_SVT <- function(x)
+{
+    stopifnot(is(x, "SVT_SparseArray"))
+    check_svt_version(x)
+    SparseArray.Call("C_nzcount_SVT", x@dim, x@SVT)
+}
+
+setMethod("nzcount", "SVT_SparseArray", .nzcount_SVT)
 
 ### Returns an integer vector of length nzcount(x) if 'arr.ind=FALSE', or
 ### a matrix with nzcount(x) rows if 'arr.ind=TRUE'.
-.nzwhich_SVT_SparseArray <- function(x, arr.ind=FALSE)
+.nzwhich_SVT <- function(x, arr.ind=FALSE)
 {
     stopifnot(is(x, "SVT_SparseArray"))
     check_svt_version(x)
     if (!isTRUEorFALSE(arr.ind))
         stop(wmsg("'arr.ind' must be TRUE or FALSE"))
-    SparseArray.Call("C_nzwhich_SVT_SparseArray", x@dim, x@SVT, arr.ind)
+    SparseArray.Call("C_nzwhich_SVT", x@dim, x@SVT, arr.ind)
 }
 
-setMethod("nzwhich", "SVT_SparseArray", .nzwhich_SVT_SparseArray)
+setMethod("nzwhich", "SVT_SparseArray", .nzwhich_SVT)
+
+### TODO: Implement optimized nzvals() and `nzvals<-`() methods for
+### SVT_SparseArray objects.
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

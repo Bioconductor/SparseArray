@@ -73,5 +73,6 @@ Collate: utils.R
 	NaArray-Compare-methods.R
 	NaArray-Logic-methods.R
 	NaArray-Math-methods.R
+	NaArray-misc-methods.R
 	NaArray-matrixStats.R
 	zzz.R

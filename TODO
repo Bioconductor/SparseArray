@@ -17,14 +17,6 @@
 - Implement which() methods for SparseArray and NaArray objects of type
   logical.
 
-- Add optimized is_nonzero() method for SparseArray objects.
-  is_nonzero(<SVT_SparseArray>) simply needs to strip off the "nzvals"
-  component from the non-empty leaves and return the result as a logical
-  SVT_SparseArray. This means that the returned object will be fully lacunar
-  (i.e. all its leaves will be lacunar), like with is.na().
-
-- Add optimized is_nonna() method for NaArray objects.
-
 - Implement fast nzvals() getter/setter for SVT_SparseMatrix objects and
   fast nnavals() getter/setter for NaArray objects. Default methods work
   fine but are not as fast as they could be.

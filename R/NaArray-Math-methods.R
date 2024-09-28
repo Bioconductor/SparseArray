@@ -22,8 +22,8 @@
 .check_NaArray_Math_op <- function(op)
 {
     if (!(op %in% .SUPPORTED_NAARRAY_MATH_OPS))
-        stop(wmsg(op, "() is not supported on NaArray ",
-                  "objects (result wouldn't be \"NA-sparse\" in general)"))
+        stop(wmsg(op, "() is not supported on NaArray objects ",
+                  "(result wouldn't be \"non-NA sparse\" in general)"))
 }
 
 .Math_NaSVT <- function(op, x)
@@ -34,9 +34,9 @@
     if (type(x) != "double")
         stop(wmsg("the ", op, "() method for NaArray objects ",
                   "only supports input of type \"double\" at the moment"))
-    ans_NaSVT <- SparseArray.Call("C_Math_SVT",
+    new_NaSVT <- SparseArray.Call("C_Math_SVT",
                                   x@dim, x@type, x@NaSVT, TRUE, op, 0.0)
-    new_NaArray(x@dim, x@dimnames, "double", ans_NaSVT, check=FALSE)
+    BiocGenerics:::replaceSlots(x, type="double", NaSVT=new_NaSVT, check=FALSE)
 }
 
 setMethod("Math", "NaArray", function(x) .Math_NaSVT(.Generic, x))
@@ -57,9 +57,9 @@ setMethod("Math", "NaArray", function(x) .Math_NaSVT(.Generic, x))
         stop(wmsg("'digits' must be a single number"))
     if (!is.double(digits))
         digits <- as.double(digits)
-    ans_NaSVT <- SparseArray.Call("C_Math_SVT",
+    new_NaSVT <- SparseArray.Call("C_Math_SVT",
                                   x@dim, x@type, x@NaSVT, TRUE, op, digits)
-    new_NaArray(x@dim, x@dimnames, "double", ans_NaSVT, check=FALSE)
+    BiocGenerics:::replaceSlots(x, type="double", NaSVT=new_NaSVT, check=FALSE)
 }
 
 setMethod("round", "NaArray",

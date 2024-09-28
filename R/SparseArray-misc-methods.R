@@ -53,11 +53,14 @@ setMethod("nchar", "COO_SparseArray",
 
 ### --- Methods for SVT_SparseArray objects ---
 
+### Returns a "logical" SVT_SparseArray object.
 .isFUN_SVT <- function(isFUN, x)
 {
-    ans_SVT <- SparseArray.Call("C_SVT_apply_isFUN",
+    stopifnot(is(x, "SVT_SparseArray"))
+    check_svt_version(x)
+    new_SVT <- SparseArray.Call("C_SVT_apply_isFUN",
                                 x@dim, x@type, x@SVT, isFUN)
-    new_SVT_SparseArray(x@dim, x@dimnames, "logical", ans_SVT, check=FALSE)
+    BiocGenerics:::replaceSlots(x, type="logical", SVT=new_SVT, check=FALSE)
 }
 
 setMethod("is.na", "SVT_SparseArray",

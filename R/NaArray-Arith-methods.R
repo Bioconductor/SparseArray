@@ -20,7 +20,7 @@ error_on_left_NAsparsity_not_preserved <- function(op, when)
         msg <- c("x ", op, " y: operation")
     }
     stop(wmsg(msg, " not supported on NaArray object x ",
-              "when ", when, " (result wouldn't be \"NA-sparse\")"))
+              "when ", when, " (result wouldn't be \"non-NA sparse\")"))
 }
 
 error_on_right_NAsparsity_not_preserved <- function(op, when)
@@ -33,7 +33,7 @@ error_on_right_NAsparsity_not_preserved <- function(op, when)
         msg <- c("x ", op, " y: operation")
     }
     stop(wmsg(msg, " not supported on NaArray object y ",
-              "when ", when, " (result wouldn't be \"NA-sparse\")"))
+              "when ", when, " (result wouldn't be \"non-NA sparse\")"))
 }
 
 
@@ -194,15 +194,15 @@ setMethod("Arith", c("array", "NaArray"),
     check_Arith_input_type(type(x), "NaArray object")
     check_Arith_input_type(type(y), "SparseArray object")
 
-    ## Make sure that result will be NA-sparse.
+    ## Make sure that result will be "non-NA sparse".
     if (op == "^")
         stop(wmsg("'x ^ y' is not supported when 'x' is an NaArray object ",
                   "and 'y' a SparseArray object (result wouldn't be ",
-                  "\"NA-sparse\" in general)"))
+                  "\"non-NA sparse\" in general)"))
     if (op == "%%" && (type(x) == "double" || type(y) == "double"))
         stop(wmsg("'x %% y' is not supported when 'x' is an NaArray object ",
                   "and 'y' a SparseArray object, and when 'x' or 'y' is of ",
-                  "type \"double\" (result wouldn't be \"NA-sparse\" in ",
+                  "type \"double\" (result wouldn't be \"non-NA sparse\" in ",
                   "general)"))
 
     ## Check array conformability.

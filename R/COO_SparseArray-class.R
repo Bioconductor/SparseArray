@@ -209,8 +209,18 @@ setReplaceMethod("type", "COO_SparseArray", .set_COO_SparseArray_type)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### nzcount(), nzwhich(), nzvals(), and `nzvals<-`() methods
+### is_nonzero(), nzcount(), nzwhich(), nzvals(), `nzvals<-`()
 ###
+
+### Returns a "logical" COO_SparseArray object.
+.is_nonzero_COO <- function(x)
+{
+    stopifnot(is(x, "COO_SparseArray"))
+    new_nzdata <- rep.int(TRUE, length(nzdata(x)))
+    BiocGenerics:::replaceSlots(x, nzdata=new_nzdata, check=FALSE)
+}
+
+setMethod("is_nonzero", "COO_SparseArray", .is_nonzero_COO)
 
 ### length(nzdata(x)) and nrow(nzcoo(x)) are guaranteed to be the same but
 ### the former should be slightly more efficient.
@@ -219,7 +229,7 @@ setMethod("nzcount", "COO_SparseArray", function(x) length(nzdata(x)))
 
 ### Returns an integer vector of length nzcount(x) if 'arr.ind=FALSE', or
 ### a matrix with nzcount(x) rows if 'arr.ind=TRUE'.
-.nzwhich_COO_SparseArray <- function(x, arr.ind=FALSE)
+.nzwhich_COO <- function(x, arr.ind=FALSE)
 {
     if (!isTRUEorFALSE(arr.ind))
         stop(wmsg("'arr.ind' must be TRUE or FALSE"))
@@ -229,7 +239,7 @@ setMethod("nzcount", "COO_SparseArray", function(x) length(nzdata(x)))
     Mindex2Lindex(ans, dim=dim(x))
 }
 
-setMethod("nzwhich", "COO_SparseArray", .nzwhich_COO_SparseArray)
+setMethod("nzwhich", "COO_SparseArray", .nzwhich_COO)
 
 setMethod("nzvals", "COO_SparseArray",
     function(x) .normalize_COO_SparseArray(x)@nzdata

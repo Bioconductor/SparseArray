@@ -3,7 +3,7 @@
 
 #include <Rdefines.h>
 
-SEXP C_set_SVT_SparseArray_type(
+SEXP C_set_SVT_type(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT,
@@ -20,17 +20,22 @@ SEXP _coerce_SVT(
 	int *offs_buf
 );
 
+SEXP C_is_nonzero_SVT(
+	SEXP x_dim,
+	SEXP x_SVT
+);
+
 R_xlen_t _REC_nzcount_SVT(
 	SEXP SVT,
 	int ndim
 );
 
-SEXP C_nzcount_SVT_SparseArray(
+SEXP C_nzcount_SVT(
 	SEXP x_dim,
 	SEXP x_SVT
 );
 
-SEXP C_nzwhich_SVT_SparseArray(
+SEXP C_nzwhich_SVT(
 	SEXP x_dim,
 	SEXP x_SVT,
 	SEXP arr_ind

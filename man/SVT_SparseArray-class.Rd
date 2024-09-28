@@ -19,6 +19,7 @@
 \alias{type,SVT_SparseArray-method}
 \alias{type<-,SVT_SparseArray-method}
 
+\alias{is_nonzero,SVT_SparseArray-method}
 \alias{nzcount,SVT_SparseArray-method}
 \alias{nzwhich,SVT_SparseArray-method}
 

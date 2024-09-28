@@ -20,6 +20,7 @@
 \alias{type,COO_SparseArray-method}
 \alias{type<-,COO_SparseArray-method}
 
+\alias{is_nonzero,COO_SparseArray-method}
 \alias{nzcount,COO_SparseArray-method}
 \alias{nzwhich,COO_SparseArray-method}
 \alias{nzvals,COO_SparseArray-method}

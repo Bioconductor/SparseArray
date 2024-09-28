@@ -77,7 +77,7 @@
 }
 
 \details{
-  More operations will be supported in the future.
+  More operations will be added in the future.
 }
 
 \value{

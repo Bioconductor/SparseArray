@@ -28,11 +28,56 @@ setGeneric("is_nonzero", function(x) standardGeneric("is_nonzero"))
 
 setMethod("is_nonzero", "ANY", .default_is_nonzero)
 
-### Not 100% reliable on [d|l]gCMatrix objects because these objects
-### are allowed to have zeros in their @x slot!
-### See src/SVT_SparseArray_class.c for an example.
-### On such objects 'as(x, "nMatrix")' will report more nonzero
-### elements than there really are (false positives).
+### IMPORTANT NOTE: Surprisingly, and unfortunately, [d|l]gCMatrix objects
+### are allowed to have zeros in their '@x' slot.
+### For example, with Matrix 1.3-4:
+###
+###   dgcm <- as(matrix(c(11:13, 0, 0, 21:25), ncol=2), "dgCMatrix")
+###
+### In an lgCMatrix object:
+###
+###   lgcm <- dgcm >= 13
+###   lgcm
+###   # 5 x 2 sparse Matrix of class "lgCMatrix"
+###   # [1,] : |
+###   # [2,] : |
+###   # [3,] | |
+###   # [4,] . |
+###   # [5,] . |
+###   lgcm@x
+###   [1] FALSE FALSE  TRUE  TRUE  TRUE  TRUE  TRUE  TRUE
+###
+### In a dgCMatrix object:
+###
+###   dgcm[cbind(3:4, 2)] <- 0
+###   dgcm
+###   # 5 x 2 sparse Matrix of class "dgCMatrix"
+###   # [1,] 11 21
+###   # [2,] 12 22
+###   # [3,] 13  0
+###   # [4,]  .  0
+###   # [5,]  . 25
+###   dgcm@x
+###   # [1] 11 12 13 21 22  0  0 25
+###
+### This is still considered a valid dgCMatrix object:
+###
+###   validObject(dgcm)
+###   # [1] TRUE
+###
+### Interestingly this doesn't happen when using a linear index in the
+### subassignment:
+###
+###   dgcm[1:2] <- 0
+###   dgcm@x
+###   # [1] 13 21 22 25
+###
+### A consequence of this is that the method below is not 100% reliable
+### on a [d|l]gCMatrix object because 'as(x, "nMatrix")' will report
+### nonzero elements based on the pattern represented by the '@i' and '@p'
+### slots of the input object, and regardless of what the corresponding
+### values in its '@x' slot is. In other words, this method can return
+### false positives on a [d|l]gCMatrix object.
 setMethod("is_nonzero", "sparseMatrix", function(x) as(x, "nMatrix"))
 
 
@@ -45,11 +90,12 @@ setGeneric("nzcount", function(x) standardGeneric("nzcount"))
 
 setMethod("nzcount", "ANY", function(x) sum(is_nonzero(x)))
 
-### Not 100% reliable on [d|l]gCMatrix objects because these objects
-### are allowed to have zeros in their @x slot!
-### See src/SVT_SparseArray_class.c for an example.
-### On such objects 'length(x@i)' will report more nonzero
-### elements than there really are (false positives).
+### Not 100% reliable on [d|l]gCMatrix objects because these objects are
+### allowed to have zeros in their '@x' slot! See IMPORTANT NOTE above in
+### this file.
+### On such objects 'length(x@i)' will report more nonzero elements than
+### there really are (false positives). However, nzcount() and is_nonzero()
+### are guaranteed to be consistent, which is what matters most.
 setMethod("nzcount", "CsparseMatrix", function(x) length(x@i))
 setMethod("nzcount", "RsparseMatrix", function(x) length(x@j))
 
@@ -83,12 +129,13 @@ setMethod("nzwhich", "ANY", default_nzwhich)
 ### - nzwhich_RsparseMatrix() is only slightly faster than default_nzwhich()
 ###   but is provided mostly to make nzwhich() work on ngRMatrix objects
 ###   (default_nzwhich() doesn't work on these objects, see above).
-### IMPORTANT NOTE: nzwhich_CsparseMatrix() and nzwhich_RsparseMatrix()
-### use a shortcut that is **NOT** 100% reliable on [d|l]gCMatrix or
-### [d|l]gRMatrix objects because these objects sometimes have zeros in
-### their @x slot (see src/SVT_SparseArray_class.c for examples of such
-### objects). So in this case the functions will produce a result that
-### contains some false positives.
+### NOTE: nzwhich_CsparseMatrix() and nzwhich_RsparseMatrix() use a shortcut
+### that is **NOT** 100% reliable on [d|l]gCMatrix or [d|l]gRMatrix objects
+### because these objects are allowed to have zeros in their '@x' slot (see
+### IMPORTANT NOTE above in this file). So in this case the functions will
+### produce a result that contains some false positives. However, nzwhich()
+### is guaranteed to be consistent with nzcount() and is_nonzero(), which is
+### what matters most.
 nzwhich_CsparseMatrix <- function(x, arr.ind=FALSE)
 {
     if (!isTRUEorFALSE(arr.ind))
@@ -159,8 +206,8 @@ setGeneric("nzvals", function(x) standardGeneric("nzvals"))
 setMethod("nzvals", "ANY", function(x) as.vector(x[nzwhich(x)]))
 
 ### Not 100% reliable because [d|l]gCMatrix objects can have zeros in
-### their @x slot (see comment for nzwhich_CsparseMatrix() above), but
-### consistent with nzwhich_CsparseMatrix().
+### their '@x' slot (see IMPORTANT NOTE above in this file), but consistent
+### with nzwhich(), nzcount(), and is_nonzero() on these objects.
 setMethod("nzvals", "dgCMatrix", function(x) x@x)
 setMethod("nzvals", "lgCMatrix", function(x) x@x)
 
