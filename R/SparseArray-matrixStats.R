@@ -58,7 +58,7 @@ stopifnot_2D_object <- function(x, method, class1, class2)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### .colStats_SparseArray(), .rowStats_SparseArray()
+### .colStats_SparseArray() and .rowStats_SparseArray()
 ###
 ### Workhorses behind all the matrixStats methods for SparseArray objects,
 ### with the exception of the colMedians()/rowMedians() methods at the moment.

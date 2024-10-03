@@ -26,14 +26,18 @@
 \alias{as.array.SVT_SparseArray}
 \alias{as.array,SVT_SparseArray-method}
 \alias{coerce,array,SVT_SparseArray-method}
+\alias{coerce,array,SparseArray-method}
 \alias{coerce,matrix,SVT_SparseMatrix-method}
+\alias{coerce,matrix,SparseMatrix-method}
 
 \alias{coerce,SVT_SparseMatrix,dgCMatrix-method}
 \alias{coerce,SVT_SparseMatrix,lgCMatrix-method}
 \alias{coerce,SVT_SparseMatrix,ngCMatrix-method}
 \alias{coerce,CsparseMatrix,SVT_SparseMatrix-method}
+\alias{coerce,CsparseMatrix,SparseMatrix-method}
 
 \alias{coerce,Matrix,SVT_SparseArray-method}
+\alias{coerce,Matrix,SparseArray-method}
 
 \alias{coerce,SVT_SparseArray,COO_SparseArray-method}
 \alias{coerce,SVT_SparseMatrix,COO_SparseMatrix-method}
@@ -42,8 +46,8 @@
 
 \alias{coerce,ANY,SparseArray-method}
 \alias{coerce,ANY,SparseMatrix-method}
-\alias{coerce,RsparseMatrix,SparseArray-method}
-\alias{coerce,RsparseMatrix,SparseMatrix-method}
+\alias{coerce,ANY,SVT_SparseArray-method}
+\alias{coerce,ANY,SVT_SparseMatrix-method}
 
 \title{SVT_SparseArray objects}
 

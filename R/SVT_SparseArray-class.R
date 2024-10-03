@@ -243,7 +243,13 @@ setMethod("as.array", "SVT_SparseArray", as.array.SVT_SparseArray)
 setAs("array", "SVT_SparseArray",
     function(from) .build_SVT_SparseArray_from_array(from)
 )
+setAs("array", "SparseArray",
+    function(from) .build_SVT_SparseArray_from_array(from)
+)
 setAs("matrix", "SVT_SparseMatrix",
+    function(from) .build_SVT_SparseArray_from_array(from)
+)
+setAs("matrix", "SparseMatrix",
     function(from) .build_SVT_SparseArray_from_array(from)
 )
 
@@ -345,8 +351,12 @@ setAs("SVT_SparseMatrix", "ngCMatrix", .from_SVT_SparseMatrix_to_ngCMatrix)
 setAs("CsparseMatrix", "SVT_SparseMatrix",
     function(from) .build_SVT_SparseMatrix_from_CsparseMatrix(from)
 )
+setAs("CsparseMatrix", "SparseMatrix",
+    function(from) .build_SVT_SparseMatrix_from_CsparseMatrix(from)
+)
 
 setAs("Matrix", "SVT_SparseArray", function(from) as(from, "SVT_SparseMatrix"))
+setAs("Matrix", "SparseArray", function(from) as(from, "SVT_SparseMatrix"))
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -462,23 +472,50 @@ SVT_SparseArray <- function(x, dim=NULL, dimnames=NULL, type=NA)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Coercion to SparseArray, and the SparseArray() constructor
+### Default coercions to SparseArray and to SVT_SparseArray
 ###
-### The SVT_SparseArray representation is preferred over COO_SparseArray when
-### coercing to SparseArray or when using the SparseArray() constructor. With
-### one exception: when the object to coerce is an RsparseMatrix derivative!
-### This is because we don't have an efficient way to coerce these objects to
-### SVT_SparseArray at the moment.
+### Given a DelayedArray object or any out-of-memory array-like object 'x':
+### - as.array(x) is the standard way to realize it as an ordinary array (i.e.
+###   dense array);
+### - as(x, "SparseArray") is the standard way to realize it in memory as a
+###   SparseArray derivative (SVT_SparseArray or COO_SparseArray object).
+### - as(x, "SVT_SparseArray") is the standard way to realize it in memory
+###   as an SVT_SparseArray object.
+###
 
-setAs("ANY", "SparseArray", function(from) as(from, "SVT_SparseArray"))
-setAs("ANY", "SparseMatrix", function(from) as(from, "SVT_SparseMatrix"))
-setAs("RsparseMatrix", "SparseArray",
-    function(from) as(from, "COO_SparseArray")
-)
-setAs("RsparseMatrix", "SparseMatrix",
-    function(from) as(from, "COO_SparseMatrix")
-)
+### Similar to as.array() method for Array object (defined in the S4Arrays
+### package) but based on extract_sparse_array() instead of extract_array(),
+### and without the 'drop' argument.
+### Returns an SVT_SparseArray or COO_SparseArray object.
+.as.SparseArray <- function(x)
+{
+    if (!is_sparse(x)) {
+        ## Go thru .dense2sparse().
+        return(as(x, "COO_SparseArray"))
+    }
+    index <- vector("list", length=length(dim(x)))
+    ans <- extract_sparse_array(x, index)
+    S4Arrays:::set_dimnames(ans, dimnames(x))
+}
+setAs("ANY", "SparseArray", function(from) .as.SparseArray(from))
+setAs("ANY", "SparseMatrix", function(from) .as.SparseArray(from))
 
+.as.SVT_SparseArray <- function(x)
+{
+    ans <- as(x, "SparseArray")
+    if (!is(ans, "SVT_SparseArray"))
+        ans <- as(ans, "SVT_SparseArray")
+    ans
+}
+setAs("ANY", "SVT_SparseArray", function(from) .as.SVT_SparseArray(from))
+setAs("ANY", "SVT_SparseMatrix", function(from) .as.SVT_SparseArray(from))
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### The SparseArray() constructor
+###
+
+### Preference is given to the SVT_SparseArray representation.
 SparseArray <- function(x, type=NA)
 {
     if (!identical(type, NA))

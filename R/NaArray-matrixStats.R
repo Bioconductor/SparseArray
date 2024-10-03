@@ -7,7 +7,7 @@
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### .colStats_NaArray(), .rowStats_NaArray()
+### .colStats_NaArray() and .rowStats_NaArray()
 ###
 ### Workhorses behind all the matrixStats methods for NaArray objects, with
 ### the exception of the colMedians()/rowMedians() methods at the moment.
