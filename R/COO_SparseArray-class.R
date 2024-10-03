@@ -186,25 +186,27 @@ setReplaceMethod("type", "COO_SparseArray", .set_COO_SparseArray_type)
 }
 
 ### Does NOT remove duplicates from the 'nzcoo' slot.
-### FIXME: Remove duplicates from the 'nzcoo' slot.
-.order_nzcoo_slot <- function(x)
+.sort_and_drop_dups_from_nzcoo_slot <- function(x)
 {
     oo <- S4Arrays:::Mindex_order(x@nzcoo)
-    if (!is.unsorted(oo))
+    if (!(is.unsorted(oo) || any(S4Arrays:::Mindex_row_is_repeated(x@nzcoo))))
         return(x)
     new_nzcoo <- x@nzcoo[oo, , drop=FALSE]
     new_nzdata <- x@nzdata[oo]
+    dup_idx <- which(S4Arrays:::Mindex_row_is_repeated(new_nzcoo))
+    if (length(dup_idx) != 0L) {
+        new_nzcoo <- new_nzcoo[-dup_idx, , drop=FALSE]
+        new_nzdata <- new_nzdata[-dup_idx]
+    }
     BiocGenerics:::replaceSlots(x, nzcoo=new_nzcoo,
                                    nzdata=new_nzdata,
                                    check=FALSE)
 }
 
-### Note that .normalize_COO_SparseArray() does NOT remove duplicates
-### from the 'nzcoo' slot at the moment.
 .normalize_COO_SparseArray <- function(x)
 {
     stopifnot(is(x, "COO_SparseArray"))
-    .order_nzcoo_slot(.remove_zeros_from_nzdata_slot(x))
+    .sort_and_drop_dups_from_nzcoo_slot(.remove_zeros_from_nzdata_slot(x))
 }
 
 
@@ -216,6 +218,7 @@ setReplaceMethod("type", "COO_SparseArray", .set_COO_SparseArray_type)
 .is_nonzero_COO <- function(x)
 {
     stopifnot(is(x, "COO_SparseArray"))
+    x <- .normalize_COO_SparseArray(x)
     new_nzdata <- rep.int(TRUE, length(nzdata(x)))
     BiocGenerics:::replaceSlots(x, nzdata=new_nzdata, check=FALSE)
 }
@@ -224,7 +227,9 @@ setMethod("is_nonzero", "COO_SparseArray", .is_nonzero_COO)
 
 ### length(nzdata(x)) and nrow(nzcoo(x)) are guaranteed to be the same but
 ### the former should be slightly more efficient.
-setMethod("nzcount", "COO_SparseArray", function(x) length(nzdata(x)))
+setMethod("nzcount", "COO_SparseArray",
+    function(x) length(nzdata(.normalize_COO_SparseArray(x)))
+)
 
 
 ### Returns an integer vector of length nzcount(x) if 'arr.ind=FALSE', or
