@@ -487,7 +487,7 @@ SVT_SparseArray <- function(x, dim=NULL, dimnames=NULL, type=NA)
 ### package) but based on extract_sparse_array() instead of extract_array(),
 ### and without the 'drop' argument.
 ### Returns an SVT_SparseArray or COO_SparseArray object.
-.as.SparseArray <- function(x)
+.as_SparseArray <- function(x)
 {
     if (!is_sparse(x)) {
         ## Go thru .dense2sparse().
@@ -497,18 +497,25 @@ SVT_SparseArray <- function(x, dim=NULL, dimnames=NULL, type=NA)
     ans <- extract_sparse_array(x, index)
     S4Arrays:::set_dimnames(ans, dimnames(x))
 }
-setAs("ANY", "SparseArray", function(from) .as.SparseArray(from))
-setAs("ANY", "SparseMatrix", function(from) .as.SparseArray(from))
+setAs("ANY", "SparseArray", function(from) .as_SparseArray(from))
 
-.as.SVT_SparseArray <- function(x)
+.as_SparseMatrix <- function(x)
 {
-    ans <- as(x, "SparseArray")
-    if (!is(ans, "SVT_SparseArray"))
-        ans <- as(ans, "SVT_SparseArray")
-    ans
+    x_ndim <- length(dim(x))
+    if (x_ndim != 2L)
+        stop(wmsg("cannot coerce ", class(x)[[1L]], " object ",
+                  "with ", x_ndim, " dimensions to SparseMatrix ",
+                  "(object to coerce must have 2 dimensions)"))
+    .as_SparseArray(x)
 }
-setAs("ANY", "SVT_SparseArray", function(from) .as.SVT_SparseArray(from))
-setAs("ANY", "SVT_SparseMatrix", function(from) .as.SVT_SparseArray(from))
+setAs("ANY", "SparseMatrix", function(from) .as_SparseMatrix(from))
+
+setAs("ANY", "SVT_SparseArray",
+    function(from) as(as(from, "SparseArray"), "SVT_SparseArray")
+)
+setAs("ANY", "SVT_SparseMatrix",
+    function(from) as(as(from, "SparseMatrix"), "SVT_SparseMatrix")
+)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
