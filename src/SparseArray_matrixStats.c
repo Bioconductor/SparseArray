@@ -16,7 +16,7 @@
 #include "leaf_utils.h"
 #include "SparseArray_summarization.h"
 
-#include <string.h>  /* for memcpy() */
+#include <string.h>  /* for memcpy() and memset() */
 
 
 /****************************************************************************
@@ -298,58 +298,74 @@ SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type,
  * TODO: Consider moving this stuff to a different file, maybe.
  */
 
-static inline void update_out_with_int_min(int x, int narm, int *out)
+/* If 'narm' is True then 'out_is_not_set' is ignored. In this case '*out'
+   is assumed to have been initialized with NA. */
+static inline void update_out_with_int_min(int x, int narm,
+		int *out, int out_is_not_set)
 {
 	if (narm) {
-		/* '*out' should never be NA when 'narm' is TRUE. */
 		if (x == NA_INTEGER)
 			return;
-	} else {
-		if (*out == NA_INTEGER)
-			return;
-		if (x == NA_INTEGER) {
-			*out = NA_INTEGER;
+		if (*out == NA_INTEGER) {
+			*out = x;
 			return;
 		}
+	} else {
+		if (out_is_not_set || x == NA_INTEGER) {
+			*out = x;
+			return;
+		}
+		if (*out == NA_INTEGER)
+			return;
 	}
 	if (x < *out)
 		*out = x;
 	return;
 }
 
-static inline void update_out_with_int_max(int x, int narm, int *out)
+/* If 'narm' is True then 'out_is_not_set' is ignored. In this case '*out'
+   is assumed to have been initialized with NA. */
+static inline void update_out_with_int_max(int x, int narm,
+		int *out, int out_is_not_set)
 {
 	if (narm) {
-		/* '*out' should never be NA when 'narm' is TRUE. */
 		if (x == NA_INTEGER)
 			return;
-	} else {
-		if (*out == NA_INTEGER)
-			return;
-		if (x == NA_INTEGER) {
-			*out = NA_INTEGER;
+		if (*out == NA_INTEGER) {
+			*out = x;
 			return;
 		}
+	} else {
+		if (out_is_not_set || x == NA_INTEGER) {
+			*out = x;
+			return;
+		}
+		if (*out == NA_INTEGER)
+			return;
 	}
 	if (x > *out)
 		*out = x;
 	return;
 }
 
-static inline void update_out_with_double_min(double x, int narm, double *out)
+/* If 'narm' is True then 'out_is_not_set' is ignored. In this case '*out'
+   is assumed to have been initialized with NA. */
+static inline void update_out_with_double_min(double x, int narm,
+		double *out, int out_is_not_set)
 {
 	if (narm) {
-		/* '*out' should never be NA or NaN when 'narm' is TRUE. */
 		if (ISNAN(x))  // True for *both* NA and NaN
 			return;
-	} else {
-		if (R_IsNA(*out))
-			return;
-		if (R_IsNA(x)) {
-			*out = NA_REAL;
+		if (R_IsNA(*out)) {
+			*out = x;
 			return;
 		}
-		if (R_IsNaN(*out))
+	} else {
+		if (out_is_not_set || R_IsNA(x)) {
+			*out = x;
+			return;
+		}
+		if (ISNAN(*out))  // True for *both* NA and NaN
 			return;
 		if (R_IsNaN(x)) {
 			*out = x;
@@ -361,20 +377,24 @@ static inline void update_out_with_double_min(double x, int narm, double *out)
 	return;
 }
 
-static inline void update_out_with_double_max(double x, int narm, double *out)
+/* If 'narm' is True then 'out_is_not_set' is ignored. In this case '*out'
+   is assumed to have been initialized with NA. */
+static inline void update_out_with_double_max(double x, int narm,
+		double *out, int out_is_not_set)
 {
 	if (narm) {
-		/* '*out' should never be NA or NaN when 'narm' is TRUE. */
 		if (ISNAN(x))  // True for *both* NA and NaN
 			return;
-	} else {
-		if (R_IsNA(*out))
-			return;
-		if (R_IsNA(x)) {
-			*out = NA_REAL;
+		if (R_IsNA(*out)) {
+			*out = x;
 			return;
 		}
-		if (R_IsNaN(*out))
+	} else {
+		if (out_is_not_set || R_IsNA(x)) {
+			*out = x;
+			return;
+		}
+		if (ISNAN(*out))  // True for *both* NA and NaN
 			return;
 		if (R_IsNaN(x)) {
 			*out = x;
@@ -462,7 +482,7 @@ static inline void add_nzval_to_out(const SparseVec *sv, int k,
  * update_out_for_rowStats()
  * update_out_for_rowStats_NULL()
  *
- * The two workhorses behind REC_rowStats_SVT().
+ * The two workhorses behind rowStats_SVT().
  */
 
 static inline void check_out_Rtype(SEXPTYPE out_Rtype, SEXPTYPE expected,
@@ -495,187 +515,84 @@ static void update_out_for_rowAnyNAs(const SparseVec *sv, int *out)
 
 static void update_out_for_rowCountNAs(const SparseVec *sv, double *out)
 {
-	if (sv->na_background)
-		error("SparseArray internal error in "
-		      "update_out_for_rowCountNAs():\n"
-		      "    operation not yet supported on NaArray objects");
-	if (sv->nzvals == NULL)  /* lacunar leaf */
+	if (!sv->na_background && sv->nzvals == NULL)  /* lacunar leaf */
 		return;
-	/* regular leaf */
 	int nzcount = get_SV_nzcount(sv);
 	SEXPTYPE Rtype = get_SV_Rtype(sv);
-	for (int k = 0; k < nzcount; k++)
-		out[sv->nzoffs[k]] += is_na(Rtype, sv->nzvals, k);
-	return;
-}
-
-static void update_out_for_int_rowMins(const SparseVec *sv, int narm, int *out)
-{
-	int nzcount = get_SV_nzcount(sv);
-	if (!sv->na_background || narm) {
-		if (sv->nzvals == NULL) {
-			/* lacunar leaf */
-			return;
-		}
-		/* regular leaf */
-		for (int k = 0; k < nzcount; k++)
-			update_out_with_int_min(get_intSV_nzvals_p(sv)[k],
-						narm, out + sv->nzoffs[k]);
-		return;
-	}
-	/* The rowMins(<NaArray>, na.rm=FALSE) case.
-	   Note that using 'na.rm=FALSE' on an NaArray object is atypical.
-	   The implementation below is slow because we walk on _all_ the
-	   values of SparseVec 'sv' i.e. on its non-NA and (implicit) NA
-	   values. */
-	int k = 0;
-	for (int i = 0; i < sv->len; i++) {
-		if (k < get_SV_nzcount(sv) && sv->nzoffs[k] == i) {
-			update_out_with_int_min(get_intSV_nzval(sv, k),
-						0, out + i);
-			k++;
+	for (int k = 0; k < nzcount; k++) {
+		if (sv->na_background) {
+			if (sv->nzvals == NULL || !is_na(Rtype, sv->nzvals, k))
+				out[sv->nzoffs[k]]--;
 		} else {
-			out[i] = intNA;
+			/* regular leaf */
+			if (is_na(Rtype, sv->nzvals, k))
+				out[sv->nzoffs[k]]++;
 		}
 	}
 	return;
 }
 
-static void update_out_for_int_rowMaxs(const SparseVec *sv, int narm, int *out)
+static void update_out_for_int_rowMins(const SparseVec *sv, int narm,
+		int *out, R_xlen_t *nzcvg)
 {
+	const int *nzvals_p = get_intSV_nzvals_p(sv);
 	int nzcount = get_SV_nzcount(sv);
-	if (!sv->na_background || narm) {
-		if (sv->nzvals == NULL) {
-			/* lacunar leaf */
-			for (int k = 0; k < nzcount; k++)
-				update_out_with_int_max(int1,
-						narm, out + sv->nzoffs[k]);
-			return;
-		}
-		/* regular leaf */
-		for (int k = 0; k < nzcount; k++)
-			update_out_with_int_max(get_intSV_nzvals_p(sv)[k],
-						narm, out + sv->nzoffs[k]);
-		return;
-	}
-	/* The rowMaxs(<NaArray>, na.rm=FALSE) case.
-	   Note that using 'na.rm=FALSE' on an NaArray object is atypical.
-	   The implementation below is slow because we walk on _all_ the
-	   values of SparseVec 'sv' i.e. on its non-NA and (implicit) NA
-	   values. */
-	int k = 0;
-	for (int i = 0; i < sv->len; i++) {
-		if (k < get_SV_nzcount(sv) && sv->nzoffs[k] == i) {
-			update_out_with_int_max(get_intSV_nzval(sv, k),
-						0, out + i);
-			k++;
-		} else {
-			out[i] = intNA;
-		}
+	int x = int1;
+	for (int k = 0; k < nzcount; k++) {
+		if (nzvals_p != NULL)
+			x = nzvals_p[k];
+		int out_is_not_set = nzcvg[sv->nzoffs[k]]++ == 0;
+		update_out_with_int_min(x, narm, out + sv->nzoffs[k],
+					out_is_not_set);
 	}
 	return;
 }
 
-/* Same as 'update_out_for_int_rowMins()' above but operates on an implicit
-   vector of zeros instead of 'sv'. Said otherwise, it computes:
-     update_out_for_int_rowMins(<vector-of-zeros>, 0, out) */
-static void update_out_for_int_rowMins0(int *out, R_xlen_t out_len)
+static void update_out_for_int_rowMaxs(const SparseVec *sv, int narm,
+		int *out, R_xlen_t *nzcvg)
 {
-	for (int i = 0; i < out_len; i++)
-		update_out_with_int_min(0, 0, out + i);
-	return;
-}
-
-/* Same as 'update_out_for_int_rowMaxs()' above but operates on an implicit
-   vector of zeros instead of 'sv'. Said otherwise, it computes:
-     update_out_for_int_rowMaxs(<vector-of-zeros>, 0, out) */
-static void update_out_for_int_rowMaxs0(int *out, R_xlen_t out_len)
-{
-	for (int i = 0; i < out_len; i++)
-		update_out_with_int_max(0, 0, out + i);
+	const int *nzvals_p = get_intSV_nzvals_p(sv);
+	int nzcount = get_SV_nzcount(sv);
+	int x = int1;
+	for (int k = 0; k < nzcount; k++) {
+		if (nzvals_p != NULL)
+			x = nzvals_p[k];
+		int out_is_not_set = nzcvg[sv->nzoffs[k]]++ == 0;
+		update_out_with_int_max(x, narm, out + sv->nzoffs[k],
+					out_is_not_set);
+	}
 	return;
 }
 
 static void update_out_for_double_rowMins(const SparseVec *sv, int narm,
-		double *out)
+		double *out, R_xlen_t *nzcvg)
 {
+	const double *nzvals_p = get_doubleSV_nzvals_p(sv);
 	int nzcount = get_SV_nzcount(sv);
-	if (!sv->na_background || narm) {
-		if (sv->nzvals == NULL) {
-			/* lacunar leaf */
-			return;
-		}
-		/* regular leaf */
-		for (int k = 0; k < nzcount; k++)
-			update_out_with_double_min(get_doubleSV_nzvals_p(sv)[k],
-						   narm, out + sv->nzoffs[k]);
-		return;
-	}
-	/* The rowMins(<NaArray>, na.rm=FALSE) case.
-	   Note that using 'na.rm=FALSE' on an NaArray object is atypical.
-	   The implementation below is slow because we walk on _all_ the
-	   values of SparseVec 'sv' i.e. on its non-NA and (implicit) NA
-	   values. */
-	int k = 0;
-	for (int i = 0; i < sv->len; i++) {
-		if (k < get_SV_nzcount(sv) && sv->nzoffs[k] == i) {
-			update_out_with_double_min(get_doubleSV_nzval(sv, k),
-						   0, out + i);
-			k++;
-		} else {
-			out[i] = doubleNA;
-		}
+	double x = double1;
+	for (int k = 0; k < nzcount; k++) {
+		if (nzvals_p != NULL)
+			x = nzvals_p[k];
+		int out_is_not_set = nzcvg[sv->nzoffs[k]]++ == 0;
+		update_out_with_double_min(x, narm, out + sv->nzoffs[k],
+					   out_is_not_set);
 	}
 	return;
 }
 
 static void update_out_for_double_rowMaxs(const SparseVec *sv, int narm,
-		double *out)
+		double *out, R_xlen_t *nzcvg)
 {
+	const double *nzvals_p = get_doubleSV_nzvals_p(sv);
 	int nzcount = get_SV_nzcount(sv);
-	if (!sv->na_background || narm) {
-		if (sv->nzvals == NULL) {
-			/* lacunar leaf */
-			for (int k = 0; k < nzcount; k++)
-				update_out_with_double_max(double1,
-						   narm, out + sv->nzoffs[k]);
-			return;
-		}
-		/* regular leaf */
-		for (int k = 0; k < nzcount; k++)
-			update_out_with_double_max(get_doubleSV_nzvals_p(sv)[k],
-						   narm, out + sv->nzoffs[k]);
-		return;
+	double x = double1;
+	for (int k = 0; k < nzcount; k++) {
+		if (nzvals_p != NULL)
+			x = nzvals_p[k];
+		int out_is_not_set = nzcvg[sv->nzoffs[k]]++ == 0;
+		update_out_with_double_max(x, narm, out + sv->nzoffs[k],
+					   out_is_not_set);
 	}
-	/* The rowMaxs(<NaArray>, na.rm=FALSE) case.
-	   Note that using 'na.rm=FALSE' on an NaArray object is atypical.
-	   The implementation below is slow because we walk on _all_ the
-	   values of SparseVec 'sv' i.e. on its non-NA and (implicit) NA
-	   values. */
-	int k = 0;
-	for (int i = 0; i < sv->len; i++) {
-		if (k < get_SV_nzcount(sv) && sv->nzoffs[k] == i) {
-			update_out_with_double_max(get_doubleSV_nzval(sv, k),
-						   0, out + i);
-			k++;
-		} else {
-			out[i] = doubleNA;
-		}
-	}
-	return;
-}
-
-static void update_out_for_double_rowMins0(double *out, R_xlen_t out_len)
-{
-	for (int i = 0; i < out_len; i++)
-		update_out_with_double_min(0.0, 0, out + i);
-	return;
-}
-
-static void update_out_for_double_rowMaxs0(double *out, R_xlen_t out_len)
-{
-	for (int i = 0; i < out_len; i++)
-		update_out_with_double_max(0.0, 0, out + i);
 	return;
 }
 
@@ -780,7 +697,7 @@ static void update_out_for_rowCenteredX2Sum(const SparseVec *sv,
 
 static void update_out_for_rowStats(const SparseVec *sv,
 		const SummarizeOp *summarize_op, const double *center,
-		void *out, SEXPTYPE out_Rtype)
+		void *out, SEXPTYPE out_Rtype, R_xlen_t *nzcvg)
 {
 	switch (summarize_op->opcode) {
 	    case ANYNA_OPCODE:
@@ -796,11 +713,13 @@ static void update_out_for_rowStats(const SparseVec *sv,
 			check_out_Rtype(out_Rtype, INTSXP,
 					"update_out_for_rowStats");
 			if (summarize_op->opcode == MIN_OPCODE) {
-				update_out_for_int_rowMins(sv,
-					summarize_op->na_rm, (int *) out);
+			    update_out_for_int_rowMins(sv,
+						summarize_op->na_rm,
+						(int *) out, nzcvg);
 			} else {
-				update_out_for_int_rowMaxs(sv,
-					summarize_op->na_rm, (int *) out);
+			    update_out_for_int_rowMaxs(sv,
+						summarize_op->na_rm,
+						(int *) out, nzcvg);
 			}
 			return;
 		}
@@ -808,11 +727,13 @@ static void update_out_for_rowStats(const SparseVec *sv,
 			check_out_Rtype(out_Rtype, REALSXP,
 					"update_out_for_rowStats");
 			if (summarize_op->opcode == MIN_OPCODE) {
-				update_out_for_double_rowMins(sv,
-					summarize_op->na_rm, (double *) out);
+			    update_out_for_double_rowMins(sv,
+						summarize_op->na_rm,
+						(double *) out, nzcvg);
 			} else {
-				update_out_for_double_rowMaxs(sv,
-					summarize_op->na_rm, (double *) out);
+			    update_out_for_double_rowMaxs(sv,
+						summarize_op->na_rm,
+						(double *) out, nzcvg);
 			}
 			return;
 		}
@@ -832,62 +753,21 @@ static void update_out_for_rowStats(const SparseVec *sv,
 	      "    operation not supported");
 }
 
-static void update_out_for_rowStats0(
-		const SummarizeOp *summarize_op, const double *center,
-		void *out, R_xlen_t out_len, SEXPTYPE out_Rtype)
-{
-	SEXPTYPE in_Rtype = summarize_op->in_Rtype;
-	switch (summarize_op->opcode) {
-	    case MIN_OPCODE: case MAX_OPCODE:
-		if (in_Rtype == INTSXP || in_Rtype == LGLSXP) {
-			check_out_Rtype(out_Rtype, INTSXP,
-					"update_out_for_rowStats0");
-			if (summarize_op->opcode == MIN_OPCODE) {
-				update_out_for_int_rowMins0((int *) out,
-							    out_len);
-			} else {
-				update_out_for_int_rowMaxs0((int *) out,
-							    out_len);
-			}
-			return;
-		}
-		if (in_Rtype == REALSXP) {
-			check_out_Rtype(out_Rtype, REALSXP,
-					"update_out_for_rowStats0");
-			if (summarize_op->opcode == MIN_OPCODE) {
-				update_out_for_double_rowMins0((double *) out,
-							       out_len);
-			} else {
-				update_out_for_double_rowMaxs0((double *) out,
-							       out_len);
-			}
-			return;
-		}
-		break;
-	    default:
-		return;
-	}
-	error("SparseArray internal error in update_out_for_rowStats0():\n"
-	      "    unsupported 'in_Rtype': \"%s\"", type2char(in_Rtype));
-}
-
 static void update_out_for_rowStats_NULL(int na_background,
 		const SummarizeOp *summarize_op, const double *center,
 		void *out, int out_len, SEXPTYPE out_Rtype)
 {
-	if (na_background) {
-		if (!summarize_op->na_rm)
-			_set_elts_to_NA(out_Rtype, out, 0, out_len);
+	if (!na_background)
 		return;
-	}
-	update_out_for_rowStats0(summarize_op, center,
-				 out, out_len, out_Rtype);
+	if (summarize_op->opcode == COUNTNAS_OPCODE || summarize_op->na_rm)
+		return;
+	_set_elts_to_NA(out_Rtype, out, 0, out_len);
 	return;
 }
 
 
 /****************************************************************************
- * REC_rowStats_SVT()
+ * rowStats_SVT()
  */
 
 /* Recursive. 'strata_counter' not used for anything at the moment. */
@@ -896,7 +776,7 @@ static void REC_rowStats_SVT(SEXP SVT, int na_background,
 		const SummarizeOp *summarize_op, const double *center,
 		void *out, SEXPTYPE out_Rtype,
 		const R_xlen_t *out_incs, int out_ndim,
-		R_xlen_t *strata_counter)
+		R_xlen_t *nzcvg, R_xlen_t *strata_counter)
 {
 	if (SVT == R_NilValue) {
 		R_xlen_t out_len = 1;
@@ -919,7 +799,7 @@ static void REC_rowStats_SVT(SEXP SVT, int na_background,
 		SparseVec sv = leaf2SV(SVT, summarize_op->in_Rtype,
 				       dim[0], na_background);
 		update_out_for_rowStats(&sv, summarize_op, center,
-					out, out_Rtype);
+					out, out_Rtype, nzcvg);
 		if (out_ndim == 1)
 			(*strata_counter)++;
 		return;
@@ -931,15 +811,263 @@ static void REC_rowStats_SVT(SEXP SVT, int na_background,
 		out_inc = out_incs[ndim - 1];
 	for (int i = 0; i < SVT_len; i++) {
 		SEXP subSVT = VECTOR_ELT(SVT, i);
-		const double *subcenter = center + out_inc * i;
+		const double *subcenter = NULL;
+		if (center != NULL)
+			subcenter = center + out_inc * i;
 		void *subout = shift_dataptr(out_Rtype, out, out_inc * i);
+		R_xlen_t *subnzcvg = NULL;
+		if (nzcvg != NULL)
+			subnzcvg = nzcvg + out_inc * i;
 		REC_rowStats_SVT(subSVT, na_background, dim, ndim - 1,
 				 summarize_op, subcenter,
 				 subout, out_Rtype, out_incs, out_ndim,
-				 strata_counter);
+				 subnzcvg, strata_counter);
 	}
 	if (ndim == out_ndim)
 		(*strata_counter)++;
+	return;
+}
+
+static void rowStats_SVT(SEXP SVT, int na_background,
+		const int *dim, int ndim,
+		const SummarizeOp *summarize_op, const double *center,
+		void *out, SEXPTYPE out_Rtype,
+		const R_xlen_t *out_incs, int out_ndim,
+		R_xlen_t *nzcvg, R_xlen_t nstrata)
+{
+	R_xlen_t strata_counter = 0;
+	REC_rowStats_SVT(SVT, na_background, dim, ndim,
+			 summarize_op, center,
+			 out, out_Rtype, out_incs, out_ndim,
+			 nzcvg, &strata_counter);
+	//printf("strata_counter = %ld\n", strata_counter);
+	if (strata_counter != nstrata)
+		error("SparseArray internal error in "
+		      "rowStats_SVT():\n"
+		      "    strata_counter != nstrata");
+	return;
+}
+
+
+/****************************************************************************
+ * The SVT_row*() functions
+ */
+
+static void SVT_rowCountNAs(SEXP SVT, SEXPTYPE Rtype, int na_background,
+		const int *dim, int ndim,
+		double *out, R_xlen_t out_len,
+		const R_xlen_t *out_incs, int out_ndim,
+		R_xlen_t nstrata)
+{
+	/* Initialization. */
+	double v = na_background ? (double) nstrata : 0.0;
+	for (R_xlen_t i = 0; i < out_len; i++)
+		out[i] = v;
+
+	/* Recursive tree traversal. */
+	if (nstrata != 0) {
+		SummarizeOp summarize_op =
+			_make_SummarizeOp(COUNTNAS_OPCODE,
+					  Rtype, 0, NA_REAL);
+		rowStats_SVT(SVT, na_background, dim, ndim,
+			     &summarize_op, NULL,
+			     out, REALSXP, out_incs, out_ndim,
+			     NULL, nstrata);
+	}
+	return;
+}
+
+static void SVT_rowAnyNAs(SEXP SVT, SEXPTYPE Rtype, int na_background,
+		const int *dim, int ndim,
+		int *out, R_xlen_t out_len,
+		const R_xlen_t *out_incs, int out_ndim,
+		R_xlen_t nstrata)
+{
+	if (!na_background) {
+		/* Initialization. */
+		_set_elts_to_zero(LGLSXP, out, 0, out_len);
+
+		/* Recursive tree traversal. */
+		if (nstrata != 0) {
+			SummarizeOp summarize_op =
+				_make_SummarizeOp(ANYNA_OPCODE,
+						  Rtype, 0, NA_REAL);
+			rowStats_SVT(SVT, 0, dim, ndim,
+				     &summarize_op, NULL,
+				     out, LGLSXP, out_incs, out_ndim,
+				     NULL, nstrata);
+		}
+		return;
+	}
+
+	double *count_NAs = (double *) R_alloc(out_len, sizeof(double));
+	SVT_rowCountNAs(SVT, Rtype, 1,
+			dim, ndim,
+			count_NAs, out_len,
+			out_incs, out_ndim,
+			nstrata);
+	for (R_xlen_t i = 0; i < out_len; i++)
+		out[i] = count_NAs[i] != 0.0;
+	return;
+}
+
+static void postprocess_int_rowMinsMaxs(int na_background,
+		int opcode, int narm,
+		int *out, R_xlen_t out_len,
+		const R_xlen_t *nzcvg, R_xlen_t nstrata)
+{
+	int warn = 0;
+	for (R_xlen_t i = 0; i < out_len; i++) {
+		R_xlen_t nzcvg_i = nzcvg[i];
+		if (nzcvg_i < nstrata) {
+			int background = na_background ? intNA : int0;
+			if (opcode == MIN_OPCODE)
+				update_out_with_int_min(background, narm,
+							out + i, nzcvg_i == 0);
+			else
+				update_out_with_int_max(background, narm,
+							out + i, nzcvg_i == 0);
+		}
+		if (narm && out[i] == NA_INTEGER)
+			warn = 1;
+	}
+	if (warn)
+		warning("NAs introduced by coercion of "
+			"infinite values to integers");
+	return;
+}
+
+static void postprocess_double_rowMinsMaxs(int na_background,
+		int opcode, int narm,
+		double *out, R_xlen_t out_len,
+		const R_xlen_t *nzcvg, R_xlen_t nstrata)
+{
+	double inf = opcode == MIN_OPCODE ? R_PosInf : R_NegInf;
+	for (R_xlen_t i = 0; i < out_len; i++) {
+		R_xlen_t nzcvg_i = nzcvg[i];
+		if (nzcvg_i < nstrata) {
+			double background = na_background ? doubleNA : double0;
+			if (opcode == MIN_OPCODE)
+				update_out_with_double_min(background, narm,
+							out + i, nzcvg_i == 0);
+			else
+				update_out_with_double_max(background, narm,
+							out + i, nzcvg_i == 0);
+		}
+		if (narm && R_IsNA(out[i]))
+			out[i] = inf;
+	}
+	return;
+}
+
+static void SVT_rowMinsMaxs(SEXP SVT, SEXPTYPE Rtype, int na_background,
+		const int *dim, int ndim,
+		int opcode, int narm,
+		void *out, R_xlen_t out_len, SEXPTYPE out_Rtype,
+		const R_xlen_t *out_incs, int out_ndim,
+		R_xlen_t nstrata)
+{
+	/* Initialization. */
+
+	if (nstrata == 0) {
+		if (out_Rtype == REALSXP) {
+			double inf = opcode == MIN_OPCODE ? R_PosInf : R_NegInf;
+			double *out_p = (double *) out;
+			for (R_xlen_t i = 0; i < out_len; i++)
+				out_p[i] = inf;
+		} else {
+			_set_elts_to_NA(out_Rtype, out, 0, out_len);
+			warning("NAs introduced by coercion of "
+				"infinite values to integers");
+		}
+		return;
+	}
+	if (narm)
+		_set_elts_to_NA(out_Rtype, out, 0, out_len);
+
+	/* Recursive tree traversal. */
+
+	SummarizeOp summarize_op =
+		_make_SummarizeOp(opcode, Rtype, narm, NA_REAL);
+	/* 'nzcvg' is an array "parallel" to 'out' (i.e. same dimensions).
+	   We will use it to compute the coverage of 'out' as we
+	   traverse 'SVT'. More precisely, each 'nzcvg[i]' will be used
+	   to keep track of the number of times that 'out[i]' is visited
+	   as we walk on all the leaves in 'SVT'. Note that 'nzcvg[i]' is
+	   guaranteed to be >= 0 and <= nstrata. */
+	R_xlen_t *nzcvg = (R_xlen_t *) R_alloc(out_len, sizeof(R_xlen_t));
+	memset(nzcvg, 0, sizeof(R_xlen_t) * out_len);
+	rowStats_SVT(SVT, na_background, dim, ndim,
+		     &summarize_op, NULL,
+		     out, out_Rtype, out_incs, out_ndim,
+		     nzcvg, nstrata);
+
+	/* Postprocessing. */
+
+	if (out_Rtype == INTSXP) {
+		postprocess_int_rowMinsMaxs(na_background,
+				opcode, narm,
+				(int *) out, out_len,
+				nzcvg, nstrata);
+	} else {
+		postprocess_double_rowMinsMaxs(na_background,
+				opcode, narm,
+				(double *) out, out_len,
+				nzcvg, nstrata);
+	}
+	return;
+}
+
+static void SVT_rowSums(SEXP SVT, SEXPTYPE Rtype, int na_background,
+		const int *dim, int ndim,
+		int narm,
+		double *out, R_xlen_t out_len,
+		const R_xlen_t *out_incs, int out_ndim,
+		R_xlen_t nstrata)
+{
+	/* Initialization. */
+	_set_elts_to_zero(REALSXP, out, 0, out_len);
+
+	/* Recursive tree traversal. */
+	if (nstrata != 0) {
+		SummarizeOp summarize_op =
+			_make_SummarizeOp(SUM_OPCODE,
+					  Rtype, narm, NA_REAL);
+		rowStats_SVT(SVT, na_background, dim, ndim,
+			     &summarize_op, NULL,
+			     out, REALSXP, out_incs, out_ndim,
+			     NULL, nstrata);
+	}
+	return;
+}
+
+static void SVT_rowCenteredX2Sum(SEXP SVT, SEXPTYPE Rtype, int na_background,
+		const int *dim, int ndim,
+		int narm, const double *center,
+		double *out, R_xlen_t out_len,
+		const R_xlen_t *out_incs, int out_ndim,
+		R_xlen_t nstrata)
+{
+	/* Initialization. */
+	if (center == NULL) {
+		_set_elts_to_zero(REALSXP, out, 0, out_len);
+	} else {
+		for (R_xlen_t i = 0; i < out_len; i++) {
+			double c = center[i];
+			out[i] = c * c * nstrata;
+		}
+	}
+
+	/* Recursive tree traversal. */
+	if (nstrata != 0) {
+		SummarizeOp summarize_op =
+			_make_SummarizeOp(CENTERED_X2_SUM_OPCODE,
+					  Rtype, narm, NA_REAL);
+		rowStats_SVT(SVT, na_background, dim, ndim,
+			     &summarize_op, center,
+			     out, REALSXP, out_incs, out_ndim,
+			     NULL, nstrata);
+	}
 	return;
 }
 
@@ -974,6 +1102,8 @@ static const double *check_rowStats_center(SEXP center,
    Note that:
      o The dimensions of a strata are the dimensions of 'ans', where 'ans'
        is the output of a row*() function.
+     o The number of strata is the number of array elements in each
+       generalized row.
      o length(ans) * nstrata = length(x)
      o 'x' can be seen as a pile of strata stacked up on top of each others.
        An row*() function summarizes vertically i.e. **across** strata, and
@@ -985,103 +1115,6 @@ static R_xlen_t compute_nstrata(const int *x_dim, int x_ndim, int dims)
 		nstrata *= x_dim[along];
 	//printf("nstrata = %ld\n", nstrata);
 	return nstrata;
-}
-
-static void init_rowStats_ans(SEXP ans, const SummarizeOp *summarize_op,
-		const double *center_p, R_xlen_t nstrata)
-{
-	if (summarize_op->opcode == MIN_OPCODE ||
-	    summarize_op->opcode == MAX_OPCODE)
-	{
-		if (nstrata != 0) {
-			_set_Rvector_elts_to_zero(ans);
-			return;
-		}
-		if (TYPEOF(ans) == REALSXP) {
-			double init = summarize_op->opcode == MIN_OPCODE ?
-						R_PosInf : R_NegInf;
-			double *ans_p = REAL(ans);
-			for (int i = 0; i < LENGTH(ans); i++)
-				ans_p[i] = init;
-			return;
-		}
-		_set_Rvector_elts_to_NA(ans);
-		warning("NAs introduced by coercion of "
-			"infinite values to integers");
-		return;
-	}
-
-	if (summarize_op->opcode != CENTERED_X2_SUM_OPCODE ||
-	    center_p == NULL)
-	{
-		_set_Rvector_elts_to_zero(ans);
-		return;
-	}
-	double *ans_p = REAL(ans);
-	for (int i = 0; i < LENGTH(ans); i++) {
-		double c = center_p[i];
-		ans_p[i] = nstrata * c * c;
-	}
-	return;
-}
-
-static R_xlen_t rowStats_SVT(SEXP SVT, int na_background,
-		const int *dim, int ndim,
-		const SummarizeOp *summarize_op, const double *center,
-		void *out, SEXPTYPE out_Rtype,
-		const R_xlen_t *out_incs, int out_ndim)
-{
-	R_xlen_t strata_counter = 0;
-	REC_rowStats_SVT(SVT, na_background, dim, ndim,
-			 summarize_op, center,
-			 out, out_Rtype, out_incs, out_ndim,
-			 &strata_counter);
-	return strata_counter;
-}
-
-static void postprocess_rowStats_SVT_out(SEXP SVT, int na_background,
-		const int *dim, int ndim,
-		const SummarizeOp *summarize_op, const double *center,
-		void *out, R_xlen_t out_len, SEXPTYPE out_Rtype,
-		const R_xlen_t *out_incs, int out_ndim, R_xlen_t nstrata)
-{
-	if ((summarize_op->opcode != MIN_OPCODE &&
-	     summarize_op->opcode != MAX_OPCODE) || !summarize_op->na_rm)
-	{
-		return;
-	}
-
-	double *count_NAs = (double *) R_alloc(out_len, sizeof(double));
-	_set_elts_to_zero(REALSXP, count_NAs, 0, out_len);
-
-	SummarizeOp summarize_op2 =
-		_make_SummarizeOp(COUNTNAS_OPCODE, summarize_op->in_Rtype,
-				  0, NA_REAL);
-	rowStats_SVT(SVT, na_background, dim, ndim,
-		     &summarize_op2, NULL,
-		     count_NAs, REALSXP, out_incs, out_ndim);
-	if (out_Rtype == INTSXP || out_Rtype == LGLSXP) {
-		int warn = 0;
-		int *out_p = (int *) out;
-		for (int i = 0; i < out_len; i++) {
-			if (count_NAs[i] == nstrata) {
-				out_p[i] = NA_INTEGER;
-				warn = 1;
-			}
-		}
-		if (warn)
-			warning("NAs introduced by coercion of "
-				"infinite values to integers");
-	} else {
-		double v = summarize_op->opcode == MIN_OPCODE ?
-						   R_PosInf : R_NegInf;
-		double *out_p = (double *) out;
-		for (int i = 0; i < out_len; i++) {
-			if (count_NAs[i] == nstrata)
-				out_p[i] = v;
-		}
-	}
-	return;
 }
 
 /* --- .Call ENTRY POINT --- */
@@ -1121,28 +1154,50 @@ SEXP C_rowStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type,
 		return ans;
 	}
 
-	R_xlen_t nstrata =
-		compute_nstrata(INTEGER(x_dim), LENGTH(x_dim), ans_ndim);
+	R_xlen_t nstrata = compute_nstrata(INTEGER(x_dim),
+					   LENGTH(x_dim), ans_ndim);
+	switch (opcode) {
+	    case COUNTNAS_OPCODE:
+		check_out_Rtype(ans_Rtype, REALSXP, "C_rowStats_SVT");
+		SVT_rowCountNAs(x_SVT, x_Rtype, x_has_NAbg,
+			INTEGER(x_dim), LENGTH(x_dim),
+			REAL(ans), LENGTH(ans),
+			out_incs, ans_ndim, nstrata);
+		break;
+	    case ANYNA_OPCODE:
+		check_out_Rtype(ans_Rtype, LGLSXP, "C_rowStats_SVT");
+		SVT_rowAnyNAs(x_SVT, x_Rtype, x_has_NAbg,
+			INTEGER(x_dim), LENGTH(x_dim),
+			LOGICAL(ans), LENGTH(ans),
+			out_incs, ans_ndim, nstrata);
+		break;
+	    case MIN_OPCODE: case MAX_OPCODE:
+		SVT_rowMinsMaxs(x_SVT, x_Rtype, x_has_NAbg,
+			INTEGER(x_dim), LENGTH(x_dim),
+			opcode, narm,
+			DATAPTR(ans), LENGTH(ans), ans_Rtype,
+			out_incs, ans_ndim, nstrata);
+		break;
+	    case SUM_OPCODE:
+		check_out_Rtype(ans_Rtype, REALSXP, "C_rowStats_SVT");
+		SVT_rowSums(x_SVT, x_Rtype, x_has_NAbg,
+			INTEGER(x_dim), LENGTH(x_dim),
+			narm,
+			REAL(ans), LENGTH(ans),
+			out_incs, ans_ndim, nstrata);
+		break;
+	    case CENTERED_X2_SUM_OPCODE:
+		check_out_Rtype(ans_Rtype, REALSXP, "C_rowStats_SVT");
+		SVT_rowCenteredX2Sum(x_SVT, x_Rtype, x_has_NAbg,
+			INTEGER(x_dim), LENGTH(x_dim),
+			narm, center_p,
+			REAL(ans), LENGTH(ans),
+			out_incs, ans_ndim, nstrata);
 
-	init_rowStats_ans(ans, &summarize_op, center_p, nstrata);
-
-	if (nstrata != 0) {
-		R_xlen_t strata_counter =
-			rowStats_SVT(x_SVT, x_has_NAbg,
-				     INTEGER(x_dim), LENGTH(x_dim),
-				     &summarize_op, center_p,
-				     DATAPTR(ans), ans_Rtype,
-				     out_incs, ans_ndim);
-		//printf("strata_counter = %ld\n", strata_counter);
-		if (strata_counter != nstrata)
-			error("SparseArray internal error in "
-			      "C_rowStats_SVT():\n"
-			      "    strata_counter != nstrata");
-		postprocess_rowStats_SVT_out(x_SVT, x_has_NAbg,
-				     INTEGER(x_dim), LENGTH(x_dim),
-				     &summarize_op, center_p,
-				     DATAPTR(ans), LENGTH(ans), ans_Rtype,
-				     out_incs, ans_ndim, nstrata);
+		break;
+	    default:
+		error("SparseArray internal error in C_rowStats_SVT():\n"
+		      "    operation not supported");
 	}
 
 	UNPROTECT(2);

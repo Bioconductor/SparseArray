@@ -66,77 +66,6 @@
     }
 }
 
-### Tests *Mins() and *Maxs() methods on a 3D array-like object.
-.test_colrowMinsMaxs_3D <- function(object)
-{
-    a <- as.array(object)
-
-    ## Base R does NOT allow an ordinay array with dimensions of extent
-    ## zero to carry a character(0) in its dimnames, only a NULL. This means
-    ## that, if 'object' is an Array derivative, then 'dimnames(object)'
-    ## and 'dimnames(as.array(object))' are not guaranteed to be identical
-    ## because a character(0) in the former will be replaced with a NULL in
-    ## the latter.
-    ## As a consequence, calling colMins/Maxs() or rowMins/Maxs()
-    ## on 'object' won't necessarily produce the exact same result as
-    ## calling simple_colMins3D/Maxs3D() or simple_rowMins3D/Maxs3D()
-    ## on 'as.array(object)' when the result is a vector of length 0.
-    ## More precisely, one can be named while the other is not.
-
-    ## Does not look at the names if 'a1' and 'a2' are vectors of length 0.
-    expect_almost_identical <- function(a1, a2) {
-        if (is.vector(a1) && length(a1) == 0L) {
-            a1 <- unname(a1)
-            a2 <- unname(a2)
-        }
-        expect_identical(a1, a2)
-    }
-
-    ## dims == 1 (default)
-
-    expected <- simple_colMins3D(a)
-    expect_almost_identical(colMins(object), expected)
-    expected <- simple_colMaxs3D(a)
-    expect_almost_identical(colMaxs(object), expected)
-
-    expected <- simple_rowMins3D(a)
-    expect_almost_identical(rowMins(object), expected)
-    expected <- simple_rowMaxs3D(a)
-    expect_almost_identical(rowMaxs(object), expected)
-
-    expected <- simple_colMins3D(a, na.rm=TRUE)
-    expect_almost_identical(colMins(object, na.rm=TRUE), expected)
-    expected <- simple_colMaxs3D(a, na.rm=TRUE)
-    expect_almost_identical(colMaxs(object, na.rm=TRUE), expected)
-
-    expected <- simple_rowMins3D(a, na.rm=TRUE)
-    expect_almost_identical(rowMins(object, na.rm=TRUE), expected)
-    expected <- simple_rowMaxs3D(a, na.rm=TRUE)
-    expect_almost_identical(rowMaxs(object, na.rm=TRUE), expected)
-
-    ## dims == 2
-
-    expected <- simple_colMins3D(a, dims=2)
-    expect_almost_identical(colMins(object, dims=2), expected)
-    expected <- simple_colMaxs3D(a, dims=2)
-    expect_almost_identical(colMaxs(object, dims=2), expected)
-
-    expected <- simple_rowMins3D(a, dims=2)
-    expect_almost_identical(rowMins(object, dims=2), expected)
-    expected <- simple_rowMaxs3D(a, dims=2)
-    expect_almost_identical(rowMaxs(object, dims=2), expected)
-
-    expected <- simple_colMins3D(a, na.rm=TRUE, dims=2)
-    expect_almost_identical(colMins(object, na.rm=TRUE, dims=2), expected)
-    expected <- simple_colMaxs3D(a, na.rm=TRUE, dims=2)
-    expect_almost_identical(colMaxs(object, na.rm=TRUE, dims=2), expected)
-
-    expected <- simple_rowMins3D(a, na.rm=TRUE, dims=2)
-    expect_almost_identical(rowMins(object, na.rm=TRUE, dims=2), expected)
-    expected <- simple_rowMaxs3D(a, na.rm=TRUE, dims=2)
-    expect_almost_identical(rowMaxs(object, na.rm=TRUE, dims=2), expected)
-}
-
 test_that("colAnyNAs/rowAnyNAs() methods for 2D SparseArray objects", {
     ## input of type() "integer"
     m1 <- matrix(c(0L, 0L, 155L,
@@ -323,8 +252,8 @@ test_that("matrixStats methods for 3D SparseArray objects", {
     svt3 <- as(a, "SVT_SparseArray")
     coo3 <- as(svt3, "COO_SparseArray")
 
-    .test_colrowMinsMaxs_3D(svt3)
-    .test_colrowMinsMaxs_3D(coo3)
+    test_3D_colrowMinsMaxs(svt3)
+    test_3D_colrowMinsMaxs(coo3)
 
     ## dims == 1 (default)
     .test_matrixStats_method2(a, svt3, "colSums")
@@ -340,8 +269,25 @@ test_that("matrixStats methods for 3D SparseArray objects", {
 
 })
 
-test_that("more torturing of the *Mins() and *Maxs() methods for SparseArray", {
-    ## We use a 3D SVT_SparseArray object for the torture.
+test_that("more torturing of the *Mins()/*Maxs() methods for SparseArray", {
+
+    ## --- 2D objects ---
+
+    m1 <- rbind(c(NA, -8L, 0L), c(0L, 0L, 1L))
+    m2 <- rbind(c(0L, NA, 0L, 0L), c(8L, 9L, 1L, 1L), -(8:11))
+    for (m in list(m1, m2)) {
+        svt <- SVT_SparseArray(m)
+        expect_identical(rowMins(svt), rowMins(m))
+        expect_identical(rowMaxs(svt), rowMaxs(m))
+        expect_identical(colMins(svt), colMins(m))
+        expect_identical(colMaxs(svt), colMaxs(m))
+        expect_identical(rowMins(svt, na.rm=TRUE), rowMins(m, na.rm=TRUE))
+        expect_identical(rowMaxs(svt, na.rm=TRUE), rowMaxs(m, na.rm=TRUE))
+        expect_identical(colMins(svt, na.rm=TRUE), colMins(m, na.rm=TRUE))
+        expect_identical(colMaxs(svt, na.rm=TRUE), colMaxs(m, na.rm=TRUE))
+    }
+
+    ## --- 3D objects ---
 
     ## input of type() "integer"
     svt0 <- SVT_SparseArray(dim=5:3,
@@ -350,36 +296,36 @@ test_that("more torturing of the *Mins() and *Maxs() methods for SparseArray", {
     svt0[c(1, 6, 16, 20:22, 36, 39:40, 60)] <-
                 c(2L, -5L, NA, NA, -11L, 99L, -8L, NA, NA, NA)
 
-    suppressWarnings(.test_colrowMinsMaxs_3D(svt0))
+    suppressWarnings(test_3D_colrowMinsMaxs(svt0))
     expect_warning(rowMins(svt0, na.rm=TRUE, dims=2), "NAs introduced")
     expect_warning(rowMaxs(svt0, na.rm=TRUE, dims=2), "NAs introduced")
 
     svt <- svt0[ , , 0]
-    suppressWarnings(.test_colrowMinsMaxs_3D(svt))
+    suppressWarnings(test_3D_colrowMinsMaxs(svt))
     expect_warning(rowMins(svt), "NAs introduced")
     expect_warning(rowMaxs(svt), "NAs introduced")
     expect_warning(rowMins(svt, dims=2), "NAs introduced")
     expect_warning(rowMaxs(svt, dims=2), "NAs introduced")
 
     svt <- svt0[ , 0, ]
-    suppressWarnings(.test_colrowMinsMaxs_3D(svt))
+    suppressWarnings(test_3D_colrowMinsMaxs(svt))
     expect_warning(rowMins(svt), "NAs introduced")
     expect_warning(rowMaxs(svt), "NAs introduced")
     expect_warning(colMins(svt, dims=2), "NAs introduced")
     expect_warning(colMaxs(svt, dims=2), "NAs introduced")
 
     svt <- svt0[ 0, , ]
-    suppressWarnings(.test_colrowMinsMaxs_3D(svt))
+    suppressWarnings(test_3D_colrowMinsMaxs(svt))
     expect_warning(colMins(svt), "NAs introduced")
     expect_warning(colMaxs(svt), "NAs introduced")
     expect_warning(colMins(svt, dims=2), "NAs introduced")
     expect_warning(colMaxs(svt, dims=2), "NAs introduced")
 
     ## input of type() "double"
-    svt0[39:40] <- c(NaN, NaN)
-    .test_colrowMinsMaxs_3D(svt0)
-    .test_colrowMinsMaxs_3D(svt0[ , , 0])
-    .test_colrowMinsMaxs_3D(svt0[ , 0, ])
-    .test_colrowMinsMaxs_3D(svt0[ 0, , ])
+    svt0[39:40] <- NaN
+    test_3D_colrowMinsMaxs(svt0)
+    test_3D_colrowMinsMaxs(svt0[ , , 0])
+    test_3D_colrowMinsMaxs(svt0[ , 0, ])
+    test_3D_colrowMinsMaxs(svt0[ 0, , ])
 })
 

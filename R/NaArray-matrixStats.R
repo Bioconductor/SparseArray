@@ -176,7 +176,7 @@ setMethod("colAnyNAs", "NaArray", .colAnyNAs_NaArray)
     check_rows_cols(rows, cols, "rowAnyNAs", "NaArray")
     .rowStats_NaArray("anyNA", x, dims=dims, useNames=useNames)
 }
-#setMethod("rowAnyNAs", "NaArray", .rowAnyNAs_NaArray)
+setMethod("rowAnyNAs", "NaArray", .rowAnyNAs_NaArray)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -240,7 +240,7 @@ setMethod("colMins", "NaArray", .colMins_NaArray)
     check_rows_cols(rows, cols, "rowMins", "NaArray")
     .rowStats_NaArray("min", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-#setMethod("rowMins", "NaArray", .rowMins_NaArray)
+setMethod("rowMins", "NaArray", .rowMins_NaArray)
 
 .colMaxs_NaArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, dims=1, ..., useNames=NA)
@@ -258,7 +258,7 @@ setMethod("colMaxs", "NaArray", .colMaxs_NaArray)
     check_rows_cols(rows, cols, "rowMaxs", "NaArray")
     .rowStats_NaArray("max", x, na.rm=na.rm, dims=dims, useNames=useNames)
 }
-#setMethod("rowMaxs", "NaArray", .rowMaxs_NaArray)
+setMethod("rowMaxs", "NaArray", .rowMaxs_NaArray)
 
 .bind_mins_maxs <- function(mins, maxs, just.use.c)
 {
@@ -309,7 +309,7 @@ setMethod("colRanges", "NaArray", .colRanges_NaArray)
                                          useNames=FALSE)
     .bind_mins_maxs(mins, maxs, dims == 0L)
 }
-#setMethod("rowRanges", "NaArray", .rowRanges_NaArray)
+setMethod("rowRanges", "NaArray", .rowRanges_NaArray)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

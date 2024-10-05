@@ -4,16 +4,20 @@
 \alias{NaArray_matrixStats}
 
 \alias{colAnyNAs,NaArray-method}
+\alias{rowAnyNAs,NaArray-method}
 
 \alias{colAnys,NaArray-method}
 
 \alias{colAlls,NaArray-method}
 
 \alias{colMins,NaArray-method}
+\alias{rowMins,NaArray-method}
 
 \alias{colMaxs,NaArray-method}
+\alias{rowMaxs,NaArray-method}
 
 \alias{colRanges,NaArray-method}
+\alias{rowRanges,NaArray-method}
 
 \alias{colSums,NaArray-method}
 \alias{rowSums,NaArray-method}
@@ -48,8 +52,9 @@
 
   IMPORTANT NOTE: This is WORK-IN-PROGRESS! All the \code{col*()} methods
   listed below are supported. However, among the \code{row*()} methods,
-  only \code{rowSums()} and \code{rowSums2()} are supported on
-  \link{NaArray} objects at the moment.
+  only \code{rowAnyNAs()}, \code{rowMins()}, \code{rowMaxs()},
+  \code{rowRanges()}, \code{rowSums()}, and \code{rowSums2()} are
+  supported on \link{NaArray} objects at the moment.
 }
 
 \usage{
@@ -112,6 +117,9 @@
 }
 
 \details{
+  These methods are typically used with \code{na.rm=TRUE} when called
+  on an \link{NaMatrix} or \link{NaArray} object.
+
   All these methods operate \emph{natively} on the \link{NaArray}
   internal representation, for maximum efficiency.
 

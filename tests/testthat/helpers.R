@@ -171,7 +171,12 @@ test_summarize_op2 <- function(a, object, op)
     EXPECT_FUN(current, expected)
 }
 
-.fix_colStats3D_result <- function(ans, x, dims)
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### test_3D_colrowMinsMaxs()
+###
+
+.fix_simple_colMinsMaxs_result <- function(ans, x, dims)
 {
     if (type(x) == "integer" && type(ans) == "double")
         type(ans) <- "integer"
@@ -182,7 +187,7 @@ test_summarize_op2 <- function(a, object, op)
     S4Arrays:::drop_even_if_1D(ans)
 }
 
-.fix_rowStats3D_result <- function(ans, x, dims)
+.fix_simple_rowMinsMaxs_result <- function(ans, x, dims)
 {
     if (type(x) == "integer" && type(ans) == "double")
         type(ans) <- "integer"
@@ -193,7 +198,7 @@ test_summarize_op2 <- function(a, object, op)
     S4Arrays:::drop_even_if_1D(ans)
 }
 
-simple_colMins3D <- function(x, na.rm=FALSE, dims=1)
+.simple_3D_colMins <- function(x, na.rm=FALSE, dims=1)
 {
     stopifnot(length(dim(x)) == 3L, isSingleNumber(dims))
     if (dims == 1) {
@@ -203,10 +208,10 @@ simple_colMins3D <- function(x, na.rm=FALSE, dims=1)
     } else {
         stop("unsupported 'dims'")
     }
-    .fix_colStats3D_result(ans, x, dims)
+    .fix_simple_colMinsMaxs_result(ans, x, dims)
 }
 
-simple_colMaxs3D <- function(x, na.rm=FALSE, dims=1)
+.simple_3D_colMaxs <- function(x, na.rm=FALSE, dims=1)
 {
     stopifnot(length(dim(x)) == 3L, isSingleNumber(dims))
     if (dims == 1) {
@@ -216,10 +221,10 @@ simple_colMaxs3D <- function(x, na.rm=FALSE, dims=1)
     } else {
         stop("unsupported 'dims'")
     }
-    .fix_colStats3D_result(ans, x, dims)
+    .fix_simple_colMinsMaxs_result(ans, x, dims)
 }
 
-simple_rowMins3D <- function(x, na.rm=FALSE, dims=1)
+.simple_3D_rowMins <- function(x, na.rm=FALSE, dims=1)
 {
     stopifnot(length(dim(x)) == 3L, isSingleNumber(dims))
     if (dims == 1) {
@@ -229,10 +234,10 @@ simple_rowMins3D <- function(x, na.rm=FALSE, dims=1)
     } else {
         stop("unsupported 'dims'")
     }
-    .fix_rowStats3D_result(ans, x, dims)
+    .fix_simple_rowMinsMaxs_result(ans, x, dims)
 }
 
-simple_rowMaxs3D <- function(x, na.rm=FALSE, dims=1)
+.simple_3D_rowMaxs <- function(x, na.rm=FALSE, dims=1)
 {
     stopifnot(length(dim(x)) == 3L, isSingleNumber(dims))
     if (dims == 1) {
@@ -242,6 +247,77 @@ simple_rowMaxs3D <- function(x, na.rm=FALSE, dims=1)
     } else {
         stop("unsupported 'dims'")
     }
-    .fix_rowStats3D_result(ans, x, dims)
+    .fix_simple_rowMinsMaxs_result(ans, x, dims)
+}
+
+### Tests *Mins() and *Maxs() methods on a 3D array-like object.
+test_3D_colrowMinsMaxs <- function(object)
+{
+    a <- as.array(object)
+
+    ## Base R does NOT allow an ordinay array with dimensions of extent
+    ## zero to carry a character(0) in its dimnames, only a NULL. This means
+    ## that, if 'object' is an Array derivative, then 'dimnames(object)'
+    ## and 'dimnames(as.array(object))' are not guaranteed to be identical
+    ## because a character(0) in the former will be replaced with a NULL in
+    ## the latter.
+    ## As a consequence, calling colMins/Maxs() or rowMins/Maxs()
+    ## on 'object' won't necessarily produce the exact same result as
+    ## calling .simple_3D_colMins/Maxs3D() or .simple_3D_rowMins/Maxs3D()
+    ## on 'as.array(object)' when the result is a vector of length 0.
+    ## More precisely, one can be named while the other is not.
+
+    ## Does not look at the names if 'a1' and 'a2' are vectors of length 0.
+    expect_almost_identical <- function(a1, a2) {
+        if (is.vector(a1) && length(a1) == 0L) {
+            a1 <- unname(a1)
+            a2 <- unname(a2)
+        }
+        expect_identical(a1, a2)
+    }
+
+    ## dims == 1 (default)
+
+    expected <- .simple_3D_colMins(a)
+    expect_almost_identical(colMins(object), expected)
+    expected <- .simple_3D_colMaxs(a)
+    expect_almost_identical(colMaxs(object), expected)
+
+    expected <- .simple_3D_rowMins(a)
+    expect_almost_identical(rowMins(object), expected)
+    expected <- .simple_3D_rowMaxs(a)
+    expect_almost_identical(rowMaxs(object), expected)
+
+    expected <- .simple_3D_colMins(a, na.rm=TRUE)
+    expect_almost_identical(colMins(object, na.rm=TRUE), expected)
+    expected <- .simple_3D_colMaxs(a, na.rm=TRUE)
+    expect_almost_identical(colMaxs(object, na.rm=TRUE), expected)
+
+    expected <- .simple_3D_rowMins(a, na.rm=TRUE)
+    expect_almost_identical(rowMins(object, na.rm=TRUE), expected)
+    expected <- .simple_3D_rowMaxs(a, na.rm=TRUE)
+    expect_almost_identical(rowMaxs(object, na.rm=TRUE), expected)
+
+    ## dims == 2
+
+    expected <- .simple_3D_colMins(a, dims=2)
+    expect_almost_identical(colMins(object, dims=2), expected)
+    expected <- .simple_3D_colMaxs(a, dims=2)
+    expect_almost_identical(colMaxs(object, dims=2), expected)
+
+    expected <- .simple_3D_rowMins(a, dims=2)
+    expect_almost_identical(rowMins(object, dims=2), expected)
+    expected <- .simple_3D_rowMaxs(a, dims=2)
+    expect_almost_identical(rowMaxs(object, dims=2), expected)
+
+    expected <- .simple_3D_colMins(a, na.rm=TRUE, dims=2)
+    expect_almost_identical(colMins(object, na.rm=TRUE, dims=2), expected)
+    expected <- .simple_3D_colMaxs(a, na.rm=TRUE, dims=2)
+    expect_almost_identical(colMaxs(object, na.rm=TRUE, dims=2), expected)
+
+    expected <- .simple_3D_rowMins(a, na.rm=TRUE, dims=2)
+    expect_almost_identical(rowMins(object, na.rm=TRUE, dims=2), expected)
+    expected <- .simple_3D_rowMaxs(a, na.rm=TRUE, dims=2)
+    expect_almost_identical(rowMaxs(object, na.rm=TRUE, dims=2), expected)
 }
 
