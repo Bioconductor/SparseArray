@@ -9,6 +9,9 @@
 \alias{coerce,matrix,ngCMatrix-method}
 \alias{coerce,matrix,ngRMatrix-method}
 \alias{coerce,dgCMatrix,ngCMatrix-method}
+\alias{coerce,CsparseMatrix,ngCMatrix-method}
+\alias{coerce,RsparseMatrix,ngRMatrix-method}
+\alias{coerce,TsparseMatrix,ngTMatrix-method}
 
 \alias{coerce,Array,dgCMatrix-method}
 \alias{coerce,Array,dgRMatrix-method}
@@ -18,6 +21,7 @@
 \alias{coerce,Array,ngRMatrix-method}
 \alias{coerce,Array,CsparseMatrix-method}
 \alias{coerce,Array,RsparseMatrix-method}
+\alias{coerce,Array,TsparseMatrix-method}
 \alias{coerce,Array,sparseMatrix-method}
 
 \title{Internal utilities to handle sparseMatrix derivatives}

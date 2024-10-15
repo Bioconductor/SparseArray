@@ -5,7 +5,9 @@
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Low-level CsparseMatrix and RsparseMatrix constructors
+### Low-level [C|R|T]sparseMatrix constructors
+###
+### WARNING: They take **0-based** row/column indices!
 ###
 ### NOT exported
 ###
@@ -18,7 +20,9 @@
            stop(wmsg("unsupported input type: ", input_type)))
 }
 
-new_CsparseMatrix <- function(dim, p, i, x, dimnames=NULL)
+### 'i' must be an integer vector containing 0-based row indices.
+### Returns a dgCMatrix, lgCMatrix, or ngCMatrix (depends on 'typeof(x)').
+new_CsparseMatrix <- function(dim, p, i, x=NULL, dimnames=NULL)
 {
     stopifnot(is.integer(dim), length(dim) == 2L)
     ans_dimnames <- S4Arrays:::normarg_dimnames(dimnames, dim)
@@ -32,7 +36,9 @@ new_CsparseMatrix <- function(dim, p, i, x, dimnames=NULL)
     new(ans_class, Dim=dim, p=p, i=i, x=x, Dimnames=ans_dimnames)
 }
 
-new_RsparseMatrix <- function(dim, p, j, x, dimnames=NULL)
+### 'j' must be an integer vector containing 0-based column indices.
+### Returns a dgRMatrix, lgRMatrix, or ngRMatrix (depends on 'typeof(x)').
+new_RsparseMatrix <- function(dim, p, j, x=NULL, dimnames=NULL)
 {
     stopifnot(is.integer(dim), length(dim) == 2L)
     ans_dimnames <- S4Arrays:::normarg_dimnames(dimnames, dim)
@@ -46,55 +52,104 @@ new_RsparseMatrix <- function(dim, p, j, x, dimnames=NULL)
     new(ans_class, Dim=dim, p=p, j=j, x=x, Dimnames=ans_dimnames)
 }
 
+### 'i' and 'j' must be **parallel** integer vectors containing 0-based row
+### and column indices, respectively.
+### Returns a dgTMatrix, lgTMatrix, or ngTMatrix (depends on 'typeof(x)').
+new_TsparseMatrix <- function(dim, i, j, x=NULL, dimnames=NULL)
+{
+    stopifnot(is.integer(dim), length(dim) == 2L)
+    ans_dimnames <- S4Arrays:::normarg_dimnames(dimnames, dim)
+    if (is.null(x))
+        return(new("ngTMatrix", Dim=dim, i=i, j=j, Dimnames=ans_dimnames))
+    x_type <- typeof(x)
+    ans_type <- .infer_sparseMatrix_type_from_input_type(x_type)
+    ans_class <- if (ans_type == "double") "dgTMatrix" else "lgTMatrix"
+    if (ans_type != x_type)
+        storage.mode(x) <- ans_type
+    new(ans_class, Dim=dim, i=i, j=j, x=x, Dimnames=ans_dimnames)
+}
+
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### High-level CsparseMatrix and RsparseMatrix constructors
+### High-level [C|R|T]sparseMatrix constructors
+###
+### For the 3 constructors:
+### - 'i' and 'j' must be **parallel** integer vectors that contain 1-based
+###   row and column indices, respectively.
+### - 'nzdata' must be NULL or an atomic vector **parallel** to 'i' and 'j'.
+###   Its type must be "double", "integer", "raw", or "logical". It should
+###   not contain zeros (NAs are ok) but this is not checked.
+### - Each constructor takes care of removing triplets with duplicated (i,j)
+###   coordinates from the supplied (i,j,nzdata) triplets.
 ###
 ### NOT exported
 ###
-### Note that CsparseMatrix() is a simpler version of Matrix::sparseMatrix()
-### that is typically 50%-60% faster and more memory efficient.
-###
-### For both constructors:
-### - 'i', 'j', 'nzdata' must be **parallel** atomic vectors.
-### - 'i' and 'j' must be integer vectors with no NAs.
-### - 'nzdata' must be a double, integer, raw, or logical vector, with no
-###   zeros (NAs are ok).
 
-CsparseMatrix <- function(dim, i, j, nzdata, dimnames=NULL)
+.check_i_j_nzdata <- function(i, j, nzdata)
 {
-    stopifnot(is.integer(dim), length(dim) == 2L,
-              is.integer(i), is.integer(j), is.atomic(nzdata))
-    is_dup <- duplicatedIntegerPairs(i, j, fromLast=TRUE)
-    if (any(is_dup)) {
-        keepidx <- which(!is_dup)
-        i <- i[keepidx]
-        j <- j[keepidx]
-        nzdata <- nzdata[keepidx]
-    }
-    oo <- orderIntegerPairs(j, i)
-    ans_i <- i[oo] - 1L  # CsparseMatrix objects want this zero-based
-    ans_p <- c(0L, cumsum(tabulate(j[oo], nbins=dim[[2L]])))
-    ans_x <- nzdata[oo]
-    new_CsparseMatrix(dim, ans_p, ans_i, ans_x, dimnames=dimnames)
+    stopifnot(is.integer(i), is.integer(j), length(i) == length(j))
+    if (!is.null(nzdata))
+        stopifnot(is.atomic(nzdata), length(nzdata) == length(i))
 }
 
-RsparseMatrix <- function(dim, i, j, nzdata, dimnames=NULL)
+.drop_triplets_with_dup_i_j_pairs <- function(i, j, nzdata=NULL)
 {
-    stopifnot(is.integer(dim), length(dim) == 2L,
-              is.integer(i), is.integer(j), is.atomic(nzdata))
-    is_dup <- duplicatedIntegerPairs(i, j, fromLast=TRUE)
-    if (any(is_dup)) {
-        keepidx <- which(!is_dup)
-        i <- i[keepidx]
-        j <- j[keepidx]
-        nzdata <- nzdata[keepidx]
+    .check_i_j_nzdata(i, j, nzdata)
+    dup_idx <- which(duplicatedIntegerPairs(i, j, fromLast=TRUE))
+    if (length(dup_idx) != 0L) {
+        i <- i[-dup_idx]
+        j <- j[-dup_idx]
+        if (!is.null(nzdata))
+            nzdata <- nzdata[-dup_idx]
     }
+    list(i, j, nzdata)
+}
+
+### Note that this is a simplified version of Matrix::sparseMatrix() that
+### will typically be 50%-60% faster and more memory efficient.
+CsparseMatrix <- function(dim, i, j, nzdata=NULL, dimnames=NULL)
+{
+    stopifnot(is.integer(dim), length(dim) == 2L)
+    triplets <- .drop_triplets_with_dup_i_j_pairs(i, j, nzdata=nzdata)
+    i <- triplets[[1L]]
+    j <- triplets[[2L]]
+    nzdata <- triplets[[3L]]
+    oo <- orderIntegerPairs(j, i)
+    ans_p <- c(0L, cumsum(tabulate(j[oo], nbins=dim[[2L]])))
+    ans_i <- i[oo] - 1L  # new_CsparseMatrix() wants this 0-based
+    ans_x <- if (is.null(nzdata)) NULL else nzdata[oo]
+    new_CsparseMatrix(dim, ans_p, ans_i, x=ans_x, dimnames=dimnames)
+}
+
+RsparseMatrix <- function(dim, i, j, nzdata=NULL, dimnames=NULL)
+{
+    stopifnot(is.integer(dim), length(dim) == 2L)
+    triplets <- .drop_triplets_with_dup_i_j_pairs(i, j, nzdata=nzdata)
+    i <- triplets[[1L]]
+    j <- triplets[[2L]]
+    nzdata <- triplets[[3L]]
     oo <- orderIntegerPairs(i, j)
-    ans_j <- j[oo] - 1L  # RsparseMatrix objects want this zero-based
     ans_p <- c(0L, cumsum(tabulate(i[oo], nbins=dim[[1L]])))
-    ans_x <- nzdata[oo]
-    new_RsparseMatrix(dim, ans_p, ans_j, ans_x, dimnames=dimnames)
+    ans_j <- j[oo] - 1L  # new_RsparseMatrix() wants this 0-based
+    ans_x <- if (is.null(nzdata)) NULL else nzdata[oo]
+    new_RsparseMatrix(dim, ans_p, ans_j, x=ans_x, dimnames=dimnames)
+}
+
+### Besides optional removal of the triplets with duplicated (i,j) coordinates,
+### the supplied (i,j,nzdata) triplets are stored as-is in the returned
+### TsparseMatrix object, that is, their original order is preserved.
+TsparseMatrix <- function(dim, i, j, nzdata=NULL, dimnames=NULL, drop.dups=TRUE)
+{
+    stopifnot(is.integer(dim), length(dim) == 2L, isTRUEorFALSE(drop.dups))
+    if (drop.dups) {
+        triplets <- .drop_triplets_with_dup_i_j_pairs(i, j, nzdata=nzdata)
+        i <- triplets[[1L]]
+        j <- triplets[[2L]]
+        nzdata <- triplets[[3L]]
+    } else {
+        .check_i_j_nzdata(i, j, nzdata)
+    }
+    new_TsparseMatrix(dim, i - 1L, j - 1L, x=nzdata, dimnames=dimnames)
 }
 
 
@@ -103,8 +158,8 @@ RsparseMatrix <- function(dim, i, j, nzdata, dimnames=NULL)
 ###
 ### This simply brings back some basic coercion methods originally defined
 ### in the Matrix package but that the lazy Matrix maintainers have decided
-### to eradicate from the surface of Earth in an attempt to make the life
-### of their users no so easy.
+### to eradicate from the surface of Earth in a shocking attempt at making
+### their users lives miserable.
 ###
 
 ### --- from ordinary matrix to [d|l|n]gCMatrix and [d|l|n]gRMatrix ---
@@ -148,9 +203,12 @@ setAs("matrix", "ngRMatrix",
 ### --- other useful coercions ---
 
 ### Deprecated in Matrix 1.7-0
-setAs("dgCMatrix", "ngCMatrix",
-    function(from) as(from, "nMatrix")
-)
+setAs("dgCMatrix", "ngCMatrix", function(from) as(from, "nMatrix"))
+
+### Never supported by Matrix?
+setAs("CsparseMatrix", "ngCMatrix", function(from) as(from, "nMatrix"))
+setAs("RsparseMatrix", "ngRMatrix", function(from) as(from, "nMatrix"))
+setAs("TsparseMatrix", "ngTMatrix", function(from) as(from, "nMatrix"))
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -190,7 +248,8 @@ setAs("Array", "ngRMatrix",
 )
 
 ### These coercions will work out-of-the-box on any Array derivative that
-### supports type() and coercion to [d|l]gCMatrix and to [d|l]gRMatrix.
+### supports type() and coercion to [d|l]gCMatrix, [d|l]gRMatrix, and
+### [d|l]gTMatrix, respectively.
 setAs("Array", "CsparseMatrix",
     function(from)
     {
@@ -204,6 +263,14 @@ setAs("Array", "RsparseMatrix",
     {
         ans_type <- .infer_sparseMatrix_type_from_input_type(type(from))
         ans_class <- if (ans_type == "double") "dgRMatrix" else "lgRMatrix"
+        as(from, ans_class)
+    }
+)
+setAs("Array", "TsparseMatrix",
+    function(from)
+    {
+        ans_type <- .infer_sparseMatrix_type_from_input_type(type(from))
+        ans_class <- if (ans_type == "double") "dgTMatrix" else "lgTMatrix"
         as(from, ans_class)
     }
 )

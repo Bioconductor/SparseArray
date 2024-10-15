@@ -171,33 +171,58 @@ setReplaceMethod("type", "COO_SparseArray", .set_COO_SparseArray_type)
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### .normalize_COO_SparseArray()
 ###
+### The internal representation of a COO_SparseArray object 'x' is considered
+### normalized if 'x@nzcoo' and 'x@nzdata' are both normalized:
+###   1. 'x@nzcoo' is normalized if it's moving along the innermost dimension
+###      (a.k.a fastest moving dimension) of the object first. This is
+###      equivalent to 'Mindex2Lindex(x@nzcoo, dim(x))' being strictly sorted.
+###   2. 'x@nzdata' is normalized if it contains no zeros.
 
-.remove_zeros_from_nzdata_slot <- function(x)
+### Normalizes the 'nzdata' slot of COO_SparseArray object 'x' by removing
+### zeros from it.
+.normalize_nzdata_slot <- function(x)
 {
-    zero <- vector(type(x@nzdata), length=1L)
+    stopifnot(is(x, "COO_SparseArray"))
+    zero <- vector_of_zeros(type(x@nzdata), length=1L)
     idx0 <- which(x@nzdata == zero)
     if (length(idx0) == 0L)
         return(x)
-    new_nzcoo <- x@nzcoo[-idx0, , drop=FALSE]
     new_nzdata <- x@nzdata[-idx0]
+    ## Keep 'nzcoo' slot parallel to 'nzdata' slot.
+    new_nzcoo <- x@nzcoo[-idx0, , drop=FALSE]
     BiocGenerics:::replaceSlots(x, nzcoo=new_nzcoo,
                                    nzdata=new_nzdata,
                                    check=FALSE)
 }
 
-### Does NOT remove duplicates from the 'nzcoo' slot.
-.sort_and_drop_dups_from_nzcoo_slot <- function(x)
+### Normalizes the 'nzcoo' slot of COO_SparseArray object 'x' by sorting
+### its rows and removing duplicated rows from it.
+### TODO: The current implementations does not rely on Mindex2Lindex() but
+### maybe it should. Would this be more efficient?
+.normalize_nzcoo_slot <- function(x)
 {
-    oo <- S4Arrays:::Mindex_order(x@nzcoo)
-    if (!(is.unsorted(oo) || any(S4Arrays:::Mindex_row_is_repeated(x@nzcoo))))
-        return(x)
-    new_nzcoo <- x@nzcoo[oo, , drop=FALSE]
-    new_nzdata <- x@nzdata[oo]
+    stopifnot(is(x, "COO_SparseArray"))
+    new_nzcoo <- x@nzcoo
+    new_nzdata <- x@nzdata
+    oo <- S4Arrays:::Mindex_order(new_nzcoo)
+    nzcoo_is_unsorted <- is.unsorted(oo)
+    if (nzcoo_is_unsorted) {
+        new_nzcoo <- new_nzcoo[oo, , drop=FALSE]
+        ## Keep 'nzdata' slot parallel to 'nzcoo' slot.
+        new_nzdata <- new_nzdata[oo]
+    }
     dup_idx <- which(S4Arrays:::Mindex_row_is_repeated(new_nzcoo))
-    if (length(dup_idx) != 0L) {
+    if (length(dup_idx) == 0L) {
+        if (!nzcoo_is_unsorted) {
+            ## 'x@nzcoo' was already in normal form --> no need to touch 'x'.
+            return(x)
+        }
+    } else {
         new_nzcoo <- new_nzcoo[-dup_idx, , drop=FALSE]
+        ## Keep 'nzdata' slot parallel to 'nzcoo' slot.
         new_nzdata <- new_nzdata[-dup_idx]
     }
+    ## 'x@nzcoo' was not in normal form --> update 'x@nzcoo' and 'x@nzdata'.
     BiocGenerics:::replaceSlots(x, nzcoo=new_nzcoo,
                                    nzdata=new_nzdata,
                                    check=FALSE)
@@ -205,8 +230,9 @@ setReplaceMethod("type", "COO_SparseArray", .set_COO_SparseArray_type)
 
 .normalize_COO_SparseArray <- function(x)
 {
-    stopifnot(is(x, "COO_SparseArray"))
-    .sort_and_drop_dups_from_nzcoo_slot(.remove_zeros_from_nzdata_slot(x))
+    ## Order of the two calls should not matter but is one order more
+    ## efficient than the other?
+    .normalize_nzcoo_slot(.normalize_nzdata_slot(x))
 }
 
 
@@ -217,7 +243,6 @@ setReplaceMethod("type", "COO_SparseArray", .set_COO_SparseArray_type)
 ### Returns a "logical" COO_SparseArray object.
 .is_nonzero_COO <- function(x)
 {
-    stopifnot(is(x, "COO_SparseArray"))
     x <- .normalize_COO_SparseArray(x)
     new_nzdata <- rep.int(TRUE, length(nzdata(x)))
     BiocGenerics:::replaceSlots(x, nzdata=new_nzdata, check=FALSE)
@@ -258,7 +283,7 @@ setReplaceMethod("nzvals", "COO_SparseArray",
             stop(wmsg("replacement value must be a vector"))
         x <- .normalize_COO_SparseArray(x)
         x@nzdata[] <- value
-        .remove_zeros_from_nzdata_slot(x)
+        .normalize_nzdata_slot(x)
     }
 )
 
@@ -356,7 +381,7 @@ COO_SparseArray <- function(dim, nzcoo=NULL, nzdata=NULL, dimnames=NULL,
     if (!is(coo, "COO_SparseArray"))
         stop(wmsg("'coo' must be a COO_SparseArray object"))
     coo_nzdata <- nzdata(coo)
-    zero <- vector(typeof(coo_nzdata), length=1L)
+    zero <- vector_of_zeros(typeof(coo_nzdata), length=1L)
     ans <- array(zero, dim=dim(coo))
     ans[nzcoo(coo)] <- coo_nzdata
     S4Arrays:::set_dimnames(ans, dimnames(coo))
@@ -364,7 +389,8 @@ COO_SparseArray <- function(dim, nzcoo=NULL, nzdata=NULL, dimnames=NULL,
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Coercion to/from COO_SparseArray
+### as.array.COO_SparseArray() and default coercion to COO_SparseArray or
+### COO_SparseMatrix
 ###
 
 ### S3/S4 combo for as.array.COO_SparseArray
@@ -376,88 +402,152 @@ setAs("ANY", "COO_SparseMatrix",
     function(from) as(.dense2sparse(from), "COO_SparseMatrix")
 )
 
-### Going back and forth between COO_SparseMatrix and [d|l]g[C|R]Matrix objects
-### from the Matrix package:
 
-.make_sparseMatrix_from_COO_SparseMatrix <- function(from, to_type,
-                                                     orientation)
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Going back and forth between COO_SparseMatrix and [C|R|T]sparseMatrix
+###
+
+### --- From COO_SparseMatrix to [C|R|T]sparseMatrix ---
+
+### Note that:
+### - Constructing the [C|R|T]sparseMatrix derivative is taken care of by
+###   the last line which calls one of the 3 specialized *sparseMatrix()
+###   constructor functions defined in this package (in sparseMatrix-utils.R).
+### - We only normalize the '@nzdata' slot of the COO_SparseMatrix
+###   object, not its '@nzcoo' slot, before turning the object into
+###   a [C|R|T]sparseMatrix derivative, so the latter is guaranteed
+###   to have a "clean" '@x' slot (i.e. no zeros in it). In particular, we
+###   do NOT try to fully normalize the COO_SparseMatrix object as this can
+###   be costly and is not needed.
+### - If the requested layout is "T", then the (i,j,x) triplets in the
+###   returned TsparseMatrix derivative are not stored in any particular order.
+.make_sparseMatrix_from_COO_SparseMatrix <-
+    function(from, one_letter_type=c("d", "l", "n"), layout=c("C", "R", "T"))
 {
     stopifnot(is(from, "COO_SparseMatrix"))
+    one_letter_type <- match.arg(one_letter_type)
+    layout <- match.arg(layout)
 
-    ## Late type switching tends to be slightly more memory efficient.
-    ## However, switching to a smaller type (e.g. from "complex" to "double"
-    ## or from "integer" to "logical") can introduce zeros. In this case,
-    ## we must switch the type early. Otherwise we will end up with zeros
-    ## in the "x" slot of the resulting dgCMatrix or lgCMatrix object.
-    switch_type_early <- coercion_can_introduce_zeros(type(from), to_type)
-    if (switch_type_early)
-        type(from) <- to_type  # early type switching
+    if (one_letter_type != "n") {
+        to_type <- if (one_letter_type == "d") "double" else "logical"
+        if (type(from@nzdata) != to_type)
+            storage.mode(from@nzdata) <- to_type  # can introduce zeros
+    }
+
+    ## Get rid of zeros originally in '@nzdata' slot or possibly introduced
+    ## by type switching above.
+    from <- .normalize_nzdata_slot(from)
 
     i <- from@nzcoo[ , 1L]
     j <- from@nzcoo[ , 2L]
-    nzdata <- from@nzdata
+    nzdata <- if (one_letter_type == "n") NULL else from@nzdata
 
-    ## This type switching is safe only if it does not introduce zeros.
-    if (!switch_type_early)
-        storage.mode(nzdata) <- to_type  # late type switching
-
-    if (orientation == "C") {
-        CsparseMatrix(dim(from), i, j, nzdata, dimnames=dimnames(from))
-    } else {
-        RsparseMatrix(dim(from), i, j, nzdata, dimnames=dimnames(from))
-    }
+    ## Call specialized *sparseMatrix() constructor function defined in
+    ## sparseMatrix-utils.R.
+    FUN <- get(paste0(layout, "sparseMatrix"), mode="function")
+    FUN(dim(from), i, j, nzdata, dimnames=dimnames(from))
 }
 
-.from_COO_SparseMatrix_to_dgCMatrix <- function(from)
-    .make_sparseMatrix_from_COO_SparseMatrix(from, "double", "C")
+setAs("COO_SparseMatrix", "dgCMatrix",
+    function(from) .make_sparseMatrix_from_COO_SparseMatrix(from, "d", "C")
+)
+setAs("COO_SparseMatrix", "lgCMatrix",
+    function(from) .make_sparseMatrix_from_COO_SparseMatrix(from, "l", "C")
+)
+setAs("COO_SparseMatrix", "ngCMatrix",
+    function(from) .make_sparseMatrix_from_COO_SparseMatrix(from, "n", "C")
+)
 
-.from_COO_SparseMatrix_to_lgCMatrix <- function(from)
-    .make_sparseMatrix_from_COO_SparseMatrix(from, "logical", "C")
+setAs("COO_SparseMatrix", "dgRMatrix",
+    function(from) .make_sparseMatrix_from_COO_SparseMatrix(from, "d", "R")
+)
+setAs("COO_SparseMatrix", "lgRMatrix",
+    function(from) .make_sparseMatrix_from_COO_SparseMatrix(from, "l", "R")
+)
+setAs("COO_SparseMatrix", "ngRMatrix",
+    function(from) .make_sparseMatrix_from_COO_SparseMatrix(from, "n", "R")
+)
 
-setAs("COO_SparseMatrix", "dgCMatrix", .from_COO_SparseMatrix_to_dgCMatrix)
-setAs("COO_SparseMatrix", "lgCMatrix", .from_COO_SparseMatrix_to_lgCMatrix)
+setAs("COO_SparseMatrix", "dgTMatrix",
+    function(from) .make_sparseMatrix_from_COO_SparseMatrix(from, "d", "T")
+)
+setAs("COO_SparseMatrix", "lgTMatrix",
+    function(from) .make_sparseMatrix_from_COO_SparseMatrix(from, "l", "T")
+)
+setAs("COO_SparseMatrix", "ngTMatrix",
+    function(from) .make_sparseMatrix_from_COO_SparseMatrix(from, "n", "T")
+)
 
-.from_COO_SparseMatrix_to_dgRMatrix <- function(from)
-    .make_sparseMatrix_from_COO_SparseMatrix(from, "double", "R")
+setAs("COO_SparseMatrix", "sparseMatrix",
+    function(from) as(from, "TsparseMatrix")
+)
 
-.from_COO_SparseMatrix_to_lgRMatrix <- function(from)
-    .make_sparseMatrix_from_COO_SparseMatrix(from, "logical", "R")
+### --- From [C|R|T]sparseMatrix to COO_SparseMatrix ---
 
-setAs("COO_SparseMatrix", "dgRMatrix", .from_COO_SparseMatrix_to_dgRMatrix)
-setAs("COO_SparseMatrix", "lgRMatrix", .from_COO_SparseMatrix_to_lgRMatrix)
+### Note that, of the 3 helper functions below, only the first one is
+### guaranteed to return a COO_SparseArray object with a '@nzcoo' slot
+### that is normalized.
+### Also none of them tries to remove zeros from the '@x' slot of the
+### supplied sparseMatrix derivative, so these zeros will eventually end
+### up in the '@nzdata' slot of the returned COO_SparseArray object.
 
-.make_COO_SparseMatrix_from_dgCMatrix_or_lgCMatrix <-
-    function(from, use.dimnames=TRUE)
+.make_COO_SparseMatrix_from_CsparseMatrix <- function(from, use.dimnames=TRUE)
 {
+    ans_dimnames <- if (use.dimnames) dimnames(from) else NULL
     i <- from@i + 1L
     j <- rep.int(seq_len(ncol(from)), diff(from@p))
     ans_nzcoo <- cbind(i, j, deparse.level=0L)
-    ans_dimnames <- if (use.dimnames) dimnames(from) else NULL
-    COO_SparseArray(dim(from), ans_nzcoo, from@x, ans_dimnames, check=FALSE)
+    ans_nzdata <- if (is(from, "nMatrix")) nzvals(from) else from@x
+    new_COO_SparseArray(dim(from), ans_dimnames, ans_nzcoo, ans_nzdata,
+                        check=FALSE)
 }
 
-.make_COO_SparseMatrix_from_dgRMatrix_or_lgRMatrix <-
-    function(from, use.dimnames=TRUE)
+.make_COO_SparseMatrix_from_RsparseMatrix <- function(from, use.dimnames=TRUE)
 {
+    ans_dimnames <- if (use.dimnames) dimnames(from) else NULL
     i <- rep.int(seq_len(nrow(from)), diff(from@p))
     j <- from@j + 1L
     ans_nzcoo <- cbind(i, j, deparse.level=0L)
-    ans_dimnames <- if (use.dimnames) dimnames(from) else NULL
-    COO_SparseArray(dim(from), ans_nzcoo, from@x, ans_dimnames, check=FALSE)
+    ans_nzdata <- if (is(from, "nMatrix")) nzvals(from) else from@x
+    new_COO_SparseArray(dim(from), ans_dimnames, ans_nzcoo, ans_nzdata,
+                        check=FALSE)
 }
 
 setAs("dgCMatrix", "COO_SparseMatrix",
-    function(from) .make_COO_SparseMatrix_from_dgCMatrix_or_lgCMatrix(from)
+    function(from) .make_COO_SparseMatrix_from_CsparseMatrix(from)
 )
 setAs("lgCMatrix", "COO_SparseMatrix",
-    function(from) .make_COO_SparseMatrix_from_dgCMatrix_or_lgCMatrix(from)
+    function(from) .make_COO_SparseMatrix_from_CsparseMatrix(from)
 )
+setAs("ngCMatrix", "COO_SparseMatrix",
+    function(from) .make_COO_SparseMatrix_from_CsparseMatrix(from)
+)
+
 setAs("dgRMatrix", "COO_SparseMatrix",
-    function(from) .make_COO_SparseMatrix_from_dgRMatrix_or_lgRMatrix(from)
+    function(from) .make_COO_SparseMatrix_from_RsparseMatrix(from)
 )
 setAs("lgRMatrix", "COO_SparseMatrix",
-    function(from) .make_COO_SparseMatrix_from_dgRMatrix_or_lgRMatrix(from)
+    function(from) .make_COO_SparseMatrix_from_RsparseMatrix(from)
+)
+setAs("ngRMatrix", "COO_SparseMatrix",
+    function(from) .make_COO_SparseMatrix_from_RsparseMatrix(from)
+)
+
+### We first coerce to CsparseMatrix. Maybe not as efficient as copying
+### the (i,j,x) triplets directly from the TsparseMatrix derivative to
+### the 'nzcoo' and 'nzdata' slots of the COO_SparseMatrix to return.
+### However, doing so would not handle properly a TsparseMatrix derivative
+### that contains (i,j,x) triplets with duplicated (i,j) coordinates.
+setAs("TsparseMatrix", "COO_SparseMatrix",
+    function(from) as(as(from, "CsparseMatrix"), "COO_SparseMatrix")
 )
 
 setAs("Matrix", "COO_SparseArray", function(from) as(from, "COO_SparseMatrix"))
+
+### Coercing a sparseMatrix derivative (e.g. a CsparseMatrix or TsparseMatrix
+### derivative) to SparseMatrix produces an SVT_SparseMatrix object.
+### RsparseMatrix is the exception.
+setAs("RsparseMatrix", "SparseMatrix",
+    function(from) as(from, "COO_SparseMatrix")
+)
 

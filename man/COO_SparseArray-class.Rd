@@ -34,15 +34,26 @@
 
 \alias{coerce,COO_SparseMatrix,dgCMatrix-method}
 \alias{coerce,COO_SparseMatrix,lgCMatrix-method}
+\alias{coerce,COO_SparseMatrix,ngCMatrix-method}
 \alias{coerce,COO_SparseMatrix,dgRMatrix-method}
 \alias{coerce,COO_SparseMatrix,lgRMatrix-method}
+\alias{coerce,COO_SparseMatrix,ngRMatrix-method}
+\alias{coerce,COO_SparseMatrix,dgTMatrix-method}
+\alias{coerce,COO_SparseMatrix,lgTMatrix-method}
+\alias{coerce,COO_SparseMatrix,ngTMatrix-method}
+\alias{coerce,COO_SparseMatrix,sparseMatrix-method}
 
 \alias{coerce,dgCMatrix,COO_SparseMatrix-method}
 \alias{coerce,lgCMatrix,COO_SparseMatrix-method}
+\alias{coerce,ngCMatrix,COO_SparseMatrix-method}
 \alias{coerce,dgRMatrix,COO_SparseMatrix-method}
 \alias{coerce,lgRMatrix,COO_SparseMatrix-method}
+\alias{coerce,ngRMatrix,COO_SparseMatrix-method}
+\alias{coerce,TsparseMatrix,COO_SparseMatrix-method}
 
 \alias{coerce,Matrix,COO_SparseArray-method}
+
+\alias{coerce,RsparseMatrix,SparseMatrix-method}
 
 \title{COO_SparseArray objects}
 

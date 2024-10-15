@@ -24,11 +24,6 @@
 - Add unit tests for is_nonzero() and the nz*() functions, and for is_nonna()
   and the nna*() functions.
 
-- Implement efficient coercions from dgTMatrix to COO_SparseMatrix and
-  SVT_SparseMatrix. 'as(<dgTMatrix>, "SparseMatrix")' and
-  SparseArray(<dgTMatrix>) should do the former (this is the natural one
-  for dgTMatrix objects).
-
 - Implement readMatrixMarket(), similar to Matrix::readMM() but should
   return a COO_SparseMatrix object instead of a dgTMatrix object. Note that
   the easy/lazy implementation could simply be

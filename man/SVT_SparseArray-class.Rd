@@ -34,9 +34,13 @@
 \alias{coerce,SVT_SparseMatrix,lgCMatrix-method}
 \alias{coerce,SVT_SparseMatrix,ngCMatrix-method}
 \alias{coerce,CsparseMatrix,SVT_SparseMatrix-method}
-\alias{coerce,CsparseMatrix,SparseMatrix-method}
 
-\alias{coerce,Matrix,SVT_SparseArray-method}
+\alias{coerce,SVT_SparseMatrix,dgTMatrix-method}
+\alias{coerce,SVT_SparseMatrix,lgTMatrix-method}
+\alias{coerce,SVT_SparseMatrix,ngTMatrix-method}
+\alias{coerce,TsparseMatrix,SVT_SparseMatrix-method}
+
+\alias{coerce,sparseMatrix,SparseMatrix-method}
 \alias{coerce,Matrix,SparseArray-method}
 
 \alias{coerce,SVT_SparseArray,COO_SparseArray-method}

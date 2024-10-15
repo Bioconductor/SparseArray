@@ -87,7 +87,7 @@ must_homogenize_for_Compare <- function(x_type, y_type)
                     "type(x) is \"character\" or y is a string")
 
     type(y) <- biggest_type
-    zero <- vector(type(y), length=1L)
+    zero <- vector_of_zeros(type(y), length=1L)
     if (op == "==" && y == zero)
         error_on_left_sparsity_not_preserved(op,
                     "y is 0 or FALSE or the empty string")

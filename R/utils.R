@@ -3,6 +3,18 @@
 ### with no arguments.
 check_unused_arguments <- function() NULL
 
+vector_of_zeros <- function(mode="logical", length=0L)
+{
+    vector(mode=mode, length=length)
+}
+
+vector_of_ones <- function(mode="logical", length=0L)
+{
+    as.fun <- base::get(paste0("as.", mode), envir=asNamespace("base"),
+                        mode="function")
+    rep.int(as.fun(1L), length)
+}
+
 coercion_can_introduce_zeros <- function(from_type, to_type)
 {
     if (!isSingleString(from_type))

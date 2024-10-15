@@ -21,7 +21,7 @@ setGeneric("is_nonzero", function(x) standardGeneric("is_nonzero"))
 .default_is_nonzero <- function(x)
 {
     ## Make sure to use 'type()' and not 'typeof()'.
-    zero <- vector(type(x), length=1L)
+    zero <- vector_of_zeros(type(x), length=1L)
     is_nonzero <- x != zero  # broken on ngRMatrix objects!
     is_nonzero | is.na(is_nonzero)
 }
@@ -90,14 +90,14 @@ setGeneric("nzcount", function(x) standardGeneric("nzcount"))
 
 setMethod("nzcount", "ANY", function(x) sum(is_nonzero(x)))
 
-### Not 100% reliable on [d|l]gCMatrix objects because these objects are
-### allowed to have zeros in their '@x' slot! See IMPORTANT NOTE above in
-### this file.
-### On such objects 'length(x@i)' will report more nonzero elements than
-### there really are (false positives). However, nzcount() and is_nonzero()
-### are guaranteed to be consistent, which is what matters most.
+### Not 100% reliable because [C|R|T]sparseMatrix objects are allowed to
+### have zeros in their '@x' slot! See IMPORTANT NOTE above in this file.
+### On such objects 'length(x@i)' (or 'length(x@j)') will report more nonzero
+### elements than there really are (false positives). However, nzcount() and
+### is_nonzero() are guaranteed to be consistent, which is what matters most.
 setMethod("nzcount", "CsparseMatrix", function(x) length(x@i))
 setMethod("nzcount", "RsparseMatrix", function(x) length(x@j))
+setMethod("nzcount", "TsparseMatrix", function(x) length(x@i)) # == length(x@j)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -211,8 +211,7 @@ setMethod("nzvals", "ANY", function(x) as.vector(x[nzwhich(x)]))
 setMethod("nzvals", "dgCMatrix", function(x) x@x)
 setMethod("nzvals", "lgCMatrix", function(x) x@x)
 
-setMethod("nzvals", "ngCMatrix", function(x) rep.int(TRUE, length(x@i)))
-setMethod("nzvals", "ngRMatrix", function(x) rep.int(TRUE, length(x@j)))
+setMethod("nzvals", "nMatrix", function(x) rep.int(TRUE, nzcount(x)))
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

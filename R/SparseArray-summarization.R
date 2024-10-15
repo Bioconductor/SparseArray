@@ -115,7 +115,7 @@ setMethod("anyNA", "SparseArray", .anyNA_SparseArray)
             warning("coercing argument of type 'double' to logical")
         return(FALSE)
     }
-    zero <- vector(x_type, length=1L)
+    zero <- vector_of_zeros(x_type, length=1L)
     GENERIC(zero, x@nzdata, na.rm=na.rm)
 }
 
@@ -162,7 +162,7 @@ range.COO_SparseArray <- function(..., na.rm=FALSE, finite=FALSE)
     x_has_zeros <- length(x@nzdata) < length(x)
     if (!x_has_zeros)
         return(range(x@nzdata, na.rm=na.rm, finite=finite))
-    zero <- vector(typeof(x@nzdata), length=1L)
+    zero <- vector_of_zeros(typeof(x@nzdata), length=1L)
     range(zero, x@nzdata, na.rm=na.rm, finite=finite)
 }
 ### The signature of all the members in the 'Summary' group generic is

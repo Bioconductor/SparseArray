@@ -61,9 +61,7 @@ make_lacunar_leaf <- function(mode, nzoffs)
     if (SparseArray:::lacunar_mode_is_on()) {
         nzvals <- NULL
     } else {
-        as.fun <- base::get(paste0("as.", mode), envir=asNamespace("base"),
-                            mode="function")
-        nzvals <- rep.int(as.fun(1L), length(nzoffs))
+        nzvals <- SparseArray:::vector_of_ones(mode, length(nzoffs))
     }
     list(nzvals, nzoffs)
 }

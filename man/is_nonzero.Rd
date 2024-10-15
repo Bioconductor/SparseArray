@@ -8,6 +8,7 @@
 \alias{nzcount,ANY-method}
 \alias{nzcount,CsparseMatrix-method}
 \alias{nzcount,RsparseMatrix-method}
+\alias{nzcount,TsparseMatrix-method}
 
 \alias{nzwhich}
 \alias{nzwhich,ANY-method}
@@ -18,8 +19,7 @@
 \alias{nzvals,ANY-method}
 \alias{nzvals,dgCMatrix-method}
 \alias{nzvals,lgCMatrix-method}
-\alias{nzvals,ngCMatrix-method}
-\alias{nzvals,ngRMatrix-method}
+\alias{nzvals,nMatrix-method}
 
 \alias{nzvals<-}
 \alias{nzvals<-,ANY-method}
