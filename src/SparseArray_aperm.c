@@ -91,8 +91,7 @@ static SEXP alloc_output_leaf(SEXPTYPE Rtype, int nzcount,
 	*quick_out_nzoffs_p = INTEGER(nzoffs);
 	SEXP nzvals;
 	if (onecount_buf != NULL && *onecount_buf == nzcount) {
-		/* Create a lacunar leaf. Will turn it into a standard leaf
-		   later if LACUNAR_MODE_IS_ON is set to 0. */
+		/* Create a lacunar leaf. */
 		nzvals = R_NilValue;
 	} else {
 		nzvals = PROTECT(allocVector(Rtype, nzcount));
@@ -101,33 +100,6 @@ static SEXP alloc_output_leaf(SEXPTYPE Rtype, int nzcount,
 	SEXP ans = PROTECT(zip_leaf(nzvals, nzoffs, 0));
 	UNPROTECT(nzvals == R_NilValue ? 2 : 3);
 	return ans;
-}
-
-/* Inplace replacement!
-   Maybe move this to SVT_SparseArray_class.c. */
-static void REC_replace_lacunar_leaves_with_standard_leaves(
-		SEXP SVT, const int *dim, int ndim, SEXPTYPE Rtype)
-{
-	if (SVT == R_NilValue)
-		return;
-	if (ndim == 1) {
-		/* 'SVT' is a leaf (i.e. a 1D SVT). */
-		SEXP nzvals, nzoffs;
-		int nzcount = unzip_leaf(SVT, &nzvals, &nzoffs);
-		if (nzvals != R_NilValue)  /* standard leaf */
-			return;
-		/* lacunar leaf */
-		nzvals = PROTECT(_new_Rvector1(Rtype, nzcount));
-		replace_leaf_nzvals(SVT, nzvals);
-		UNPROTECT(1);
-		return;
-	}
-	/* 'SVT' is a tree. */
-	int SVT_len = LENGTH(SVT);  /* same as 'dim[ndim - 1]' */
-	for (int i = 0; i < SVT_len; i++)
-		REC_replace_lacunar_leaves_with_standard_leaves(
-			VECTOR_ELT(SVT, i), dim, ndim - 1, Rtype);
-	return;
 }
 
 
@@ -387,13 +359,6 @@ static SEXP transpose_2D_SVT(SEXP SVT, int nrow, int ncol, SEXPTYPE Rtype,
 		transpose_col_FUN(j, leaf,
 			quick_out_nzvals_p, quick_out_nzoffs_p,
 			nzcount_buf);
-	}
-
-	/* 4th pass */
-	if (onecount_buf != NULL && LACUNAR_MODE_IS_ON == 0) {
-		const int ans_dim[2] = {ncol, nrow};
-		REC_replace_lacunar_leaves_with_standard_leaves(
-			ans, ans_dim, 2, Rtype);
 	}
 
 	UNPROTECT(1);
@@ -918,11 +883,6 @@ static SEXP aperm_SVT_shattering_leaves(
 				A0Bufs->nzcount_buf,
 				A0Bufs->quick_out_nzvals_p,
 				A0Bufs->quick_out_nzoffs_p);
-
-	/* 4th pass */
-	if (A0Bufs->onecount_buf != NULL && LACUNAR_MODE_IS_ON == 0)
-		REC_replace_lacunar_leaves_with_standard_leaves(
-			ans, ans_dim, ndim, Rtype);
 
 	UNPROTECT(1);
 	return ans;

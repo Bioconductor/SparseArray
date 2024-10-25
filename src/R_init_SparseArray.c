@@ -42,9 +42,6 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_get_max_threads, 0),
 	CALLMETHOD_DEF(C_set_max_threads, 1),
 
-/* leaf_utils.c */
-	CALLMETHOD_DEF(C_lacunar_mode_is_on, 0),
-
 /* sparseMatrix_utils.c */
 	CALLMETHOD_DEF(C_colMins_dgCMatrix, 2),
 	CALLMETHOD_DEF(C_colMaxs_dgCMatrix, 2),

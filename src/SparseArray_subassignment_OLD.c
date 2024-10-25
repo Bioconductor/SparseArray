@@ -597,7 +597,7 @@ static SEXP subassign_xleaf3_with_offval_pairs(SEXP xleaf3,
 	int ret = _INPLACE_remove_zeros_from_leaf(ans, offs_buf);
 	if (ret == 0) {
 		ans = R_NilValue;
-	} if (ret == 1 && LACUNAR_MODE_IS_ON) {
+	} else if (ret == 1) {
 		_INPLACE_turn_into_lacunar_leaf_if_all_ones(ans);
 	}
 	UNPROTECT(2);
@@ -654,7 +654,7 @@ static SEXP postprocess_xleaf_using_Mindex(SEXP xleaf, int dim0,
 							  sort_bufs->offs);
 		if (ret == 0) {
 		    offval_pairs = R_NilValue;
-		} if (ret == 1 && LACUNAR_MODE_IS_ON) {
+		} else if (ret == 1) {
 		    _INPLACE_turn_into_lacunar_leaf_if_all_ones(offval_pairs);
 		}
 		UNPROTECT(1);
@@ -694,7 +694,7 @@ static SEXP postprocess_xleaf_using_Lindex(SEXP xleaf, int dim0,
 							  sort_bufs->offs);
 		if (ret == 0) {
 		    offval_pairs = R_NilValue;
-		} if (ret == 1 && LACUNAR_MODE_IS_ON) {
+		} else if (ret == 1) {
 		    _INPLACE_turn_into_lacunar_leaf_if_all_ones(offval_pairs);
 		}
 		UNPROTECT(1);
@@ -866,7 +866,7 @@ static SEXP subassign_leaf_by_Lindex_OLD(SEXP leaf, int dim0,
 						  sort_bufs.offs);
 	if (ret == 0) {
 		offval_pairs = R_NilValue;
-	} if (ret == 1 && LACUNAR_MODE_IS_ON) {
+	} else if (ret == 1) {
 		_INPLACE_turn_into_lacunar_leaf_if_all_ones(offval_pairs);
 	}
 	UNPROTECT(leaf != R_NilValue ? 2 : 1);

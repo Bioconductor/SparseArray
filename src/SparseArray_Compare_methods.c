@@ -9,16 +9,6 @@
 #include "leaf_utils.h"
 
 
-static SEXP make_noNA_logical_leaf(SEXP nzoffs)
-{
-	if (LACUNAR_MODE_IS_ON)
-		return _make_lacunar_leaf(nzoffs);
-	SEXP nzvals = PROTECT(_new_Rvector1(LGLSXP, LENGTH(nzoffs)));
-	SEXP ans = zip_leaf(nzvals, nzoffs, 0);
-	UNPROTECT(1);
-	return ans;
-}
-
 static SEXP make_logical_leaf_with_single_shared_int(int na_background,
 		void *nzvals, SEXP nzoffs)
 {
@@ -37,7 +27,7 @@ static SEXP make_logical_leaf_with_single_shared_int(int na_background,
 		error("SparseArray internal error in "
 		      "make_logical_leaf_with_single_shared_int():\n"
 		      "    shared_int != int1");
-	return make_noNA_logical_leaf(nzoffs);
+	return _make_lacunar_leaf(nzoffs);
 }
 
 

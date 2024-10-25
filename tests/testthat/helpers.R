@@ -58,12 +58,7 @@ make_lacunar_leaf <- function(mode, nzoffs)
 {
     stopifnot(isSingleString(mode))
     stopifnot(is.integer(nzoffs))
-    if (SparseArray:::lacunar_mode_is_on()) {
-        nzvals <- NULL
-    } else {
-        nzvals <- SparseArray:::vector_of_ones(mode, length(nzoffs))
-    }
-    list(nzvals, nzoffs)
+    list(NULL, nzoffs)
 }
 
 check_array_like_object <- function(object, expected_class, a0, strict=TRUE)

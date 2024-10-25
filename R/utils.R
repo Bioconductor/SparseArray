@@ -37,6 +37,3 @@ coercion_can_introduce_NAs <- function(from_type, to_type)
                                            PACKAGE="SparseArray")
 }
 
-lacunar_mode_is_on <- function()
-    .Call2("C_lacunar_mode_is_on", PACKAGE="SparseArray")
-

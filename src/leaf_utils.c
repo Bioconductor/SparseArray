@@ -11,13 +11,6 @@
 #include <string.h>  /* for memcpy() */
 
 
-/* --- .Call ENTRY POINT --- */
-SEXP C_lacunar_mode_is_on(void)
-{
-	return ScalarLogical(LACUNAR_MODE_IS_ON);
-}
-
-
 /****************************************************************************
  * _alloc_leaf()
  * _alloc_and_unzip_leaf()
@@ -84,7 +77,7 @@ SEXP _make_lacunar_leaf(SEXP nzoffs)
 SEXP _make_leaf_with_single_shared_nzval(SEXPTYPE Rtype,
 		const void *shared_nzval, SEXP nzoffs)
 {
-	if (LACUNAR_MODE_IS_ON && _all_elts_equal_one(Rtype, shared_nzval, 1))
+	if (_all_elts_equal_one(Rtype, shared_nzval, 1))
 		return _make_lacunar_leaf(nzoffs);
 	SEXP nzvals = PROTECT(allocVector(Rtype, LENGTH(nzoffs)));
 	_set_Rvector_elts_to_val(nzvals, shared_nzval);
@@ -112,13 +105,11 @@ SEXP _make_leaf_from_two_arrays(SEXPTYPE Rtype,
 	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(nzcount));
 	memcpy(INTEGER(ans_nzoffs), nzoffs_p, sizeof(int) * nzcount);
 
-	if (LACUNAR_MODE_IS_ON) {
-		int all_ones = _all_elts_equal_one(Rtype, nzvals_p, nzcount);
-		if (all_ones) {
-			SEXP ans = _make_lacunar_leaf(ans_nzoffs);
-			UNPROTECT(1);
-			return ans;
-		}
+	int all_ones = _all_elts_equal_one(Rtype, nzvals_p, nzcount);
+	if (all_ones) {
+		SEXP ans = _make_lacunar_leaf(ans_nzoffs);
+		UNPROTECT(1);
+		return ans;
 	}
 	SEXP ans_nzvals = PROTECT(allocVector(Rtype, nzcount));
 	memcpy(DATAPTR(ans_nzvals), nzvals_p, Rtype_size * nzcount);
@@ -137,14 +128,12 @@ static SEXP make_leaf_from_selected_Rsubvec_elts(
 	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(n));
 	memcpy(INTEGER(ans_nzoffs), selection, sizeof(int) * n);
 
-	if (LACUNAR_MODE_IS_ON) {
-		int all_ones = _all_selected_Rsubvec_elts_equal_one(Rvector,
-					subvec_offset, selection, n);
-		if (all_ones) {
-			SEXP ans = _make_lacunar_leaf(ans_nzoffs);
-			UNPROTECT(1);
-			return ans;
-		}
+	int all_ones = _all_selected_Rsubvec_elts_equal_one(Rvector,
+					     subvec_offset, selection, n);
+	if (all_ones) {
+		SEXP ans = _make_lacunar_leaf(ans_nzoffs);
+		UNPROTECT(1);
+		return ans;
 	}
 
 	if (avoid_copy_if_all_selected &&
@@ -250,14 +239,11 @@ static int INPLACE_extract_selection_from_leaf(SEXP leaf,
 	UNPROTECT(1);
 
 	/* Shrink 'nzvals'. */
-	if (LACUNAR_MODE_IS_ON) {
-		int all_ones =
-			_all_selected_Rsubvec_elts_equal_one(nzvals, 0,
-							     selection, n);
-		if (all_ones) {
-			replace_leaf_nzvals(leaf, R_NilValue);
-			return 2;
-		}
+	int all_ones = _all_selected_Rsubvec_elts_equal_one(nzvals, 0,
+							    selection, n);
+	if (all_ones) {
+		replace_leaf_nzvals(leaf, R_NilValue);
+		return 2;
 	}
 	SEXP new_nzvals = PROTECT(_subset_Rsubvec(nzvals, 0, selection, n));
 	replace_leaf_nzvals(leaf, new_nzvals);
@@ -369,7 +355,7 @@ SEXP _coerce_leaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn,
 		int ret = _INPLACE_remove_zeros_from_leaf(ans, selection_buf);
 		if (ret == 0) {
 			ans = R_NilValue;
-		} if (ret == 1 && LACUNAR_MODE_IS_ON) {
+		} else if (ret == 1) {
 			_INPLACE_turn_into_lacunar_leaf_if_all_ones(ans);
 		}
 	}
@@ -393,7 +379,7 @@ SEXP _coerce_naleaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn,
 		int ret = _INPLACE_remove_NAs_from_leaf(ans, selection_buf);
 		if (ret == 0) {
 			ans = R_NilValue;
-		} if (ret == 1 && LACUNAR_MODE_IS_ON) {
+		} else if (ret == 1) {
 			_INPLACE_turn_into_lacunar_leaf_if_all_ones(ans);
 		}
 	}

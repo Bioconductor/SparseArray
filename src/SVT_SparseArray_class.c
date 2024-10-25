@@ -702,10 +702,8 @@ static SEXP build_leaf_from_ngCsparseMatrix_col(const int *sloti,
 	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(col_nzcount));
 	memcpy(INTEGER(ans_nzoffs), sloti + ix_offset,
 	       sizeof(int) * col_nzcount);
-	SEXP ans_nzvals = LACUNAR_MODE_IS_ON ?
-		R_NilValue : PROTECT(_new_Rvector1(ans_Rtype, col_nzcount));
-	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs, 0);
-	UNPROTECT(LACUNAR_MODE_IS_ON ? 1 : 2);
+	SEXP ans = _make_lacunar_leaf(ans_nzoffs);
+	UNPROTECT(1);
 	return ans;
 }
 

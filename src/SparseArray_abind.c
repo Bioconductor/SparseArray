@@ -144,7 +144,7 @@ static SEXP concatenate_leaves(SEXP *leaves, int nb_objects,
 	}
 
 	SEXP ans_nzvals;
-	if (ans_is_lacunar && LACUNAR_MODE_IS_ON) {
+	if (ans_is_lacunar) {
 		ans_nzvals = R_NilValue;
 	} else {
 		ans_nzvals = PROTECT(_new_Rvector1(ans_Rtype, ans_nzcount));

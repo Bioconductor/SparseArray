@@ -30,9 +30,6 @@
    set to R_NilValue. In this case the nonzero values are implicit: they're
    all considered to be equal to one. */
 
-/* Support for "lacunar leaves" was completed in SparseArray 1.5.4. */
-#define LACUNAR_MODE_IS_ON 1  /* turned on in SparseArray 1.5.4 */
-
 /* In-place replacement. Supplied 'nzvals' is trusted! */
 static inline void replace_leaf_nzvals(SEXP leaf, SEXP nzvals)
 {
@@ -57,7 +54,7 @@ static inline SEXP zip_leaf(SEXP nzvals, SEXP nzoffs,
 	if (nzvals != R_NilValue) {
 		if (XLENGTH(nzvals) != nzcount)
 			goto on_error;
-		if (go_lacunar_if_all_ones && LACUNAR_MODE_IS_ON) {
+		if (go_lacunar_if_all_ones) {
 			int all_ones =
 				_all_Rsubvec_elts_equal_one(nzvals, 0, nzcount);
 			if (all_ones)
@@ -138,8 +135,6 @@ static inline SparseVec leaf2SV(SEXP leaf, SEXPTYPE Rtype, int len,
 	unzip_leaf(leaf, &nzvals, &nzoffs);
 	return toSparseVec(nzvals, nzoffs, Rtype, len, na_background);
 }
-
-SEXP C_lacunar_mode_is_on(void);
 
 SEXP _alloc_leaf(
 	SEXPTYPE Rtype,

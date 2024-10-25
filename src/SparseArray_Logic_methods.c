@@ -40,7 +40,7 @@ static void INPLACE_logical_neg_naleaf(SEXP naleaf, SEXPTYPE Rtype)
 		if ((nzvals_p[k] = !nzvals_p[k]) != int1)
 			all_ones = 0;
 	}
-	if (LACUNAR_MODE_IS_ON && all_ones)
+	if (all_ones)
 		replace_leaf_nzvals(naleaf, R_NilValue);
 	return ;
 }

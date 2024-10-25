@@ -47,8 +47,7 @@ static SEXP unary_minus_leaf(SEXP leaf, SEXPTYPE Rtype, SEXPTYPE ans_Rtype)
 		ans_nzvals = PROTECT(allocVector(ans_Rtype, nzcount));
 	}
 	_unary_minus_Rvector(leaf_nzvals, ans_nzvals);
-	int go_lacunar = LACUNAR_MODE_IS_ON &&
-			 _all_Rvector_elts_equal_one(ans_nzvals);
+	int go_lacunar = _all_Rvector_elts_equal_one(ans_nzvals);
 	if (ans_Rtype == 0) {
 		if (go_lacunar)
 			replace_leaf_nzvals(leaf, R_NilValue);
