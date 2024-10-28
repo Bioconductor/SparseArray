@@ -1,3 +1,101 @@
+VERSION 1.6.0
+-------------
+
+NEW FEATURES
+
+    o Linear subsetting of a SVT_SparseArray object e.g. svt[11:13].
+
+    o Add the 'dim' and 'dimnames' arguments to SVT_SparseArray() constructor
+      function. Main use case is to make it easy and efficient to construct
+      a zero-only SVT_SparseArray object of arbitrary dimensions.
+
+    o Add is_nonzero() generic with a default method and fast methods for
+      SVT_SparseArray, COO_SparseArray, and sparseMatrix objects.
+
+    o The Sparse Vector Tree of a SVT_SparseArray can have "lacunar leaves",
+      that is, leaves where the nzvals are missing. These leaves are
+      semantically equivalent to leaves where all the values in nzvals are
+      ones. This reduces the memory footprint of a "logical" SVT_SparseArray
+      with no NAs by half.
+      Note that a "logical" SVT_SparseMatrix object with no NAs is similar
+      to an ngCMatrix object from the Matrix package. ngCMatrix objects
+      don't store any non-zero values either (they're implicitly considered
+      to be TRUEs), only their offsets.
+
+    o col/row summarization methods (a.k.a. "matrixStats methods") now work
+      on COO_SparseArray objects (in addition to SVT_SparseArray objects).
+
+    o Add row/colSums2() and row/colMeans2() methods for SparseArray objects.
+
+    o rowsum(), crossprod(), tcrossprod(), and %*% methods now work on
+      COO_SparseMatrix objects (in addition to SVT_SparseMatrix objects).
+
+    o Add fast colsum() methods for SparseMatrix and dgCMatrix objects.
+
+    o Add is.na(), is.nan(), and is.infinite() methods for SVT_SparseArray
+      objects.
+
+    o Add pmin() and pmax() methods for SparseArray objects.
+
+    o aperm(<SVT_SparseArray>) now supports S4Arrays::aperm2() extended
+      semantic. See '?S4Arrays::aperm2' for details.
+
+    o Add 'dimnames' argument to randomSparseArray(), poissonSparseArray(),
+      randomSparseMatrix(), and poissonSparseMatrix().
+
+    o Coercions from dgTMatrix, lgTMatrix, or ngTMatrix, to
+      COO_SparseMatrix/Array or SVT_SparseMatrix/Array, and vice versa.
+
+    o Coercions from ng[C|R|T]Matrix to COO_SparseMatrix, and vice versa.
+
+    o Coercion from ngCMatrix to SVT_SparseMatrix, and vice versa.
+
+    o NaArray objects: WORK-IN-PROGRESS! New objects that use the same
+      internal representation as SVT_SparseArray objects (Sparse Vector
+      Tree), but background value is NA instead of zero. See
+      https://github.com/fmicompbio/footprintR/issues/7 for the
+      motivating use case. They support most operations supported by
+      SVT_SparseArray objects: [, [<-, t(), aperm(), cbind(), rbind(),
+      abind(), matrixStats operations (col*(), row*()), etc...
+      What's missing:
+      - a dedicated vignette;
+      - some row*() functions are not ready yet.
+
+    o Add new generics is_nonna(), nnacount(), nnawhich(), nnavals(), and
+      `nnavals<-`(), with default methods and methods for NaArray objects.
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+    o Refactored subassignment of a SVT_SparseArray object, which resulted
+      in significant speed improvement and memory footprint reduction.
+
+    o Speed up some row summarization methods (e.g. rowSums(x)) by implementing
+      them natively in C rather than doing a transposition followed by a column
+      summarization (e.g. colSums(t(x))). This avoids the costly transposition
+      step which is very time and memory consuming.
+      Row summarization methods with native C implementation so far:
+      rowAnyNAs() (35x speedup), rowMins() (6x speedup), rowMaxs() (6x speedup),
+      rowSums() (20x speedup), rowMeans() (18x speedup), rowVars() (5x speedup),
+      and rowSds() (5x speedup).
+      More methods will follow.
+
+    o Special-case 'lambda=0' in poissonSparseArray() so the empty
+      SVT_SparseArray object gets returned instantaneously.
+
+BUG FIXES
+
+    o Fix integer overflow in nzwhich() methods for CsparseMatrix and
+      RsparseMatrix objects when the object has a length >= 2^31.
+
+    o Fix bug in coercion from COO_SparseMatrix to [d|l]gCMatrix or
+      [d|l]gRMatrix when the 'nzcoo' slot of the COO_SparseMatrix object
+      contains duplicates.
+
+    o Make sure that coercion from CsparseMatrix to SVT_SparseMatrix works
+      on any [d|l|n]gCMatrix **derivative** and not just on a [d|l|n]gCMatrix
+      **instance**.
+
+
 VERSION 1.4.0
 -------------
 
