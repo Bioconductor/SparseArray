@@ -643,8 +643,8 @@ SEXP C_from_SVT_SparseMatrix_to_CsparseMatrix(SEXP x_dim,
 	R_xlen_t x_nzcount = _REC_nzcount_SVT(x_SVT, LENGTH(x_dim));
 	if (x_nzcount > INT_MAX)
 		error("SVT_SparseMatrix object contains too many nonzero "
-		      "values to be turned into a dgCMatrix or lgCMatrix "
-		      "object");
+		      "values (%ld) to \"fit\" in a CsparseMatrix derivative",
+		      x_nzcount);
 
 	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
 			"C_from_SVT_SparseMatrix_to_CsparseMatrix", "x_type");

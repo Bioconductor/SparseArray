@@ -225,6 +225,18 @@ setAs("TsparseMatrix", "ngTMatrix", function(from) as(from, "nMatrix"))
     if (is(from, "SparseArray"))
         stop(wmsg("coercion from ", class(from), " to ",
                   to, " is not supported"))
+    ## Fail early if object to coerce has >= 2^31 nonzero values, but only
+    ## if object is sparse. If object is not sparse, then nzcount() is not
+    ## guaranteed to be efficient so we'll proceed thru coercion to SparseArray
+    ## and will fail latter on the 2nd coercion (from SparseArray to the
+    ## requested sparseMatrix derivative).
+    if (is_sparse(from)) {
+        from_nzcount <- nzcount(from)
+        if (from_nzcount > .Machine$integer.max)
+            stop(wmsg(class(from)[[1L]], " object contains too many ",
+                      "nonzero values (", from_nzcount, ") to \"fit\" in ",
+                      "a " , to, " object"))
+    }
     as(as(from, "SparseArray"), to)
 }
 
