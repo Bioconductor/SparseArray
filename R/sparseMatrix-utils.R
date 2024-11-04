@@ -216,28 +216,40 @@ setAs("TsparseMatrix", "ngTMatrix", function(from) as(from, "nMatrix"))
 ###
 
 ### These coercions will work out-of-the-box on any Array derivative that
-### supports coercion to SparseArray.
+### supports coercion to SparseMatrix.
 .from_Array_to_sparseMatrix <- function(from, to)
 {
-    ## If 'from' is a SparseArray derivative, 'as(from, "SparseArray")' will
-    ## be a no-op and thus doing 'as(as(from, "SparseArray"), to)' below will
-    ## lead to an infinite recursion. We explicitly guard against this.
-    if (is(from, "SparseArray"))
+    ## If 'from' is a SparseMatrix derivative then 'as(from, "SparseMatrix")'
+    ## will be a no-op. Therefore doing 'as(as(from, "SparseMatrix"), to)'
+    ## below will lead to an infinite recursion. We explicitly guard against
+    ## this.
+    if (is(from, "SparseMatrix"))
         stop(wmsg("coercion from ", class(from), " to ",
                   to, " is not supported"))
-    ## Fail early if object to coerce has >= 2^31 nonzero values, but only
-    ## if object is sparse. If object is not sparse, then nzcount() is not
-    ## guaranteed to be efficient so we'll proceed thru coercion to SparseArray
-    ## and will fail latter on the 2nd coercion (from SparseArray to the
-    ## requested sparseMatrix derivative).
-    if (is_sparse(from)) {
-        from_nzcount <- nzcount(from)
-        if (from_nzcount > .Machine$integer.max)
-            stop(wmsg(class(from)[[1L]], " object contains too many ",
-                      "nonzero values (", from_nzcount, ") to \"fit\" in ",
-                      "a " , to, " object"))
-    }
-    as(as(from, "SparseArray"), to)
+    ## Early nzcount check:
+    ## Note that we use two successive coercions below, and, if the object
+    ## to coerce has >= 2^31 nonzero values, then only the 2nd coercion will
+    ## fail. The idea of the early nzcount check is to fail before the
+    ## possibly costly coercion to SparseMatrix (1st coercion) rather than
+    ## after it. However, we want to do this only if the object is sparse,
+    ## because if it's not, then nzcount() is not guaranteed to be efficient.
+    ## [A few days later...]
+    ## Well, not such a good idea after all, because nzcount() can be quite
+    ## costly **even** if the object to coerce is sparse. For example, on
+    ## a sparse DelayedMatrix, object nzcount() will typically trigger block
+    ## processing, and that will be **way more costly** than the coercion to
+    ## SparseMatrix (1st coercion).
+    ## Also note that we shouldn't even waste our time doing the early nzcount
+    ## check if 'from' is not matrix-like (i.e. if it doesn't have exactly
+    ## 2 dimensions). Instead we should fail immediately.
+    #if (is_sparse(from)) {
+    #    from_nzcount <- nzcount(from)
+    #    if (from_nzcount > .Machine$integer.max)
+    #        stop(wmsg(class(from)[[1L]], " object contains too many ",
+    #                  "nonzero values (", from_nzcount, ") to \"fit\" in ",
+    #                  "a " , to, " object"))
+    #}
+    as(as(from, "SparseMatrix"), to)
 }
 
 setAs("Array", "dgCMatrix",
