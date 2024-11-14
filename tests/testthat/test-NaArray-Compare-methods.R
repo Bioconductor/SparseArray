@@ -17,8 +17,8 @@
 
     ## naa1 <= y
     if (type(naa1) == "complex" || type(y) == "complex") {
-	expect_error(naa1 <= y, "invalid comparison with complex values")
-	expect_error(y >= naa1, "invalid comparison with complex values")
+	invalid_comparison_with_complex_values(naa1 <= y)
+	invalid_comparison_with_complex_values(y >= naa1)
     } else {
         a <- a1 <= y
         naa <- naa1 <= y
@@ -29,8 +29,8 @@
 
     ## naa1 >= y
     if (type(naa1) == "complex" || type(y) == "complex") {
-	expect_error(naa1 >= y, "invalid comparison with complex values")
-	expect_error(y <= naa1, "invalid comparison with complex values")
+	invalid_comparison_with_complex_values(naa1 >= y)
+	invalid_comparison_with_complex_values(y <= naa1)
     } else {
         a <- a1 >= y
         naa <- naa1 >= y
@@ -41,8 +41,8 @@
 
     ## naa1 < y
     if (type(naa1) == "complex" || type(y) == "complex") {
-        expect_error(naa1 < y, "invalid comparison with complex values")
-        expect_error(y > naa1, "invalid comparison with complex values")
+        invalid_comparison_with_complex_values(naa1 < y)
+        invalid_comparison_with_complex_values(y > naa1)
     } else {
         a <- a1 < y
         naa <- naa1 < y
@@ -53,8 +53,8 @@
 
     ## naa1 > y
     if (type(naa1) == "complex" || type(y) == "complex") {
-        expect_error(naa1 > y, "invalid comparison with complex values")
-        expect_error(y < naa1, "invalid comparison with complex values")
+        invalid_comparison_with_complex_values(naa1 > y)
+        invalid_comparison_with_complex_values(y < naa1)
     } else {
         a <- a1 > y
         naa <- naa1 > y
@@ -86,7 +86,7 @@
 
     ## naa1 <= naa2
     if (type(naa1) == "complex" || type(naa2) == "complex") {
-        expect_error(naa1 <= naa2, "invalid comparison with complex values")
+        invalid_comparison_with_complex_values(naa1 <= naa2)
     } else {
         a <- a1 <= a2
         naa <- naa1 <= naa2
@@ -97,7 +97,7 @@
 
     ## naa1 >= naa2
     if (type(naa1) == "complex" || type(naa2) == "complex") {
-        expect_error(naa1 >= naa2, "invalid comparison with complex values")
+        invalid_comparison_with_complex_values(naa1 >= naa2)
     } else {
         a <- a1 >= a2
         naa <- naa1 >= naa2
@@ -108,7 +108,7 @@
 
     ## naa1 < naa2
     if (type(naa1) == "complex" || type(naa2) == "complex") {
-        expect_error(naa1 < naa2, "invalid comparison with complex values")
+        invalid_comparison_with_complex_values(naa1 < naa2)
     } else {
         a <- a1 < a2
         naa <- naa1 < naa2
@@ -119,7 +119,7 @@
 
     ## naa1 > naa2
     if (type(naa1) == "complex" || type(naa2) == "complex") {
-        expect_error(naa1 > naa2, "invalid comparison with complex values")
+        invalid_comparison_with_complex_values(naa1 > naa2)
     } else {
         a <- a1 > a2
         naa <- naa1 > naa2
@@ -185,18 +185,18 @@ test_that("'Compare' ops between NaArray object and single value", {
     ## Not expected to work.
     naa1 <- as(a1, "NaArray")
     for (y in list(11:15, numeric(0), list(-0.22))) {
-        expect_error(naa1 == y, "not[\\s]+supported", perl=TRUE)
-        expect_error(y == naa1, "not[\\s]+supported", perl=TRUE)
-        expect_error(naa1 != y, "not[\\s]+supported", perl=TRUE)
-        expect_error(y != naa1, "not[\\s]+supported", perl=TRUE)
-        expect_error(naa1 <= y, "not[\\s]+supported", perl=TRUE)
-        expect_error(y >= naa1, "not[\\s]+supported", perl=TRUE)
-        expect_error(naa1 >= y, "not[\\s]+supported", perl=TRUE)
-        expect_error(y <= naa1, "not[\\s]+supported", perl=TRUE)
-        expect_error(naa1 < y, "not[\\s]+supported", perl=TRUE)
-        expect_error(y > naa1, "not[\\s]+supported", perl=TRUE)
-        expect_error(naa1 > y, "not[\\s]+supported", perl=TRUE)
-        expect_error(y < naa1, "not[\\s]+supported", perl=TRUE)
+        expect_error2(naa1 == y, "not supported")
+        expect_error2(y == naa1, "not supported")
+        expect_error2(naa1 != y, "not supported")
+        expect_error2(y != naa1, "not supported")
+        expect_error2(naa1 <= y, "not supported")
+        expect_error2(y >= naa1, "not supported")
+        expect_error2(naa1 >= y, "not supported")
+        expect_error2(y <= naa1, "not supported")
+        expect_error2(naa1 < y,  "not supported")
+        expect_error2(y > naa1,  "not supported")
+        expect_error2(naa1 > y,  "not supported")
+        expect_error2(y < naa1,  "not supported")
     }
 })
 
@@ -338,7 +338,7 @@ test_that("'Compare' ops between 2 NaArray objects", {
 
     ## Not expected to work.
     expect_error(naa1 != naa2[ , , -1], "non-conformable")
-    expect_error(naa1 < naa2[ , , -1], "non-conformable")
-    expect_error(naa1 > naa2[ , , -1], "non-conformable")
+    expect_error(naa1 < naa2[ , , -1],  "non-conformable")
+    expect_error(naa1 > naa2[ , , -1],  "non-conformable")
 })
 

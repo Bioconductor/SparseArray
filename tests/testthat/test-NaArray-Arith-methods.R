@@ -123,7 +123,7 @@
     check_NaArray_object(naa, a, strict=FALSE)
     expect_identical(naa, naa1 ^ a2)
     expect_identical(naa, a1 ^ naa2)
-    expect_error(naa1 ^ svt2, "not supported")
+    expect_error2(naa1 ^ svt2, "not supported")
     expect_identical(naa, svt1 ^ naa2)
 
     a <- a1 %% a2
@@ -132,7 +132,7 @@
     expect_identical(naa, naa1 %% a2)
     expect_identical(naa, a1 %% naa2)
     if (type(naa1) == "double" || type(svt2) == "double") {
-        expect_error(naa1 %% svt2, "not supported")
+        expect_error2(naa1 %% svt2, "not supported")
     } else {
         expect_identical(naa, naa1 %% svt2)
     }
@@ -276,12 +276,12 @@ test_that("'Arith' ops between NaArray object and single value", {
 
     ## --- Not expected to work ---
 
-    expect_error(naa2 + "A", "not supported")
-    expect_error(naa2 * 1:2, "not supported")
-    expect_error(naa2 ^ 0, "not supported")
-    expect_error(naa2 ^ NaN, "not supported")
-    expect_error(naa2 %% 0, "not supported")
-    expect_error(1 ^ naa2, "not supported")
+    expect_error2(naa2 + "A", "not supported")
+    expect_error2(naa2 * 1:2, "not supported")
+    expect_error2(naa2 ^ 0,   "not supported")
+    expect_error2(naa2 ^ NaN, "not supported")
+    expect_error2(naa2 %% 0,  "not supported")
+    expect_error2(1 ^ naa2,   "not supported")
 })
 
 test_that("'Arith' ops between 2 NaArray objects", {
@@ -342,12 +342,12 @@ test_that("'Arith' ops between 2 NaArray objects", {
 
     ## --- Not expected to work ---
 
-    expect_error(naa1 + naa2[ , , -1], "non-conformable")
-    expect_error(naa1 - naa2[ , , -1], "non-conformable")
-    expect_error(naa1 * naa2[ , , -1], "non-conformable")
-    expect_error(naa1 / naa2[ , , -1], "non-conformable")
-    expect_error(naa1 ^ naa2[ , , -1], "non-conformable")
-    expect_error(naa1 %% naa2[ , , -1], "non-conformable")
+    expect_error(naa1 + naa2[ , , -1],   "non-conformable")
+    expect_error(naa1 - naa2[ , , -1],   "non-conformable")
+    expect_error(naa1 * naa2[ , , -1],   "non-conformable")
+    expect_error(naa1 / naa2[ , , -1],   "non-conformable")
+    expect_error(naa1 ^ naa2[ , , -1],   "non-conformable")
+    expect_error(naa1 %% naa2[ , , -1],  "non-conformable")
     expect_error(naa1 %/% naa2[ , , -1], "non-conformable")
 })
 

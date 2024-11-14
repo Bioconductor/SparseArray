@@ -3,8 +3,8 @@
 {
     ## naa1 & y
     if (isFALSE(y)) {
-        expect_error(naa1 & y, "not supported")
-        expect_error(y & naa1, "not supported")
+        expect_error2(naa1 & y, "not supported")
+        expect_error2(y & naa1, "not supported")
     } else {
         a <- a1 & y
         naa <- naa1 & y
@@ -15,8 +15,8 @@
 
     ## naa1 | y
     if (isTRUE(y)) {
-	expect_error(naa1 | y, "not supported")
-	expect_error(y | naa1, "not supported")
+	expect_error2(naa1 | y, "not supported")
+	expect_error2(y | naa1, "not supported")
     } else {
         a <- a1 | y
         naa <- naa1 | y

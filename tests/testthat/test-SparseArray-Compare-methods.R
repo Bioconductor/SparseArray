@@ -3,8 +3,8 @@
 {
     ## svt1 == y
     if (y == 0) {
-	expect_error(svt1 == y, "not supported")
-	expect_error(y == svt1, "not supported")
+        expect_error2(svt1 == y, "not supported")
+        expect_error2(y == svt1, "not supported")
     } else {
         a <- a1 == y
         svt <- svt1 == y
@@ -15,8 +15,8 @@
 
     ## svt1 != y
     if (y != 0) {
-	expect_error(svt1 != y, "not supported")
-	expect_error(y != svt1, "not supported")
+        expect_error2(svt1 != y, "not supported")
+        expect_error2(y != svt1, "not supported")
     } else {
         a <- a1 != y
         svt <- svt1 != y
@@ -27,11 +27,11 @@
 
     ## svt1 <= y
     if (type(svt1) == "complex" || type(y) == "complex") {
-	expect_error(svt1 <= y, "invalid comparison with complex values")
-	expect_error(y >= svt1, "invalid comparison with complex values")
+        invalid_comparison_with_complex_values(svt1 <= y)
+        invalid_comparison_with_complex_values(y >= svt1)
     } else if (y >= 0) {
-	expect_error(svt1 <= y, "not supported")
-	expect_error(y >= svt1, "not supported")
+        expect_error2(svt1 <= y, "not supported")
+        expect_error2(y >= svt1, "not supported")
     } else {
         a <- a1 <= y
         svt <- svt1 <= y
@@ -42,11 +42,11 @@
 
     ## svt1 >= y
     if (type(svt1) == "complex" || type(y) == "complex") {
-	expect_error(svt1 >= y, "invalid comparison with complex values")
-	expect_error(y <= svt1, "invalid comparison with complex values")
+        invalid_comparison_with_complex_values(svt1 >= y)
+        invalid_comparison_with_complex_values(y <= svt1)
     } else if (y <= 0) {
-	expect_error(svt1 >= y, "not supported")
-	expect_error(y <= svt1, "not supported")
+        expect_error2(svt1 >= y, "not supported")
+        expect_error2(y <= svt1, "not supported")
     } else {
         a <- a1 >= y
         svt <- svt1 >= y
@@ -57,11 +57,11 @@
 
     ## svt1 < y
     if (type(svt1) == "complex" || type(y) == "complex") {
-        expect_error(svt1 < y, "invalid comparison with complex values")
-        expect_error(y > svt1, "invalid comparison with complex values")
+        invalid_comparison_with_complex_values(svt1 < y)
+        invalid_comparison_with_complex_values(y > svt1)
     } else if (type(y) %in% c("raw", "logical") || y > 0) {
-	expect_error(svt1 < y, "not supported")
-        expect_error(y > svt1, "not supported")
+        expect_error2(svt1 < y, "not supported")
+        expect_error2(y > svt1, "not supported")
     } else {
         a <- a1 < y
         svt <- svt1 < y
@@ -72,11 +72,11 @@
 
     ## svt1 > y
     if (type(svt1) == "complex" || type(y) == "complex") {
-        expect_error(svt1 > y, "invalid comparison with complex values")
-        expect_error(y < svt1, "invalid comparison with complex values")
+        invalid_comparison_with_complex_values(svt1 > y)
+        invalid_comparison_with_complex_values(y < svt1)
     } else if (y < 0) {
-        expect_error(svt1 > y, "not supported")
-        expect_error(y < svt1, "not supported")
+        expect_error2(svt1 > y, "not supported")
+        expect_error2(y < svt1, "not supported")
     } else {
         a <- a1 > y
         svt <- svt1 > y
@@ -95,7 +95,7 @@
 
     ## svt1 < svt2
     if (type(svt1) == "complex" || type(svt2) == "complex") {
-        expect_error(svt1 < svt2, "invalid comparison with complex values")
+        invalid_comparison_with_complex_values(svt1 < svt2)
     } else {
         a <- a1 < a2
         svt <- svt1 < svt2
@@ -104,7 +104,7 @@
 
     ## svt1 > svt2
     if (type(svt1) == "complex" || type(svt2) == "complex") {
-        expect_error(svt1 > svt2, "invalid comparison with complex values")
+        invalid_comparison_with_complex_values(svt1 > svt2)
     } else {
         a <- a1 > a2
         svt <- svt1 > svt2
@@ -167,18 +167,18 @@ test_that("'Compare' ops between SVT_SparseArray object and single value", {
     ## Not expected to work.
     svt1 <- as(a1, "SVT_SparseArray")
     for (y in list(NA, NaN, 11:15, numeric(0), list(-0.22))) {
-        expect_error(svt1 == y, "not supported")
-        expect_error(y == svt1, "not supported")
-        expect_error(svt1 != y, "not supported")
-        expect_error(y != svt1, "not supported")
-        expect_error(svt1 <= y, "not supported")
-        expect_error(y >= svt1, "not supported")
-        expect_error(svt1 >= y, "not supported")
-        expect_error(y <= svt1, "not supported")
-        expect_error(svt1 < y, "not supported")
-        expect_error(y > svt1, "not supported")
-        expect_error(svt1 > y, "not supported")
-        expect_error(y < svt1, "not supported")
+        expect_error2(svt1 == y, "not supported")
+        expect_error2(y == svt1, "not supported")
+        expect_error2(svt1 != y, "not supported")
+        expect_error2(y != svt1, "not supported")
+        expect_error2(svt1 <= y, "not supported")
+        expect_error2(y >= svt1, "not supported")
+        expect_error2(svt1 >= y, "not supported")
+        expect_error2(y <= svt1, "not supported")
+        expect_error2(svt1 < y,  "not supported")
+        expect_error2(y > svt1,  "not supported")
+        expect_error2(svt1 > y,  "not supported")
+        expect_error2(y < svt1,  "not supported")
     }
 })
 
@@ -320,10 +320,10 @@ test_that("'Compare' ops between 2 SVT_SparseArray objects", {
 
     ## Not expected to work.
     expect_error(svt1 != svt2[ , , -1], "non-conformable")
-    expect_error(svt1 < svt2[ , , -1], "non-conformable")
-    expect_error(svt1 > svt2[ , , -1], "non-conformable")
-    expect_error(svt1 == svt2, "not supported")
-    expect_error(svt1 <= svt2, "not supported")
-    expect_error(svt1 >= svt2, "not supported")
+    expect_error(svt1 < svt2[ , , -1],  "non-conformable")
+    expect_error(svt1 > svt2[ , , -1],  "non-conformable")
+    expect_error2(svt1 == svt2, "not supported")
+    expect_error2(svt1 <= svt2, "not supported")
+    expect_error2(svt1 >= svt2, "not supported")
 })
 

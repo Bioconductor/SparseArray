@@ -10,8 +10,8 @@
 
     ## svt1 | y
     if (isTRUE(y)) {
-	expect_error(svt1 | y, "not supported")
-	expect_error(y | svt1, "not supported")
+	expect_error2(svt1 | y, "not supported")
+	expect_error2(y | svt1, "not supported")
     } else {
         a <- a1 | y
         svt <- svt1 | y
@@ -47,10 +47,10 @@ test_that("'Logic' ops between SVT_SparseArray object and single value", {
     .test_Logic_SVT1_v2(a1, svt1, FALSE)
 
     ## Not expected to work.
-    expect_error(svt1 & NA, "not supported")
-    expect_error(NA & svt1, "not supported")
-    expect_error(svt1 | NA, "not supported")
-    expect_error(NA | svt1, "not supported")
+    expect_error2(svt1 & NA, "not supported")
+    expect_error2(NA & svt1, "not supported")
+    expect_error2(svt1 | NA, "not supported")
+    expect_error2(NA | svt1, "not supported")
 })
 
 test_that("'Logic' ops between 2 SVT_SparseArray objects", {

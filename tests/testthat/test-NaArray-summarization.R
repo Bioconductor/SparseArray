@@ -116,8 +116,8 @@ test_that("summarization methods for 3D NaArray objects", {
     a[6, 4, 2] <- NaN
     naa3 <- as(a, "NaArray")
     test_summarize_op1(a, naa3, "anyNA")
-    expect_error(any(naa3), "does not support")
-    expect_error(all(naa3), "does not support")
+    expect_error2(any(naa3), "does not support")
+    expect_error2(all(naa3), "does not support")
     test_summarize_op2(a, naa3, "min")
     test_summarize_op2(a, naa3, "max")
     test_summarize_op2(a, naa3, "range")

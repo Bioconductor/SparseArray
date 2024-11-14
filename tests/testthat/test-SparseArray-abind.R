@@ -224,9 +224,8 @@ test_that("abind() default method on SparseArray objects", {
 
     expected_words <- c("all", "objects", "must", "be",
                         "supplied", "via", "list")
-    regexp <- paste0("\\b", expected_words, "\\b", collapse=".*")
-    expect_error(abind(svt1, svt_objects), regexp, ignore.case=TRUE)
-    expect_error(abind(svt_objects, svt1), regexp, ignore.case=TRUE)
+    expect_error3(abind(svt1, svt_objects), expected_words, ignore.case=TRUE)
+    expect_error3(abind(svt_objects, svt1), expected_words, ignore.case=TRUE)
 
     ## --- Input is a mix of SparseArray objects and ordinary arrays ---
 

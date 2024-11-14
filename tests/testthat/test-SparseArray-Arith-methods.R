@@ -2,8 +2,8 @@
 .test_Arith_SVT1_v2 <- function(a1, svt1, v2, relax.MOD.and.IDIV=FALSE)
 {
     if (is.infinite(v2)) {
-        expect_error(svt1 * v2, "not supported")
-        expect_error(v2 * svt1, "not supported")
+        expect_error2(svt1 * v2, "not supported")
+        expect_error2(v2 * svt1, "not supported")
     } else {
         a <- a1 * v2
         svt <- svt1 * v2
@@ -126,22 +126,22 @@ test_that("'Arith' ops between SVT_SparseArray object and single value", {
 
     ## --- Not expected to work ---
 
-    expect_error(5 / svt2, "not supported")
-    expect_error(5 ^ svt2, "not supported")
-    expect_error(svt2 + "A", "not supported")
-    expect_error(svt2 + 1, "not supported")
-    expect_error(svt2 - 1, "not supported")
-    expect_error(svt2 * 1:2, "not supported")
-    expect_error(svt2 * NA_integer_, "not supported")
-    expect_error(svt2 * NA_real_, "not supported")
-    expect_error(svt2 * NaN, "not supported")
-    expect_error(svt2 * Inf, "not supported")
-    expect_error(svt2 * -Inf, "not supported")
-    expect_error(svt2 ^ 0, "not supported")
-    expect_error(svt2 ^ -2, "not supported")
-    expect_error(svt2 / 0, "not supported")
-    expect_error(svt2 %% 0, "not supported")
-    expect_error(svt2 %/% 0, "not supported")
+    expect_error2(5 / svt2, "not supported")
+    expect_error2(5 ^ svt2, "not supported")
+    expect_error2(svt2 + "A", "not supported")
+    expect_error2(svt2 + 1, "not supported")
+    expect_error2(svt2 - 1, "not supported")
+    expect_error2(svt2 * 1:2, "not supported")
+    expect_error2(svt2 * NA_integer_, "not supported")
+    expect_error2(svt2 * NA_real_, "not supported")
+    expect_error2(svt2 * NaN, "not supported")
+    expect_error2(svt2 * Inf, "not supported")
+    expect_error2(svt2 * -Inf, "not supported")
+    expect_error2(svt2 ^ 0, "not supported")
+    expect_error2(svt2 ^ -2, "not supported")
+    expect_error2(svt2 / 0, "not supported")
+    expect_error2(svt2 %% 0, "not supported")
+    expect_error2(svt2 %/% 0, "not supported")
 })
 
 test_that("'Arith' ops between 2 SVT_SparseArray objects", {
@@ -208,10 +208,10 @@ test_that("'Arith' ops between 2 SVT_SparseArray objects", {
     expect_error(svt1 + svt2[ , , -1], "non-conformable")
     expect_error(svt1 - svt2[ , , -1], "non-conformable")
     expect_error(svt1 * svt2[ , , -1], "non-conformable")
-    expect_error(svt1 / svt2, "not supported")
-    expect_error(svt1 ^ svt2, "not supported")
-    expect_error(svt1 %% svt2, "not supported")
-    expect_error(svt1 %/% svt2, "not supported")
+    expect_error2(svt1 / svt2, "not supported")
+    expect_error2(svt1 ^ svt2, "not supported")
+    expect_error2(svt1 %% svt2, "not supported")
+    expect_error2(svt1 %/% svt2, "not supported")
 })
 
 test_that("unary minus on a SVT_SparseArray object", {

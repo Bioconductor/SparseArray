@@ -1,3 +1,25 @@
+### Typical usage:
+###
+###     expect_error2(some op , "not supported")
+###
+### This won't break like expect_error(some op, "not supported") does if
+### the error message happens to contain other white spaces like \n's or
+### \t's instead of a single space between "not" and "supported". These
+### can be introduced in an unpredictable way by 'stop(wmsg(...))'.
+expect_error2 <- function(object, expected_string, ...)
+{
+    regexp <- sub("[\\s]+", "[\\\\s]+", expected_string, perl=TRUE)
+    expect_error(object, regexp=regexp, perl=TRUE, ...)
+}
+
+### 'expected_words' must be a character vector that contains words expected
+### to be seen in the error message in the same order as in 'expected_words'.
+expect_error3 <- function(object, expected_words, ...)
+{
+    regexp <- paste0("\\b", expected_words, "\\b", collapse=".*")
+    expect_error(object, regexp=regexp, ...)
+}
+
 IS_INTEL_MAC <- Sys.info()[["sysname"]] == "Darwin" &&
                 Sys.info()[["machine"]] == "x86_64"
 
@@ -162,6 +184,18 @@ test_summarize_op2 <- function(a, object, op)
     if (op == "prod" && is.integer(current))
         expected <- as.integer(expected)
     EXPECT_FUN(current, expected)
+}
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### invalid_comparison_with_complex_values()
+###
+
+invalid_comparison_with_complex_values <- function(object)
+{
+    INVALID_CPLX_COMP <- c("invalid", "comparison",
+                           "with", "complex", "values")
+    expect_error3(object, INVALID_CPLX_COMP)
 }
 
 

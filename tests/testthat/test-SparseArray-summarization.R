@@ -113,8 +113,8 @@ test_that("summarization methods for 3D SVT_SparseArray objects", {
     a[6, 3, 2] <- svt3[6, 3, 2] <- NA
     a[6, 4, 2] <- svt3[6, 4, 2] <- NaN
     test_summarize_op1(a, svt3, "anyNA")
-    expect_error(any(svt3), "does not support")
-    expect_error(all(svt3), "does not support")
+    expect_error2(any(svt3), "does not support")
+    expect_error2(all(svt3), "does not support")
     test_summarize_op2(a, svt3, "min")
     test_summarize_op2(a, svt3, "max")
     test_summarize_op2(a, svt3, "range")
