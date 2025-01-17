@@ -519,7 +519,8 @@ setAs("ANY", "SVT_SparseMatrix",
                                       dimnames=dimnames, type=type))
 
     ans <- as(x, "SVT_SparseArray")
-    ans <- S4Arrays:::set_dimnames(ans, dimnames)
+    if (!is.null(dimnames))
+        ans <- S4Arrays:::set_dimnames(ans, dimnames)
     if (!identical(type, NA))
         type(ans) <- type
     ans
