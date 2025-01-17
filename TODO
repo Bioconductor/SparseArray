@@ -7,6 +7,22 @@
 
   3. Add vignette for NaArray objects.
 
+- Support single cell normalization & PCA on an SVT_SparseMatrix object
+  as described in the "HDF5Array performance" vignette in HDF5Array.
+  This means that we need to be able to call simple_normalize() and
+  simple_PCA() on an SVT_SparseMatrix object. Right now, simple_normalize()
+  fails at the 't(mat) * 10000 / colSums(mat)' step because arithmetic
+  operations are not supported between a SparseArray object and a vector
+  of length != 1. It's also failing later when calling log1p() because
+  the log1p() method for SVT_SparseArray objects only supports input of
+  type "double" at the moment.
+
+- Once the previous item is addressed, add timings for svt1, svt2, svt3,
+  svt4, svt5, svt1n, svt2n, svt3n, svt4n, and svt5n to the "HDF5Array
+  performance" vignette. Of course we expect them to beat the timings
+  obtained for on-disk representations TENxMatrix and HDF5Matrix but at
+  the cost of drastically increased memory usage.
+
 - Speed up more row summarization methods for SparseArray and NaArray objects
   by supporting natively more operations in .Call entry point C_rowStats_SVT.
   Note that doing this for rowAnyNAs(), rowMins(), rowMaxs(), rowSums(),
