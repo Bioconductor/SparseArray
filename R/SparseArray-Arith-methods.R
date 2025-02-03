@@ -19,6 +19,24 @@ check_Arith_input_type <- function(type, what)
                   "on ", what, " of type() \"", type , "\""))
 }
 
+check_vector_operand_length <- function(len, dim1, what,
+                                        side=c("right", "left"))
+{
+    if (len == dim1 || len == 1L)
+        return()
+    side <- match.arg(side)
+    what0 <- paste(side, "vector")
+    if (len > dim1)
+        stop(wmsg(what0, " is longer than first (a.k.a. innermost) ",
+                  "dimension of ", what))
+    if (len == 0L)
+        stop(wmsg(what0, " length cannot be 0 unless first (a.k.a. innermost) ",
+                  "dimension of ", what, " is 0"))
+    if (dim1 %% len)
+        warning(wmsg("first (a.k.a. innermost) dimension of ", what,
+                     "is not a multiple of ", what0, " length"))
+}
+
 op_is_commutative <- function(op)
     (op %in% c("+", "*", "==", "!=", "&", "|"))
 
@@ -91,7 +109,7 @@ setMethod("-", c("SparseArray", "missing"),
 ###
 
 ### Supports: "*", "/", "^", "%%", "%/%"
-### Returns an NaArray object.
+### Returns an SVT_SparseArray object.
 .Arith_SVT1_v2 <- function(op, x, y)
 {
     stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
@@ -99,6 +117,9 @@ setMethod("-", c("SparseArray", "missing"),
 
     ## Check types.
     check_Arith_input_type(type(x), "SparseArray object")
+    if (!is.atomic(y))
+        stop(wmsg("arithmetic operations between SparseArray objects ",
+                  "and non-atomic vectors are not supported"))
     if (!(type(y) %in% ARITH_INPUT_TYPES))
         stop(wmsg("arithmetic operations between SparseArray objects ",
                   "and ", class(y), " vectors are not supported"))
@@ -110,17 +131,19 @@ setMethod("-", c("SparseArray", "missing"),
                   "be sparse in general)"))
 
     ## Check 'y'.
-    if (length(y) != 1L)
-        stop(wmsg("arithmetic operations are not supported between a ",
-                  "SparseArray object and a vector of length != 1"))
-    if (is.na(y))
-        error_on_left_sparsity_not_preserved(op, "y is NA or NaN")
-    if (op == "*" && is.infinite(y))
-        error_on_left_sparsity_not_preserved(op, "y is Inf or -Inf")
-    if (op == "^" && y <= 0)
-        error_on_left_sparsity_not_preserved(op, "y is non-positive")
-    if (op != "*" && y == 0)
-        error_on_left_sparsity_not_preserved(op, "y == 0")
+    check_vector_operand_length(length(y), dim(x)[[1L]], "SparseArray object")
+    if (anyNA(y))
+        error_on_left_sparsity_not_preserved(op,
+                 "y contains NA or NaN values")
+    if (op == "*" && any(is.infinite(y)))
+        error_on_left_sparsity_not_preserved(op,
+                 "y contains infinite values")
+    if (op == "^" && any(y <= 0))
+        error_on_left_sparsity_not_preserved(op,
+                 "y contains non-positive values")
+    if (op != "*" && any(y == 0))
+        error_on_left_sparsity_not_preserved(op,
+                 "y contains zeros")
 
     ## Compute 'ans_type'.
     if (type(x) == "double" && type(y) == "integer" || op %in% c("/", "^"))
@@ -148,7 +171,7 @@ setMethod("Arith", c("vector", "SVT_SparseArray"),
 )
 
 ### Supports: "+", "-", "*"
-### Returns an NaArray object.
+### Returns an SVT_SparseArray object.
 .Arith_SVT1_SVT2 <- function(op, x, y)
 {
     stopifnot(isSingleString(op),

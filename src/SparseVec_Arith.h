@@ -16,17 +16,17 @@
 
 int _get_Arith_opcode(SEXP op);
 
-void _Arith_sv1_scalar(
+void _Arith_sv1_v2(
 	int opcode,
 	const SparseVec *sv1,
-	SEXP scalar,
+	SEXP v2,
 	SparseVec *out_sv,
 	int *ovflow
 );
 
-void _Arith_scalar_sv2(
+void _Arith_v1_sv2(
 	int opcode,
-	SEXP scalar,
+	SEXP v1,
 	const SparseVec *sv2,
 	SparseVec *out_sv,
 	int *ovflow

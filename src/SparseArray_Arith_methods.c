@@ -16,9 +16,11 @@
 
 /* Assumes that 'ans_Rtype' is equal or bigger than the type of the nonzero
    values in 'leaf'. Performs **in-place** replacement if 'ans_Rtype' is 0!
-   Note that this could also have been achieved by calling:
+   Note that this could also be achieved with something like:
 
-     Arith_leaf1_scalar(MULT_OPCODE, leaf, Rtype, 0, -1, ...)
+     v2 <- PROTECT(ScalarInteger(-1));
+     Arith_leaf1_v2(MULT_OPCODE, leaf, Rtype, v2, ...);
+     UNPROTECT(1);
 
    but unary_minus_leaf() takes a lot of shortcuts so is A LOT more
    efficient. */
@@ -60,13 +62,13 @@ static SEXP unary_minus_leaf(SEXP leaf, SEXPTYPE Rtype, SEXPTYPE ans_Rtype)
 	return ans;
 }
 
-static SEXP Arith_leaf1_scalar(int opcode,
-		SEXP leaf1, SEXPTYPE Rtype1, SEXP scalar,
+static SEXP Arith_leaf1_v2(int opcode,
+		SEXP leaf1, SEXPTYPE Rtype1, SEXP v2,
 		SparseVec *buf_sv, int *ovflow)
 {
 	const SparseVec sv1 = leaf2SV(leaf1, Rtype1,
 				      buf_sv->len, buf_sv->na_background);
-	_Arith_sv1_scalar(opcode, &sv1, scalar, buf_sv, ovflow);
+	_Arith_sv1_v2(opcode, &sv1, v2, buf_sv, ovflow);
 	if (buf_sv->nzcount == PROPAGATE_NZOFFS)
 		return _make_leaf_with_single_shared_nzval(
 					      buf_sv->Rtype, buf_sv->nzvals,
@@ -74,13 +76,13 @@ static SEXP Arith_leaf1_scalar(int opcode,
 	return SV2leaf(buf_sv);
 }
 
-static SEXP Arith_scalar_leaf2(int opcode,
-		SEXP scalar, SEXP leaf2, SEXPTYPE Rtype2,
+static SEXP Arith_v1_leaf2(int opcode,
+		SEXP v1, SEXP leaf2, SEXPTYPE Rtype2,
 		SparseVec *buf_sv, int *ovflow)
 {
 	const SparseVec sv2 = leaf2SV(leaf2, Rtype2,
 				      buf_sv->len, buf_sv->na_background);
-	_Arith_scalar_sv2(opcode, scalar, &sv2, buf_sv, ovflow);
+	_Arith_v1_sv2(opcode, v1, &sv2, buf_sv, ovflow);
 	if (buf_sv->nzcount == PROPAGATE_NZOFFS)
 		return _make_leaf_with_single_shared_nzval(
 					      buf_sv->Rtype, buf_sv->nzvals,
@@ -183,8 +185,8 @@ static void REC_unary_minus_SVT(SEXP SVT, SEXPTYPE Rtype,
 	return;
 }
 
-static SEXP REC_Arith_SVT1_scalar(int opcode,
-		SEXP SVT1, SEXPTYPE Rtype1, SEXP scalar,
+static SEXP REC_Arith_SVT1_v2(int opcode,
+		SEXP SVT1, SEXPTYPE Rtype1, SEXP v2,
 		const int *dim, int ndim,
 		SparseVec *buf_sv, int *ovflow)
 {
@@ -193,9 +195,8 @@ static SEXP REC_Arith_SVT1_scalar(int opcode,
 
 	if (ndim == 1) {
 		/* 'SVT1' is a leaf (i.e. 1D SVT). */
-		return Arith_leaf1_scalar(opcode,
-					  SVT1, Rtype1, scalar,
-					  buf_sv, ovflow);
+		return Arith_leaf1_v2(opcode, SVT1, Rtype1, v2,
+				      buf_sv, ovflow);
 	}
 
 	/* 'SVT1' is a list. */
@@ -204,8 +205,8 @@ static SEXP REC_Arith_SVT1_scalar(int opcode,
 	int is_empty = 1;
 	for (int i = 0; i < ans_len; i++) {
 		SEXP subSVT1 = VECTOR_ELT(SVT1, i);
-		SEXP ans_elt = REC_Arith_SVT1_scalar(opcode,
-					subSVT1, Rtype1, scalar,
+		SEXP ans_elt = REC_Arith_SVT1_v2(opcode,
+					subSVT1, Rtype1, v2,
 					dim, ndim - 1,
 					buf_sv, ovflow);
 		if (ans_elt != R_NilValue) {
@@ -219,8 +220,8 @@ static SEXP REC_Arith_SVT1_scalar(int opcode,
 	return is_empty ? R_NilValue : ans;
 }
 
-static SEXP REC_Arith_scalar_SVT2(int opcode,
-		SEXP scalar, SEXP SVT2, SEXPTYPE Rtype2,
+static SEXP REC_Arith_v1_SVT2(int opcode,
+		SEXP v1, SEXP SVT2, SEXPTYPE Rtype2,
 		const int *dim, int ndim,
 		SparseVec *buf_sv, int *ovflow)
 {
@@ -229,9 +230,8 @@ static SEXP REC_Arith_scalar_SVT2(int opcode,
 
 	if (ndim == 1) {
 		/* 'SVT2' is a leaf (i.e. 1D SVT). */
-		return Arith_scalar_leaf2(opcode,
-					  scalar, SVT2, Rtype2,
-					  buf_sv, ovflow);
+		return Arith_v1_leaf2(opcode, v1, SVT2, Rtype2,
+				      buf_sv, ovflow);
 	}
 
 	/* 'SVT2' is a list. */
@@ -240,8 +240,8 @@ static SEXP REC_Arith_scalar_SVT2(int opcode,
 	int is_empty = 1;
 	for (int i = 0; i < ans_len; i++) {
 		SEXP subSVT2 = VECTOR_ELT(SVT2, i);
-		SEXP ans_elt = REC_Arith_scalar_SVT2(opcode,
-					scalar, subSVT2, Rtype2,
+		SEXP ans_elt = REC_Arith_v1_SVT2(opcode,
+					v1, subSVT2, Rtype2,
 					dim, ndim - 1,
 					buf_sv, ovflow);
 		if (ans_elt != R_NilValue) {
@@ -362,7 +362,7 @@ SEXP C_Arith_SVT1_v2(
 	SparseVec buf_sv = alloc_SparseVec(ans_Rtype, dim0, x_has_NAbg);
 
 	int ovflow = 0;
-	SEXP ans = REC_Arith_SVT1_scalar(opcode,
+	SEXP ans = REC_Arith_SVT1_v2(opcode,
 				x_SVT, x_Rtype, v2,
 				INTEGER(x_dim), LENGTH(x_dim),
 				&buf_sv, &ovflow);
@@ -402,7 +402,7 @@ SEXP C_Arith_v1_SVT2(SEXP v1,
 	SparseVec buf_sv = alloc_SparseVec(ans_Rtype, dim0, y_has_NAbg);
 
 	int ovflow = 0;
-	SEXP ans = REC_Arith_scalar_SVT2(opcode,
+	SEXP ans = REC_Arith_v1_SVT2(opcode,
 				v1, y_SVT, y_Rtype,
 				INTEGER(y_dim), LENGTH(y_dim),
 				&buf_sv, &ovflow);

@@ -1,7 +1,7 @@
 
 .test_Arith_SVT1_v2 <- function(a1, svt1, v2, relax.MOD.and.IDIV=FALSE)
 {
-    if (is.infinite(v2)) {
+    if (any(is.infinite(v2))) {
         expect_error2(svt1 * v2, "not supported")
         expect_error2(v2 * svt1, "not supported")
     } else {
@@ -12,14 +12,14 @@
         check_SVT_SparseArray_object(svt, a)
     }
 
-    if (v2 == 0)
+    if (any(v2 == 0))
         return()
 
     a <- a1 / v2
     svt <- svt1 / v2
     check_SVT_SparseArray_object(svt, a)
 
-    if (v2 > 0) {
+    if (all(v2 > 0)) {
         a <- a1 ^ v2
         svt <- svt1 ^ v2
         expect_true(is(svt, "SVT_SparseArray"))
@@ -64,23 +64,32 @@
     expect_identical(a1 * svt2, svt)
 }
 
-test_that("'Arith' ops between SVT_SparseArray object and single value", {
+test_that("'Arith' ops between SVT_SparseArray object and atomic vector", {
 
     ## --- 3D ---
 
-    a1 <- make_3D_integer_array()
+    a1 <- make_3D_integer_array()  # 6 x 5 x 4 array
     svt1 <- as(a1, "SVT_SparseArray")
 
     .test_Arith_SVT1_v2(a1, svt1, 0L)
     .test_Arith_SVT1_v2(a1, svt1, 5L)
     .test_Arith_SVT1_v2(a1, svt1, -5L)
+    .test_Arith_SVT1_v2(a1, svt1, c(0L, 5L, -5L))
+    .test_Arith_SVT1_v2(a1, svt1, c(5L, -5L))
     .test_Arith_SVT1_v2(a1, svt1, 1L)
     .test_Arith_SVT1_v2(a1, svt1, -1L)
     .test_Arith_SVT1_v2(a1, svt1, 5.1)
+    .test_Arith_SVT1_v2(a1, svt1, c(1, -1, 5.1))
+    .test_Arith_SVT1_v2(a1, svt1, c(1, 5.1))
     .test_Arith_SVT1_v2(a1, svt1, -5.1, relax.MOD.and.IDIV=TRUE)
     .test_Arith_SVT1_v2(a1, svt1, 0.001, relax.MOD.and.IDIV=TRUE)
     .test_Arith_SVT1_v2(a1, svt1, -0.001, relax.MOD.and.IDIV=TRUE)
+    .test_Arith_SVT1_v2(a1, svt1, 134L)
+    .test_Arith_SVT1_v2(a1, svt1, c(5L, 1L, 134L))
     .test_Arith_SVT1_v2(a1, svt1, 134)
+    .test_Arith_SVT1_v2(a1, svt1, c(5.1, 1, 134))
+    .test_Arith_SVT1_v2(a1, svt1, 11:16)
+    .test_Arith_SVT1_v2(a1, svt1, 11:16 * 0.05)
     expect_warning(svt1 * 10650000L, "integer overflow")
     expect_warning(10650000L * svt1, "integer overflow")
 
@@ -96,8 +105,13 @@ test_that("'Arith' ops between SVT_SparseArray object and single value", {
     .test_Arith_SVT1_v2(m1, svt1, 0L)
     .test_Arith_SVT1_v2(m1, svt1, 5L)
     .test_Arith_SVT1_v2(m1, svt1, -5L)
+    .test_Arith_SVT1_v2(m1, svt1, c(0L, 5L, -5L))
+    .test_Arith_SVT1_v2(m1, svt1, c(5L, -5L))
     .test_Arith_SVT1_v2(m1, svt1, 1L)
     .test_Arith_SVT1_v2(m1, svt1, -1L)
+    .test_Arith_SVT1_v2(m1, svt1, 5.1)
+    .test_Arith_SVT1_v2(m1, svt1, c(1, -1, 5.1))
+    .test_Arith_SVT1_v2(m1, svt1, c(1, 5.1))
 
     m2 <- matrix(1:20, nrow=5)
     m2[2, ] <- 0L
@@ -128,10 +142,10 @@ test_that("'Arith' ops between SVT_SparseArray object and single value", {
 
     expect_error2(5 / svt2, "not supported")
     expect_error2(5 ^ svt2, "not supported")
+    expect_error2(svt2 * list(), "not supported")
     expect_error2(svt2 + "A", "not supported")
     expect_error2(svt2 + 1, "not supported")
     expect_error2(svt2 - 1, "not supported")
-    expect_error2(svt2 * 1:2, "not supported")
     expect_error2(svt2 * NA_integer_, "not supported")
     expect_error2(svt2 * NA_real_, "not supported")
     expect_error2(svt2 * NaN, "not supported")

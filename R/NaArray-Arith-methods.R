@@ -79,18 +79,21 @@ setMethod("-", c("NaArray", "missing"),
 
     ## Check types.
     check_Arith_input_type(type(x), "NaArray object")
+    if (!is.atomic(y))
+        stop(wmsg("arithmetic operations between NaArray objects ",
+                  "and non-atomic vectors are not supported"))
     if (!(type(y) %in% ARITH_INPUT_TYPES))
         stop(wmsg("arithmetic operations between NaArray objects ",
                   "and ", class(y), " vectors are not supported"))
 
     ## Check 'y'.
-    if (length(y) != 1L)
-        stop(wmsg("arithmetic operations are not supported between an ",
-                  "NaArray object and a vector of length != 1"))
-    if ((op == "^") && (y %in% c(0, NaN)))
-        error_on_left_NAsparsity_not_preserved(op, "y is 0 or NaN")
-    if ((op == "%%") && !is.na(y) && y == 0)
-        error_on_left_NAsparsity_not_preserved(op, "y == 0")
+    check_vector_operand_length(length(y), dim(x)[[1L]], "NaArray object")
+    if ((op == "^") && (any(y %in% c(0, NaN))))
+        error_on_left_NAsparsity_not_preserved(op,
+                 "y contains zeros or NaN values")
+    if ((op == "%%") && any(y %in% 0))
+        error_on_left_NAsparsity_not_preserved(op,
+                 "y contains zeros")
 
     ## Compute 'ans_type'.
     if (type(x) == "double" && type(y) == "integer" || op %in% c("/", "^"))
@@ -111,16 +114,19 @@ setMethod("-", c("NaArray", "missing"),
 
     ## Check types.
     check_Arith_input_type(type(y), "NaArray object")
+    if (!is.atomic(x))
+        stop(wmsg("arithmetic operations between NaArray objects ",
+                  "and non-atomic vectors are not supported"))
     if (!(type(x) %in% ARITH_INPUT_TYPES))
         stop(wmsg("arithmetic operations between NaArray objects ",
                   "and ", class(x), " vectors are not supported"))
 
     ## Check 'x'.
-    if (length(x) != 1L)
-        stop(wmsg("arithmetic operations are not supported between an ",
-                  "NaArray object and a vector of length != 1"))
-    if (op == "^" && !is.na(x) && x == 1)
-        error_on_right_NAsparsity_not_preserved(op, "x == 1")
+    check_vector_operand_length(length(x), dim(y)[[1L]], "NaArray object",
+                                side="left")
+    if (op == "^" && any(x %in% 1))
+        error_on_right_NAsparsity_not_preserved(op,
+                 "x contains ones")
 
     ## Compute 'ans_type'.
     if (type(x) == "integer" && type(y) == "double" || op %in% c("/", "^"))

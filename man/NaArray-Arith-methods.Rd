@@ -37,8 +37,8 @@
   Three forms of 'Arith' operations involving \link{NaArray} objects are
   supported:
   \enumerate{
-    \item Between an \link{NaArray} object \code{naa} and a single
-          value \code{y}: \preformatted{    naa op y
+    \item Between an \link{NaArray} object \code{naa} and an atomic
+          vector \code{y}: \preformatted{    naa op y
     y op naa}
 
     \item Between two \link{NaArray} objects \code{naa1} and \code{naa2}
@@ -80,9 +80,12 @@ nam1 * -0.01
 nam1 * 10   # result is of type "double"
 nam1 * 10L  # result is of type "integer"
 
+nam1 * c(10, 5, 0.1)  # right vector recycled along 1st dimension
+
 nam1 / 10L
 
-nam1 ^ 3.5
+nam1 ^ 2
+nam1 ^ (2:6)
 
 nam1 \%\% 5L
 nam1 \%/\% 5L

@@ -39,14 +39,14 @@
 \details{
   Two forms of 'Arith' operations are supported:
   \enumerate{
-    \item Between an \link{SVT_SparseArray} object \code{svt} and a single
-          value \code{y}: \preformatted{    svt op y
+    \item Between an \link{SVT_SparseArray} object \code{svt} and an atomic
+          vector \code{y}: \preformatted{    svt op y
     y op svt}
 
           The \code{Arith} operations that support this form are: \code{*},
           \code{/}, \code{^}, \code{\%\%},\code{\%/\%}.
           Note that, except for \code{*} (for which both \code{svt * y}
-          and \code{y * svt} are supported), single value \code{y} must
+          and \code{y * svt} are supported), atomic vector \code{y} must
           be on the right e.g. \code{svt ^ 3}.
 
     \item Between two \link{SVT_SparseArray} objects \code{svt1} and
@@ -88,9 +88,12 @@ svt1 * -0.01
 svt1 * 10   # result is of type "double"
 svt1 * 10L  # result is of type "integer"
 
+svt1 * c(10, 5, 0.1)  # right vector recycled along 1st dimension
+
 svt1 / 10L
 
-svt1 ^ 3.5
+svt1 ^ 2
+svt1 ^ (2:6)
 
 svt1 \%\% 5L
 svt1 \%/\% 5L

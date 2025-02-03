@@ -18,7 +18,7 @@
     naa <- naa1 / v2
     check_NaArray_object(naa, a, strict=strict)
 
-    if (!(v2 %in% c(0, NaN))) {
+    if (!any(v2 %in% c(0, NaN))) {
         a <- a1 ^ v2
         naa <- naa1 ^ v2
         check_NaArray_object(naa, a, strict=FALSE)
@@ -28,7 +28,7 @@
         reconstructed <- as.array((naa1 %% v2) + v2 * (naa1 %/% v2))
         expect_equal(reconstructed, a1)
     } else {
-        if (is.na(v2) || v2 != 0) {
+        if (!any(v2 %in% 0)) {
             a <- a1 %% v2
             naa <- naa1 %% v2
             check_NaArray_object(naa, a, strict=FALSE)
@@ -58,7 +58,7 @@
     naa <- v1 / naa2
     check_NaArray_object(naa, a, strict=strict)
 
-    if (is.na(v1) || v1 != 1) {
+    if (!any(v1 %in% 1)) {
         a <- v1 ^ a2
         naa <- v1 ^ naa2
         check_NaArray_object(naa, a, strict=FALSE)
@@ -151,7 +151,7 @@ test_that("'Arith' ops between NaArray object and single value", {
 
     ## --- 3D ---
 
-    a1 <- make_3D_integer_array(NA_integer_)
+    a1 <- make_3D_integer_array(NA_integer_)  # 6 x 5 x 4 array
     a1[2:5, 4, 2] <- a1[ , c(1:2, 4), 3] <- 0L
     a1[c(4, 6), 1, 3] <- 1L
     naa1 <- as(a1, "NaArray")
@@ -162,20 +162,38 @@ test_that("'Arith' ops between NaArray object and single value", {
     .test_Arith_v1_NaSVT2(5L, a1, naa1)
     .test_Arith_NaSVT1_v2(a1, naa1, -5L)
     .test_Arith_v1_NaSVT2(-5L, a1, naa1)
+    .test_Arith_NaSVT1_v2(a1, naa1, c(0L, 5L, -5L))
+    .test_Arith_v1_NaSVT2(c(0L, 5L, -5L), a1, naa1)
+    .test_Arith_NaSVT1_v2(a1, naa1, c(5L, -5L))
+    .test_Arith_v1_NaSVT2(c(5L, -5L), a1, naa1)
     .test_Arith_NaSVT1_v2(a1, naa1, 1L)
     .test_Arith_v1_NaSVT2(1L, a1, naa1)
     .test_Arith_NaSVT1_v2(a1, naa1, -1L)
     .test_Arith_v1_NaSVT2(-1L, a1, naa1)
     .test_Arith_NaSVT1_v2(a1, naa1, 5.1)
     .test_Arith_v1_NaSVT2(5.1, a1, naa1)
+    .test_Arith_NaSVT1_v2(a1, naa1, c(1, -1, 5.1))
+    .test_Arith_v1_NaSVT2(c(1, -1, 5.1), a1, naa1)
+    .test_Arith_NaSVT1_v2(a1, naa1, c(1, 5.1))
+    .test_Arith_v1_NaSVT2(c(1, 5.1), a1, naa1)
     .test_Arith_NaSVT1_v2(a1, naa1, -5.1, relax.MOD.and.IDIV=TRUE)
     .test_Arith_v1_NaSVT2(-5.1, a1, naa1)
     .test_Arith_NaSVT1_v2(a1, naa1, 0.001, relax.MOD.and.IDIV=TRUE)
     .test_Arith_v1_NaSVT2(0.001, a1, naa1)
     .test_Arith_NaSVT1_v2(a1, naa1, -0.001, relax.MOD.and.IDIV=TRUE)
     .test_Arith_v1_NaSVT2(-0.001, a1, naa1)
+    .test_Arith_NaSVT1_v2(a1, naa1, 134L)
+    .test_Arith_v1_NaSVT2(134L, a1, naa1)
+    .test_Arith_NaSVT1_v2(a1, naa1, c(5L, 1L, 134L))
+    .test_Arith_v1_NaSVT2(c(5L, 1L, 134L), a1, naa1)
     .test_Arith_NaSVT1_v2(a1, naa1, 134)
     .test_Arith_v1_NaSVT2(134, a1, naa1)
+    .test_Arith_NaSVT1_v2(a1, naa1, c(5.1, 1, 134))
+    .test_Arith_v1_NaSVT2(c(5.1, 1, 134), a1, naa1)
+    .test_Arith_NaSVT1_v2(a1, naa1, 11:16)
+    .test_Arith_v1_NaSVT2(11:16, a1, naa1)
+    .test_Arith_NaSVT1_v2(a1, naa1, 11:16 * 0.05)
+    .test_Arith_v1_NaSVT2(11:16 * 0.05, a1, naa1)
     .test_Arith_NaSVT1_v2(a1, naa1, Inf)
     .test_Arith_v1_NaSVT2(Inf, a1, naa1)
     .test_Arith_NaSVT1_v2(a1, naa1, -Inf)
@@ -203,12 +221,20 @@ test_that("'Arith' ops between NaArray object and single value", {
     .test_Arith_v1_NaSVT2(0L, m1, naa1)
     .test_Arith_NaSVT1_v2(m1, naa1, 5L)
     .test_Arith_v1_NaSVT2(5L, m1, naa1)
-    .test_Arith_NaSVT1_v2(m1, naa1, -5L)
-    .test_Arith_v1_NaSVT2(-5L, m1, naa1)
+    .test_Arith_NaSVT1_v2(m1, naa1, c(0L, 5L, -5L))
+    .test_Arith_v1_NaSVT2(c(0L, 5L, -5L), m1, naa1)
+    .test_Arith_NaSVT1_v2(m1, naa1, c(5L, -5L))
+    .test_Arith_v1_NaSVT2(c(5L, -5L), m1, naa1)
     .test_Arith_NaSVT1_v2(m1, naa1, 1L)
     .test_Arith_v1_NaSVT2(1L, m1, naa1)
     .test_Arith_NaSVT1_v2(m1, naa1, -1L)
     .test_Arith_v1_NaSVT2(-1L, m1, naa1)
+    .test_Arith_NaSVT1_v2(m1, naa1, 5.1)
+    .test_Arith_v1_NaSVT2(5.1, m1, naa1)
+    .test_Arith_NaSVT1_v2(m1, naa1, c(1, -1, 5.1))
+    .test_Arith_v1_NaSVT2(c(1, -1, 5.1), m1, naa1)
+    .test_Arith_NaSVT1_v2(m1, naa1, c(1, 5.1))
+    .test_Arith_v1_NaSVT2(c(1, 5.1), m1, naa1)
     .test_Arith_NaSVT1_v2(m1, naa1, Inf)
     .test_Arith_v1_NaSVT2(Inf, m1, naa1)
     .test_Arith_NaSVT1_v2(m1, naa1, -Inf)
@@ -276,12 +302,12 @@ test_that("'Arith' ops between NaArray object and single value", {
 
     ## --- Not expected to work ---
 
-    expect_error2(naa2 + "A", "not supported")
-    expect_error2(naa2 * 1:2, "not supported")
-    expect_error2(naa2 ^ 0,   "not supported")
-    expect_error2(naa2 ^ NaN, "not supported")
-    expect_error2(naa2 %% 0,  "not supported")
-    expect_error2(1 ^ naa2,   "not supported")
+    expect_error2(naa2 * list(), "not supported")
+    expect_error2(naa2 + "A",    "not supported")
+    expect_error2(naa2 ^ 0,      "not supported")
+    expect_error2(naa2 ^ NaN,    "not supported")
+    expect_error2(naa2 %% 0,     "not supported")
+    expect_error2(1 ^ naa2,      "not supported")
 })
 
 test_that("'Arith' ops between 2 NaArray objects", {
