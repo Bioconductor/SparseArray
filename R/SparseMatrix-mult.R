@@ -146,11 +146,29 @@ setMethod("crossprod", c("SparseMatrix", "SparseMatrix"),
 )
 
 setMethod("crossprod", c("SparseMatrix", "ANY"),
-    function(x, y=NULL) .crossprod2_SparseMatrix_SparseMatrix(x, y)
+    function(x, y=NULL)
+    {
+        if (is.atomic(y) && is.vector(y)) {
+            ## Returns a 1-col ordinary matrix (like base::crossprod() does).
+            y <- cbind(y, deparse.level=0)
+            .crossprod2_SparseMatrix_matrix(x, y)
+        } else {
+            .crossprod2_SparseMatrix_SparseMatrix(x, y)
+        }
+    }
 )
 
 setMethod("crossprod", c("ANY", "SparseMatrix"),
-    function(x, y=NULL) .crossprod2_SparseMatrix_SparseMatrix(x, y)
+    function(x, y=NULL)
+    {
+        if (is.atomic(x) && is.vector(x)) {
+            ## Returns a 1-row ordinary matrix (like base::crossprod() does).
+            x <- cbind(x, deparse.level=0)
+            .crossprod2_matrix_SparseMatrix(x, y)
+        } else {
+            .crossprod2_SparseMatrix_SparseMatrix(x, y)
+        }
+    }
 )
 
 setMethod("crossprod", c("SparseMatrix", "missing"),
@@ -177,11 +195,29 @@ setMethod("tcrossprod", c("SparseMatrix", "SparseMatrix"),
 )
 
 setMethod("tcrossprod", c("SparseMatrix", "ANY"),
-    function(x, y=NULL) .crossprod2_SparseMatrix_SparseMatrix(t(x), t(y))
+    function(x, y=NULL)
+    {
+        if (is.atomic(y) && is.vector(y)) {
+            ## Returns a 1-col ordinary matrix (like base::tcrossprod() does).
+            y <- cbind(y, deparse.level=0)
+            .crossprod2_SparseMatrix_matrix(t(x), y)
+        } else {
+            .crossprod2_SparseMatrix_SparseMatrix(t(x), t(y))
+        }
+    }
 )
 
 setMethod("tcrossprod", c("ANY", "SparseMatrix"),
-    function(x, y=NULL) .crossprod2_SparseMatrix_SparseMatrix(t(x), t(y))
+    function(x, y=NULL)
+    {
+        if (is.atomic(x) && is.vector(x)) {
+            ## Returns a 1-row ordinary matrix (like base::tcrossprod() does).
+            x <- cbind(x, deparse.level=0)
+            .crossprod2_matrix_SparseMatrix(x, t(y))
+        } else {
+            .crossprod2_SparseMatrix_SparseMatrix(t(x), t(y))
+        }
+    }
 )
 
 setMethod("tcrossprod", c("SparseMatrix", "missing"),
@@ -206,10 +242,28 @@ setMethod("%*%", c("SparseMatrix", "SparseMatrix"),
 )
 
 setMethod("%*%", c("SparseMatrix", "ANY"),
-    function(x, y) .crossprod2_SparseMatrix_SparseMatrix(t(x), y)
+    function(x, y)
+    {
+        if (is.atomic(y) && is.vector(y)) {
+            ## Returns a 1-col ordinary matrix (like base::`%*%` does).
+            y <- cbind(y, deparse.level=0)
+            .crossprod2_SparseMatrix_matrix(t(x), y)
+        } else {
+            .crossprod2_SparseMatrix_SparseMatrix(t(x), y)
+        }
+    }
 )
 
 setMethod("%*%", c("ANY", "SparseMatrix"),
-    function(x, y) .crossprod2_SparseMatrix_SparseMatrix(t(x), y)
+    function(x, y)
+    {
+        if (is.atomic(x) && is.vector(x)) {
+            ## Returns a 1-row ordinary matrix (like base::`%*%` does).
+            x <- rbind(x, deparse.level=0)
+            .crossprod2_matrix_SparseMatrix(x, y, transpose.x=TRUE)
+        } else {
+            .crossprod2_SparseMatrix_SparseMatrix(t(x), y)
+        }
+    }
 )
 
