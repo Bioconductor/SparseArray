@@ -87,7 +87,7 @@ setMethod("-", c("NaArray", "missing"),
                   "and ", class(y), " vectors are not supported"))
 
     ## Check 'y'.
-    check_vector_operand_length(length(y), dim(x)[[1L]], "NaArray object")
+    check_vector_operand_length(length(y), dim(x), 1L, "NaArray object")
     if ((op == "^") && (any(y %in% c(0, NaN))))
         error_on_left_NAsparsity_not_preserved(op,
                  "y contains zeros or NaN values")
@@ -101,7 +101,8 @@ setMethod("-", c("NaArray", "missing"),
     ans_type <- get_Arith_output_type(op, type(x), type(y))
 
     new_NaSVT <- SparseArray.Call("C_Arith_SVT1_v2",
-                                  x@dim, x@type, x@NaSVT, TRUE, y, op, ans_type)
+                                  x@dim, x@type, x@NaSVT, TRUE,
+                                  y, 1L, op, ans_type)
     BiocGenerics:::replaceSlots(x, type=ans_type, NaSVT=new_NaSVT, check=FALSE)
 }
 
@@ -122,7 +123,7 @@ setMethod("-", c("NaArray", "missing"),
                   "and ", class(x), " vectors are not supported"))
 
     ## Check 'x'.
-    check_vector_operand_length(length(x), dim(y)[[1L]], "NaArray object",
+    check_vector_operand_length(length(x), dim(y), 1L, "NaArray object",
                                 side="left")
     if (op == "^" && any(x %in% 1))
         error_on_right_NAsparsity_not_preserved(op,

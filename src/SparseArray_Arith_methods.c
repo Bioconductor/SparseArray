@@ -19,7 +19,7 @@
    Note that this could also be achieved with something like:
 
      v2 <- PROTECT(ScalarInteger(-1));
-     Arith_leaf1_v2(MULT_OPCODE, leaf, Rtype, v2, ...);
+     Arith_leaf1_v2(MULT_OPCODE, leaf, Rtype, v2, -1, ...);
      UNPROTECT(1);
 
    but unary_minus_leaf() takes a lot of shortcuts so is A LOT more
@@ -62,13 +62,15 @@ static SEXP unary_minus_leaf(SEXP leaf, SEXPTYPE Rtype, SEXPTYPE ans_Rtype)
 	return ans;
 }
 
+/* If 'i2 < 0' then the right operand is the full 'v2' vector. Otherwise
+   it's single value 'v2[[i2]]'. */
 static SEXP Arith_leaf1_v2(int opcode,
-		SEXP leaf1, SEXPTYPE Rtype1, SEXP v2,
+		SEXP leaf1, SEXPTYPE Rtype1, SEXP v2, int i2,
 		SparseVec *buf_sv, int *ovflow)
 {
 	const SparseVec sv1 = leaf2SV(leaf1, Rtype1,
 				      buf_sv->len, buf_sv->na_background);
-	_Arith_sv1_v2(opcode, &sv1, v2, buf_sv, ovflow);
+	_Arith_sv1_v2(opcode, &sv1, v2, i2, buf_sv, ovflow);
 	if (buf_sv->nzcount == PROPAGATE_NZOFFS)
 		return _make_leaf_with_single_shared_nzval(
 					      buf_sv->Rtype, buf_sv->nzvals,
@@ -186,7 +188,7 @@ static void REC_unary_minus_SVT(SEXP SVT, SEXPTYPE Rtype,
 }
 
 static SEXP REC_Arith_SVT1_v2(int opcode,
-		SEXP SVT1, SEXPTYPE Rtype1, SEXP v2,
+		SEXP SVT1, SEXPTYPE Rtype1, SEXP v2, int recy_along, int i2,
 		const int *dim, int ndim,
 		SparseVec *buf_sv, int *ovflow)
 {
@@ -195,7 +197,7 @@ static SEXP REC_Arith_SVT1_v2(int opcode,
 
 	if (ndim == 1) {
 		/* 'SVT1' is a leaf (i.e. 1D SVT). */
-		return Arith_leaf1_v2(opcode, SVT1, Rtype1, v2,
+		return Arith_leaf1_v2(opcode, SVT1, Rtype1, v2, i2,
 				      buf_sv, ovflow);
 	}
 
@@ -205,8 +207,10 @@ static SEXP REC_Arith_SVT1_v2(int opcode,
 	int is_empty = 1;
 	for (int i = 0; i < ans_len; i++) {
 		SEXP subSVT1 = VECTOR_ELT(SVT1, i);
+		if (recy_along == ndim)
+			i2 = i;
 		SEXP ans_elt = REC_Arith_SVT1_v2(opcode,
-					subSVT1, Rtype1, v2,
+					subSVT1, Rtype1, v2, recy_along, i2,
 					dim, ndim - 1,
 					buf_sv, ovflow);
 		if (ans_elt != R_NilValue) {
@@ -337,13 +341,12 @@ SEXP C_unary_minus_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT)
 /* --- .Call ENTRY POINT --- */
 SEXP C_Arith_SVT1_v2(
 		SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP x_na_background,
-		SEXP v2, SEXP op, SEXP ans_type)
+		SEXP v2, SEXP recycle_along, SEXP op, SEXP ans_type)
 {
 	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
 					"C_Arith_SVT1_v2", "x_type");
 	int x_has_NAbg = _get_and_check_na_background(x_na_background,
 					"C_Arith_SVT1_v2", "x_na_background");
-
 	SEXPTYPE ans_Rtype = _get_and_check_Rtype_from_Rstring(ans_type,
 					"C_Arith_SVT1_v2", "ans_type");
 
@@ -359,12 +362,26 @@ SEXP C_Arith_SVT1_v2(
 	}
 
 	int dim0 = INTEGER(x_dim)[0];
+	if (!IS_INTEGER(recycle_along) || LENGTH(recycle_along) != 1)
+		error("SparseArray internal error in "
+		      "C_Arith_SVT1_v2():\n"
+		      "    'recycle_along' not a single integer");
+	int ndim = LENGTH(x_dim);
+	int recy_along = INTEGER(recycle_along)[0];
+	if (recy_along == NA_INTEGER || recy_along < 1 || recy_along > ndim)
+		error("SparseArray internal error in "
+		      "C_Arith_SVT1_v2():\n"
+		      "    'recycle_along' not >= 1 and <= length(dim(x))");
+	if (LENGTH(v2) > INTEGER(x_dim)[recy_along - 1])
+		error("SparseArray internal error in "
+		      "C_Arith_SVT1_v2():\n"
+		      "    length(v2) > dim(x)[[recycle.along]]");
 	SparseVec buf_sv = alloc_SparseVec(ans_Rtype, dim0, x_has_NAbg);
 
 	int ovflow = 0;
 	SEXP ans = REC_Arith_SVT1_v2(opcode,
-				x_SVT, x_Rtype, v2,
-				INTEGER(x_dim), LENGTH(x_dim),
+				x_SVT, x_Rtype, v2, recy_along, -1,
+				INTEGER(x_dim), ndim,
 				&buf_sv, &ovflow);
 	if (ovflow) {
 		PROTECT(ans);

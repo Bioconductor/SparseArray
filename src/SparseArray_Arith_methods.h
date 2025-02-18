@@ -15,6 +15,7 @@ SEXP C_Arith_SVT1_v2(
 	SEXP x_SVT,
 	SEXP x_na_background,
 	SEXP v2,
+	SEXP recycle_along,
 	SEXP op,
 	SEXP ans_type
 );

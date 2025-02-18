@@ -4,6 +4,31 @@
   have a length equal to (or a divisor of) 'dim(x)[[1]]'.
   Note that this was relaxed for Arith operations in SparseArray 1.7.5.
 
+- Implement Arith operations between an SVT_SparseArray (or NaArray) object
+  and a tile object (see ?as_tile in S4Arrays >= 1.7.3). Only support "simple
+  tiles" for now, that is, tiles where all the dimensions are ineffective
+  except one. Note that:
+    1. A "simple tile" is typically obtained from an ordinary vector with
+       something like 'as_tile(<vector>, along)'. The primary use case for
+       this kind of tile is to be able to replace 't(t(x) / colSums(x))'
+       with 'x / as_tile(colSums(x), along=2)'.
+    2. The 'recycle.along' argument was recently added to internal
+       helper .Arith_SVT1_v2() to support exactly this use case
+       in the most efficient way. More precisely,
+       .Arith_SVT1_v2(..., recycle.along=recycle.along) is intended
+       to be the workhorse behind the Arith methods for SVT_SparseArray#tile
+       and tile#SVT_SparseArray.
+    3. Similar work needs to be done for NaArray objects i.e.
+       the 'recycle.along' argument needs to be added to .Arith_NaSVT1_v2()
+       and .Arith_v1_NaSVT2(), and Arith methods for NaArray#tile and
+       tile#NaArray need to be defined.
+  All this will require extensive unit tests and documentation with
+  good examples (the examples should emphasize the benefits of doing
+  'x / as_tile(colSums(x), along=2)' over 't(t(x) / colSums(x))').
+
+- Implement Compare and Logic operations between an SVT_SparseArray (or
+  NaArray) object and a tile object. See previous item for the details.
+
 - NaArray objects:
 
   1. Implement subassignment by Mindex. Add unit tests for subassignment.
@@ -178,100 +203,17 @@
 - Implement `|`, `&`, and `!` for "raw" SVT_SparseArray objects. Important:
   they must perform bitwise operations like with "raw" vectors (see ?raw).
 
-- To help implement the Kronecker product (see below): Introduce
-  arep_times(x, times) and arep_each(x, each) generics. The 'times'
-  and 'each' args must be integer vectors with the same length as 'dim(x)'.
-  They are multidimensional versions of 'rep(, times=t)' and 'rep(, each=e)'
-  that perform the replications along each dimension of the array.
+- Implement optimized arep_times() and arep_each() methods for SVT_SparseArray
+  objects. The default methods in S4Arrays work but are not super efficient
+  on SVT_SparseArray objects. This should significantly speed up the kronecker
+  product between two SVT_SparseArray objects. In particular, does this
+  improvement make kronecker() as fast on SVT_SparseArray objects as on
+  dgCMatrix objects?
 
-  For example, with x = matrix(letters[1:6], ncol=2):
-
-      > x
-           [,1] [,2]
-      [1,] "a"  "d" 
-      [2,] "b"  "e" 
-      [3,] "c"  "f" 
-
-   1. arep_times(x, times=c(2, 4)) returns:
-
-      > do.call(cbind, rep(list(do.call(rbind, rep(list(x), 2))), 4))
-           [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8]
-      [1,] "a"  "d"  "a"  "d"  "a"  "d"  "a"  "d" 
-      [2,] "b"  "e"  "b"  "e"  "b"  "e"  "b"  "e" 
-      [3,] "c"  "f"  "c"  "f"  "c"  "f"  "c"  "f" 
-      [4,] "a"  "d"  "a"  "d"  "a"  "d"  "a"  "d" 
-      [5,] "b"  "e"  "b"  "e"  "b"  "e"  "b"  "e" 
-      [6,] "c"  "f"  "c"  "f"  "c"  "f"  "c"  "f" 
-
-   2. arep_each(x, each=c(2, 4)) returns:
-
-     > matrix(rep(t(matrix(rep(x, each=2), ncol=ncol(x))), each=4),
-              byrow=TRUE, ncol=ncol(x)*4)
-           [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8]
-      [1,] "a"  "a"  "a"  "a"  "d"  "d"  "d"  "d" 
-      [2,] "a"  "a"  "a"  "a"  "d"  "d"  "d"  "d" 
-      [3,] "b"  "b"  "b"  "b"  "e"  "e"  "e"  "e" 
-      [4,] "b"  "b"  "b"  "b"  "e"  "e"  "e"  "e" 
-      [5,] "c"  "c"  "c"  "c"  "f"  "f"  "f"  "f" 
-      [6,] "c"  "c"  "c"  "c"  "f"  "f"  "f"  "f" 
-
-  Note that the arep_times() and arep_each() generics really belong to
-  the S4Arrays package (with the methods for ordinary arrays defined there
-  too).
-
-  Then kronecker(X, Y) (see below) can simply be obtained with:
-
-    arep_each(X, each=dim(Y)) * arep_times(Y, times=dim(X))
-
-  And this should be made the kronecker() method for Array objects.
-
-- Implement kronecker() method (Kronecker product) for SVT_SparseArray objects.
-  A quick scan of BioC 3.18 software packages reveals that 25+ packages call
+- A quick scan of BioC 3.18 software packages reveals that 25+ packages call
   the kronecker() function. Would be interesting to know how many of them need
-  to do this on sparse objects?
-
-  Note that one way to go is to simply implement arep_times() and arep_each()
-  methods for SVT_SparseArray objects. This will give us kronecker() for
-  free (via the kronecker() method for Array objects defined in S4Arrays,
-  see above).
-
-  Good things to test (on SVT_SparseArray objects) once this is implemented:
-
-  1. First mixed-product property (mixing with element-wise array
-     multiplication a.k.a. "Hadamard product"):
-       With 4 arrays A, B, C, D, all with the same number of dimensions,
-       with A and C conformable, with B and D conformable, then:
-         kronecker(A, B) * kronecker(C, D)
-       must be the same as:
-         kronecker(A * C, B * D)
-       For example:
-         A <- array(1:60, dim=5:3)
-         C <- array(runif(60), dim=5:3)
-         B <- array(101:180, dim=c(2,10,4))
-         D <- array(runif(80), dim=c(2,10,4))
-         stopifnot(all.equal(kronecker(A, B) * kronecker(C, D),
-                             kronecker(A * C, B * D)))
-         stopifnot(all.equal(kronecker(B, A) * kronecker(D, C),
-                             kronecker(B * D, A * C)))
-
-  2. Second mixed-product property (mixing with matrix multiplication):
-       With 4 matrices A, B, C, D, with dimensions that allow one to do
-       A %*% C and B %*% D, then:
-         kronecker(A, B) %*% kronecker(C, D)
-       must be the same as:
-         kronecker(A %*% C, B %*% D)
-       For example:
-         A <- matrix(1:12, ncol=3)
-         C <- matrix(runif(18), nrow=3)
-         B <- matrix(101:120, ncol=5)
-         D <- matrix(runif(10), nrow=5)
-         stopifnot(all.equal(kronecker(A, B) %*% kronecker(C, D),
-                             kronecker(A %*% C, B %*% D)))
-         stopifnot(all.equal(kronecker(B, A) %*% kronecker(D, C),
-                             kronecker(B %*% D, A %*% C)))
-
-  See https://en.wikipedia.org/wiki/Kronecker_product for other properties
-  to test.
+  to do this on sparse arrays. Would they benefit from switching from dgCMatrix
+  to SVT_SparseArray in the sparse case?
 
 - Try to speed up SVT_SparseArray transposition by implementing a one-pass
   approach that uses ExtendableJaggedArray intermediate buffers (offss, valss).

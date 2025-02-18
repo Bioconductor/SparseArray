@@ -19,22 +19,35 @@ check_Arith_input_type <- function(type, what)
                   "on ", what, " of type() \"", type , "\""))
 }
 
-check_vector_operand_length <- function(len, dim1, what,
-                                        side=c("right", "left"))
+check_vector_operand_length <- function(y_len, x_dim, recycle.along,
+                                        what_x, side=c("right", "left"))
 {
-    if (len == dim1 || len == 1L)
-        return()
+    stopifnot(isSingleInteger(y_len),
+              is.integer(x_dim),
+              isSingleInteger(recycle.along),
+              isSingleString(what_x))
     side <- match.arg(side)
-    what0 <- paste(side, "vector")
-    if (len > dim1)
-        stop(wmsg(what0, " is longer than first (a.k.a. innermost) ",
-                  "dimension of ", what))
-    if (len == 0L)
-        stop(wmsg(what0, " length cannot be 0 unless first (a.k.a. innermost) ",
-                  "dimension of ", what, " is 0"))
-    if (dim1 %% len)
-        warning(wmsg("first (a.k.a. innermost) dimension of ", what,
-                     "is not a multiple of ", what0, " length"))
+
+    dim1 <- x_dim[[recycle.along]]
+    if (y_len == dim1 || y_len == 1L)
+        return()
+    operand <- paste(side, "vector")
+    if (recycle.along == 1L) {
+        which_dim <- "first (a.k.a. innermost) dimension"
+    } else if (recycle.along == length(x_dim)) {
+        which_dim <- "last (a.k.a. outermost) dimension"
+    } else {
+	th <- switch(as.character(recycle.along %% 10L),
+                     `2`="nd", `3`="rd", "th")
+        which_dim <- paste0(recycle.along, th, " dimension")
+    }
+    what <- paste(which_dim, " of ", what_x)
+    if (y_len > dim1)
+        stop(wmsg(operand, " is longer than ", what))
+    if (y_len == 0L)
+        stop(wmsg(operand, " length cannot be 0 unless ", what, " is 0"))
+    if (dim1 %% y_len != 0L)
+        warning(wmsg(what, " is not a multiple of ", operand, " length"))
 }
 
 op_is_commutative <- function(op)
@@ -108,11 +121,32 @@ setMethod("-", c("SparseArray", "missing"),
 ### 'Arith' group
 ###
 
+.check_right_vector_for_Arith_SVT1_v2 <- function(y, x_dim, op,
+                                                  recycle.along=1L)
+{
+    check_vector_operand_length(length(y), x_dim, recycle.along,
+                                "SparseArray object")
+    if (anyNA(y))
+        error_on_left_sparsity_not_preserved(op,
+                 "y contains NA or NaN values")
+    if (op == "*" && any(is.infinite(y)))
+        error_on_left_sparsity_not_preserved(op,
+                 "y contains infinite values")
+    if (op == "^" && any(y <= 0))
+        error_on_left_sparsity_not_preserved(op,
+                 "y contains non-positive values")
+    if (op != "*" && any(y == 0))
+        error_on_left_sparsity_not_preserved(op,
+                 "y contains zeros")
+}
+
 ### Supports: "*", "/", "^", "%%", "%/%"
 ### Returns an SVT_SparseArray object.
-.Arith_SVT1_v2 <- function(op, x, y)
+.Arith_SVT1_v2 <- function(op, x, y, recycle.along=1L)
 {
-    stopifnot(isSingleString(op), is(x, "SVT_SparseArray"))
+    stopifnot(isSingleString(op),
+              is(x, "SVT_SparseArray"),
+              isSingleInteger(recycle.along))
     check_svt_version(x)
 
     ## Check types.
@@ -131,19 +165,8 @@ setMethod("-", c("SparseArray", "missing"),
                   "be sparse in general)"))
 
     ## Check 'y'.
-    check_vector_operand_length(length(y), dim(x)[[1L]], "SparseArray object")
-    if (anyNA(y))
-        error_on_left_sparsity_not_preserved(op,
-                 "y contains NA or NaN values")
-    if (op == "*" && any(is.infinite(y)))
-        error_on_left_sparsity_not_preserved(op,
-                 "y contains infinite values")
-    if (op == "^" && any(y <= 0))
-        error_on_left_sparsity_not_preserved(op,
-                 "y contains non-positive values")
-    if (op != "*" && any(y == 0))
-        error_on_left_sparsity_not_preserved(op,
-                 "y contains zeros")
+    .check_right_vector_for_Arith_SVT1_v2(y, dim(x), op,
+                                          recycle.along=recycle.along)
 
     ## Compute 'ans_type'.
     if (type(x) == "double" && type(y) == "integer" || op %in% c("/", "^"))
@@ -151,7 +174,8 @@ setMethod("-", c("SparseArray", "missing"),
     ans_type <- get_Arith_output_type(op, type(x), type(y))
 
     new_SVT <- SparseArray.Call("C_Arith_SVT1_v2",
-                                x@dim, x@type, x@SVT, FALSE, y, op, ans_type)
+                                x@dim, x@type, x@SVT, FALSE,
+                                y, recycle.along, op, ans_type)
     BiocGenerics:::replaceSlots(x, type=ans_type, SVT=new_SVT, check=FALSE)
 }
 

@@ -20,6 +20,7 @@ void _Arith_sv1_v2(
 	int opcode,
 	const SparseVec *sv1,
 	SEXP v2,
+	int i2,
 	SparseVec *out_sv,
 	int *ovflow
 );

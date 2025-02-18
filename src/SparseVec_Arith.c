@@ -529,7 +529,7 @@ static void Arith_doubles_SV(int opcode,
  * _Arith_v1_sv2()
  */
 
-void _Arith_sv1_v2(int opcode, const SparseVec *sv1, SEXP v2,
+void _Arith_sv1_v2(int opcode, const SparseVec *sv1, SEXP v2, int i2,
 		   SparseVec *out_sv, int *ovflow)
 {
 	if (out_sv->na_background != sv1->na_background)
@@ -537,15 +537,26 @@ void _Arith_sv1_v2(int opcode, const SparseVec *sv1, SEXP v2,
 		      "_Arith_sv1_v2():\n"
 		      "    out_sv->na_background != sv1->na_background");
 	SEXPTYPE Rtype2 = TYPEOF(v2);
+	int y_len = LENGTH(v2);
 	switch (Rtype2) {
-	    case INTSXP:
-		Arith_SV_ints(opcode, sv1, INTEGER(v2), LENGTH(v2),
-			      out_sv, ovflow);
+	    case INTSXP: {
+		const int *y = INTEGER(v2);
+		if (i2 >= 0) {
+			y += i2 % y_len;
+			y_len = 1;
+		}
+		Arith_SV_ints(opcode, sv1, y, y_len, out_sv, ovflow);
 		return;
-	    case REALSXP:
-		Arith_SV_doubles(opcode, sv1, REAL(v2), LENGTH(v2),
-			      out_sv);
+	    }
+	    case REALSXP: {
+		const double *y = REAL(v2);
+		if (i2 >= 0) {
+			y += i2 % y_len;
+			y_len = 1;
+		}
+		Arith_SV_doubles(opcode, sv1, y, y_len, out_sv);
 		return;
+	    }
 	}
 	error("SparseArray internal error in _Arith_sv1_v2():\n"
 	      "    'v2' of type \"%s\" not supported yet",
