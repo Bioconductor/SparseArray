@@ -14,7 +14,7 @@ static SEXP Math_leaf(MathFUN fun, SEXP leaf, double digits,
 {
 	const SparseVec sv = leaf2SV(leaf, REALSXP, buf_sv->len, 0);
 	_Math_doubleSV(fun, &sv, digits, buf_sv, newNaNs);
-	if (buf_sv->len == PROPAGATE_NZOFFS)
+	if (buf_sv->nzcount == PROPAGATE_NZOFFS)
 		return _make_leaf_with_single_shared_nzval(
 					      buf_sv->Rtype, buf_sv->nzvals,
 					      get_leaf_nzoffs(leaf));

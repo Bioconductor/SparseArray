@@ -32,23 +32,34 @@
 }
 
 test_that("'Math' ops on SVT_SparseArray objects", {
+    set.seed(2009)
+    svt2 <- poissonSparseMatrix(10, 8) * 1.0
+    m <- as.matrix(svt2)
+
     a <- array(0, 6:4, dimnames=list(letters[1:6], NULL, LETTERS[1:4]))
     a[1, , 2] <- c(-Inf, -1234.55, -2.1, -1, -0.55)
     a[3, , 2] <- c(-0.55, 0, 1e-10, 0.88, 1)
     a[5, , 2] <- c(pi, 10.33, 3.4567895e8, 1e300, Inf)
     a[6, 3:4, 2] <- c(NA, NaN)
-    svt <- as(a, "SVT_SparseArray")
+    svt3 <- as(a, "SVT_SparseArray")
 
     ## 'Math' group (+ 'Math2' group, called with 'digits' argument missing).
-    for (op in c(SparseArray:::SUPPORTED_MATH_OPS, "round", "signif"))
-        .test_Math_op(a, svt, op)
+    for (op in c(SparseArray:::SUPPORTED_MATH_OPS, "round", "signif")) {
+        .test_Math_op(m, svt2, op)
+        .test_Math_op(a, svt3, op)
+    }
 
     ## 'Math2' group, called with various values of the 'digits' argument.
     for (op in c("round", "signif")) {
         for (digits in -6:7) {
             FUN <- match.fun(op)
+            expected <- FUN(m, digits)
+            current <- FUN(svt2, digits)
+            expect_true(is(current, "SVT_SparseMatrix"))
+            expect_true(validObject(current))
+            expect_identical(as.matrix(current), expected)
             expected <- FUN(a, digits)
-            current <- FUN(svt, digits)
+            current <- FUN(svt3, digits)
             expect_true(is(current, "SVT_SparseArray"))
             expect_true(validObject(current))
             expect_identical(as.array(current), expected)
