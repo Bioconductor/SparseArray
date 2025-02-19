@@ -1,3 +1,6 @@
+- Make operations from the Math group work on SVT_SparseArray objects of
+  type "integer".
+
 - Compare and Logic operations between a SparseArray (or NaArray) object 'x'
   and an atomic vector 'y' are only supported if the latter is a single value
   at the moment. Relax this i.e. we also want to support atomic vectors that
