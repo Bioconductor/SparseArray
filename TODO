@@ -32,6 +32,34 @@
 - Implement Compare and Logic operations between an SVT_SparseArray (or
   NaArray) object and a tile object. See previous item for the details.
 
+- Some Ops operations (Arith/Compare/Logic) between an SVT_SparseArray 'svt'
+  object and an ordinary vector or tile 'v' are currently not allowed because
+  they don't preserve sparsity **in general**. For example:
+    o 'svt - v' is rejected whatever the content of 'v' is;
+    o 'svt / v' is rejected if 'v' contains zeros or NAs.
+  The idea behind this appraoch is that if the user really wants to perform
+  these operations, and if they know what they're doing, then they first need
+  to **explicitly** turn 'svt' into an ordinary array (or some other dense
+  representation), but we're not going to do this for them because:
+    1. we want these operations to always behave as endomorphisms (i.e.
+       preserve the class;
+    2. the consequences of blindly doing something like 'as.array(svt) - v' can
+       be catastrophic so we prefer to leave that responsibility to the user.
+  However, it still makes sense to allow these operations if the percentage
+  of sparsity-breaking values in 'v' is small. For example:
+    o 'svt - v' still makes sense if 'v' contains only a few nonzero values;
+    o 'svt / v' still makes sense if 'v' contains only a few zeros or NAs.
+  In both cases, we can easily implement these operations as endomorphisms
+  without increasing too much the density of the input object. See for example
+  these implementations:
+  https://github.com/YosefLab/scone/blob/120e114d293d0695e2c18b3e80459cf2251ba516/R/pareto_norm.R#L88-L131
+  So maybe do something like this in SparseArray: revisit all cases
+  where 'Ops(svt, v)' and 'Ops(v, svt)' are currently not allowed and
+  relax the criteria for allowing them or not. The new criteria could be
+  that the percentage of sparsity-breaking values in 'v' is below a certain
+  threshold e.g. 10% or 15% (should this be a global option?). And if the
+  criteria is satisfied then perform the operation.
+
 - NaArray objects:
 
   1. Implement subassignment by Mindex. Add unit tests for subassignment.
@@ -180,10 +208,13 @@
      latter should be 10x or 100x faster when used on big objects.
   2. Just fail with a friendly error message.
 
-- Maybe implement svd() for SVT_SparseMatrix objects?
+- Implement chol() for symmetric positive-definite square SVT_SparseMatrix
+  objects. See '?base::chol' in base R.
 
-- Maybe implement chol() for symmetric positive-definite square
-  SVT_SparseMatrix objects?
+- Implement svd() for SVT_SparseMatrix objects. See '?base::svd' in base R.
+
+- Implement prcomp() for SVT_SparseMatrix objects. See '?stats::prcomp' in
+  base R.
 
 - More SBT ("Sparse Buffer Tree") use cases:
 
