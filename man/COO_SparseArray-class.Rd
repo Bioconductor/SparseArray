@@ -131,9 +131,9 @@ nzdata(x)
     \item The \link{SparseArray} class for the virtual parent class of
           COO_SparseArray and SVT_SparseArray.
 
-    \item S4 classes \linkS4class{dgCMatrix} and \linkS4class{lgCMatrix}
-          defined in the \pkg{Matrix} package, for the de facto standard
-          of sparse matrix representations in the R ecosystem.
+    \item \link[Matrix]{dgCMatrix-class} and \link[Matrix]{lgCMatrix-class}
+          in the \pkg{Matrix} package, for the de facto standard for sparse
+          matrix representations in the R ecosystem.
 
     \item \code{base::\link[base]{arrayInd}} in the \pkg{base} package.
 

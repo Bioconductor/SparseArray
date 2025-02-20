@@ -79,8 +79,7 @@ read_block_as_sparse(x, viewport)
     \item \code{\link{extract_sparse_array}} for the workhorse behind
           the default \code{read_block_as_sparse()} method.
 
-    \item \linkS4class{dgCMatrix} objects implemented in the \pkg{Matrix}
-          package.
+    \item \link[Matrix]{dgCMatrix-class} in the \pkg{Matrix} package.
   }
 }
 

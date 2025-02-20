@@ -117,8 +117,8 @@ sparsity(x)
 
     \item \link{SparseArray} objects.
 
-    \item S4 classes \linkS4class{dgCMatrix}, \linkS4class{lgCMatrix},
-          and \linkS4class{ngCMatrix} defined in the \pkg{Matrix} package.
+    \item \link[Matrix]{dgCMatrix-class}, \link[Matrix]{lgCMatrix-class},
+          and \link[Matrix]{ngCMatrix-class} in the \pkg{Matrix} package.
 
     \item Ordinary \link[base]{array} objects in base R.
 

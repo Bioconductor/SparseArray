@@ -100,8 +100,7 @@ extract_sparse_array(x, index)
 
     \item \code{\link[S4Arrays]{extract_array}} in the \pkg{S4Arrays} package.
 
-    \item \linkS4class{dgCMatrix} objects implemented in the \pkg{Matrix}
-          package.
+    \item \link[Matrix]{dgCMatrix-class} in the \pkg{Matrix} package.
   }
 }
 

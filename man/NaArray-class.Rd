@@ -90,7 +90,8 @@ NaArray(x, dim=NULL, dimnames=NULL, type=NA)
 }
 
 \details{
-  NaArray is a concrete subclass of the \link{Array} virtual class.
+  NaArray is a concrete subclass of the \link[S4Arrays]{Array} virtual
+  class (the latter is defined in the \pkg{S4Arrays} package).
   This makes NaArray objects Array derivatives.
 
   Like with \link{SVT_SparseArray} objects, the non-NA data in an NaArray

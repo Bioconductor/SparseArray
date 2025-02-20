@@ -214,13 +214,13 @@ vector  vector          vector  vector  vector  vector}
     \item The \link{SparseArray} class for the virtual parent class of
           COO_SparseArray and SVT_SparseArray.
 
-    \item S4 classes \linkS4class{dgCMatrix} and \linkS4class{lgCMatrix}
-          defined in the \pkg{Matrix} package, for the de facto standard
-          of sparse matrix representations in the R ecosystem.
+    \item \link[Matrix]{dgCMatrix-class} and \link[Matrix]{lgCMatrix-class}
+          in the \pkg{Matrix} package, for the de facto standard for sparse
+          matrix representations in the R ecosystem.
 
-    \item Virtual class \linkS4class{CsparseMatrix} defined in the
-          \pkg{Matrix} package for the parent class of all classes
-          that use the "CSC layout".
+    \item \link[Matrix]{CsparseMatrix-class} for the parent class of all
+          the classes in the \pkg{Matrix} package that use the "CSC layout"
+          (dgCMatrix, lgCMatrix, etc...)
 
     \item The \code{Matrix::\link[Matrix]{rsparsematrix}} function in
           the \pkg{Matrix} package.

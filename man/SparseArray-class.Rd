@@ -168,10 +168,10 @@ SparseArray(x, type=NA)
     \item \code{\link{readSparseCSV}} to read/write a sparse matrix
           from/to a CSV (comma-separated values) file.
 
-    \item S4 classes \linkS4class{dgCMatrix}, \linkS4class{dgRMatrix},
-          and \linkS4class{lgCMatrix} defined in the \pkg{Matrix} package,
-          for the de facto standard for sparse matrix representations
-          in the R ecosystem.
+    \item \link[Matrix]{dgCMatrix-class}, \link[Matrix]{dgRMatrix-class},
+          and \link[Matrix]{lgCMatrix-class} in the \pkg{Matrix} package,
+          for the de facto standard for sparse matrix representations in
+          the R ecosystem.
 
     \item \code{\link[S4Arrays]{is_sparse}} in the \pkg{S4Arrays} package.
 
