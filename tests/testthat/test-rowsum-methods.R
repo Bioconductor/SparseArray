@@ -17,8 +17,10 @@
     stopifnot(is.matrix(m))
     FUN <- match.fun(FUN)
     svt <- as(m, "SVT_SparseMatrix")
-    dgcm <- as(m, "dgCMatrix")
     coo <- as(svt, "COO_SparseMatrix")
+    dgcm <- as(m, "dgCMatrix")
+    dgrm <- as(m, "dgRMatrix")
+    dgtm <- as(m, "dgTMatrix")
 
     check_rs1_rs2 <- function(expected, rs1, rs2) {
         expected <- .fix_rownames(expected)
@@ -38,24 +40,32 @@
     rs2 <- FUN(dgcm, group)
     check_rs1_rs2(expected, rs1, rs2)
     expect_identical(FUN(coo, group), rs1)
+    expect_identical(FUN(dgrm, group), rs2)
+    expect_identical(FUN(dgtm, group), rs2)
 
     expected <- FUN(m, group, na.rm=TRUE)
     rs1 <- FUN(svt, group, na.rm=TRUE)
     rs2 <- FUN(dgcm, group, na.rm=TRUE)
     check_rs1_rs2(expected, rs1, rs2)
     expect_identical(FUN(coo, group, na.rm=TRUE), rs1)
+    expect_identical(FUN(dgrm, group, na.rm=TRUE), rs2)
+    expect_identical(FUN(dgtm, group, na.rm=TRUE), rs2)
 
     expected <- FUN(m, group, reorder=FALSE)
     rs1 <- FUN(svt, group, reorder=FALSE)
     rs2 <- FUN(dgcm, group, reorder=FALSE)
     check_rs1_rs2(expected, rs1, rs2)
     expect_identical(FUN(coo, group, reorder=FALSE), rs1)
+    expect_identical(FUN(dgrm, group, reorder=FALSE), rs2)
+    expect_identical(FUN(dgtm, group, reorder=FALSE), rs2)
 
     expected <- FUN(m, group, reorder=FALSE, na.rm=TRUE)
     rs1 <- FUN(svt, group, reorder=FALSE, na.rm=TRUE)
     rs2 <- FUN(dgcm, group, reorder=FALSE, na.rm=TRUE)
     check_rs1_rs2(expected, rs1, rs2)
     expect_identical(FUN(coo, group, reorder=FALSE, na.rm=TRUE), rs1)
+    expect_identical(FUN(dgrm, group, reorder=FALSE, na.rm=TRUE), rs2)
+    expect_identical(FUN(dgtm, group, reorder=FALSE, na.rm=TRUE), rs2)
 }
 
 test_that("rowsum()/colsum() on a SVT_SparseMatrix or dgCMatrix object", {

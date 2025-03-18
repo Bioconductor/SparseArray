@@ -1,12 +1,12 @@
 ### =========================================================================
-### rowsum()/colsum() methods for SparseMatrix and dgCMatrix objects
+### rowsum()/colsum() methods for SparseMatrix and dsparseMatrix derivatives
 ### -------------------------------------------------------------------------
 ###
 
 
 .rowsum_method <- function(x, group, reorder=TRUE, na.rm=FALSE)
 {
-    stopifnot(is(x, "SparseMatrix") || is(x, "dgCMatrix"))
+    stopifnot(is(x, "SparseMatrix") || is(x, "dsparseMatrix"))
     ugroup <- S4Arrays:::compute_ugroup(group, nrow(x), reorder)
     if (!isTRUEorFALSE(na.rm))
         stop(wmsg("'na.rm' must be TRUE or FALSE"))
@@ -20,6 +20,8 @@
         ans <- SparseArray.Call("C_rowsum_SVT", x@dim, x@type, x@SVT,
                                 group, length(ugroup), na.rm)
     } else {
+        if (!is(x, "dgCMatrix"))
+            x <- as(x, "CsparseMatrix")
         ans <- SparseArray.Call("C_rowsum_dgCMatrix", x,
                                 group, length(ugroup), na.rm)
     }
@@ -28,7 +30,7 @@
 
 .colsum_method <- function(x, group, reorder=TRUE, na.rm=FALSE)
 {
-    stopifnot(is(x, "SparseMatrix") || is(x, "dgCMatrix"))
+    stopifnot(is(x, "SparseMatrix") || is(x, "dsparseMatrix"))
     ugroup <- S4Arrays:::compute_ugroup(group, ncol(x), reorder)
     if (!isTRUEorFALSE(na.rm))
         stop(wmsg("'na.rm' must be TRUE or FALSE"))
@@ -42,6 +44,8 @@
         ans <- SparseArray.Call("C_colsum_SVT", x@dim, x@type, x@SVT,
                                 group, length(ugroup), na.rm)
     } else {
+        if (!is(x, "dgCMatrix"))
+            x <- as(x, "CsparseMatrix")
         ans <- SparseArray.Call("C_colsum_dgCMatrix", x,
                                 group, length(ugroup), na.rm)
     }
@@ -57,9 +61,9 @@ setMethod("rowsum", "SparseMatrix",
         .rowsum_method(x, group, reorder=reorder, ...)
 )
 
-### S3/S4 combo for rowsum.dgCMatrix
-rowsum.dgCMatrix <- rowsum.SparseMatrix
-setMethod("rowsum", "dgCMatrix",
+### S3/S4 combo for rowsum.dsparseMatrix
+rowsum.dsparseMatrix <- rowsum.SparseMatrix
+setMethod("rowsum", "dsparseMatrix",
     function(x, group, reorder=TRUE, ...)
         .rowsum_method(x, group, reorder=reorder, ...)
 )
@@ -69,7 +73,7 @@ setMethod("colsum", "SparseMatrix",
         .colsum_method(x, group, reorder=reorder, ...)
 )
 
-setMethod("colsum", "dgCMatrix",
+setMethod("colsum", "dsparseMatrix",
     function(x, group, reorder=TRUE, ...)
         .colsum_method(x, group, reorder=reorder, ...)
 )

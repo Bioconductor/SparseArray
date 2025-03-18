@@ -6,33 +6,36 @@
 \alias{rowsum}
 \alias{rowsum.SparseMatrix}
 \alias{rowsum,SparseMatrix-method}
-\alias{rowsum.dgCMatrix}
-\alias{rowsum,dgCMatrix-method}
+\alias{rowsum.dsparseMatrix}
+\alias{rowsum,dsparseMatrix-method}
 \alias{colsum}
 \alias{colsum,SparseMatrix-method}
-\alias{colsum,dgCMatrix-method}
+\alias{colsum,dsparseMatrix-method}
 
 \title{rowsum() methods for sparse matrices}
 
 \description{
   The \pkg{SparseArray} package provides memory-efficient
   \code{\link[S4Arrays]{rowsum}()} and \code{\link[S4Arrays]{colsum}()}
-  methods for \link{SparseMatrix} and \linkS4class{dgCMatrix} objects.
+  methods for \link{SparseMatrix} and \linkS4class{dsparseMatrix} derivatives.
 }
 
 \usage{
 \S4method{rowsum}{SparseMatrix}(x, group, reorder=TRUE, ...)
 
-\S4method{rowsum}{dgCMatrix}(x, group, reorder=TRUE, ...)
+\S4method{rowsum}{dsparseMatrix}(x, group, reorder=TRUE, ...)
 
 \S4method{colsum}{SparseMatrix}(x, group, reorder=TRUE, ...)
 
-\S4method{colsum}{dgCMatrix}(x, group, reorder=TRUE, ...)
+\S4method{colsum}{dsparseMatrix}(x, group, reorder=TRUE, ...)
 }
 
 \arguments{
   \item{x}{
-    A \link{SparseMatrix} or \linkS4class{dgCMatrix} object.
+    A \link{SparseMatrix} derivative (e.g. \link{SVT_SparseMatrix} or
+    \link{COO_SparseMatrix} object), or \linkS4class{dsparseMatrix}
+    derivative (e.g. \linkS4class{dgCMatrix} or \linkS4class{dgTMatrix}
+    object).
   }
   \item{group, reorder}{
     See \code{?base::\link[base]{rowsum}} for a description of
@@ -81,8 +84,7 @@ rs2 <- rowsum(svt0, group)   # about 3x faster
 rs3 <- rowsum(dgcm0, group)  # also about 3x faster
 
 ## Sanity checks:
-stopifnot(identical(rs1, rs2))
-stopifnot(identical(rs1, rs3))
+stopifnot(identical(rs1, rs2), identical(rs1, rs3))
 }
 \keyword{array}
 \keyword{methods}
