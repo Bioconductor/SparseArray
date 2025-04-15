@@ -1,3 +1,29 @@
+VERSION 1.8.0
+-------------
+
+NEW FEATURES
+
+    o Make rowsum() and colsum() work on any dsparseMatrix derivative and not
+      just on a dgCMatrix object. For example now they also accept a dgRMatrix
+      or dgTMatrix object.
+
+    o Make crossprod(), tcrossprod(), and %*% work between a SparseMatrix
+      object and an ordinary vector.
+
+    o Arith operations between a SparseArray (or NaArray) object 'x' and an
+      atomic vector 'y' are no longer restricted to the latter being a single
+      value: now the length of the latter can also be 'dim(x)[[1]]' or a
+      divisor of it.
+
+BUG FIXES
+
+    o Make sure that SparseArray(x) and SVT_SparseArray(x) always propagate the
+      dimnames.
+
+    o Fix bug in Math and Math2 operations on SVT_SparseArray and NaArray
+      objects.
+
+
 VERSION 1.6.0
 -------------
 
