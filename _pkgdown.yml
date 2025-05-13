@@ -1,0 +1,7 @@
+title: SparseArray
+url: https://Bioconductor.github.io/SparseArray
+
+template:
+  bootstrap: 5
+  params:
+    bootswatch: flatly
