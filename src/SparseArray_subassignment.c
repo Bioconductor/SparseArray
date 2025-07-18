@@ -741,8 +741,27 @@ static int build_OPBufTree_from_Lindex2(OPBufTree *opbuf_tree, SEXP Lindex,
 		const int *x_dim, int x_ndim,
 		const R_xlen_t *dimcumprod)
 {
-	error("build_OPBufTree_from_Lindex2() not ready yet");
-	return 0;
+	int max_outleaf_len = 0;
+	R_xlen_t in_len = XLENGTH(Lindex);
+	R_xlen_t x_len = dimcumprod[x_ndim - 1];
+	/* Walk along 'Lindex'. */
+	for (R_xlen_t Loff = 0; Loff < in_len; Loff++) {
+		R_xlen_t Lidx0;
+		int ret = extract_long_idx0(Lindex, Loff, x_len, &Lidx0);
+		if (ret < 0)
+			return ret;
+		int idx0;
+		OPBufTree *host_node = find_host_node_for_Lidx0(
+						opbuf_tree, Lidx0,
+						x_dim, x_ndim,
+						dimcumprod, &idx0);
+		ret = _append_idx0Loff_to_host_node(host_node, idx0, Loff);
+		if (ret < 0)
+			return ret;
+		if (ret > max_outleaf_len)
+			max_outleaf_len = ret;
+	}
+	return max_outleaf_len;
 }
 
 static int build_OPBufTree_from_Lindex(OPBufTree *opbuf_tree, SEXP Lindex,
@@ -1337,8 +1356,8 @@ static inline int next_midx(int ndim, const int *max_idx_plus_one,
 			break;
 		}
 		midx_buf[along] = 0;
-        }
-        return along;
+	}
+	return along;
 }
 
 /* Returns:
@@ -1383,7 +1402,7 @@ static inline int next_coords0(NindexIterator *Nindex_iter)
 	coords0_p = Nindex_iter->coords0_buf;
 	for (along = Nindex_iter->margin; along < Nindex_iter->ndim; along++) {
 		if (along > moved_along)
-                        break;
+			break;
 		Nindex_elt = VECTOR_ELT(Nindex_iter->Nindex, along);
 		if (Nindex_elt == R_NilValue) {
 			*coords0_p = *midx_p;
