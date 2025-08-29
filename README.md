@@ -9,9 +9,10 @@ See <https://bioconductor.org/packages/SparseArray> for more information,
 including for how to install the release version of the package (please refrain
 from installing directly from GitHub).
 
+[<img src="https://github.com/Bioconductor/BiocStickers/blob/devel/SparseArray/SparseArray.png" width="135" align="left">](https://bioconductor.org/packages/SparseArray)
+
 |BioC version|Status|
 |------------|------|
 | release | [![build](https://bioconductor.org/shields/build/release/bioc/SparseArray.svg)](https://bioconductor.org/checkResults/release/bioc-LATEST/SparseArray/) [![platforms](https://bioconductor.org/shields/availability/release/SparseArray.svg)](https://bioconductor.org/packages/release/SparseArray#archives) [![dependencies](https://bioconductor.org/shields/dependencies/release/SparseArray.svg)](https://bioconductor.org/packages/release/SparseArray#since) |
 | devel   | [![build](https://bioconductor.org/shields/build/devel/bioc/SparseArray.svg)](https://bioconductor.org/checkResults/devel/bioc-LATEST/SparseArray/) [![platforms](https://bioconductor.org/shields/availability/devel/SparseArray.svg)](https://bioconductor.org/packages/devel/SparseArray#archives) [![dependencies](https://bioconductor.org/shields/dependencies/devel/SparseArray.svg)](https://bioconductor.org/packages/devel/SparseArray#since) |
-[<img src="https://github.com/Bioconductor/BiocStickers/blob/devel/SparseArray/SparseArray.png" width="135" align="left">](https://bioconductor.org/packages/SparseArray)
 
