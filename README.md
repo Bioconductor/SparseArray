@@ -5,11 +5,11 @@
 
 **SparseArray** is an R/Bioconductor package for high-performance sparse data representation and manipulation in R.
 
+[<img src="https://github.com/Bioconductor/BiocStickers/blob/devel/SparseArray/SparseArray.png" width="135" align="left">](https://bioconductor.org/packages/SparseArray)
+
 See <https://bioconductor.org/packages/SparseArray> for more information,
 including for how to install the release version of the package (please refrain
 from installing directly from GitHub).
-
-[<img src="https://github.com/Bioconductor/BiocStickers/blob/devel/SparseArray/SparseArray.png" width="135" align="left">](https://bioconductor.org/packages/SparseArray)
 
 |BioC version|Status|
 |------------|------|
