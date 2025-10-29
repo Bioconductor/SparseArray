@@ -1,3 +1,11 @@
+- Refactor subassign_leaf_by_OPBuf(). We should be able to replace the
+  subassign_NULL_by_OPBuf() and subassign_nonNULL_leaf_by_OPBuf() mess
+  with something that:
+    o Sorts the (idx0,Loff) pairs in the OPBuf by strictly increasing 'idx0s'
+      and removes duplicates. An open question is when should this step happen
+      e.g. should it happen upfront as part of the OPBufTree building process?
+    o Uses _subassign_leaf_with_vector().
+
 - Make operations from the Math group work on SVT_SparseArray objects of
   type "integer".
 

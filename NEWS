@@ -1,3 +1,16 @@
+VERSION 1.10.0
+--------------
+
+NEW FEATURES
+
+    o Add the two following capabilities to subassignment of SVT_SparseArray
+      objects:
+      - The right value (a.k.a. replacement value) now can be an ordinary
+        array.
+      - Using a long linear subscript (i.e. long integer or numeric vector)
+        is now supported. Note that this is also enabled for NaArray objects.
+
+
 VERSION 1.8.0
 -------------
 
