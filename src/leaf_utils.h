@@ -218,18 +218,18 @@ SEXP _coerce_naleaf(
 	int *selection_buf
 );
 
-SEXP _subassign_leaf_with_Rvector(
-	SEXP leaf,
-	SEXP index,
-	SEXP Rvector
-);
-
 SEXP _subassign_leaf_with_vector(
 	SEXP leaf,
 	SEXP offs,
 	const void *vals,
 	int n,
 	SparseVec *buf_sv
+);
+
+SEXP _subassign_leaf_with_Rvector_OLD(
+	SEXP leaf,
+	SEXP index,
+	SEXP Rvector
 );
 
 static inline SEXP SV2leaf(const SparseVec *sv)

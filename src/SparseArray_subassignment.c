@@ -101,22 +101,15 @@ typedef struct sort_bufs_t {
 	int *offs;
 } SortBufs;
 
-/* All buffers are made of length 'max_IDS_len' except 'sort_bufs.offs'
-   which we must make of length 'max(max_IDS_len, max_postsubassign_nzcount)'
-   so that we can use it in the call to _INPLACE_remove_zeros_from_leaf()
-   in the subassign_xleaf3_with_offval_pairs() function below. */
-static SortBufs alloc_sort_bufs(int max_IDS_len, int max_postsubassign_nzcount)
+/* All buffers are made of length 'buf_lens'. */
+static SortBufs alloc_sort_bufs(int buf_lens)
 {
 	SortBufs sort_bufs;
-	int offs_len;
-
-	sort_bufs.order = (int *) R_alloc(max_IDS_len, sizeof(int));
+	sort_bufs.order = (int *) R_alloc(buf_lens, sizeof(int));
 	sort_bufs.rxbuf1 = (unsigned short int *)
-			R_alloc(max_IDS_len, sizeof(unsigned short int));
-	sort_bufs.rxbuf2 = (int *) R_alloc(max_IDS_len, sizeof(int));
-	offs_len = max_postsubassign_nzcount > max_IDS_len ?
-			max_postsubassign_nzcount : max_IDS_len;
-	sort_bufs.offs = (int *) R_alloc(offs_len, sizeof(int));
+			R_alloc(buf_lens, sizeof(unsigned short int));
+	sort_bufs.rxbuf2 = (int *) R_alloc(buf_lens, sizeof(int));
+	sort_bufs.offs = (int *) R_alloc(buf_lens, sizeof(int));
 	return sort_bufs;
 }
 
@@ -177,9 +170,8 @@ static int remove_offs_dups(int *order_buf, int n, const int *offs)
    vectors in the returned list are the 'index' and 'value' vectors of a
    subassignment operation that we will perform later on. They do NOT
    represent a 1D SVT!
-   Anyways, we still use the "leaf representation" because it's convenient
-   e.g. this will allow us to use things like _INPLACE_remove_zeros_from_leaf()
-   later on it etc.. */
+   TODO: Using the "leaf representation" is not longer needed so maybe there's
+   an opportunity to use something better. */
 static SEXP make_offval_pairs_from_Lindex_vals(SEXP Lindex, SEXP vals,
 		int dim0, SortBufs *sort_bufs)
 {
@@ -220,40 +212,19 @@ static SEXP subassign_leaf_by_Lindex(SEXP leaf, int dim0, int na_background,
 		error("assigning more than INT_MAX values to "
 		      "a monodimensional SVT_SparseArray object "
 		      "is not supported");
-	size_t worst_nzcount;
-	if (leaf == R_NilValue) {
-		worst_nzcount = nvals;
-	} else {
-		int nzcount = get_leaf_nzcount(leaf);
-		worst_nzcount = nzcount + nvals;
-		if (worst_nzcount > dim0)
-			worst_nzcount = dim0;
-	}
-	SortBufs sort_bufs = alloc_sort_bufs((int) nvals, (int) worst_nzcount);
+	SortBufs sort_bufs = alloc_sort_bufs((int) nvals);
 	SEXP offval_pairs = PROTECT(
 		make_offval_pairs_from_Lindex_vals(Lindex, vals,
 						   dim0, &sort_bufs)
 	);
-	if (leaf != R_NilValue) {
-		offval_pairs = PROTECT(
-			_subassign_leaf_with_Rvector(leaf,
-					get_leaf_nzoffs(offval_pairs),
-					get_leaf_nzvals(offval_pairs))
-		);
-	}
-	/* We use the "leaf representation" for 'offval_pairs' so it
-	   should be safe to use _INPLACE_remove_zeros_from_leaf() on it.
-	   Also we've made sure that 'sort_bufs.offs' is big enough for this
-	   (its length is at least 'worst_nzcount'). */
-	int ret = _INPLACE_remove_zeros_from_leaf(offval_pairs,
-						  sort_bufs.offs);
-	if (ret == 0) {
-		offval_pairs = R_NilValue;
-	} else if (ret == 1) {
-		_INPLACE_turn_into_lacunar_leaf_if_all_ones(offval_pairs);
-	}
-	UNPROTECT(leaf != R_NilValue ? 2 : 1);
-	return offval_pairs;
+	SEXP offs = get_leaf_nzoffs(offval_pairs);
+	vals = get_leaf_nzvals(offval_pairs);
+	SparseVec buf_sv = alloc_SparseVec(TYPEOF(vals), dim0, na_background);
+	SEXP ans = PROTECT(_subassign_leaf_with_vector(leaf, offs,
+						DATAPTR(vals), LENGTH(vals),
+						&buf_sv));
+	UNPROTECT(2);
+	return ans;
 }
 
 

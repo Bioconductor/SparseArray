@@ -590,7 +590,7 @@ static SEXP subassign_xleaf3_with_offval_pairs(SEXP xleaf3,
 
 	SEXP offs = get_leaf_nzoffs(offval_pairs);
 	SEXP vals = get_leaf_nzvals(offval_pairs);
-	SEXP ans = PROTECT(_subassign_leaf_with_Rvector(leaf, offs, vals));
+	SEXP ans = PROTECT(_subassign_leaf_with_Rvector_OLD(leaf, offs, vals));
 
 	/* We've made sure that 'offs_buf' is big enough (its length is
 	   at least 'max_postsubassign_nzcount'). */
@@ -853,7 +853,7 @@ static SEXP subassign_leaf_by_Lindex_OLD(SEXP leaf, int dim0,
 	);
 	if (leaf != R_NilValue) {
 		offval_pairs = PROTECT(
-			_subassign_leaf_with_Rvector(leaf,
+			_subassign_leaf_with_Rvector_OLD(leaf,
 					get_leaf_nzoffs(offval_pairs),
 					get_leaf_nzvals(offval_pairs))
 		);

@@ -390,8 +390,39 @@ SEXP _coerce_naleaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn,
 
 
 /****************************************************************************
- * _subassign_leaf_with_Rvector()
+ * _subassign_leaf_with_vector()
  */
+
+/* Can be used on a NULL or lacunar leaf. */
+SEXP _subassign_leaf_with_vector(SEXP leaf, SEXP offs,
+				 const void *vals, int n,
+				 SparseVec *buf_sv)
+{
+	const int *offs0 = NULL;
+	if (offs != R_NilValue) {
+		if (n != LENGTH(offs))
+			error("SparseArray internal error in "
+			      "_subassign_leaf_with_vector():\n"
+			      "    number of vals != number of offsets");
+		offs0 = INTEGER(offs);
+	}
+	if (leaf == R_NilValue || offs0 == NULL) {
+		_fill_SV_with_vals(vals, offs0, n, buf_sv);
+	} else {
+		const SparseVec sv1 = leaf2SV(leaf, buf_sv->Rtype,
+					      buf_sv->len,
+					      buf_sv->na_background);
+		_subassign_SV1_with_v2(&sv1, offs0, vals, n, buf_sv);
+	}
+	return SV2leaf(buf_sv);
+}
+
+/****************************************************************************
+ * _subassign_leaf_with_Rvector_OLD()
+ *
+ * TODO: Get rid of this!
+ */
+
 
 /* Do NOT use on a NULL leaf. Can be used on a lacunar leaf.
    'index' must be an integer vector containing valid zero-based indices
@@ -405,12 +436,12 @@ SEXP _coerce_naleaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn,
    min(nzcount(leaf) + length(index), INT_MAX).
    Will NEVER return a NULL. Can ONLY return a lacunar leaf if input leaf
    is already lacunar **and** 'index' has length 0 (no-op). */
-SEXP _subassign_leaf_with_Rvector(SEXP leaf, SEXP index, SEXP Rvector)
+SEXP _subassign_leaf_with_Rvector_OLD(SEXP leaf, SEXP index, SEXP Rvector)
 {
 	int index_len = LENGTH(index);
 	if (LENGTH(Rvector) != index_len)
 		error("SparseArray internal error in "
-		      "_subassign_leaf_with_Rvector():\n"
+		      "_subassign_leaf_with_Rvector_OLD():\n"
 		      "    'index' and 'Rvector' have different lengths");
 	if (index_len == 0)
 		return leaf;  /* no-op */
@@ -420,7 +451,7 @@ SEXP _subassign_leaf_with_Rvector(SEXP leaf, SEXP index, SEXP Rvector)
 	SEXPTYPE Rtype = TYPEOF(Rvector);
 	if (nzvals != R_NilValue && TYPEOF(nzvals) != Rtype)
 		error("SparseArray internal error in "
-		      "_subassign_leaf_with_Rvector():\n"
+		      "_subassign_leaf_with_Rvector_OLD():\n"
 		      "    'Rvector' and 'leaf' have different types");
 
 	/* Compute 'ans_nzcount'. */
@@ -453,7 +484,7 @@ SEXP _subassign_leaf_with_Rvector(SEXP leaf, SEXP index, SEXP Rvector)
 		_select_copy_Rvector_elt_FUN(Rtype);
 	if (copy_Rvector_elt_FUN == NULL)
 		error("SparseArray internal error in "
-		      "_subassign_leaf_with_Rvector():\n"
+		      "_subassign_leaf_with_Rvector_OLD():\n"
 		      "    type \"%s\" is not supported", type2char(Rtype));
 
 	SEXP ans_nzvals, ans_nzoffs;
@@ -513,34 +544,5 @@ SEXP _subassign_leaf_with_Rvector(SEXP leaf, SEXP index, SEXP Rvector)
 	}
 	UNPROTECT(1);
 	return ans;
-}
-
-
-/****************************************************************************
- * _subassign_leaf_with_vector()
- */
-
-/* Can be used on a NULL or lacunar leaf. */
-SEXP _subassign_leaf_with_vector(SEXP leaf, SEXP offs,
-				 const void *vals, int n,
-				 SparseVec *buf_sv)
-{
-	const int *offs0 = NULL;
-	if (offs != R_NilValue) {
-		if (n != LENGTH(offs))
-			error("SparseArray internal error in "
-			      "_subassign_leaf_with_vector():\n"
-			      "    number of vals != number of offsets");
-		offs0 = INTEGER(offs);
-	}
-	if (leaf == R_NilValue || offs0 == NULL) {
-		_fill_SV_with_vals(vals, offs0, n, buf_sv);
-	} else {
-		const SparseVec sv1 = leaf2SV(leaf, buf_sv->Rtype,
-					      buf_sv->len,
-					      buf_sv->na_background);
-		_subassign_SV1_with_v2(&sv1, offs0, vals, n, buf_sv);
-	}
-	return SV2leaf(buf_sv);
 }
 
