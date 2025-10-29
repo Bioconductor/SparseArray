@@ -7,6 +7,7 @@
 
 #include "Rvector_utils.h"
 #include "coerceVector2.h"
+#include "SparseVec_subassignment.h"
 
 #include <string.h>  /* for memcpy() */
 
@@ -512,5 +513,34 @@ SEXP _subassign_leaf_with_Rvector(SEXP leaf, SEXP index, SEXP Rvector)
 	}
 	UNPROTECT(1);
 	return ans;
+}
+
+
+/****************************************************************************
+ * _subassign_leaf_with_vector()
+ */
+
+/* Can be used on a NULL or lacunar leaf. */
+SEXP _subassign_leaf_with_vector(SEXP leaf, SEXP offs,
+				 const void *vals, int n,
+				 SparseVec *buf_sv)
+{
+	const int *offs0 = NULL;
+	if (offs != R_NilValue) {
+		if (n != LENGTH(offs))
+			error("SparseArray internal error in "
+			      "_subassign_leaf_with_vector():\n"
+			      "    number of vals != number of offsets");
+		offs0 = INTEGER(offs);
+	}
+	if (leaf == R_NilValue || offs0 == NULL) {
+		_fill_SV_with_vals(vals, offs0, n, buf_sv);
+	} else {
+		const SparseVec sv1 = leaf2SV(leaf, buf_sv->Rtype,
+					      buf_sv->len,
+					      buf_sv->na_background);
+		_subassign_SV1_with_v2(&sv1, offs0, vals, n, buf_sv);
+	}
+	return SV2leaf(buf_sv);
 }
 

@@ -32,7 +32,8 @@ SEXP C_subassign_SVT_with_Rarray(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT,
-	SEXP Nindex,
+	SEXP x_na_background,
+	SEXP Noffs,
 	SEXP Rarray
 );
 
@@ -40,7 +41,7 @@ SEXP C_subassign_SVT_with_SVT(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT,
-	SEXP Nindex,
+	SEXP Noffs,
 	SEXP v_dim,
 	SEXP v_type,
 	SEXP v_SVT

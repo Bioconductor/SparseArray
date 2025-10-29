@@ -62,7 +62,11 @@
 
 - NaArray objects:
 
-  1. Implement subassignment by Mindex. Add unit tests for subassignment.
+  1. Only subassignment by an L-index (subassign_Array_by_Lindex) is supported
+     at the moment. Implement other forms of subassignment:
+       o by M-index (subassign_Array_by_Mindex)
+       o by N-index (subassign_Array_by_Nindex)
+     Add unit tests for subassignment of NaArray objects.
 
   2. Implement methods rowAnyNAs(), rowMins, rowMaxs(), rowMeans(), rowVars(),
      and rowSds(). Add unit tests.
@@ -159,7 +163,7 @@
       svt[ , , 1] <- svt[ , , 3, drop=FALSE]
       svt[ , , 1] <- svt[ , , 3]
 
-- Implement C_subassign_SVT_with_Rarray() and C_subassign_SVT_with_SVT().
+- Implement C_subassign_SVT_with_SVT().
 
 - Speed up row selection: x[row_idx, ]
   THIS in particular is VERY slow on a SVT_SparseArray object:

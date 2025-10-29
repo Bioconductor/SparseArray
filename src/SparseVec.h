@@ -195,16 +195,16 @@ static inline int next_offset(
 
 
 /****************************************************************************
- * The next_<Ltype>_<Rtype>_vals() inline functions (11 in total)
+ * The next_<Ltype>SV_<Rtype>SV_vals() inline functions (11 in total)
  */
 
-static inline int next_Rbyte_Rbyte_vals(
+static inline int next_RbyteSV_RbyteSV_vals(
 	const SparseVec *sv1, const SparseVec *sv2,
 	int *k1, int *k2, int *off, Rbyte *val1, Rbyte *val2)
 {
 	if (sv1->na_background || sv2->na_background)
 		error("SparseArray internal error in "
-		      "next_Rbyte_Rbyte_vals():\n"
+		      "next_RbyteSV_RbyteSV_vals():\n"
 		      "    NaArray objects of type \"raw\" are not supported");
 	int ret = next_offset(sv1->nzoffs, get_SV_nzcount(sv1),
 			      sv2->nzoffs, get_SV_nzcount(sv2),
@@ -233,14 +233,14 @@ static inline int next_Rbyte_Rbyte_vals(
 	return ret;
 }
 
-#define DEFINE_next_Rbyte_Rtype_vals_FUN(Rtype)				\
-static inline int next_Rbyte_ ## Rtype ##_vals(				\
+#define DEFINE_next_RbyteSV_RtypeSV_vals_FUN(Rtype)			\
+static inline int next_RbyteSV_ ## Rtype ## SV_vals(			\
 	const SparseVec *sv1, const SparseVec *sv2,			\
 	int *k1, int *k2, int *off, Rbyte *val1, Rtype *val2)		\
 {									\
 	if (sv1->na_background)						\
 		error("SparseArray internal error in "			\
-		      "next_Rbyte_<Rtype>_vals():\n"			\
+		      "next_RbyteSV_<Rtype>SV_vals():\n"		\
 		      "    NaArray objects of type \"raw\" "		\
 		      "are not supported");				\
 	int ret = next_offset(sv1->nzoffs, get_SV_nzcount(sv1),		\
@@ -270,8 +270,8 @@ static inline int next_Rbyte_ ## Rtype ##_vals(				\
 	return ret;							\
 }
 
-#define DEFINE_next_Ltype_Rtype_vals_FUN(Ltype, Rtype)			\
-static inline int next_ ## Ltype ## _ ## Rtype ##_vals(			\
+#define DEFINE_next_LtypeSV_RtypeSV_vals_FUN(Ltype, Rtype)		\
+static inline int next_ ## Ltype ## SV_ ## Rtype ## SV_vals(		\
 	const SparseVec *sv1, const SparseVec *sv2,			\
 	int *k1, int *k2, int *off, Ltype *val1, Rtype *val2)		\
 {									\
@@ -302,16 +302,16 @@ static inline int next_ ## Ltype ## _ ## Rtype ##_vals(			\
 	return ret;							\
 }
 
-DEFINE_next_Rbyte_Rtype_vals_FUN(int)
-DEFINE_next_Rbyte_Rtype_vals_FUN(double)
-DEFINE_next_Rbyte_Rtype_vals_FUN(Rcomplex)
-DEFINE_next_Ltype_Rtype_vals_FUN(int, int)
-DEFINE_next_Ltype_Rtype_vals_FUN(int, double)
-DEFINE_next_Ltype_Rtype_vals_FUN(int, Rcomplex)
-DEFINE_next_Ltype_Rtype_vals_FUN(double, int)
-DEFINE_next_Ltype_Rtype_vals_FUN(double, double)
-DEFINE_next_Ltype_Rtype_vals_FUN(double, Rcomplex)
-DEFINE_next_Ltype_Rtype_vals_FUN(Rcomplex, Rcomplex)
+DEFINE_next_RbyteSV_RtypeSV_vals_FUN(int)
+DEFINE_next_RbyteSV_RtypeSV_vals_FUN(double)
+DEFINE_next_RbyteSV_RtypeSV_vals_FUN(Rcomplex)
+DEFINE_next_LtypeSV_RtypeSV_vals_FUN(int, int)
+DEFINE_next_LtypeSV_RtypeSV_vals_FUN(int, double)
+DEFINE_next_LtypeSV_RtypeSV_vals_FUN(int, Rcomplex)
+DEFINE_next_LtypeSV_RtypeSV_vals_FUN(double, int)
+DEFINE_next_LtypeSV_RtypeSV_vals_FUN(double, double)
+DEFINE_next_LtypeSV_RtypeSV_vals_FUN(double, Rcomplex)
+DEFINE_next_LtypeSV_RtypeSV_vals_FUN(Rcomplex, Rcomplex)
 
 
 /****************************************************************************

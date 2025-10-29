@@ -10,7 +10,8 @@ double _dotprod_doubleSV_doubleSV(const SparseVec *sv1, const SparseVec *sv2)
 {
 	double ans = 0.0, val1, val2;
 	int k1 = 0, k2 = 0, off;
-	while (next_double_double_vals(sv1, sv2, &k1, &k2, &off, &val1, &val2))
+	while (next_doubleSV_doubleSV_vals(sv1, sv2,
+					   &k1, &k2, &off, &val1, &val2))
 	{
 		if (R_IsNA(val1) || R_IsNA(val2))
 			return NA_REAL;

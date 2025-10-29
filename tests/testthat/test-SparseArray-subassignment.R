@@ -78,18 +78,102 @@ test_that("subassign an SVT_SparseArray object by an Mindex or Lindex", {
                                                          "SVT_SparseArray")
 })
 
-.test_SparseArray_subassignment_by_Nindex <-
-    function(a0, index, vals, expected_class)
-{
-    object0 <- as(a0, expected_class)
+test_that("low-level SparseArray:::.subassign_SVT_by_Nindex()", {
+    subassign_SVT_by_Nindex <- SparseArray:::.subassign_SVT_by_Nindex
+    test_subassign_SVT_by_Nindex <- function(svt0, a0, Nindex, value) {
+        svt <- subassign_SVT_by_Nindex(svt0, Nindex, value)
+        storage.mode(a0) <- type(svt)
+        a <- S4Arrays:::subassign_by_Nindex(a0, Nindex, value)
+        expected_class <-
+            if (is.matrix(a)) "SVT_SparseMatrix" else "SVT_SparseArray"
+        check_array_like_object(svt, expected_class, a)
+    }
 
-    a <- `[<-`(a0, index, value=vals)
-    object <- `[<-`(object0, index, value=vals)
-    check_array_like_object(object, expected_class, a)
-}
+    ## --- 2D objects ---
 
-test_that(paste("subassign an SVT_SparseArray object by an Nindex",
-                "and with a short vector"), {
+    svt0 <- SVT_SparseArray(dim=c(7, 10), type="raw",
+                            dimnames=list(letters[1:7], LETTERS[1:10]))
+    m0 <- as.matrix(svt0)
+    Nindex1 <- list(NULL, c(6:9, 2L))
+    Nindex2 <- list(2:4, NULL)
+    Nindex3 <- list(c(6:3, 5L, 1L), c(10L, 3:5, 3L))
+    Nindex4 <- list(c(3L, 5:2), c(1L, 10L))
+    Nindex5 <- list(7L, NULL)
+
+    svt1 <- subassign_SVT_by_Nindex(svt0, Nindex1, as.raw(0:4))
+    m1 <- S4Arrays:::subassign_by_Nindex(m0, Nindex1, as.raw(0:4))
+    check_array_like_object(svt1, "SVT_SparseMatrix", m1)
+
+    for (Nindex in list(Nindex1, Nindex2, Nindex3, Nindex4, Nindex5)) {
+        value <- c(TRUE, FALSE, TRUE, TRUE, FALSE)
+        test_subassign_SVT_by_Nindex(svt0, m0, Nindex, value)
+        test_subassign_SVT_by_Nindex(svt1, m1, Nindex, value)
+        value <- -2:2
+        test_subassign_SVT_by_Nindex(svt0, m0, Nindex, value)
+        test_subassign_SVT_by_Nindex(svt1, m1, Nindex, value)
+        value <- c(-pi, NaN, 0, -Inf, NA)
+        test_subassign_SVT_by_Nindex(svt0, m0, Nindex, value)
+        test_subassign_SVT_by_Nindex(svt1, m1, Nindex, value)
+        value <- 2.44 - value * 8i
+        test_subassign_SVT_by_Nindex(svt0, m0, Nindex, value)
+        test_subassign_SVT_by_Nindex(svt1, m1, Nindex, value)
+    }
+
+    ## --- 3D objects ---
+
+    svt0 <- SVT_SparseArray(dim=c(7, 10, 2), type="raw",
+                            dimnames=list(letters[1:7], NULL, LETTERS[1:2]))
+    a0 <- as.array(svt0)
+    Nindex1 <- list(NULL, c(6:9, 2L), NULL)
+    Nindex2 <- list(2:4, NULL, 2L)
+    Nindex3 <- list(c(6:3, 5L, 1L), c(10L, 3:5, 3L), 2L)
+    Nindex4 <- list(c(3L, 5:2), c(1L, 10L), 2:1)
+    Nindex5 <- list(7L, NULL, NULL)
+
+    svt1 <- subassign_SVT_by_Nindex(svt0, Nindex1, as.raw(0:4))
+    a1 <- S4Arrays:::subassign_by_Nindex(a0, Nindex1, as.raw(0:4))
+    check_array_like_object(svt1, "SVT_SparseArray", a1)
+
+    for (Nindex in list(Nindex1, Nindex2, Nindex3, Nindex4, Nindex5)) {
+        value <- c(TRUE, FALSE, TRUE, TRUE, FALSE)
+        test_subassign_SVT_by_Nindex(svt0, a0, Nindex, value)
+        test_subassign_SVT_by_Nindex(svt1, a1, Nindex, value)
+        value <- -2:2
+        test_subassign_SVT_by_Nindex(svt0, a0, Nindex, value)
+        test_subassign_SVT_by_Nindex(svt1, a1, Nindex, value)
+        value <- c(-pi, NaN, 0, -Inf, NA)
+        test_subassign_SVT_by_Nindex(svt0, a0, Nindex, value)
+        test_subassign_SVT_by_Nindex(svt1, a1, Nindex, value)
+        value <- 2.44 - value * 8i
+        test_subassign_SVT_by_Nindex(svt0, a0, Nindex, value)
+        test_subassign_SVT_by_Nindex(svt1, a1, Nindex, value)
+    }
+})
+
+test_that("subassign an SVT_SparseArray object by an Nindex", {
+
+    ## --- with an ordinary array on the right ---
+
+    svt0 <- SVT_SparseArray(dim=c(4, 6), type="integer",
+                            dimnames=list(letters[1:4], LETTERS[1:6]))
+    m0 <- as.matrix(svt0)
+
+    Rarray <- array(101:103, dim=c(1, 3))
+    m <- `[<-`(m0, 2, 3:5, value=Rarray)
+    svt <- `[<-`(svt0, 2, 3:5, value=Rarray)
+    check_array_like_object(svt, "SVT_SparseMatrix", m)
+
+    ## --- with an ordinary vector on the right that does not      ---
+    ## --- get recycled along the **first** dimension of the array ---
+
+    Rvector <- 201:202
+    m <- `[<-`(m0, 4, 1:4, value=Rvector)
+    svt <- `[<-`(svt0, 4, 1:4, value=Rvector)
+    check_array_like_object(svt, "SVT_SparseMatrix", m)
+
+    ## --- with a "short vector" on the right (gets recycled ---
+    ## --- along the first dimension of the array)           ---
+
     set.seed(123)
     a0 <- array(0L, c(180, 400, 50))
     a0[sample(length(a0), 1e6)] <- sample(10L, 1e6, replace=TRUE)

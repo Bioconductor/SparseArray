@@ -28,7 +28,7 @@ adjust_left_type <- function(x, value)
 .normalize_right_value <- function(value, left_type, index_len)
 {
     if (length(value) == 0L)
-        stop(wmsg("replacement has length zero"))
+        stop(wmsg("right value has length zero"))
     storage.mode(value) <- left_type
     S4Vectors:::recycleVector(value, index_len)
 }
@@ -38,7 +38,7 @@ adjust_left_type <- function(x, value)
     x <- adjust_left_type(x, value)
     stopifnot(is.vector(Lindex), is.numeric(Lindex))
 
-    ## No-op (except for type adjustment above) if selection is empty.
+    ## No-op (except for type adjustment above) if array selection is empty.
     if (length(Lindex) == 0L)
         return(x)
 
@@ -63,7 +63,7 @@ setMethod("subassign_Array_by_Lindex", "SVT_SparseArray",
     x <- adjust_left_type(x, value)
     stopifnot(is.matrix(Mindex), is.numeric(Mindex))
 
-    ## No-op (except for type adjustment above) if selection is empty.
+    ## No-op (except for type adjustment above) if array selection is empty.
     if (nrow(Mindex) == 0L)
         return(x)
 
@@ -85,84 +85,181 @@ setMethod("subassign_Array_by_Mindex", "SVT_SparseArray",
 ### subassign_Array_by_Nindex() method for SVT_SparseArray
 ###
 ### Like the 'index' argument in 'extract_array()', the 'Nindex' argument in
-### all the functions below must be an N-index, that is, a list with one list
-### element per dimension in 'x'. Each list element must be an integer vector
-### of valid indices along the corresponding dimension in 'x', or a NULL.
+### all the functions below must be a **normalized** N-index, that is, a list
+### with one list element per dimension in 'x' where each list element is
+### either a NULL or an integer vector of valid indices along the
+### corresponding dimension in 'x'.
 
+### 'Rvector' is considered "short" if it can be cleanly recycled along the
+### first (a.k.a. leftmost or innermost) dimension of the array selection.
+### This is a requirement of .subassign_SVT_with_short_Rvector().
+### Note that 'Rvector' is never actually recycled. Instead the C code
+### behind .subassign_SVT_with_short_Rvector() will cycle over its elements.
+### 'selection_dim' is assumed to hold the dimensions of a non-empty
+### array selection (in other words it cannot contain zeros).
+### Returns TRUE or FALSE indicating whether 'Rvector' is considered "short"
+### or not.
+.is_short <- function(Rvector, selection_dim)
+{
+    stopifnot(is.vector(Rvector), is.integer(selection_dim))
+    Rvector_len <- length(Rvector)
+    if (Rvector_len == 0L)
+        stop(wmsg("right value has length zero"))
+    selection_dim[[1L]] %% Rvector_len == 0L
+}
+
+### This handles subassignment by an N-index and with a right value that is
+### a "short vector" that gets recycled along the first (a.k.a. leftmost
+### or innermost) dimension of 'x', like in:
+###     x[ , 1:2] <- 0
+### or:
+###     x[1:12, ] <- c(0.6, 0, 2.5)
+### We want to support this in the most efficient way possible so we
+### don't actually recycle the right value at the R level. Instead we
+### will **virtually** recycle it at the C level.
+### See .is_short() above for more information.
 .subassign_SVT_with_short_Rvector <- function(x, Nindex, Rvector)
 {
+    stopifnot(is(x, "SVT_SparseArray"), is.list(Nindex))
+    check_svt_version(x)
     stopifnot(is.vector(Rvector))
-    SparseArray.Call("C_subassign_SVT_with_short_Rvector",
-                     x@dim, x@type, x@SVT, Nindex, Rvector)
+
+    ## Change 'x' type if necessary.
+    new_type <- type(c(vector(type(x)), vector(type(Rvector))))
+    type(x) <- new_type
+
+    ## No-op (except for type change above) if array selection is empty.
+    selection_dim <- S4Arrays:::get_Nindex_lengths(Nindex, x@dim)
+    if (any(selection_dim == 0L))
+        return(x)
+
+    stopifnot(.is_short(Rvector, selection_dim))
+
+    storage.mode(Rvector) <- type(x)
+    new_SVT <- SparseArray.Call("C_subassign_SVT_with_short_Rvector",
+                                x@dim, x@type, x@SVT, Nindex, Rvector)
+    BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
+}
+
+.Nindex2Noffs <- function(Nindex)
+{
+    stopifnot(is.list(Nindex))
+    lapply(Nindex,
+        function(subscript)
+            if (is.null(subscript)) NULL else subscript - 1L
+    )
 }
 
 .subassign_SVT_with_Rarray <- function(x, Nindex, Rarray)
 {
+    stopifnot(is(x, "SVT_SparseArray"), is.list(Nindex))
+    check_svt_version(x)
     stopifnot(is.array(Rarray))
-    SparseArray.Call("C_subassign_SVT_with_Rarray",
-                     x@dim, x@type, x@SVT, Nindex, Rarray)
+
+    ## Change 'x' type if necessary.
+    new_type <- type(c(vector(type(x)), vector(type(Rarray))))
+    type(x) <- new_type
+
+    ## No-op (except for type change above) if array selection is empty.
+    selection_dim <- S4Arrays:::get_Nindex_lengths(Nindex, x@dim)
+    if (!identical(selection_dim, unname(dim(Rarray))))
+        stop(wmsg("dimensions of right array don't ",
+                  "match dimensions of array selection"))
+    if (any(selection_dim == 0L))
+        return(x)
+
+    ## Prepare 'Noffs' and 'Rarray'.
+    Norder <- S4Arrays:::get_Nindex_order(Nindex)
+    Nindex <- S4Arrays:::subset_Nindex_by_Nindex(Nindex, Norder)
+    Noffs <- .Nindex2Noffs(Nindex)
+    Rarray <- S4Arrays:::subset_by_Nindex(Rarray, Norder)
+    storage.mode(Rarray) <- new_type
+
+    new_SVT <- SparseArray.Call("C_subassign_SVT_with_Rarray",
+                                x@dim, x@type, x@SVT, FALSE, Noffs, Rarray)
+    BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
 }
 
 .subassign_SVT_with_SVT <- function(x, Nindex, v)
 {
+    stopifnot(is(x, "SVT_SparseArray"), is.list(Nindex))
+    check_svt_version(x)
     stopifnot(is(v, "SVT_SparseArray"))
     check_svt_version(v)
-    SparseArray.Call("C_subassign_SVT_with_SVT",
-                     x@dim, x@type, x@SVT, Nindex, v@dim, v@type, v@SVT)
+
+    ## Change 'x' type if necessary.
+    new_type <- type(c(vector(type(x)), vector(type(v))))
+    type(x) <- new_type
+
+    ## No-op (except for type change above) if array selection is empty.
+    selection_dim <- S4Arrays:::get_Nindex_lengths(Nindex, x@dim)
+    if (!identical(selection_dim, unname(dim(v))))
+        stop(wmsg("dimensions of right array don't ",
+                  "match dimensions of array selection"))
+    if (any(selection_dim == 0L))
+        return(x)
+
+    ## Prepare 'Noffs' and 'v'.
+    Norder <- S4Arrays:::get_Nindex_order(Nindex)
+    Nindex <- S4Arrays:::subset_Nindex_by_Nindex(Nindex, Norder)
+    Noffs <- .Nindex2Noffs(Nindex)
+    v <- S4Arrays:::subset_by_Nindex(v, Norder)
+    type(v) <- new_type
+
+    new_SVT <- SparseArray.Call("C_subassign_SVT_with_SVT",
+                                x@dim, x@type, x@SVT, Noffs,
+                                v@dim, v@type, v@SVT)
+    BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
+}
+
+### Same as 'array(data, selection_dim)' but:
+### - returns an error if 'data' is longer than array to construct (strangely
+###   array() truncates the data in this case);
+### - issues a warning if the length of the array to construct (which is
+###   the length of the array selection in the context where .array2()
+###   is used) not a multiple of 'length(data)'.
+### Note that the error and warning messages are intentionally worded to
+### make the most sense in the context where .array2() is used.
+.array2 <- function(data, selection_dim)
+{
+    stopifnot(is.vector(data), is.integer(selection_dim))
+    if (length(data) > prod(selection_dim))
+        stop(wmsg("right value is longer than array selection"))
+    ans <- array(vector(typeof(data), 1L), dim=selection_dim)
+    ## Will issue "number of items to replace is not a multiple of
+    ## replacement length" warning if 'prod(selection_dim)' is not a
+    ## multiple of 'length(data)'.
+    ans[] <- data
+    ans
 }
 
 .subassign_SVT_by_Nindex <- function(x, Nindex, value)
 {
     stopifnot(is(x, "SVT_SparseArray"), is.list(Nindex))
     check_svt_version(x)
-    if (!is.vector(value) && !is.array(value) && !is(value, "SVT_SparseArray"))
-        stop(wmsg("the supplied value must be an ordinary vector or array, ",
-                  "or an SVT_SparseArray object, for this subassignment"))
-
-    ## Change 'x' type if necessary.
-    new_type <- type(c(vector(type(x)), vector(type(value))))
-    type(x) <- new_type
-
-    ## No-op (except for type change above) if selection is empty.
-    selection_dim <- S4Arrays:::get_Nindex_lengths(Nindex, x@dim)
-    if (any(selection_dim == 0L))
-        return(x)
-
     if (is.vector(value)) {
-        value_len <- length(value)
-        if (value_len == 0L)
-            stop(wmsg("replacement has length zero"))
-        selection_len <- prod(selection_dim)
-        if (value_len > selection_len)
-            stop(wmsg("the supplied value is longer than the selection"))
-        storage.mode(value) <- new_type
-        if (value_len <= selection_dim[[1L]] &&
-            selection_dim[[1L]] %% value_len == 0L)
-        {
-            ## We want to support things like 'x[ , 1:2] <- 0'
-            ## or 'x[1:12, ] <- c(0.6, 0, 2.5)' in the most efficient
-            ## way so no recycling of 'value' at the R level.
-            new_SVT <- .subassign_SVT_with_short_Rvector(x, Nindex, value)
-        } else {
-            ## Turn 'value' into an ordinary array of the same dimensions
-            ## as the selection, with recycling if necessary.
-            a <- array(vector(typeof(value), 1L), dim=selection_dim)
-            a[] <- value
-            new_SVT <- .subassign_SVT_with_Rarray(x, Nindex, value)
-        }
-    } else {
-        if (!identical(selection_dim, unname(dim(value))))
-            stop(wmsg("the selection and supplied value must have ",
-                      "the same dimensions"))
-        if (is.array(value)) {
-            storage.mode(value) <- new_type
-            new_SVT <- .subassign_SVT_with_Rarray(x, Nindex, value)
-        } else {
-            type(value) <- new_type
-            new_SVT <- .subassign_SVT_with_SVT(x, Nindex, value)
-        }
+        ## Change 'x' type if necessary.
+        new_type <- type(c(vector(type(x)), vector(type(value))))
+        type(x) <- new_type
+
+        ## No-op (except for type change above) if array selection is empty.
+        selection_dim <- S4Arrays:::get_Nindex_lengths(Nindex, x@dim)
+        if (any(selection_dim == 0L))
+            return(x)
+
+        if (.is_short(value, selection_dim))
+            return(.subassign_SVT_with_short_Rvector(x, Nindex, value))
+
+        ## Turn 'value' into an ordinary array of same dimensions as
+        ## the array selection, with recycling if necessary.
+        value <- .array2(value, selection_dim)
     }
-    BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
+    if (is.array(value))
+        return(.subassign_SVT_with_Rarray(x, Nindex, value))
+    if (is(value, "SVT_SparseArray"))
+        return(.subassign_SVT_with_SVT(x, Nindex, value))
+    stop(wmsg("the right value must be an ordinary vector or array, ",
+              "or an SVT_SparseArray object, for this subassignment"))
 }
 
 setMethod("subassign_Array_by_Nindex", "SVT_SparseArray",

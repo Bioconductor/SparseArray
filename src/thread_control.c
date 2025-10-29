@@ -4,7 +4,7 @@
 #include "thread_control.h"
 
 #ifdef _OPENMP
-/* <Rinternals.h> defines macro match that seems to break <omp.h> on
+/* <Rinternals.h> defines macro match that seems to break <omp.h> with
    some versions of Clang.
    See https://github.com/Bioconductor/SparseArray/issues/9 */
 #undef match

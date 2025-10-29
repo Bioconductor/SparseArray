@@ -1,5 +1,5 @@
 #ifndef _SPARSEVEC_MATH_H_
-#define _SPARSEVEC_MATH_H_ 
+#define _SPARSEVEC_MATH_H_
 
 #include <Rdefines.h>
 

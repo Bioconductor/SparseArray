@@ -224,6 +224,14 @@ SEXP _subassign_leaf_with_Rvector(
 	SEXP Rvector
 );
 
+SEXP _subassign_leaf_with_vector(
+	SEXP leaf,
+	SEXP offs,
+	const void *vals,
+	int n,
+	SparseVec *buf_sv
+);
+
 static inline SEXP SV2leaf(const SparseVec *sv)
 {
 	return _make_leaf_from_two_arrays(sv->Rtype, sv->nzvals,
