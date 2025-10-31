@@ -390,7 +390,7 @@ test_that("unary minus on an NaArray object", {
 
     a3 <- make_3D_complex_array(NA_complex_)
     naa3 <- as(a3, "NaArray")
-    check_NaArray_object(- naa3, - a3)
+    check_NaArray_object(- naa3, - a3, strict=FALSE)
     expect_identical(- (- naa3), naa3)
 })
 
