@@ -376,7 +376,7 @@ SEXP C_Arith_SVT1_v2(
 		error("SparseArray internal error in "
 		      "C_Arith_SVT1_v2():\n"
 		      "    length(v2) > dim(x)[[recycle.along]]");
-	SparseVec buf_sv = alloc_SparseVec(ans_Rtype, dim0, x_has_NAbg);
+	SparseVec buf_sv = _alloc_buf_SparseVec(ans_Rtype, dim0, x_has_NAbg);
 
 	int ovflow = 0;
 	SEXP ans = REC_Arith_SVT1_v2(opcode,
@@ -416,7 +416,7 @@ SEXP C_Arith_v1_SVT2(SEXP v1,
 	}
 
 	int dim0 = INTEGER(y_dim)[0];
-	SparseVec buf_sv = alloc_SparseVec(ans_Rtype, dim0, y_has_NAbg);
+	SparseVec buf_sv = _alloc_buf_SparseVec(ans_Rtype, dim0, y_has_NAbg);
 
 	int ovflow = 0;
 	SEXP ans = REC_Arith_v1_SVT2(opcode,
@@ -459,8 +459,8 @@ SEXP C_Arith_SVT1_SVT2(
 	}
 
 	int dim0 = INTEGER(x_dim)[0];
-	SparseVec buf_sv = alloc_SparseVec(ans_Rtype, dim0,
-					   x_has_NAbg || y_has_NAbg);
+	SparseVec buf_sv = _alloc_buf_SparseVec(ans_Rtype, dim0,
+						x_has_NAbg || y_has_NAbg);
 
 	int ovflow = 0;
 	SEXP ans = REC_Arith_SVT1_SVT2(opcode,

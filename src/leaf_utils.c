@@ -87,7 +87,7 @@ SEXP _make_leaf_with_single_shared_nzval(SEXPTYPE Rtype,
 	return ans;
 }
 
-/* Does NOT work if 'Rtype' is STRSXP or VECSXP.
+/* Does NOT work at the moment if 'Rtype' is VECSXP.
    Each of 'nzvals_p' and 'nzoffs_p' must be a pointer to an array of length
    'nzcount'. 'nzvals_p' is **trusted** to not contain any zeros. This is NOT
    checked! The returned leaf can be lacunar. */
@@ -96,24 +96,35 @@ SEXP _make_leaf_from_two_arrays(SEXPTYPE Rtype,
 {
 	if (nzcount == 0)
 		return R_NilValue;
-
-	size_t Rtype_size = _get_Rtype_size(Rtype);
-	if (Rtype_size == 0)
+	if (Rtype == VECSXP)
 		error("SparseArray internal error in "
-		      "_make_leaf_from_two_arrays():\n"
-		      "    type \"%s\" is not supported", type2char(Rtype));
-
+		      "_make_leaf_from_two_arrays():\n    type \"%s\" is "
+		      "not supported at the moment", type2char(Rtype));
 	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(nzcount));
 	memcpy(INTEGER(ans_nzoffs), nzoffs_p, sizeof(int) * nzcount);
-
-	int all_ones = _all_elts_equal_one(Rtype, nzvals_p, nzcount);
-	if (all_ones) {
-		SEXP ans = _make_lacunar_leaf(ans_nzoffs);
-		UNPROTECT(1);
-		return ans;
+	SEXP ans_nzvals;
+	if (Rtype == STRSXP) {
+		/* Lacunar leaves of Rtype STRSXP are not supported yet. */
+		ans_nzvals = PROTECT(NEW_CHARACTER(nzcount));
+		for (int k = 0; k < nzcount; k++) {
+			SEXP nzval = STRING_ELT((SEXP) nzvals_p, k);
+			SET_STRING_ELT(ans_nzvals, k, nzval);
+		}
+	} else {
+		size_t Rtype_size = _get_Rtype_size(Rtype);
+		if (Rtype_size == 0)
+			error("SparseArray internal error in "
+			      "_make_leaf_from_two_arrays():\n    type "
+			      "\"%s\" is not supported", type2char(Rtype));
+		int all_ones = _all_elts_equal_one(Rtype, nzvals_p, nzcount);
+		if (all_ones) {
+			SEXP ans = _make_lacunar_leaf(ans_nzoffs);
+			UNPROTECT(1);
+			return ans;
+		}
+		ans_nzvals = PROTECT(allocVector(Rtype, nzcount));
+		memcpy(DATAPTR(ans_nzvals), nzvals_p, Rtype_size * nzcount);
 	}
-	SEXP ans_nzvals = PROTECT(allocVector(Rtype, nzcount));
-	memcpy(DATAPTR(ans_nzvals), nzvals_p, Rtype_size * nzcount);
 	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs, 0);
 	UNPROTECT(2);
 	return ans;
@@ -390,32 +401,48 @@ SEXP _coerce_naleaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn,
 
 
 /****************************************************************************
- * _subassign_leaf_with_vector()
+ * _subassign_leaf_with_Rsubvec()
  */
 
 /* Can be used on a NULL or lacunar leaf. */
-SEXP _subassign_leaf_with_vector(SEXP leaf, SEXP offs,
-				 const void *vals, int n,
-				 SparseVec *buf_sv)
+SEXP _subassign_leaf_with_Rsubvec(SEXP leaf, SEXP offs, int n,
+		SEXP Rvector, R_xlen_t subvec_offset, SparseVec *buf_sv)
 {
-	const int *offs0 = NULL;
-	if (offs != R_NilValue) {
+	const int *offs0;
+	if (offs == R_NilValue) {
+		if (n != buf_sv->len)
+			error("SparseArray internal error in "
+			      "_subassign_leaf_with_Rsubvec():\n"
+			      "    n != buf_sv->len");
+		offs0 = NULL;
+	} else {
 		if (n != LENGTH(offs))
 			error("SparseArray internal error in "
-			      "_subassign_leaf_with_vector():\n"
-			      "    number of vals != number of offsets");
+			      "_subassign_leaf_with_Rsubvec():\n"
+			      "    n != LENGTH(offs)");
 		offs0 = INTEGER(offs);
 	}
-	if (leaf == R_NilValue || offs0 == NULL) {
-		_fill_SV_with_vals(vals, offs0, n, buf_sv);
+	if (leaf == R_NilValue) {
+		_fill_SV_with_Rsubvec(Rvector, subvec_offset, offs0, n, buf_sv);
 	} else {
 		const SparseVec sv1 = leaf2SV(leaf, buf_sv->Rtype,
 					      buf_sv->len,
 					      buf_sv->na_background);
-		_subassign_SV1_with_v2(&sv1, offs0, vals, n, buf_sv);
+		int neffrep;
+		if (offs0 == NULL) {
+			neffrep = _subassign_full_SV_with_Rsubvec(&sv1,
+					     Rvector, subvec_offset, buf_sv);
+		} else {
+			neffrep = _subassign_SV_with_Rsubvec(&sv1, offs0, n,
+					     Rvector, subvec_offset, buf_sv);
+		}
+		//printf("n = %d / neffrep = %d\n", n, neffrep);
+		if (neffrep == 0)
+			return leaf;  /* no-op */
 	}
 	return SV2leaf(buf_sv);
 }
+
 
 /****************************************************************************
  * _subassign_leaf_with_Rvector_OLD()

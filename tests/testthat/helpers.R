@@ -8,7 +8,7 @@
 ### can be introduced in an unpredictable way by 'stop(wmsg(...))'.
 expect_error2 <- function(object, expected_string, ...)
 {
-    regexp <- sub("[\\s]+", "[\\\\s]+", expected_string, perl=TRUE)
+    regexp <- gsub("[\\s]+", "[\\\\s]+", expected_string, perl=TRUE)
     expect_error(object, regexp=regexp, perl=TRUE, ...)
 }
 

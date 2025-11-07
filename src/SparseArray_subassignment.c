@@ -219,11 +219,14 @@ static SEXP subassign_leaf_by_Lindex(SEXP leaf, int dim0, int na_background,
 	);
 	SEXP offs = get_leaf_nzoffs(offval_pairs);
 	vals = get_leaf_nzvals(offval_pairs);
-	SparseVec buf_sv = alloc_SparseVec(TYPEOF(vals), dim0, na_background);
-	SEXP ans = PROTECT(_subassign_leaf_with_vector(leaf, offs,
-						DATAPTR(vals), LENGTH(vals),
-						&buf_sv));
-	UNPROTECT(2);
+	SparseVec buf_sv = _alloc_buf_SparseVec(TYPEOF(vals), dim0,
+						na_background);
+	if (buf_sv.Rtype == STRSXP)
+		PROTECT(buf_sv.nzvals);
+	SEXP ans = PROTECT(_subassign_leaf_with_Rsubvec(leaf,
+						offs, LENGTH(vals),
+						vals, 0, &buf_sv));
+	UNPROTECT(buf_sv.Rtype == STRSXP ? 3 : 2);
 	return ans;
 }
 
@@ -1297,9 +1300,9 @@ static R_xlen_t *alloc_and_compute_arr_incs(const int *arr_dim, int ndim)
 	return arr_incs;
 }
 
-static SEXP REC_subassign_SVT_with_Rarray(SEXP SVT, SEXP SVT0,
+static SEXP REC_subassign_SVT_with_Rsubarr(SEXP SVT, SEXP SVT0,
 		const int *dim, int ndim, SEXP Noffs,
-		void *arr, SEXPTYPE arr_Rtype, const R_xlen_t *arr_incs,
+		SEXP Rarray, R_xlen_t arr_offset, const R_xlen_t *arr_incs,
 		SparseVec *buf_sv)
 {
 	SEXP subSVT0 = R_NilValue;
@@ -1308,8 +1311,7 @@ static SEXP REC_subassign_SVT_with_Rarray(SEXP SVT, SEXP SVT0,
 	int d2 = offs == R_NilValue ? d1 : LENGTH(offs);
 	R_xlen_t arr_inc = arr_incs[ndim - 1];
 	//printf("ndim = %d: d2 = %d; arr_inc = %ld\n", ndim, d2, arr_inc);
-	for (int i2 = 0; i2 < d2; i2++) {
-		void *subarr = shift_dataptr(arr_Rtype, arr, arr_inc * i2);
+	for (int i2 = 0; i2 < d2; i2++, arr_offset += arr_inc) {
 		int i1;
 		if (offs == R_NilValue) {
 			i1 = i2;
@@ -1324,10 +1326,9 @@ static SEXP REC_subassign_SVT_with_Rarray(SEXP SVT, SEXP SVT0,
 		if (ndim == 2) {
 			SEXP offs0 = VECTOR_ELT(Noffs, 0);
 			subSVT = PROTECT(
-				_subassign_leaf_with_vector(
-					subSVT, offs0,
-					subarr, arr_inc,
-					buf_sv)
+				_subassign_leaf_with_Rsubvec(
+						subSVT, offs0, arr_inc,
+						Rarray, arr_offset, buf_sv)
 			);
 		} else {
 			if (SVT0 != R_NilValue)
@@ -1336,10 +1337,11 @@ static SEXP REC_subassign_SVT_with_Rarray(SEXP SVT, SEXP SVT0,
 				make_SVT_node(subSVT, dim[ndim - 2], subSVT0)
 			);
 			subSVT = PROTECT(
-				REC_subassign_SVT_with_Rarray(
-					subSVT, subSVT0,
-					dim, ndim - 1, Noffs,
-					subarr, arr_Rtype, arr_incs, buf_sv)
+				REC_subassign_SVT_with_Rsubarr(
+						subSVT, subSVT0,
+						dim, ndim - 1, Noffs,
+						Rarray, arr_offset, arr_incs,
+						buf_sv)
 			);
 		}
 		SET_VECTOR_ELT(SVT, i1, subSVT);
@@ -1380,21 +1382,25 @@ SEXP C_subassign_SVT_with_Rarray(
 	if (check_Noffs(Noffs, dim, arr_dim, ndim))
 		return x_SVT;  /* no-op */
 
-	SparseVec buf_sv = alloc_SparseVec(x_Rtype, dim[0], x_has_NAbg);
+	SparseVec buf_sv = _alloc_buf_SparseVec(x_Rtype, dim[0], x_has_NAbg);
+	if (buf_sv.Rtype == STRSXP)
+		PROTECT(buf_sv.nzvals);
 
-	if (ndim == 1)
-		return _subassign_leaf_with_vector(x_SVT, VECTOR_ELT(Noffs, 0),
-					DATAPTR(Rarray), LENGTH(Rarray),
-					&buf_sv);
-
-	R_xlen_t *arr_incs = alloc_and_compute_arr_incs(arr_dim, ndim);
-
-	SEXP ans = PROTECT(make_SVT_node(x_SVT, dim[ndim - 1], x_SVT));
-	ans = REC_subassign_SVT_with_Rarray(ans, x_SVT,
-					    dim, ndim, Noffs,
-					    DATAPTR(Rarray), x_Rtype, arr_incs,
-					    &buf_sv);
-	UNPROTECT(1);
+	SEXP ans;
+	if (ndim == 1) {
+		ans = _subassign_leaf_with_Rsubvec(x_SVT,
+					VECTOR_ELT(Noffs, 0), LENGTH(Rarray),
+					Rarray, 0, &buf_sv);
+	} else {
+		R_xlen_t *arr_incs = alloc_and_compute_arr_incs(arr_dim, ndim);
+		ans = PROTECT(make_SVT_node(x_SVT, dim[ndim - 1], x_SVT));
+		ans = REC_subassign_SVT_with_Rsubarr(ans, x_SVT,
+					dim, ndim, Noffs,
+					Rarray, 0, arr_incs, &buf_sv);
+		UNPROTECT(1);
+	}
+	if (buf_sv.Rtype == STRSXP)
+		UNPROTECT(1);
 	return ans;
 }
 
