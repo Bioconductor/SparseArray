@@ -20,7 +20,6 @@
 #define INVALID_COORD(coord, maxcoord) \
 	((coord) == NA_INTEGER || (coord) < 1 || (coord) > (maxcoord))
 
-
 static inline R_xlen_t get_Lidx(SEXP Lindex, long long atid_lloff)
 {
 	R_xlen_t Lidx;
@@ -956,15 +955,12 @@ SEXP C_subassign_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 
 static SEXP shallow_copy_list(SEXP x)
 {
-	int x_len, i;
-	SEXP ans;
-
 	if (!isVectorList(x))  // IS_LIST() is broken
 		error("SparseArray internal error in shallow_copy_list():\n"
 		      "    'x' is not a list");
-	x_len = LENGTH(x);
-	ans = PROTECT(NEW_LIST(x_len));
-	for (i = 0; i < x_len; i++)
+	int x_len = LENGTH(x);
+	SEXP ans = PROTECT(NEW_LIST(x_len));
+	for (int i = 0; i < x_len; i++)
 		SET_VECTOR_ELT(ans, i, VECTOR_ELT(x, i));
 	UNPROTECT(1);
 	return ans;
@@ -1289,29 +1285,35 @@ static int check_Noffs(SEXP Noffs, const int *dim, const int *arr_dim, int ndim)
 	return 0;
 }
 
-static R_xlen_t *alloc_and_compute_arr_incs(const int *arr_dim, int ndim)
+static R_xlen_t *alloc_and_compute_cumprod(const int *x, int x_len)
 {
-	R_xlen_t *arr_incs = (R_xlen_t *) R_alloc(ndim, sizeof(R_xlen_t));
-	R_xlen_t arr_inc = 1;
-	for (int along = 0; along < ndim; along++) {
-		arr_incs[along] = arr_inc;
-		arr_inc *= arr_dim[along];
+	R_xlen_t *cumprod = (R_xlen_t *) R_alloc(x_len, sizeof(R_xlen_t));
+	R_xlen_t prod = 1;
+	for (int i = 0; i < x_len; i++) {
+		prod *= x[i];
+		cumprod[i] = prod;
 	}
-	return arr_incs;
+	return cumprod;
 }
 
-static SEXP REC_subassign_SVT_with_Rsubarr(SEXP SVT, SEXP SVT0,
+static SEXP REC_subassign_SVT_with_Rsubarr(SEXP SVT,
 		const int *dim, int ndim, SEXP Noffs,
-		SEXP Rarray, R_xlen_t arr_offset, const R_xlen_t *arr_incs,
+		SEXP Rarray, R_xlen_t arr_offset, const R_xlen_t *subarr_lens,
 		SparseVec *buf_sv)
 {
-	SEXP subSVT0 = R_NilValue;
+	if (ndim == 1)
+		return _subassign_leaf_with_Rsubvec(SVT,
+					VECTOR_ELT(Noffs, 0), subarr_lens[0],
+					Rarray, arr_offset, buf_sv);
 	int d1 = dim[ndim - 1];
 	SEXP offs = VECTOR_ELT(Noffs, ndim - 1);
 	int d2 = offs == R_NilValue ? d1 : LENGTH(offs);
-	R_xlen_t arr_inc = arr_incs[ndim - 1];
-	//printf("ndim = %d: d2 = %d; arr_inc = %ld\n", ndim, d2, arr_inc);
-	for (int i2 = 0; i2 < d2; i2++, arr_offset += arr_inc) {
+	R_xlen_t offset_inc = subarr_lens[ndim - 2];
+	SEXP ans = PROTECT(NEW_LIST(d1));
+	if (SVT != R_NilValue)
+		for (int i1 = 0; i1 < d1; i1++)
+			SET_VECTOR_ELT(ans, i1, VECTOR_ELT(SVT, i1));
+	for (int i2 = 0; i2 < d2; i2++, arr_offset += offset_inc) {
 		int i1;
 		if (offs == R_NilValue) {
 			i1 = i2;
@@ -1321,40 +1323,35 @@ static SEXP REC_subassign_SVT_with_Rsubarr(SEXP SVT, SEXP SVT0,
 				error("subscript contains "
 				      "out-of-bound indices or NAs");
 		}
-		//printf("ndim = %d: i1 = %d i2 = %d\n", ndim, i1, i2);
-		SEXP subSVT = VECTOR_ELT(SVT, i1);
-		if (ndim == 2) {
-			SEXP offs0 = VECTOR_ELT(Noffs, 0);
-			subSVT = PROTECT(
-				_subassign_leaf_with_Rsubvec(
-						subSVT, offs0, arr_inc,
-						Rarray, arr_offset, buf_sv)
-			);
-		} else {
-			if (SVT0 != R_NilValue)
-				subSVT0 = VECTOR_ELT(SVT0, i1);
-			subSVT = PROTECT(
-				make_SVT_node(subSVT, dim[ndim - 2], subSVT0)
-			);
-			subSVT = PROTECT(
-				REC_subassign_SVT_with_Rsubarr(
-						subSVT, subSVT0,
-						dim, ndim - 1, Noffs,
-						Rarray, arr_offset, arr_incs,
-						buf_sv)
-			);
-		}
-		SET_VECTOR_ELT(SVT, i1, subSVT);
-		UNPROTECT(ndim == 2 ? 1 : 2);
+		SEXP ans_elt = PROTECT(
+			REC_subassign_SVT_with_Rsubarr(VECTOR_ELT(ans, i1),
+					dim, ndim - 1, Noffs,
+					Rarray, arr_offset, subarr_lens,
+					buf_sv)
+		);
+		SET_VECTOR_ELT(ans, i1, ans_elt);
+		UNPROTECT(1);
 	}
 	int is_empty = 1;
 	for (int i1 = 0; i1 < d1; i1++) {
-		if (VECTOR_ELT(SVT, i1) != R_NilValue) {
+		if (VECTOR_ELT(ans, i1) != R_NilValue) {
 			is_empty = 0;
 			break;
 		}
 	}
-	return is_empty ? R_NilValue : SVT;
+	UNPROTECT(1);
+	if (is_empty)
+		return R_NilValue;
+	if (SVT == R_NilValue)
+		return ans;
+	int is_noop = 1;
+	for (int i1 = 0; i1 < d1; i1++) {
+		if (VECTOR_ELT(ans, i1) != VECTOR_ELT(SVT, i1)) {
+			is_noop = 0;
+			break;
+		}
+	}
+	return is_noop ? SVT : ans;
 }
 
 /* --- .Call ENTRY POINT ---
@@ -1385,20 +1382,10 @@ SEXP C_subassign_SVT_with_Rarray(
 	SparseVec buf_sv = _alloc_buf_SparseVec(x_Rtype, dim[0], x_has_NAbg);
 	if (buf_sv.Rtype == STRSXP)
 		PROTECT(buf_sv.nzvals);
-
-	SEXP ans;
-	if (ndim == 1) {
-		ans = _subassign_leaf_with_Rsubvec(x_SVT,
-					VECTOR_ELT(Noffs, 0), LENGTH(Rarray),
-					Rarray, 0, &buf_sv);
-	} else {
-		R_xlen_t *arr_incs = alloc_and_compute_arr_incs(arr_dim, ndim);
-		ans = PROTECT(make_SVT_node(x_SVT, dim[ndim - 1], x_SVT));
-		ans = REC_subassign_SVT_with_Rsubarr(ans, x_SVT,
-					dim, ndim, Noffs,
-					Rarray, 0, arr_incs, &buf_sv);
-		UNPROTECT(1);
-	}
+	R_xlen_t *subarr_lens = alloc_and_compute_cumprod(arr_dim, ndim);
+	SEXP ans = REC_subassign_SVT_with_Rsubarr(x_SVT, dim, ndim, Noffs,
+						  Rarray, 0, subarr_lens,
+						  &buf_sv);
 	if (buf_sv.Rtype == STRSXP)
 		UNPROTECT(1);
 	return ans;
