@@ -231,20 +231,18 @@ static int subassign_ ## type ## SV(const SparseVec *sv1,		    \
 	while ((ret = next_ ## type ## _out_val(sv1, offs2, vals2, n2,	    \
 						&k1, &k2, &off, &out_val))) \
 	{								    \
-		if (ret != 1) {						    \
+		if (ret == 2) {						    \
+			if (type ## _equal(out_val, out_bg_val)) 	    \
+				continue;				    \
+			neffrep++;					    \
+		} else if (ret == 3) {					    \
 			if (type ## _equal(out_val, out_bg_val)) {	    \
-				if (ret == 3)				    \
-					neffrep++;			    \
+				neffrep++;				    \
 				continue;				    \
 			}						    \
-			if (ret == 2) {					    \
+			type v1 = get_ ## type ## SV_nzval(sv1, k1 - 1);    \
+			if (!type ## _equal(v1, out_val))		    \
 				neffrep++;				    \
-			} else {					    \
-				type v1 =				    \
-				    get_ ## type ## SV_nzval(sv1, k1 - 1);  \
-				if (!type ## _equal(v1, out_val))	    \
-					neffrep++;			    \
-			}						    \
 		}							    \
 		APPEND_TO_NZVALS_NZOFFS(out_val, off,			    \
 			out_nzvals, out_sv->nzoffs, out_sv->nzcount);	    \
@@ -267,19 +265,21 @@ static int subassign_RbyteSV(const SparseVec *sv1,
 	while ((ret = next_Rbyte_out_val(sv1, offs2, vals2, n2,
 					 &k1, &k2, &off, &out_val)))
 	{
-		if (ret != 1) {
+		if (ret == 2) {
+			if (out_val == Rbyte0)
+				continue;  /* zero replaces zero */
+			/* nonzero replaces zero */
+			neffrep++;
+		} else if (ret == 3) {
 			if (out_val == Rbyte0) {
-				if (ret == 3)
-					neffrep++;
+				/* zero replaces nonzero */
+				neffrep++;
 				continue;
 			}
-			if (ret == 2) {
+			/* nonzero replaces nonzero */
+			Rbyte v1 = get_RbyteSV_nzval(sv1, k1 - 1);
+			if (v1 != out_val)
 				neffrep++;
-			} else {
-				Rbyte v1 = get_RbyteSV_nzval(sv1, k1 - 1);
-				if (v1 != out_val)
-					neffrep++;
-			}
 		}
 		APPEND_TO_NZVALS_NZOFFS(out_val, off,
 			out_nzvals, out_sv->nzoffs, out_sv->nzcount);
@@ -312,20 +312,19 @@ static int subassign_characterSV(const SparseVec *sv1,
 					     Rvector, subvec_offset, n2,
 					     &k1, &k2, &off, &out_val)))
 	{
-		if (ret != 1) {
+		if (ret == 2) {
+			if (IS_BG_CHARSXP(out_val, out_sv->na_background))
+				continue;
+			neffrep++;
+		} else if (ret == 3) {
 			if (IS_BG_CHARSXP(out_val, out_sv->na_background)) {
-				if (ret == 3)
-					neffrep++;
+				neffrep++;
 				continue;
 			}
-			if (ret == 2) {
+			SEXP v1 = get_characterSV_nzval(sv1, k1 - 1);
+			/* See note above about this comparison. */
+			if (v1 != out_val)
 				neffrep++;
-			} else {
-				SEXP v1 = get_characterSV_nzval(sv1, k1 - 1);
-				/* See note above about this comparison. */
-				if (v1 != out_val)
-					neffrep++;
-			}
 		}
 		SET_STRING_ELT(out_nzvals, out_sv->nzcount, out_val);
 		out_sv->nzoffs[out_sv->nzcount] = off;
@@ -445,14 +444,17 @@ static int subassign_full_RbyteSV(const SparseVec *sv1,
 			Rbyte v1 = get_RbyteSV_nzval(sv1, k1);
 			k1++;
 			if (v2 == Rbyte0) {
+				/* zero replaces nonzero */
 				neffrep++;
 				continue;
 			}
+			/* nonzero replaces nonzero */
 			if (v1 != v2)
 				neffrep++;
 		} else {
 			if (v2 == Rbyte0)
-				continue;
+				continue;  /* zero replaces zero */
+			/* nonzero replaces zero */
 			neffrep++;
 		}
 		APPEND_TO_NZVALS_NZOFFS(v2, i,
@@ -497,9 +499,20 @@ static int subassign_full_characterSV(const SparseVec *sv1,
 
 /****************************************************************************
  * _subassign_full_SV_with_Rsubvec()
+ *
  */
 
-/* 'sv->len' and 'out_sv->len' must be the same. 'sv' can be lacunar.
+/* Note that the content of input SparseVec 'sv' is used only to compute the
+   number of **effective** replacements. In particular, it has NO impact on
+   what content gets written to 'out_sv'.
+   In other words, _subassign_full_SV_with_Rsubvec() is equivalent to:
+
+     _fill_SV_with_Rsubvec(Rvector, subvec_offset, NULL, out_sv->len, out_sv)
+
+   except that the former uses the content of 'sv' to compute the number
+   of **effective** replacements and to return it.
+
+   'sv->len' and 'out_sv->len' must be the same. 'sv' can be lacunar.
    Elements of 'Rvector' with an index 'i' that is >= 'subvec_offset'
    and < 'subvec_offset + out_sv->len' form the replacement value (a.k.a.
    right value) of the subassignment operation. It can contain zeros.
