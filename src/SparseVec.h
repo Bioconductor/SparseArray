@@ -87,28 +87,6 @@ static inline SparseVec toSparseVec(SEXP nzvals, SEXP nzoffs,
 	      "are invalid or incompatible");
 }
 
-static inline SparseVec alloc_SparseVec(SEXPTYPE Rtype,
-		int len, int na_background)
-{
-	size_t Rtype_size = _get_Rtype_size(Rtype);
-	if (Rtype_size == 0)
-		error("SparseArray internal error in alloc_SparseVec():\n"
-		      "    type \"%s\" is not supported", type2char(Rtype));
-
-	if (na_background && Rtype == RAWSXP)
-		error("SparseArray internal error in alloc_SparseVec():\n"
-		      "    NaArray objects of type \"raw\" are not supported");
-
-	SparseVec sv;
-	sv.Rtype = Rtype;
-	sv.nzvals = R_alloc(len, Rtype_size);
-	sv.nzoffs = (int *) R_alloc(len, sizeof(int));
-	sv.nzcount = 0;
-	sv.len = len;
-	sv.na_background = na_background;
-	return sv;
-}
-
 static inline SEXPTYPE get_SV_Rtype(const SparseVec *sv)
 {
 	return sv->Rtype;
@@ -117,11 +95,6 @@ static inline SEXPTYPE get_SV_Rtype(const SparseVec *sv)
 static inline int get_SV_nzcount(const SparseVec *sv)
 {
 	return sv->nzcount;
-}
-
-static inline const Rbyte *get_RbyteSV_nzvals_p(const SparseVec *sv)
-{
-	return sv->nzvals;
 }
 
 static inline const int *get_intSV_nzvals_p(const SparseVec *sv)
@@ -135,6 +108,16 @@ static inline const double *get_doubleSV_nzvals_p(const SparseVec *sv)
 }
 
 static inline const Rcomplex *get_RcomplexSV_nzvals_p(const SparseVec *sv)
+{
+	return sv->nzvals;
+}
+
+static inline const Rbyte *get_RbyteSV_nzvals_p(const SparseVec *sv)
+{
+	return sv->nzvals;
+}
+
+static inline SEXP get_characterSV_nzvals_p(const SparseVec *sv)
 {
 	return sv->nzvals;
 }
@@ -161,6 +144,12 @@ static inline Rcomplex get_RcomplexSV_nzval(const SparseVec *sv, int k)
 {
 	const Rcomplex *nzvals_p = get_RcomplexSV_nzvals_p(sv);
 	return nzvals_p == NULL ? Rcomplex1 : nzvals_p[k];
+}
+
+static inline SEXP get_characterSV_nzval(const SparseVec *sv, int k)
+{
+	SEXP nzvals_p = get_characterSV_nzvals_p(sv);
+	return nzvals_p == NULL ? mkChar("1") : STRING_ELT(nzvals_p, k);
 }
 
 static inline int next_offset(
@@ -317,6 +306,12 @@ DEFINE_next_LtypeSV_RtypeSV_vals_FUN(Rcomplex, Rcomplex)
 /****************************************************************************
  * Function prototypes
  */
+
+SparseVec _alloc_buf_SparseVec(
+	SEXPTYPE Rtype,
+	int len,
+	int na_background
+);
 
 void _expand_intSV(
 	const SparseVec *sv,

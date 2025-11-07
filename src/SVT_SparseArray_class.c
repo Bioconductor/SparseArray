@@ -501,7 +501,7 @@ SEXP C_from_SVT_SparseArray_to_Rarray(SEXP x_dim, SEXP x_dimnames,
  */
 
 /* Recursive. */
-static SEXP REC_build_SVT_from_Rsubarray(
+static SEXP REC_build_SVT_from_Rsubarr(
 		SEXP Rarray, R_xlen_t arr_offset, R_xlen_t subarr_len,
 		const int *dim, int ndim,
 		SEXPTYPE ans_Rtype, int ans_na_background,
@@ -511,7 +511,7 @@ static SEXP REC_build_SVT_from_Rsubarray(
 		/* Sanity check (should never fail). */
 		if (dim[0] != subarr_len)
 			error("SparseArray internal error in "
-			      "REC_build_SVT_from_Rsubarray():\n"
+			      "REC_build_SVT_from_Rsubarr():\n"
 			      "    dim[0] != subarr_len");
 		SEXP ans;
 		if (ans_na_background) {
@@ -540,7 +540,7 @@ static SEXP REC_build_SVT_from_Rsubarray(
 	SEXP ans = PROTECT(NEW_LIST(SVT_len));
 	int is_empty = 1;
 	for (int i = 0; i < SVT_len; i++) {
-		SEXP ans_elt = REC_build_SVT_from_Rsubarray(
+		SEXP ans_elt = REC_build_SVT_from_Rsubarr(
 					Rarray, arr_offset, subarr_len,
 					dim, ndim - 1,
 					ans_Rtype, ans_na_background,
@@ -575,7 +575,7 @@ SEXP C_build_SVT_from_Rarray(SEXP x, SEXP ans_type, SEXP ans_na_background)
 	int x_ndim = LENGTH(x_dim);
 	int *offs_buf = (int *) R_alloc(INTEGER(x_dim)[0], sizeof(int));
 	int warn = 0;
-	SEXP ans = REC_build_SVT_from_Rsubarray(x, 0, x_len,
+	SEXP ans = REC_build_SVT_from_Rsubarr(x, 0, x_len,
 				INTEGER(x_dim), x_ndim,
 				ans_Rtype, ans_has_NAbg,
 				&warn, offs_buf);
