@@ -406,6 +406,8 @@ SEXP _coerce_naleaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn,
 
 /****************************************************************************
  * _subassign_leaf_with_Rsubvec()
+ * _subassign_leaf_with_Rvector_selection()
+ * _subassign_leaf_with_Rvector_xselection()
  */
 
 /* Can be used on a NULL or lacunar leaf. */
@@ -429,15 +431,15 @@ SEXP _subassign_leaf_with_Rsubvec(SEXP leaf, SEXP offs, int n,
 	if (leaf == R_NilValue) {
 		_write_Rsubvec_to_SV(Rvector, subvec_offset, offs0, n, buf_sv);
 	} else {
-		const SparseVec sv1 = leaf2SV(leaf, buf_sv->Rtype,
-					      buf_sv->len,
-					      buf_sv->na_background);
+		const SparseVec sv = leaf2SV(leaf, buf_sv->Rtype,
+					     buf_sv->len,
+					     buf_sv->na_background);
 		int neffrep;
 		if (offs0 == NULL) {
-			neffrep = _subassign_full_SV_with_Rsubvec(&sv1,
+			neffrep = _subassign_full_SV_with_Rsubvec(&sv,
 					     Rvector, subvec_offset, buf_sv);
 		} else {
-			neffrep = _subassign_SV_with_Rsubvec(&sv1, offs0, n,
+			neffrep = _subassign_SV_with_Rsubvec(&sv, offs0, n,
 					     Rvector, subvec_offset, buf_sv);
 		}
 		//printf("n = %d / neffrep = %d\n", n, neffrep);
@@ -445,6 +447,37 @@ SEXP _subassign_leaf_with_Rsubvec(SEXP leaf, SEXP offs, int n,
 			return leaf;  /* no-op */
 	}
 	return SV2leaf(buf_sv);
+}
+
+/* Can be used on a NULL or lacunar leaf.
+   'offs' and 'selection' must have length 'n' (they cannot be NULL). */
+SEXP _subassign_leaf_with_Rvector_selection(SEXP leaf, const int *offs, int n,
+		SEXP Rvector, const int *selection, SparseVec *buf_sv)
+{
+	if (leaf == R_NilValue) {
+		_write_Rvector_selection_to_SV(Rvector, selection, offs, n,
+					       buf_sv);
+	} else {
+		const SparseVec sv = leaf2SV(leaf, buf_sv->Rtype,
+					     buf_sv->len,
+					     buf_sv->na_background);
+		int neffrep = _subassign_SV_with_Rvector_selection(&sv,
+					     offs, n,
+					     Rvector, selection, buf_sv);
+		//printf("n = %d / neffrep = %d\n", n, neffrep);
+		if (neffrep == 0)
+			return leaf;  /* no-op */
+	}
+	return SV2leaf(buf_sv);
+}
+
+/* Can be used on a NULL or lacunar leaf.
+   'offs' and 'xselection' must have length 'n' (they cannot be NULL). */
+SEXP _subassign_leaf_with_Rvector_xselection(SEXP leaf, const int *offs, int n,
+		SEXP Rvector, const R_xlen_t *xselection, SparseVec *buf_sv)
+{
+	error("_subassign_leaf_with_Rvector_xselection() is not ready yet");
+	return R_NilValue;
 }
 
 

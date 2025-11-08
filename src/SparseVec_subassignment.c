@@ -442,7 +442,6 @@ static int subassign_full_listSV(const SparseVec *sv1,
 
 /****************************************************************************
  * _subassign_full_SV_with_Rsubvec()
- *
  */
 
 /* Note that the content of input SparseVec 'sv' is used only to compute the
@@ -498,5 +497,19 @@ int _subassign_full_SV_with_Rsubvec(const SparseVec *sv,
 	      "_subassign_full_SV_with_Rsubvec():\n"
 	      "    'out_sv' of type \"%s\" not supported", type2char(Rtype));
 	return 0;  /* will never reach this */
+}
+
+
+/****************************************************************************
+ * _subassign_SV_with_Rvector_selection()
+ */
+
+int _subassign_SV_with_Rvector_selection(const SparseVec *sv,
+		const int *offs, int n,
+		SEXP Rvector, const int *selection,
+		SparseVec *out_sv)
+{
+	error("_subassign_SV_with_Rvector_selection() is not ready yet");
+	return 0;
 }
 

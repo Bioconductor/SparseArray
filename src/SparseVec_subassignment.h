@@ -21,5 +21,14 @@ int _subassign_full_SV_with_Rsubvec(
 	SparseVec *out_sv
 );
 
+int _subassign_SV_with_Rvector_selection(
+	const SparseVec *sv,
+	const int *offs,
+	int n,
+	SEXP Rvector,
+	const int *selection,
+	SparseVec *out_sv
+);
+
 #endif  /* _SPARSEVEC_SUBASSIGNMENT_H_ */
 

@@ -227,6 +227,24 @@ SEXP _subassign_leaf_with_Rsubvec(
 	SparseVec *buf_sv
 );
 
+SEXP _subassign_leaf_with_Rvector_selection(
+	SEXP leaf,
+	const int *offs,
+	int n,
+	SEXP Rvector,
+	const int *selection,
+	SparseVec *buf_sv
+);
+
+SEXP _subassign_leaf_with_Rvector_xselection(
+	SEXP leaf,
+	const int *offs,
+	int n,
+	SEXP Rvector,
+	const R_xlen_t *xselection,
+	SparseVec *buf_sv
+);
+
 SEXP _subassign_leaf_with_Rvector_OLD(
 	SEXP leaf,
 	SEXP index,

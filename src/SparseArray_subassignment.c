@@ -231,7 +231,7 @@ static SEXP subassign_leaf_by_Lindex(SEXP leaf, int dim0, int na_background,
 
 
 /****************************************************************************
- * subassign_leaf_by_OPBuf()
+ * subassign_leaf_by_OPBuf_OLD()
  */
 
 static void init_idx0_to_k_map(int *idx0_to_k_map, const int *idx0s, int nelt)
@@ -628,7 +628,7 @@ static SEXP subassign_nonNULL_leaf_by_OPBuf(SEXP leaf, int dim0,
 	return ans;
 }
 
-static SEXP subassign_leaf_by_OPBuf(SEXP leaf, int dim0,
+static SEXP subassign_leaf_by_OPBuf_OLD(SEXP leaf, int dim0,
 		const OPBuf *opbuf, SEXP vals,
 		RVectorEltIsZeroFUN fun1,
 		SameRVectorValsFUN fun2,
@@ -651,6 +651,32 @@ static SEXP subassign_leaf_by_OPBuf(SEXP leaf, int dim0,
 	}
 	reset_idx0_to_k_map(idx0_to_k_map, opbuf->idx0s, opbuf->nelt);
 	return ans;
+}
+
+
+/****************************************************************************
+ * subassign_leaf_by_OPBuf()
+ */
+
+static SEXP subassign_leaf_by_OPBuf(SEXP leaf, const OPBuf *opbuf,
+		SEXP Rvector, OPBuf *sorted_opbuf,
+		int *order_buf, unsigned short int *rxbuf1, int *rxbuf2,
+		SparseVec *buf_sv)
+{
+	_sort_and_remove_dups_OPBuf(opbuf, sorted_opbuf,
+				    order_buf, rxbuf1, rxbuf2);
+	if (sorted_opbuf->Loffs != NULL)
+		return _subassign_leaf_with_Rvector_selection(leaf,
+				sorted_opbuf->idx0s, sorted_opbuf->nelt,
+				Rvector, sorted_opbuf->Loffs, buf_sv);
+	if (sorted_opbuf->xLoffs != NULL)
+		return _subassign_leaf_with_Rvector_xselection(leaf,
+				sorted_opbuf->idx0s, sorted_opbuf->nelt,
+				Rvector, sorted_opbuf->xLoffs, buf_sv);
+	error("SparseArray internal error in "
+	      "subassign_leaf_by_OPBuf()\n"
+	      "    'sorted_opbuf->Loffs' and 'sorted_opbuf->xLoffs' are NULL");
+	return R_NilValue;  /* will never reach this */
 }
 
 
@@ -766,8 +792,8 @@ static SEXP REC_subassign_SVT_by_OPBufTree(OPBufTree *opbuf_tree,
 	if (ndim == 1) {
 		/* Both 'opbuf_tree' and 'SVT' are leaves. */
 		OPBuf *opbuf = get_OPBufTree_leaf(opbuf_tree);
-		SEXP ans = subassign_leaf_by_OPBuf(SVT, dim[0], opbuf, vals,
-					fun1, fun2, fun3,
+		SEXP ans = subassign_leaf_by_OPBuf_OLD(SVT, dim[0],
+					opbuf, vals, fun1, fun2, fun3,
 					idx0_order_buf, rxbuf1, rxbuf2,
 					idx0_to_k_map);
 		/* PROTECT not really necessary since neither _free_OPBufTree()
