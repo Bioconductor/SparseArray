@@ -119,6 +119,9 @@ test_that("low-level SparseArray:::.subassign_SVT_by_Nindex()", {
         value <- c("hello", "", "world", "", "!")
         test_subassign_SVT_by_Nindex(svt0, Nindex, value)
         test_subassign_SVT_by_Nindex(svt1, Nindex, value)
+        value <- list(NULL, 11:14, NULL, factor(), list("a", complex(0), NA))
+        test_subassign_SVT_by_Nindex(svt0, Nindex, value)
+        test_subassign_SVT_by_Nindex(svt1, Nindex, value)
     }
 
     ## --- 2D objects ---
@@ -152,6 +155,9 @@ test_that("low-level SparseArray:::.subassign_SVT_by_Nindex()", {
         value <- c("hello", "", "world", "", "!")
         test_subassign_SVT_by_Nindex(svt0, Nindex, value)
         test_subassign_SVT_by_Nindex(svt1, Nindex, value)
+        value <- list(NULL, 11:14, NULL, factor(), list("a", complex(0), NA))
+        test_subassign_SVT_by_Nindex(svt0, Nindex, value)
+        test_subassign_SVT_by_Nindex(svt1, Nindex, value)
     }
 
     ## --- 3D objects ---
@@ -183,6 +189,9 @@ test_that("low-level SparseArray:::.subassign_SVT_by_Nindex()", {
         test_subassign_SVT_by_Nindex(svt0, Nindex, value)
         test_subassign_SVT_by_Nindex(svt1, Nindex, value)
         value <- c("hello", "", "world", "", "!")
+        test_subassign_SVT_by_Nindex(svt0, Nindex, value)
+        test_subassign_SVT_by_Nindex(svt1, Nindex, value)
+        value <- list(NULL, 11:14, NULL, factor(), list("a", complex(0), NA))
         test_subassign_SVT_by_Nindex(svt0, Nindex, value)
         test_subassign_SVT_by_Nindex(svt1, Nindex, value)
     }

@@ -7,6 +7,7 @@
 #include <string.h>  /* for memset() and memcpy() */
 
 /* Initialized in R_init_SparseArray(). */
+SEXP character1;
 int intNA;
 double doubleNA;
 Rcomplex RcomplexNA;
@@ -19,7 +20,6 @@ static const SEXPTYPE Rvector_types[] = {
 	CPLXSXP,  // "complex"
 	RAWSXP,   // "raw"
 	STRSXP,   // "character"
-
 	VECSXP    // "list"
 };
 
@@ -76,7 +76,7 @@ size_t _get_Rtype_size(SEXPTYPE Rtype)
  * _set_Rvector_elts_to_NA()
  */
 
-#define	DEFINE_set_TYPE_elts_to_val_FUN(type)				\
+#define DEFINE_set_TYPE_elts_to_val_FUN(type)				\
 static void set_ ## type ## _elts_to_val				\
 	(type *x, R_xlen_t n, type val)					\
 {									\
@@ -90,7 +90,7 @@ DEFINE_set_TYPE_elts_to_val_FUN(double)
 DEFINE_set_TYPE_elts_to_val_FUN(Rcomplex)
 DEFINE_set_TYPE_elts_to_val_FUN(Rbyte)
 
-#define	set_TYPE_elts_to_val(type, x, offset, n, val) \
+#define set_TYPE_elts_to_val(type, x, offset, n, val) \
 	set_ ## type ## _elts_to_val(SHIFT_DATAPTR(type, (x), (offset)), (n), \
 				     (*((type *) (val))))
 
@@ -128,7 +128,7 @@ void _set_elts_to_zero(SEXPTYPE Rtype, void *x, R_xlen_t offset, R_xlen_t n)
 	return;
 }
 
-#define	set_TYPE_elts_to_one(type, x, offset, n) \
+#define set_TYPE_elts_to_one(type, x, offset, n) \
 	set_ ## type ## _elts_to_val(SHIFT_DATAPTR(type, x, offset), (n), \
 				     (type ## 1))
 
@@ -340,7 +340,7 @@ void _set_Rvector_elts_to_NA(SEXP Rvector)
  * _set_selected_Rvector_elts_to_one()
  */
 
-#define	DEFINE_set_selected_TYPE_elts_to_val_FUN(type)			\
+#define DEFINE_set_selected_TYPE_elts_to_val_FUN(type)			\
 static void set_selected_ ## type ## _elts_to_val			\
 	(type *x, const int *selection, int n, type val)		\
 {									\
@@ -354,7 +354,7 @@ DEFINE_set_selected_TYPE_elts_to_val_FUN(double)
 DEFINE_set_selected_TYPE_elts_to_val_FUN(Rcomplex)
 DEFINE_set_selected_TYPE_elts_to_val_FUN(Rbyte)
 
-#define	set_selected_TYPE_elts_to_val(type, x, offset, selection, n, val) \
+#define set_selected_TYPE_elts_to_val(type, x, offset, selection, n, val) \
 	set_selected_ ## type ## _elts_to_val( \
 				SHIFT_DATAPTR(type, (x), (offset)), \
 				(selection), (n), (val))
@@ -474,7 +474,7 @@ SEXP _new_Rvector0(SEXPTYPE Rtype, R_xlen_t len)
 	SEXP ans = PROTECT(allocVector(Rtype, len));
 	/* allocVector() does NOT initialize the vector elements, except for
 	   a character vector or a list. */
-	if (Rtype != STRSXP && Rtype != VECSXP)
+	if (!IS_STRSXP_OR_VECSXP(Rtype))
 		_set_Rvector_elts_to_zero(ans);
 	UNPROTECT(1);
 	return ans;
@@ -488,7 +488,7 @@ SEXP _new_Rmatrix0(SEXPTYPE Rtype, int nrow, int ncol, SEXP dimnames)
 	/* allocMatrix() is just a thin wrapper around allocVector() and
 	   the latter does NOT initialize the vector elements, except for
 	   a character vector or a list. */
-	if (Rtype != STRSXP && Rtype != VECSXP)
+	if (!IS_STRSXP_OR_VECSXP(Rtype))
 		_set_Rvector_elts_to_zero(ans);
 	SET_DIMNAMES(ans, dimnames);
 	UNPROTECT(1);
@@ -503,7 +503,7 @@ SEXP _new_Rarray0(SEXPTYPE Rtype, SEXP dim, SEXP dimnames)
 	/* allocArray() is just a thin wrapper around allocVector() and
 	   the latter does NOT initialize the vector elements, except for
 	   a character vector or a list. */
-	if (Rtype != STRSXP && Rtype != VECSXP)
+	if (!IS_STRSXP_OR_VECSXP(Rtype))
 		_set_Rvector_elts_to_zero(ans);
 	SET_DIMNAMES(ans, dimnames);
 	UNPROTECT(1);
@@ -931,7 +931,7 @@ CopyRVectorEltFUN _select_copy_Rvector_elt_FUN(SEXPTYPE Rtype)
  * _copy_Rvector_elts()
  */
 
-#define	DEFINE_copy_TYPE_elts_FUN(type)					\
+#define DEFINE_copy_TYPE_elts_FUN(type)					\
 static void copy_ ## type ## _elts					\
 	(const type *src, type *dest, R_xlen_t nelt)			\
 {									\

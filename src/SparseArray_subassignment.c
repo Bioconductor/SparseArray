@@ -220,12 +220,12 @@ static SEXP subassign_leaf_by_Lindex(SEXP leaf, int dim0, int na_background,
 	vals = get_leaf_nzvals(offval_pairs);
 	SparseVec buf_sv = _alloc_buf_SparseVec(TYPEOF(vals), dim0,
 						na_background);
-	if (buf_sv.Rtype == STRSXP)
+	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
 		PROTECT(buf_sv.nzvals);
 	SEXP ans = PROTECT(_subassign_leaf_with_Rsubvec(leaf,
 						offs, LENGTH(vals),
 						vals, 0, &buf_sv));
-	UNPROTECT(buf_sv.Rtype == STRSXP ? 3 : 2);
+	UNPROTECT(IS_STRSXP_OR_VECSXP(buf_sv.Rtype) ? 3 : 2);
 	return ans;
 }
 
@@ -1380,13 +1380,13 @@ SEXP C_subassign_SVT_with_Rarray(
 		return x_SVT;  /* no-op */
 
 	SparseVec buf_sv = _alloc_buf_SparseVec(x_Rtype, dim[0], x_has_NAbg);
-	if (buf_sv.Rtype == STRSXP)
+	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
 		PROTECT(buf_sv.nzvals);
 	R_xlen_t *subarr_lens = alloc_and_compute_cumprod(arr_dim, ndim);
 	SEXP ans = REC_subassign_SVT_with_Rsubarr(x_SVT, dim, ndim, Noffs,
 						  Rarray, 0, subarr_lens,
 						  &buf_sv);
-	if (buf_sv.Rtype == STRSXP)
+	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
 		UNPROTECT(1);
 	return ans;
 }

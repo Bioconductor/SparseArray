@@ -215,10 +215,10 @@ static void dArith_ ## Ltype ## SV_ ## Rtype ## s(int opcode,		    \
 	const Ltype *nzvals1_p = get_ ## Ltype ## SV_nzvals_p(sv1);	    \
 	if (nzvals1_p == NULL && y_len == 1) {				    \
 		/* shortcut for "lacunar SparseVec <op> scalar" case */	    \
-		double out = darith_fun(opcode, Ltype ## 1, y[0]);	    \
-		if (IS_BACKGROUND_VAL(out, out_sv->na_background))	    \
+		double out_val = darith_fun(opcode, Ltype ## 1, y[0]);	    \
+		if (IS_BG_DOUBLE(out_val, out_sv->na_background))	    \
 			return;						    \
-		out_nzvals[0] = out;					    \
+		out_nzvals[0] = out_val;				    \
 		out_sv->nzcount = PROPAGATE_NZOFFS;			    \
 		return;							    \
 	}								    \
@@ -227,10 +227,10 @@ static void dArith_ ## Ltype ## SV_ ## Rtype ## s(int opcode,		    \
 		Ltype x = nzvals1_p == NULL ? Ltype ## 1 : nzvals1_p[k];    \
 		int nzoff1 = sv1->nzoffs[k];				    \
 		Rtype yy = y[nzoff1 % y_len];				    \
-		double out = darith_fun(opcode, x, yy);			    \
-		if (IS_BACKGROUND_VAL(out, out_sv->na_background))	    \
+		double out_val = darith_fun(opcode, x, yy);		    \
+		if (IS_BG_DOUBLE(out_val, out_sv->na_background))	    \
 			continue;					    \
-		APPEND_TO_NZVALS_NZOFFS(out, nzoff1,			    \
+		APPEND_TO_NZVALS_NZOFFS(out_val, nzoff1,		    \
 			out_nzvals, out_sv->nzoffs, out_sv->nzcount);	    \
 	}								    \
 }
@@ -259,10 +259,10 @@ static void iArith_intSV_ints(int opcode,
 	const int *nzvals1_p = get_intSV_nzvals_p(sv1);
 	if (nzvals1_p == NULL && y_len == 1) {
 		/* shortcut for "lacunar SparseVec <op> scalar" case */
-		int out = iarith(opcode, int1, y[0], ovflow);
-		if (out == out_bg_val)
+		int out_val = iarith(opcode, int1, y[0], ovflow);
+		if (out_val == out_bg_val)
 			return;
-		out_nzvals[0] = out;
+		out_nzvals[0] = out_val;
 		out_sv->nzcount = PROPAGATE_NZOFFS;
 		return;
 	}
@@ -272,10 +272,10 @@ static void iArith_intSV_ints(int opcode,
 		int x = nzvals1_p == NULL ? int1 : nzvals1_p[k];
 		int nzoff1 = sv1->nzoffs[k];
 		int yy = y[nzoff1 % y_len];
-		int out = iarith(opcode, x, yy, ovflow);
-		if (out == out_bg_val)
+		int out_val = iarith(opcode, x, yy, ovflow);
+		if (out_val == out_bg_val)
 			continue;
-		APPEND_TO_NZVALS_NZOFFS(out, nzoff1,
+		APPEND_TO_NZVALS_NZOFFS(out_val, nzoff1,
 				out_nzvals, out_sv->nzoffs, out_sv->nzcount);
 	}
 	return;
@@ -302,10 +302,10 @@ static void dArith_ ## Ltype ## s_ ## Rtype ## SV(int opcode,		    \
 	const Rtype *nzvals2_p = get_ ## Rtype ## SV_nzvals_p(sv2);	    \
 	if (nzvals2_p == NULL && x_len == 1) {				    \
 		/* shortcut for "scalar <op> lacunar SparseVec" case */	    \
-		double out = darith_fun(opcode, x[0], Rtype ## 1);	    \
-		if (IS_BACKGROUND_VAL(out, out_sv->na_background))	    \
+		double out_val = darith_fun(opcode, x[0], Rtype ## 1);	    \
+		if (IS_BG_DOUBLE(out_val, out_sv->na_background))	    \
 			return;						    \
-		out_nzvals[0] = out;					    \
+		out_nzvals[0] = out_val;				    \
 		out_sv->nzcount = PROPAGATE_NZOFFS;			    \
 		return;							    \
 	}								    \
@@ -314,10 +314,10 @@ static void dArith_ ## Ltype ## s_ ## Rtype ## SV(int opcode,		    \
 		int nzoff2 = sv2->nzoffs[k];				    \
 		Ltype xx = x[nzoff2 % x_len];				    \
 		Rtype y = nzvals2_p == NULL ? Rtype ## 1 : nzvals2_p[k];    \
-		double out = darith_fun(opcode, xx, y);			    \
-		if (IS_BACKGROUND_VAL(out, out_sv->na_background))	    \
+		double out_val = darith_fun(opcode, xx, y);		    \
+		if (IS_BG_DOUBLE(out_val, out_sv->na_background))	    \
 			continue;					    \
-		APPEND_TO_NZVALS_NZOFFS(out, nzoff2,			    \
+		APPEND_TO_NZVALS_NZOFFS(out_val, nzoff2,		    \
 			out_nzvals, out_sv->nzoffs, out_sv->nzcount);	    \
 	}								    \
 }
@@ -346,10 +346,10 @@ static void iArith_ints_intSV(int opcode,
 	const int *nzvals2_p = get_intSV_nzvals_p(sv2);
 	if (nzvals2_p == NULL && x_len == 1) {
 		/* shortcut for "scalar <op> lacunar SparseVec" case */
-		int out = iarith(opcode, x[0], int1, ovflow);
-		if (out == out_bg_val)
+		int out_val = iarith(opcode, x[0], int1, ovflow);
+		if (out_val == out_bg_val)
 			return;
-		out_nzvals[0] = out;
+		out_nzvals[0] = out_val;
 		out_sv->nzcount = PROPAGATE_NZOFFS;
 		return;
 	}
@@ -359,10 +359,10 @@ static void iArith_ints_intSV(int opcode,
 		int nzoff2 = sv2->nzoffs[k];
 		int xx = x[nzoff2 % x_len];
 		int y = nzvals2_p == NULL ? int1 : nzvals2_p[k];
-		int out = iarith(opcode, xx, y, ovflow);
-		if (out == out_bg_val)
+		int out_val = iarith(opcode, xx, y, ovflow);
+		if (out_val == out_bg_val)
 			continue;
-		APPEND_TO_NZVALS_NZOFFS(out, nzoff2,
+		APPEND_TO_NZVALS_NZOFFS(out_val, nzoff2,
 				out_nzvals, out_sv->nzoffs, out_sv->nzcount);
 	}
 	return;
@@ -395,10 +395,10 @@ static void dArith_ ## Ltype ## SV_ ## Rtype ## SV(int opcode,		    \
 	while (next_ ## Ltype ## SV_ ## Rtype ## SV_vals(sv1, sv2,	    \
 			&k1, &k2, &off, &x, &y))			    \
 	{								    \
-		double out = darith_fun(opcode, x, y);			    \
-		if (IS_BACKGROUND_VAL(out, out_sv->na_background))	    \
+		double out_val = darith_fun(opcode, x, y);		    \
+		if (IS_BG_DOUBLE(out_val, out_sv->na_background))	    \
 			continue;					    \
-		APPEND_TO_NZVALS_NZOFFS(out, off,			    \
+		APPEND_TO_NZVALS_NZOFFS(out_val, off,			    \
 				out_nzvals, out_sv->nzoffs, out_nzcount);   \
 	}								    \
 	out_sv->nzcount = out_nzcount;					    \
@@ -423,10 +423,10 @@ static void iArith_intSV_intSV(int opcode,
 	int out_bg_val = out_sv->na_background ? intNA : int0;
 	int out_nzcount = 0, k1 = 0, k2 = 0, off, x, y;
 	while (next_intSV_intSV_vals(sv1, sv2, &k1, &k2, &off, &x, &y)) {
-		int out = iarith(opcode, x, y, ovflow);
-		if (out == out_bg_val)
+		int out_val = iarith(opcode, x, y, ovflow);
+		if (out_val == out_bg_val)
 			continue;
-		APPEND_TO_NZVALS_NZOFFS(out, off,
+		APPEND_TO_NZVALS_NZOFFS(out_val, off,
 				out_nzvals, out_sv->nzoffs, out_nzcount);
 	}
 	out_sv->nzcount = out_nzcount;

@@ -6,39 +6,180 @@
 #include "Rvector_utils.h"
 
 
-/* Does NOT work at the moment if 'Rtype' is VECSXP.
-   IMPORTANT: The caller must immediately call 'PROTECT(sv.nzvals)' on
-   the returned SparseVec struct when 'Rtype' is STRSXP. */
+/****************************************************************************
+ * _alloc_buf_SparseVec()
+ */
+
+/* IMPORTANT: The caller must immediately call 'PROTECT(sv.nzvals)' on
+   the returned SparseVec struct when 'Rtype' is STRSXP or VECSXP. */
 SparseVec _alloc_buf_SparseVec(SEXPTYPE Rtype, int len, int na_background)
 {
+	if (na_background && (Rtype == RAWSXP || Rtype == VECSXP))
+		error("SparseArray internal error in "
+		      "_alloc_buf_SparseVec():\n    NaArray objects "
+		      "of type \"%s\" are not supported", type2char(Rtype));
 	SparseVec sv;
 	sv.Rtype = Rtype;
-	if (Rtype == VECSXP)
-		error("SparseArray internal error in "
-		      "_alloc_buf_SparseVec():\n    type \"%s\" is "
-		      "not supported at the moment", type2char(Rtype));
-	if (Rtype == STRSXP) {
-		sv.nzvals = PROTECT(NEW_CHARACTER(len));
+	if (IS_STRSXP_OR_VECSXP(Rtype)) {
+		sv.nzvals = PROTECT(allocVector(Rtype, (R_xlen_t) len));
 	} else {
 		size_t Rtype_size = _get_Rtype_size(Rtype);
 		if (Rtype_size == 0)
 			error("SparseArray internal error in "
 			      "_alloc_buf_SparseVec():\n    type \"%s\" is "
 			      "not supported", type2char(Rtype));
-		if (na_background && Rtype == RAWSXP)
-			error("SparseArray internal error in "
-			      "_alloc_buf_SparseVec():\n    NaArray "
-			      "objects of type \"raw\" are not supported");
 		sv.nzvals = R_alloc(len, Rtype_size);
 	}
 	sv.nzoffs = (int *) R_alloc(len, sizeof(int));
 	sv.nzcount = 0;
 	sv.len = len;
 	sv.na_background = na_background;
-	if (Rtype == STRSXP)
+	if (IS_STRSXP_OR_VECSXP(Rtype))
 		UNPROTECT(1);
 	return sv;
 }
+
+
+/****************************************************************************
+ * _write_Rsubvec_to_SV()
+ *
+ * TODO: Maybe _make_leaf_from_Rsubvec() and _make_naleaf_from_Rsubvec()
+ * should use this?
+ */
+
+#define DEFINE_write_Rsubvec_to_typeSV_FUN(type)			  \
+static void write_Rsubvec_to_ ## type ## SV(const type *vals,		  \
+		const int *offs, int n, SparseVec *out_sv)		  \
+{									  \
+	type *out_nzvals = (type *) out_sv->nzvals;			  \
+	type out_bg_val = out_sv->na_background ? type ## NA : type ## 0; \
+	out_sv->nzcount = 0;						  \
+	for (int k = 0; k < n; k++) {					  \
+		type out_val = vals[k];					  \
+		if (type ## _equal(out_val, out_bg_val))		  \
+			continue;					  \
+		int off = offs == NULL ? k : offs[k];			  \
+		APPEND_TO_NZVALS_NZOFFS(out_val, off,			  \
+			out_nzvals, out_sv->nzoffs, out_sv->nzcount);	  \
+	}								  \
+	return;								  \
+}
+
+DEFINE_write_Rsubvec_to_typeSV_FUN(int)
+DEFINE_write_Rsubvec_to_typeSV_FUN(double)
+DEFINE_write_Rsubvec_to_typeSV_FUN(Rcomplex)
+
+static void write_Rsubvec_to_RbyteSV(const Rbyte *vals,
+		const int *offs, int n, SparseVec *out_sv)
+{
+	Rbyte *out_nzvals = (Rbyte *) out_sv->nzvals;
+	out_sv->nzcount = 0;
+	for (int k = 0; k < n; k++) {
+		Rbyte out_val = vals[k];
+		if (out_val == Rbyte0)
+			continue;
+		int off = offs == NULL ? k : offs[k];
+		APPEND_TO_NZVALS_NZOFFS(out_val, off,
+			out_nzvals, out_sv->nzoffs, out_sv->nzcount);
+	}
+	return;
+}
+
+static void write_Rsubvec_to_characterSV(SEXP Rvector, R_xlen_t subvec_offset,
+		const int *offs, int n, SparseVec *out_sv)
+{
+	SEXP out_nzvals = (SEXP) out_sv->nzvals;  /* STRSXP */
+	out_sv->nzcount = 0;
+	for (int k = 0; k < n; k++) {
+		SEXP out_val = STRING_ELT(Rvector, subvec_offset + k);
+		if (IS_BG_CHARSXP(out_val, out_sv->na_background))
+			continue;
+		int off = offs == NULL ? k : offs[k];
+		SET_STRING_ELT(out_nzvals, out_sv->nzcount, out_val);
+		out_sv->nzoffs[out_sv->nzcount] = off;
+		out_sv->nzcount++;
+	}
+	return;
+}
+
+static void write_Rsubvec_to_listSV(SEXP Rvector, R_xlen_t subvec_offset,
+		const int *offs, int n, SparseVec *out_sv)
+{
+	SEXP out_nzvals = (SEXP) out_sv->nzvals;  /* VECSXP */
+	out_sv->nzcount = 0;
+	for (int k = 0; k < n; k++) {
+		SEXP out_val = VECTOR_ELT(Rvector, subvec_offset + k);
+		if (out_val == R_NilValue)
+			continue;
+		int off = offs == NULL ? k : offs[k];
+		SET_VECTOR_ELT(out_nzvals, out_sv->nzcount, out_val);
+		out_sv->nzoffs[out_sv->nzcount] = off;
+		out_sv->nzcount++;
+	}
+	return;
+}
+
+/* Fills 'out_sv' with the nonzero elements of 'Rvector' that have an
+   index 'i' that is >= 'subvec_offset' and < 'subvec_offset + n'.
+   'offs' must be NULL or an array of 'n' offsets (non-negative integers)
+   that are strictly sorted (in ascending order). The last offset in the
+   array must be < 'out_sv->len'. */
+void _write_Rsubvec_to_SV(SEXP Rvector, R_xlen_t subvec_offset,
+		const int *offs, int n, SparseVec *out_sv)
+{
+	SEXPTYPE Rtype = get_SV_Rtype(out_sv);
+	if (TYPEOF(Rvector) != Rtype)
+		error("SparseArray internal error in "
+		      "_write_Rsubvec_to_SV():\n"
+		      "    'Rvector' and 'out_sv' don't have the same type");
+	if (offs == NULL) {
+		if (n != out_sv->len)
+			error("SparseArray internal error in "
+			      "_write_Rsubvec_to_SV():\n"
+			      "    'offs == NULL' and 'n != out_sv->len'");
+	} else {
+		if (n > out_sv->len)
+			error("SparseArray internal error in "
+			      "_write_Rsubvec_to_SV():\n"
+			      "    'offs != NULL' and 'n > out_sv->len'");
+	}
+	switch (Rtype) {
+	    case INTSXP: case LGLSXP:
+		write_Rsubvec_to_intSV(INTEGER(Rvector) + subvec_offset,
+			offs, n, out_sv);
+		return;
+	    case REALSXP:
+		write_Rsubvec_to_doubleSV(REAL(Rvector) + subvec_offset,
+			offs, n, out_sv);
+		return;
+	    case CPLXSXP:
+		write_Rsubvec_to_RcomplexSV(COMPLEX(Rvector) + subvec_offset,
+			offs, n, out_sv);
+		return;
+	    case RAWSXP:
+		write_Rsubvec_to_RbyteSV(RAW(Rvector) + subvec_offset,
+			offs, n, out_sv);
+		return;
+	    case STRSXP:
+		write_Rsubvec_to_characterSV(Rvector, subvec_offset,
+			offs, n, out_sv);
+		return;
+	    case VECSXP:
+		write_Rsubvec_to_listSV(Rvector, subvec_offset,
+			offs, n, out_sv);
+		return;
+	}
+	error("SparseArray internal error in "
+	      "_write_Rsubvec_to_SV():\n"
+	      "    'out_sv' of type \"%s\" not supported", type2char(Rtype));
+	return;  /* will never reach this */
+}
+
+
+/****************************************************************************
+ * _expand_intSV()
+ * _expand_doubleSV()
+ */
 
 void _expand_intSV(const SparseVec *sv, int *out, int set_background)
 {
