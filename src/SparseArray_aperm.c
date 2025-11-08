@@ -381,7 +381,7 @@ SEXP C_transpose_2D_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT)
 	int x_ncol = INTEGER(x_dim)[1];
 	int *nzcount_buf = (int *) R_alloc(x_nrow, sizeof(int));
 	int *onecount_buf = NULL;
-	if (x_Rtype != STRSXP && x_Rtype != VECSXP)
+	if (!IS_STRSXP_OR_VECSXP(x_Rtype))
 		onecount_buf = (int *) R_alloc(x_nrow, sizeof(int));
 	return transpose_2D_SVT(x_SVT, x_nrow, x_ncol, x_Rtype,
 				nzcount_buf, onecount_buf);
@@ -509,7 +509,7 @@ static void init_A0Bufs(Aperm0Bufs *A0Bufs, const int *dim, int ndim,
 	A0Bufs->nzcount_buf = (int *)
 		R_alloc(nzcount_buf_len, sizeof(int));
 	A0Bufs->onecount_buf = NULL;
-	if (Rtype != STRSXP && Rtype != VECSXP)
+	if (!IS_STRSXP_OR_VECSXP(Rtype))
 		A0Bufs->onecount_buf = (int *)
 			R_alloc(nzcount_buf_len, sizeof(int));
 	A0Bufs->nzcount_buf_len = nzcount_buf_len;

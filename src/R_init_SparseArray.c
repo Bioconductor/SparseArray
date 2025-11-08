@@ -147,6 +147,9 @@ void R_init_SparseArray(DllInfo *info)
 {
 	R_registerRoutines(info, NULL, callMethods, NULL, NULL);
 	R_useDynamicSymbols(info, 0);
+
+	/* 'character1' will remain PROTECT'ed for the entire R session. */
+	character1 = PROTECT(mkChar("1"));  /* CHARSXP */
 	intNA = NA_INTEGER;
 	doubleNA = RcomplexNA.r = RcomplexNA.i = NA_REAL;
 	return;

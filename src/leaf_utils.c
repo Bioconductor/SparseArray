@@ -87,28 +87,32 @@ SEXP _make_leaf_with_single_shared_nzval(SEXPTYPE Rtype,
 	return ans;
 }
 
-/* Does NOT work at the moment if 'Rtype' is VECSXP.
-   Each of 'nzvals_p' and 'nzoffs_p' must be a pointer to an array of length
-   'nzcount'. 'nzvals_p' is **trusted** to not contain any zeros. This is NOT
-   checked! The returned leaf can be lacunar. */
+/* Each of 'nzvals_p' and 'nzoffs_p' must be a pointer to an array of
+   length 'nzcount'. 'nzvals_p' is **trusted** to not contain any zeros (this
+   is NOT checked).
+   The returned leaf can be lacunar. */
 SEXP _make_leaf_from_two_arrays(SEXPTYPE Rtype,
 		const void *nzvals_p, const int *nzoffs_p, int nzcount)
 {
 	if (nzcount == 0)
 		return R_NilValue;
-	if (Rtype == VECSXP)
-		error("SparseArray internal error in "
-		      "_make_leaf_from_two_arrays():\n    type \"%s\" is "
-		      "not supported at the moment", type2char(Rtype));
 	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(nzcount));
 	memcpy(INTEGER(ans_nzoffs), nzoffs_p, sizeof(int) * nzcount);
 	SEXP ans_nzvals;
 	if (Rtype == STRSXP) {
-		/* Lacunar leaves of Rtype STRSXP are not supported yet. */
+		/* Lacunar leaves of Rtype STRSXP are not supported yet
+		   (they will be in the future). */
 		ans_nzvals = PROTECT(NEW_CHARACTER(nzcount));
 		for (int k = 0; k < nzcount; k++) {
 			SEXP nzval = STRING_ELT((SEXP) nzvals_p, k);
 			SET_STRING_ELT(ans_nzvals, k, nzval);
+		}
+	} else if (Rtype == VECSXP) {
+		/* Lacunar leaves of Rtype VECSXP are not supported. */
+		ans_nzvals = PROTECT(NEW_LIST(nzcount));
+		for (int k = 0; k < nzcount; k++) {
+			SEXP nzval = VECTOR_ELT((SEXP) nzvals_p, k);
+			SET_VECTOR_ELT(ans_nzvals, k, nzval);
 		}
 	} else {
 		size_t Rtype_size = _get_Rtype_size(Rtype);
@@ -341,7 +345,7 @@ void _INPLACE_order_leaf_by_nzoff(SEXP leaf, int *order_buf,
 
 static SEXP coerce_lacunar_leaf(SEXP leaf, SEXPTYPE new_Rtype)
 {
-	if (new_Rtype != STRSXP && new_Rtype != VECSXP)
+	if (!IS_STRSXP_OR_VECSXP(new_Rtype))
 		return leaf;  /* no-op */
 	error("SparseArray internal error in coerce_lacunar_leaf():\n"
 	      "    coercing a lacunar leaf to \"character\" or \"list\" "
@@ -423,7 +427,7 @@ SEXP _subassign_leaf_with_Rsubvec(SEXP leaf, SEXP offs, int n,
 		offs0 = INTEGER(offs);
 	}
 	if (leaf == R_NilValue) {
-		_fill_SV_with_Rsubvec(Rvector, subvec_offset, offs0, n, buf_sv);
+		_write_Rsubvec_to_SV(Rvector, subvec_offset, offs0, n, buf_sv);
 	} else {
 		const SparseVec sv1 = leaf2SV(leaf, buf_sv->Rtype,
 					      buf_sv->len,
@@ -449,7 +453,6 @@ SEXP _subassign_leaf_with_Rsubvec(SEXP leaf, SEXP offs, int n,
  *
  * TODO: Get rid of this!
  */
-
 
 /* Do NOT use on a NULL leaf. Can be used on a lacunar leaf.
    'index' must be an integer vector containing valid zero-based indices

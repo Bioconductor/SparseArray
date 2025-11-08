@@ -7,6 +7,11 @@
 
 #include <limits.h>  /* for INT_MAX */
 
+
+/****************************************************************************
+ * SparseVec struct
+ */
+
 /* Set 'nzvals' to R_NilValue to represent a lacunar SparseVec. */
 typedef struct sparse_vec_t {
 	SEXPTYPE Rtype;     /* type of the values in 'nzvals' */
@@ -17,10 +22,20 @@ typedef struct sparse_vec_t {
 	int na_background;  /* background value is NA instead of zero */
 } SparseVec;
 
-#define	IS_BACKGROUND_VAL(x, na_background) \
-	(((na_background) && R_IsNA(x)) || (!(na_background) && (x) == double0))
 
-#define	APPEND_TO_NZVALS_NZOFFS(val, off, out_nzvals, out_nzoffs, out_nzcount) \
+/****************************************************************************
+ * Some low-level convenience macros and inline functions used by many
+ * operations on SparseVec structs.
+ */
+
+#define IS_BG_DOUBLE(val, na_background) \
+	((na_background) ? R_IsNA(val) : ((val) == double0))
+
+#define IS_BG_CHARSXP(val, na_background) \
+	((na_background) ? ((val) == NA_STRING) \
+			 : ((val) != NA_STRING && LENGTH(val) == 0))
+
+#define APPEND_TO_NZVALS_NZOFFS(val, off, out_nzvals, out_nzoffs, out_nzcount) \
 {									\
 	(out_nzvals)[out_nzcount] = (val);				\
 	(out_nzoffs)[out_nzcount] = (off);				\
@@ -35,7 +50,26 @@ typedef struct sparse_vec_t {
    IMPORTANT: If this is the case then the function doesn't write anything
    to output buffer 'out_nzoffs' and writes the single shared nzval to
    'out_nzvals[0]'. */
-#define	PROPAGATE_NZOFFS   -1  /* must be a **negative** int */
+#define PROPAGATE_NZOFFS   -1  /* must be a **negative** int */
+
+/* Maybe move this to Rvector_utils.h */
+static inline int int_equal(int x, int y)
+{
+	return x == y;
+}
+static inline int double_equal(double x, double y)
+{
+	return x == y;
+}
+static inline int Rcomplex_equal(Rcomplex x, Rcomplex y)
+{
+	return x.r == y.r && x.i == y.i;
+}
+
+
+/****************************************************************************
+ * Inline function toSparseVec()
+ */
 
 /* 'Rtype' **must** be set to 'TYPEOF(nzvals)' if 'nzvals' is not R_NilValue.
    The only reason we have the 'Rtype' argument is so that we can still store
@@ -60,9 +94,9 @@ static inline SparseVec toSparseVec(SEXP nzvals, SEXP nzoffs,
 	if (nzvals == R_NilValue) {
 		sv.nzvals = NULL;
 	} else {
-		/* Type VECSXP (list) is not supported at the moment. */
 		if (Rtype != INTSXP && Rtype != LGLSXP && Rtype != REALSXP &&
-		    Rtype != CPLXSXP && Rtype != RAWSXP && Rtype != STRSXP)
+		    Rtype != CPLXSXP && Rtype != RAWSXP &&
+		    Rtype != STRSXP && Rtype != VECSXP)
 			error("SparseArray internal error in toSparseVec():\n"
 			      "    type \"%s\" is not supported",
 			      type2char(Rtype));
@@ -71,9 +105,11 @@ static inline SparseVec toSparseVec(SEXP nzvals, SEXP nzoffs,
 			      "    TYPEOF(nzvals) != Rtype");
 		if (XLENGTH(nzvals) != nzcount)
 			goto on_error;
-		/* DATAPTR(nzvals) only makes sense when TYPEOF(nzvals) is
-		   not STRSXP or VECSXP. */
-		sv.nzvals = Rtype == STRSXP ? nzvals : DATAPTR(nzvals);
+		if (IS_STRSXP_OR_VECSXP(Rtype)) {
+			sv.nzvals = nzvals;
+		} else {
+			sv.nzvals = DATAPTR(nzvals);
+		}
 	}
 	sv.nzoffs = INTEGER(nzoffs);
 	sv.nzcount = LENGTH(nzoffs);
@@ -86,6 +122,11 @@ static inline SparseVec toSparseVec(SEXP nzvals, SEXP nzoffs,
 	      "    supplied 'nzvals' and/or 'nzoffs' "
 	      "are invalid or incompatible");
 }
+
+
+/****************************************************************************
+ * SparseVec getters as inline functions
+ */
 
 static inline SEXPTYPE get_SV_Rtype(const SparseVec *sv)
 {
@@ -122,6 +163,11 @@ static inline SEXP get_characterSV_nzvals_p(const SparseVec *sv)
 	return sv->nzvals;
 }
 
+static inline SEXP get_listSV_nzvals_p(const SparseVec *sv)
+{
+	return sv->nzvals;
+}
+
 static inline Rbyte get_RbyteSV_nzval(const SparseVec *sv, int k)
 {
 	const Rbyte *nzvals_p = get_RbyteSV_nzvals_p(sv);
@@ -149,8 +195,22 @@ static inline Rcomplex get_RcomplexSV_nzval(const SparseVec *sv, int k)
 static inline SEXP get_characterSV_nzval(const SparseVec *sv, int k)
 {
 	SEXP nzvals_p = get_characterSV_nzvals_p(sv);
-	return nzvals_p == NULL ? mkChar("1") : STRING_ELT(nzvals_p, k);
+	return nzvals_p == NULL ? character1 : STRING_ELT(nzvals_p, k);
 }
+
+static inline SEXP get_listSV_nzval(const SparseVec *sv, int k)
+{
+	SEXP nzvals_p = get_listSV_nzvals_p(sv);
+	if (nzvals_p == NULL)
+		error("SparseArray internal error in get_listSV_nzval():\n"
+		      "    lacunar SparseVec of type \"list\" not supported");
+	return VECTOR_ELT(nzvals_p, k);
+}
+
+
+/****************************************************************************
+ * Inline function next_offset()
+ */
 
 static inline int next_offset(
 		const int *offs1, int n1,
@@ -311,6 +371,14 @@ SparseVec _alloc_buf_SparseVec(
 	SEXPTYPE Rtype,
 	int len,
 	int na_background
+);
+
+void _write_Rsubvec_to_SV(
+	SEXP Rvector,
+	R_xlen_t subvec_offset,
+	const int *offs,
+	int n,
+	SparseVec *out_sv
 );
 
 void _expand_intSV(

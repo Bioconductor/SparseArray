@@ -184,7 +184,7 @@ void _Math_doubleSV(MathFUN fun, const SparseVec *sv, double digits,
 	const double *nzvals_p = get_doubleSV_nzvals_p(sv);
 	if (nzvals_p == NULL) {  /* lacunar SparseVec */
 		double out_val = fun(1.0);
-		if (IS_BACKGROUND_VAL(out_val, out_sv->na_background))
+		if (IS_BG_DOUBLE(out_val, out_sv->na_background))
 			return;
 		out_nzvals[0] = out_val;
 		out_sv->nzcount = PROPAGATE_NZOFFS;
@@ -194,7 +194,7 @@ void _Math_doubleSV(MathFUN fun, const SparseVec *sv, double digits,
 	int nzcount = get_SV_nzcount(sv);
 	for (int k = 0; k < nzcount; k++) {
 		double out_val = fun(nzvals_p[k]);
-		if (IS_BACKGROUND_VAL(out_val, out_sv->na_background))
+		if (IS_BG_DOUBLE(out_val, out_sv->na_background))
 			continue;
                 APPEND_TO_NZVALS_NZOFFS(out_val, sv->nzoffs[k],
 				out_nzvals, out_sv->nzoffs, out_sv->nzcount);

@@ -16,15 +16,18 @@ static const double double1 = 1.0;
 /* Some old versions of gcc choke on this:
 static const Rcomplex Rcomplex1 = {{double1, double0}}; */
 static const Rcomplex Rcomplex1 = {{1.0, 0.0}};
+extern SEXP character1;      /* initialized in R_init_SparseArray() */
 
 /* Unfortunately, R does not define NA_INTEGER or NA_REAL as const
    variables so we can't define intNA, doubleNA, or RcomplexNA as
    we do for int0/1, double0/1, or Rcomplex0/1 above. */
-extern int intNA;
-extern double doubleNA;
-extern Rcomplex RcomplexNA;
+extern int intNA;            /* initialized in R_init_SparseArray() */
+extern double doubleNA;      /* initialized in R_init_SparseArray() */
+extern Rcomplex RcomplexNA;  /* initialized in R_init_SparseArray() */
 
-#define	IS_EMPTY_CHARSXP(x) ((x) != NA_STRING && LENGTH(x) == 0)
+#define IS_STRSXP_OR_VECSXP(Rtype) ((Rtype) == STRSXP || (Rtype) == VECSXP)
+
+#define IS_EMPTY_CHARSXP(x) ((x) != NA_STRING && LENGTH(x) == 0)
 
 #define RCOMPLEX_IS_NA_OR_NaN(z) (ISNAN((z)->r) || ISNAN((z)->i))
 
