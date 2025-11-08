@@ -3,6 +3,8 @@
  ****************************************************************************/
 #include "OPBufTree.h"
 
+#include "S4Vectors_interface.h"  /* for sort_ints() */
+
 #include <stdlib.h>  /* for malloc(), free(), calloc(), realloc() */
 #include <limits.h>  /* for INT_MAX */
 #include <errno.h>
@@ -239,6 +241,53 @@ void _free_OPBufTree(OPBufTree *opbuf_tree)
 	*opbuf_tree = OPBufTree0;
 	return;
 }
+
+
+/****************************************************************************
+ * _sort_and_remove_dups_OPBuf()
+ */
+
+/* Sort (idx0,Loff) pairs by increasing 'idx0s' order. Also remove pairs
+   with equal 'idx0s' (keep the last occurence). */
+void _sort_and_remove_dups_OPBuf(const OPBuf *opbuf, OPBuf *out_opbuf,
+		int *order_buf, unsigned short int *rxbuf1, int *rxbuf2)
+{
+	for (int k = 0; k < opbuf->nelt; k++)
+		order_buf[k] = k;
+	int ret = sort_ints(order_buf, opbuf->nelt, opbuf->idx0s, 0, 1,
+			    rxbuf1, rxbuf2);
+	/* Note that ckecking the value returned by sort_ints() is not really
+	   necessary here because sort_ints() should never fail when 'rxbuf1'
+	   and 'rxbuf2' are supplied (see implementation of _sort_ints() in
+	   S4Vectors/src/sort_utils.c for the details). We perform this check
+	   nonetheless just to be on the safe side in case the implementation
+	   of sort_ints() changes in the future. */
+	if (ret < 0)
+		error("SparseArray internal error in "
+		      "_sort_and_remove_dups_OPBuf():\n"
+		      "    sort_ints() returned an error");
+	int i2 = -1, prev_idx0 = -1;
+	for (int k = 0; k < opbuf->nelt; k++) {
+		int i1 = order_buf[k];
+		int idx0 = opbuf->idx0s[i1];
+		if (idx0 != prev_idx0) {
+			i2++;
+			prev_idx0 = idx0;
+		}
+		out_opbuf->idx0s[i2] = idx0;
+		if (opbuf->Loffs != NULL)
+			out_opbuf->Loffs[i2] = opbuf->Loffs[i1];
+		if (opbuf->xLoffs != NULL)
+			out_opbuf->xLoffs[i2] = opbuf->xLoffs[i1];
+	}
+	out_opbuf->nelt = i2 + 1;
+	return;
+}
+
+
+/****************************************************************************
+ * _print_OPBufTree()
+ */
 
 static void print_OPBuf(OPBuf *opbuf, const char *margin)
 {

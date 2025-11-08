@@ -11,14 +11,14 @@
  * code in SparseArray_subsetting.c and SparseArray_subassignment.c.
  */
 
-#define	MAX_OPBUF_LEN_REACHED -1
+#define MAX_OPBUF_LEN_REACHED -1
 
 /* Buffer of Offset Pairs. Each (idx0,Loff) pair is made of:
    - idx0: an offset along the first dimension of the array to subset or
            subassign;
    - Loff: an offset along the L-index used for the subsetting or
            subassignment.
-   Note that 'buflen' and 'nelt' are both of type int below. This means
+   Note that 'buflen' and 'nelt' below are both of type int. This means
    that the max length of an OPBuf is INT_MAX. */
 typedef struct opbuf_t {
 	int buflen;
@@ -92,6 +92,14 @@ int _append_idx0xLoff_to_host_node(
 );
 
 void _free_OPBufTree(OPBufTree *opbuf_tree);
+
+void _sort_and_remove_dups_OPBuf(
+	const OPBuf *opbuf,
+	OPBuf *out_opbuf,
+	int *order_buf,
+	unsigned short int *rxbuf1,
+	int *rxbuf2
+);
 
 void _print_OPBufTree(
 	const OPBufTree *opbuf_tree,

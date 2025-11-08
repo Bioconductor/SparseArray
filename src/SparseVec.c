@@ -177,6 +177,18 @@ void _write_Rsubvec_to_SV(SEXP Rvector, R_xlen_t subvec_offset,
 
 
 /****************************************************************************
+ * _write_Rvector_selection_to_SV()
+ */
+
+void _write_Rvector_selection_to_SV(SEXP Rvector, const int *selection,
+		const int *offs, int n, SparseVec *out_sv)
+{
+	error("_write_Rvector_selection_to_SV() is not ready yet");
+	return;
+}
+
+
+/****************************************************************************
  * _expand_intSV()
  * _expand_doubleSV()
  */

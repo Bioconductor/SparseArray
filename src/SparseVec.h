@@ -381,6 +381,14 @@ void _write_Rsubvec_to_SV(
 	SparseVec *out_sv
 );
 
+void _write_Rvector_selection_to_SV(
+	SEXP Rvector,
+	const int *selection,
+	const int *offs,
+	int n,
+	SparseVec *out_sv
+);
+
 void _expand_intSV(
 	const SparseVec *sv,
 	int *out,

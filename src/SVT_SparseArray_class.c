@@ -3,8 +3,6 @@
  ****************************************************************************/
 #include "SVT_SparseArray_class.h"
 
-#include "S4Vectors_interface.h"  /* for sort_ints() */
-
 #include "argcheck_utils.h"
 #include "Rvector_utils.h"
 #include "coerceVector2.h"  /* for _CoercionWarning() */
