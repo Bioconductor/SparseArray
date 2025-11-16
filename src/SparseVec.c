@@ -41,14 +41,36 @@ SparseVec _alloc_buf_SparseVec(SEXPTYPE Rtype, int len, int na_background)
 
 
 /****************************************************************************
- * _write_Rsubvec_to_SV()
+ * _write_Rvector_block_to_SV()
  *
  * TODO: Maybe _make_leaf_from_Rsubvec() and _make_naleaf_from_Rsubvec()
  * should use this?
  */
 
-#define DEFINE_write_Rsubvec_to_typeSV_FUN(type)			  \
-static void write_Rsubvec_to_ ## type ## SV(const type *vals,		  \
+static SEXPTYPE get_SV_write_Rtype(SEXP Rvector,
+		const int *offs, int n, const SparseVec *out_sv)
+{
+	SEXPTYPE Rtype = get_SV_Rtype(out_sv);
+	if (TYPEOF(Rvector) != Rtype)
+		error("SparseArray internal error in "
+		      "get_SV_write_Rtype():\n"
+		      "    'Rvector' and 'out_sv' don't have the same type");
+	if (offs == NULL) {
+		if (n != out_sv->len)
+			error("SparseArray internal error in "
+			      "get_SV_write_Rtype():\n"
+			      "    'offs == NULL' and 'n != out_sv->len'");
+	} else {
+		if (n > out_sv->len)
+			error("SparseArray internal error in "
+			      "get_SV_write_Rtype():\n"
+			      "    'offs != NULL' and 'n > out_sv->len'");
+	}
+	return Rtype;
+}
+
+#define DEFINE_write_Rvector_block_to_typeSV_FUN(type)			  \
+static void write_Rvector_block_to_ ## type ## SV(const type *vals,	  \
 		const int *offs, int n, SparseVec *out_sv)		  \
 {									  \
 	type *out_nzvals = (type *) out_sv->nzvals;			  \
@@ -65,11 +87,11 @@ static void write_Rsubvec_to_ ## type ## SV(const type *vals,		  \
 	return;								  \
 }
 
-DEFINE_write_Rsubvec_to_typeSV_FUN(int)
-DEFINE_write_Rsubvec_to_typeSV_FUN(double)
-DEFINE_write_Rsubvec_to_typeSV_FUN(Rcomplex)
+DEFINE_write_Rvector_block_to_typeSV_FUN(int)
+DEFINE_write_Rvector_block_to_typeSV_FUN(double)
+DEFINE_write_Rvector_block_to_typeSV_FUN(Rcomplex)
 
-static void write_Rsubvec_to_RbyteSV(const Rbyte *vals,
+static void write_Rvector_block_to_RbyteSV(const Rbyte *vals,
 		const int *offs, int n, SparseVec *out_sv)
 {
 	Rbyte *out_nzvals = (Rbyte *) out_sv->nzvals;
@@ -85,13 +107,14 @@ static void write_Rsubvec_to_RbyteSV(const Rbyte *vals,
 	return;
 }
 
-static void write_Rsubvec_to_characterSV(SEXP Rvector, R_xlen_t subvec_offset,
+static void write_Rvector_block_to_characterSV(
+		SEXP Rvector, R_xlen_t block_offset,
 		const int *offs, int n, SparseVec *out_sv)
 {
 	SEXP out_nzvals = (SEXP) out_sv->nzvals;  /* STRSXP */
 	out_sv->nzcount = 0;
 	for (int k = 0; k < n; k++) {
-		SEXP out_val = STRING_ELT(Rvector, subvec_offset + k);
+		SEXP out_val = STRING_ELT(Rvector, block_offset + k);
 		if (IS_BG_CHARSXP(out_val, out_sv->na_background))
 			continue;
 		int off = offs == NULL ? k : offs[k];
@@ -102,13 +125,14 @@ static void write_Rsubvec_to_characterSV(SEXP Rvector, R_xlen_t subvec_offset,
 	return;
 }
 
-static void write_Rsubvec_to_listSV(SEXP Rvector, R_xlen_t subvec_offset,
+static void write_Rvector_block_to_listSV(
+		SEXP Rvector, R_xlen_t block_offset,
 		const int *offs, int n, SparseVec *out_sv)
 {
 	SEXP out_nzvals = (SEXP) out_sv->nzvals;  /* VECSXP */
 	out_sv->nzcount = 0;
 	for (int k = 0; k < n; k++) {
-		SEXP out_val = VECTOR_ELT(Rvector, subvec_offset + k);
+		SEXP out_val = VECTOR_ELT(Rvector, block_offset + k);
 		if (out_val == R_NilValue)
 			continue;
 		int off = offs == NULL ? k : offs[k];
@@ -119,72 +143,168 @@ static void write_Rsubvec_to_listSV(SEXP Rvector, R_xlen_t subvec_offset,
 	return;
 }
 
-/* Fills 'out_sv' with the nonzero elements of 'Rvector' that have an
-   index 'i' that is >= 'subvec_offset' and < 'subvec_offset + n'.
+/* Fills 'out_sv' with the nonzero values from the block of 'n' elements
+   in 'Rvector' that starts at offset 'block_offset'.
    'offs' must be NULL or an array of 'n' offsets (non-negative integers)
    that are strictly sorted (in ascending order). The last offset in the
    array must be < 'out_sv->len'. */
-void _write_Rsubvec_to_SV(SEXP Rvector, R_xlen_t subvec_offset,
+void _write_Rvector_block_to_SV(SEXP Rvector, R_xlen_t block_offset,
 		const int *offs, int n, SparseVec *out_sv)
 {
-	SEXPTYPE Rtype = get_SV_Rtype(out_sv);
-	if (TYPEOF(Rvector) != Rtype)
-		error("SparseArray internal error in "
-		      "_write_Rsubvec_to_SV():\n"
-		      "    'Rvector' and 'out_sv' don't have the same type");
-	if (offs == NULL) {
-		if (n != out_sv->len)
-			error("SparseArray internal error in "
-			      "_write_Rsubvec_to_SV():\n"
-			      "    'offs == NULL' and 'n != out_sv->len'");
-	} else {
-		if (n > out_sv->len)
-			error("SparseArray internal error in "
-			      "_write_Rsubvec_to_SV():\n"
-			      "    'offs != NULL' and 'n > out_sv->len'");
-	}
+	SEXPTYPE Rtype = get_SV_write_Rtype(Rvector, offs, n, out_sv);
 	switch (Rtype) {
 	    case INTSXP: case LGLSXP:
-		write_Rsubvec_to_intSV(INTEGER(Rvector) + subvec_offset,
+		write_Rvector_block_to_intSV(
+			INTEGER(Rvector) + block_offset,
 			offs, n, out_sv);
 		return;
 	    case REALSXP:
-		write_Rsubvec_to_doubleSV(REAL(Rvector) + subvec_offset,
+		write_Rvector_block_to_doubleSV(
+			REAL(Rvector) + block_offset,
 			offs, n, out_sv);
 		return;
 	    case CPLXSXP:
-		write_Rsubvec_to_RcomplexSV(COMPLEX(Rvector) + subvec_offset,
+		write_Rvector_block_to_RcomplexSV(
+			COMPLEX(Rvector) + block_offset,
 			offs, n, out_sv);
 		return;
 	    case RAWSXP:
-		write_Rsubvec_to_RbyteSV(RAW(Rvector) + subvec_offset,
+		write_Rvector_block_to_RbyteSV(
+			RAW(Rvector) + block_offset,
 			offs, n, out_sv);
 		return;
 	    case STRSXP:
-		write_Rsubvec_to_characterSV(Rvector, subvec_offset,
+		write_Rvector_block_to_characterSV(
+			Rvector, block_offset,
 			offs, n, out_sv);
 		return;
 	    case VECSXP:
-		write_Rsubvec_to_listSV(Rvector, subvec_offset,
+		write_Rvector_block_to_listSV(
+			Rvector, block_offset,
 			offs, n, out_sv);
 		return;
 	}
 	error("SparseArray internal error in "
-	      "_write_Rsubvec_to_SV():\n"
+	      "_write_Rvector_block_to_SV():\n"
 	      "    'out_sv' of type \"%s\" not supported", type2char(Rtype));
 	return;  /* will never reach this */
 }
 
 
 /****************************************************************************
- * _write_Rvector_selection_to_SV()
+ * _write_Rvector_subset_to_SV()
  */
 
-void _write_Rvector_selection_to_SV(SEXP Rvector, const int *selection,
+#define DEFINE_write_Rvector_subset_to_typeSV_FUN(type)		  \
+static void write_Rvector_subset_to_ ## type ## SV(			  \
+		const type *vals, const int *selection,			  \
+		const int *offs, int n, SparseVec *out_sv)		  \
+{									  \
+	type *out_nzvals = (type *) out_sv->nzvals;			  \
+	type out_bg_val = out_sv->na_background ? type ## NA : type ## 0; \
+	out_sv->nzcount = 0;						  \
+	for (int k = 0; k < n; k++) {					  \
+		type out_val = vals[selection[k]];			  \
+		if (type ## _equal(out_val, out_bg_val))		  \
+			continue;					  \
+		int off = offs == NULL ? k : offs[k];			  \
+		APPEND_TO_NZVALS_NZOFFS(out_val, off,			  \
+			out_nzvals, out_sv->nzoffs, out_sv->nzcount);	  \
+	}								  \
+	return;								  \
+}
+
+DEFINE_write_Rvector_subset_to_typeSV_FUN(int)
+DEFINE_write_Rvector_subset_to_typeSV_FUN(double)
+DEFINE_write_Rvector_subset_to_typeSV_FUN(Rcomplex)
+
+static void write_Rvector_subset_to_RbyteSV(
+		const Rbyte *vals, const int *selection,
 		const int *offs, int n, SparseVec *out_sv)
 {
-	error("_write_Rvector_selection_to_SV() is not ready yet");
+	Rbyte *out_nzvals = (Rbyte *) out_sv->nzvals;
+	out_sv->nzcount = 0;
+	for (int k = 0; k < n; k++) {
+		Rbyte out_val = vals[selection[k]];
+		if (out_val == Rbyte0)
+			continue;
+		int off = offs == NULL ? k : offs[k];
+		APPEND_TO_NZVALS_NZOFFS(out_val, off,
+			out_nzvals, out_sv->nzoffs, out_sv->nzcount);
+	}
 	return;
+}
+
+static void write_Rvector_subset_to_characterSV(
+		SEXP Rvector, const int *selection,
+		const int *offs, int n, SparseVec *out_sv)
+{
+	SEXP out_nzvals = (SEXP) out_sv->nzvals;  /* STRSXP */
+	out_sv->nzcount = 0;
+	for (int k = 0; k < n; k++) {
+		SEXP out_val = STRING_ELT(Rvector, selection[k]);
+		if (IS_BG_CHARSXP(out_val, out_sv->na_background))
+			continue;
+		int off = offs == NULL ? k : offs[k];
+		SET_STRING_ELT(out_nzvals, out_sv->nzcount, out_val);
+		out_sv->nzoffs[out_sv->nzcount] = off;
+		out_sv->nzcount++;
+	}
+	return;
+}
+
+static void write_Rvector_subset_to_listSV(
+		SEXP Rvector, const int *selection,
+		const int *offs, int n, SparseVec *out_sv)
+{
+	SEXP out_nzvals = (SEXP) out_sv->nzvals;  /* VECSXP */
+	out_sv->nzcount = 0;
+	for (int k = 0; k < n; k++) {
+		SEXP out_val = VECTOR_ELT(Rvector, selection[k]);
+		if (out_val == R_NilValue)
+			continue;
+		int off = offs == NULL ? k : offs[k];
+		SET_VECTOR_ELT(out_nzvals, out_sv->nzcount, out_val);
+		out_sv->nzoffs[out_sv->nzcount] = off;
+		out_sv->nzcount++;
+	}
+	return;
+}
+
+void _write_Rvector_subset_to_SV(SEXP Rvector, const int *selection,
+		const int *offs, int n, SparseVec *out_sv)
+{
+	SEXPTYPE Rtype = get_SV_write_Rtype(Rvector, offs, n, out_sv);
+	switch (Rtype) {
+	    case INTSXP: case LGLSXP:
+		write_Rvector_subset_to_intSV(INTEGER(Rvector), selection,
+			offs, n, out_sv);
+		return;
+	    case REALSXP:
+		write_Rvector_subset_to_doubleSV(REAL(Rvector), selection,
+			offs, n, out_sv);
+		return;
+	    case CPLXSXP:
+		write_Rvector_subset_to_RcomplexSV(COMPLEX(Rvector), selection,
+			offs, n, out_sv);
+		return;
+	    case RAWSXP:
+		write_Rvector_subset_to_RbyteSV(RAW(Rvector), selection,
+			offs, n, out_sv);
+		return;
+	    case STRSXP:
+		write_Rvector_subset_to_characterSV(Rvector, selection,
+			offs, n, out_sv);
+		return;
+	    case VECSXP:
+		write_Rvector_subset_to_listSV(Rvector, selection,
+			offs, n, out_sv);
+		return;
+	}
+	error("SparseArray internal error in "
+	      "_write_Rvector_subset_to_SV():\n"
+	      "    'out_sv' of type \"%s\" not supported", type2char(Rtype));
+	return;  /* will never reach this */
 }
 
 

@@ -5,28 +5,28 @@
 
 #include "SparseVec.h"
 
-int _subassign_SV_with_Rsubvec(
+int _subassign_SV_with_Rvector_block(
 	const SparseVec *sv,
 	const int *offs,
 	int n,
 	SEXP Rvector,
-	R_xlen_t subvec_offset,
+	R_xlen_t block_offset,
 	SparseVec *out_sv
 );
 
-int _subassign_full_SV_with_Rsubvec(
-	const SparseVec *sv,
-	SEXP Rvector,
-	R_xlen_t subvec_offset,
-	SparseVec *out_sv
-);
-
-int _subassign_SV_with_Rvector_selection(
+int _subassign_SV_with_Rvector_subset(
 	const SparseVec *sv,
 	const int *offs,
 	int n,
 	SEXP Rvector,
 	const int *selection,
+	SparseVec *out_sv
+);
+
+int _subassign_full_SV_with_Rvector_block(
+	const SparseVec *sv,
+	SEXP Rvector,
+	R_xlen_t block_offset,
 	SparseVec *out_sv
 );
 
