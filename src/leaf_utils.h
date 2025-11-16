@@ -218,16 +218,16 @@ SEXP _coerce_naleaf(
 	int *selection_buf
 );
 
-SEXP _subassign_leaf_with_Rsubvec(
+SEXP _subassign_leaf_with_Rvector_block(
 	SEXP leaf,
 	SEXP offs,
 	int n,
 	SEXP Rvector,
-	R_xlen_t subvec_offset,
+	R_xlen_t block_offset,
 	SparseVec *buf_sv
 );
 
-SEXP _subassign_leaf_with_Rvector_selection(
+SEXP _subassign_leaf_with_Rvector_subset(
 	SEXP leaf,
 	const int *offs,
 	int n,
@@ -236,7 +236,7 @@ SEXP _subassign_leaf_with_Rvector_selection(
 	SparseVec *buf_sv
 );
 
-SEXP _subassign_leaf_with_Rvector_xselection(
+SEXP _subassign_leaf_with_Rvector_xsubset(
 	SEXP leaf,
 	const int *offs,
 	int n,

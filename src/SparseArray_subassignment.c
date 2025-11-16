@@ -20,637 +20,26 @@
 #define INVALID_COORD(coord, maxcoord) \
 	((coord) == NA_INTEGER || (coord) < 1 || (coord) > (maxcoord))
 
-static inline R_xlen_t get_Lidx(SEXP Lindex, long long atid_lloff)
+/* Maybe move this to src/OPBufTree.c */
+static OPBuf R_alloc_OPBuf(int buflen)
 {
-	R_xlen_t Lidx;
+	OPBuf opbuf;
+	opbuf.buflen = buflen;
+	opbuf.idx0s = (int *) R_alloc(buflen, sizeof(int));
+	opbuf.Loffs = (int *) R_alloc(buflen, sizeof(int));
+	opbuf.xLoffs = NULL;
+	return opbuf;
+}
 
-	if (IS_INTEGER(Lindex)) {
-		int i = INTEGER(Lindex)[atid_lloff];
-		if (i == NA_INTEGER || i < 1)
-			error("'Lindex' contains invalid linear indices");
-		Lidx = (R_xlen_t) i;
-	} else {
-		double x = REAL(Lindex)[atid_lloff];
-		/* ISNAN(): True for *both* NA and NaN. See <R_ext/Arith.h> */
-		if (ISNAN(x) || x < 1 || x >= 1.00 + R_XLEN_T_MAX)
-			error("'Lindex' contains invalid linear indices");
-		Lidx = (R_xlen_t) x;
+static R_xlen_t *alloc_and_compute_cumprod(const int *x, int x_len)
+{
+	R_xlen_t *cumprod = (R_xlen_t *) R_alloc(x_len, sizeof(R_xlen_t));
+	R_xlen_t prod = 1;
+	for (int i = 0; i < x_len; i++) {
+		prod *= x[i];
+		cumprod[i] = prod;
 	}
-	return Lidx;
-}
-
-
-/****************************************************************************
- * Basic manipulation of "extended leaves"
- *
- * An "extended leaf" is used to temporarily attach a subset of the incoming
- * data (represented by 'Mindex' and 'vals', or by 'Lindex' and 'vals') to
- * an SVT leaf.
- *
- * There are 3 types of extended leaves:
- *
- * - type 1: A standalone Incoming Data Subset (IDS). An IDS is simply a
- *           set of offsets w.r.t. 'Mindex' (or 'Lindex') and 'vals'.
- *           These offsets get stored in an IntAE or LLongAE buffer placed
- *           behind an external pointer, and are referred to as "atid" offsets
- *           (offsets along the incoming data).
- *           Note that using an IntAE buffer would be ok for now because we're
- *           not dealing with _long_ incoming data yet. However, this will
- *           change when we start supporting _long_ incoming data e.g. when
- *           C_subassign_SVT_by_Lindex() will get passed a _long_ linear index.
- *
- * - type 2: Just a regular leaf (possibly lacunar) so not really "extended"
- *           in that case.
- *
- * - type 3: A regular leaf with an IDS on it. This is represented by a
- *           list of length 3: the 2 list elements of a regular leaf (nzvals
- *           and nzoffs) + the IDS.
- *
- * IMPORTANT NOTE: We don't allow the length of an IDS to be more than INT_MAX
- * at the moment. This is because we use sort_ints() in compute_offs_order()
- * below to sort a vector of 'IDS_len' integers and sort_ints() only handles
- * a vector of length <= INT_MAX!
- * Note however that 'IDS_len' > INT_MAX can't happen at the moment anyway
- * because 'IDS_len' is necessarily <= 'nrow(Mindex)' which is guaranteed
- * to be <= INT_MAX. However, this will change when we start supporting
- * _long_ incoming data e.g. when C_subassign_SVT_by_Lindex() is called
- * with a _long_ linear index (Lindex). Then it will be possible that more
- * than INT_MAX incoming values land on the same SVT leaf but only in some
- * crazy and rather unlikely situations. More precisely this will be possible
- * only if the supplied Lindex is _long_ and contains duplicates. Like here:
- *
- *     svt[sample(nrow(svt), 3e9, replace=TRUE)] <- 2.5
- *
- * where 3e9 incoming values are landing on the SVT leaf associated with
- * the first column of the sparse matrix! A very atypical situation.
- */
-#include "S4Vectors_interface.h"
-
-
-/****************************************************************************
- * REC_postprocess_SVT_using_[M|L]index()
- *
- * This implements the 2nd pass of C_subassign_SVT_by_[M|L]index().
- */
-
-typedef struct sort_bufs_t {
-	int *order;
-	unsigned short int *rxbuf1;
-	int *rxbuf2;
-	int *offs;
-} SortBufs;
-
-/* All buffers are made of length 'buf_lens'. */
-static SortBufs alloc_sort_bufs(int buf_lens)
-{
-	SortBufs sort_bufs;
-	sort_bufs.order = (int *) R_alloc(buf_lens, sizeof(int));
-	sort_bufs.rxbuf1 = (unsigned short int *)
-			R_alloc(buf_lens, sizeof(unsigned short int));
-	sort_bufs.rxbuf2 = (int *) R_alloc(buf_lens, sizeof(int));
-	sort_bufs.offs = (int *) R_alloc(buf_lens, sizeof(int));
-	return sort_bufs;
-}
-
-static void compute_offs_order(SortBufs *sort_bufs, int n)
-{
-	int k, ret;
-
-	for (k = 0; k < n; k++)
-		sort_bufs->order[k] = k;
-	ret = sort_ints(sort_bufs->order, n, sort_bufs->offs, 0, 1,
-			sort_bufs->rxbuf1, sort_bufs->rxbuf2);
-	/* Note that ckecking the value returned by sort_ints() is not really
-	   necessary here because sort_ints() should never fail when 'rxbuf1'
-	   and 'rxbuf2' are supplied (see implementation of _sort_ints() in
-	   S4Vectors/src/sort_utils.c for the details). We perform this check
-	   nonetheless just to be on the safe side in case the implementation
-	   of sort_ints() changes in the future. */
-	if (ret < 0)
-		error("SparseArray internal error in compute_offs_order():\n"
-		      "    sort_ints() returned an error");
-	return;
-}
-
-/* Returns number of offsets after removal of the duplicates. */
-static int remove_offs_dups(int *order_buf, int n, const int *offs)
-{
-	int *p1, k2;
-	const int *p2;
-
-	if (n <= 1)
-		return n;
-	p1 = order_buf;
-	for (k2 = 1, p2 = p1 + 1; k2 < n; k2++, p2++) {
-		if (offs[*p1] != offs[*p2])
-			p1++;
-		*p1 = *p2;
-	}
-	return p1 - order_buf + 1;
-}
-
-
-/****************************************************************************
- * subassign_leaf_by_Lindex()
- *
- * This is the 1D case and it needs special treatment.
- */
-
-/* 'Lindex' and 'vals' are assumed to have the same length. This length
-   is assumed to be >= 1 and <= INT_MAX.
-   Returns a set of offset/value pairs sorted by strictly ascending offset.
-   It is returned as a list of 2 parallel vectors: an integer vector of
-   strictly sorted offsets and a subset of 'vals'. Their common length
-   is >= 1 and <= length(vals).
-   Note that this is the "leaf representation", that is, the representation
-   that we use for a 1D SVT. With an important gotcha: in the case of these
-   off/val pairs the values are allowed to be zero! Also let's keep in mind
-   that they are conceptually really different: in this case the 2 parallel
-   vectors in the returned list are the 'index' and 'value' vectors of a
-   subassignment operation that we will perform later on. They do NOT
-   represent a 1D SVT!
-   TODO: Using the "leaf representation" is not longer needed so maybe there's
-   an opportunity to use something better. */
-static SEXP make_offval_pairs_from_Lindex_vals(SEXP Lindex, SEXP vals,
-		int dim0, SortBufs *sort_bufs)
-{
-	int nvals = LENGTH(vals);  /* we know 'length(vals)' is <= INT_MAX */
-	/* Walk along the incoming data. */
-	for (int atid_off = 0; atid_off < nvals; atid_off++) {
-		R_xlen_t Lidx = get_Lidx(Lindex, atid_off);
-		if (Lidx > dim0)
-			error("subassignment subscript contains "
-			      "invalid indices");
-		sort_bufs->offs[atid_off] = Lidx - 1;
-	}
-	compute_offs_order(sort_bufs, nvals);
-	int num_pairs = remove_offs_dups(sort_bufs->order, nvals,
-					 sort_bufs->offs);
-	SEXP ans_offs = PROTECT(NEW_INTEGER(num_pairs));
-	_copy_selected_int_elts(sort_bufs->offs, sort_bufs->order, num_pairs,
-				INTEGER(ans_offs));
-	SEXP ans_vals = PROTECT(allocVector(TYPEOF(vals), num_pairs));
-	_copy_selected_Rsubvec_elts(vals, 0, sort_bufs->order, ans_vals);
-	/* Use the "leaf representation" even though this is NOT a 1D SVT!
-	   See above. */
-	SEXP ans = PROTECT(zip_leaf(ans_vals, ans_offs, 0));
-	UNPROTECT(3);
-	return ans;
-}
-
-/* 'Lindex' and 'vals' are assumed to have the same nonzero length.
-   The returned leaf can be NULL or lacunar. */
-static SEXP subassign_leaf_by_Lindex(SEXP leaf, int dim0, int na_background,
-		SEXP Lindex, SEXP vals)
-{
-	if (na_background)
-		error("subassignment of 1D NaArray objects "
-		      "is not supported yet");
-	R_xlen_t nvals = XLENGTH(vals);
-	if (nvals > INT_MAX)
-		error("assigning more than INT_MAX values to "
-		      "a monodimensional SVT_SparseArray object "
-		      "is not supported");
-	SortBufs sort_bufs = alloc_sort_bufs((int) nvals);
-	SEXP offval_pairs = PROTECT(
-		make_offval_pairs_from_Lindex_vals(Lindex, vals,
-						   dim0, &sort_bufs)
-	);
-	SEXP offs = get_leaf_nzoffs(offval_pairs);
-	vals = get_leaf_nzvals(offval_pairs);
-	SparseVec buf_sv = _alloc_buf_SparseVec(TYPEOF(vals), dim0,
-						na_background);
-	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
-		PROTECT(buf_sv.nzvals);
-	SEXP ans = PROTECT(_subassign_leaf_with_Rsubvec(leaf,
-						offs, LENGTH(vals),
-						vals, 0, &buf_sv));
-	UNPROTECT(IS_STRSXP_OR_VECSXP(buf_sv.Rtype) ? 3 : 2);
-	return ans;
-}
-
-
-/****************************************************************************
- * subassign_leaf_by_OPBuf_OLD()
- */
-
-static void init_idx0_to_k_map(int *idx0_to_k_map, const int *idx0s, int nelt)
-{
-	for (int k = 0; k < nelt; k++)
-		idx0_to_k_map[idx0s[k]] = k;
-	return;
-}
-
-static void reset_idx0_to_k_map(int *idx0_to_k_map, const int *idx0s, int nelt)
-{
-	for (int k = 0; k < nelt; k++)
-		idx0_to_k_map[idx0s[k]] = -1;
-	return;
-}
-
-/*
-static void print_idx0_to_k_map(const int *idx0_to_k_map, int dim0)
-{
-	printf("idx0_to_k_map:");
-	for (int i = 0; i < dim0; i++)
-		printf(" %4d", idx0_to_k_map[i]);
-	printf("\n");
-	return;
-}
-*/
-
-/* TODO: Maybe add this to OPBufTree.h as inline functions. */
-#define	GET_LOFF(Loffs, xLoffs, k) \
-	((Loffs) != NULL ? (R_xlen_t) ((Loffs)[(k)]) : (xLoffs)[(k)])
-#define	GET_OPBUF_LOFF(opbuf, k) GET_LOFF(opbuf->Loffs, opbuf->xLoffs, k)
-
-/* TODO: Move all this to Rvector_utils.h. */
-static inline int Rvector_elt_is_int0(SEXP Rvector, R_xlen_t i)
-{
-	return INTEGER(Rvector)[i] == int0;
-}
-static inline int Rvector_elt_is_intNA(SEXP Rvector, R_xlen_t i)
-{
-	return INTEGER(Rvector)[i] == NA_INTEGER;
-}
-
-static inline int Rvector_elt_is_double0(SEXP Rvector, R_xlen_t i)
-{
-	return REAL(Rvector)[i] == double0;
-}
-static inline int Rvector_elt_is_doubleNA(SEXP Rvector, R_xlen_t i)
-{
-	return R_IsNA(REAL(Rvector)[i]);
-}
-
-static inline int Rvector_elt_is_Rcomplex0(SEXP Rvector, R_xlen_t i)
-{
-	const Rcomplex *z = COMPLEX(Rvector) + i;
-	return z->r == Rcomplex0.r && z->i == Rcomplex0.i;
-}
-static inline int Rvector_elt_is_RcomplexNA(SEXP Rvector, R_xlen_t i)
-{
-	const Rcomplex *z = COMPLEX(Rvector) + i;
-	return R_IsNA(z->r) || R_IsNA(z->i);
-}
-
-static inline int Rvector_elt_is_Rbyte0(SEXP Rvector, R_xlen_t i)
-{
-	return RAW(Rvector)[i] == Rbyte0;
-}
-
-static inline int Rvector_elt_is_Rstring0(SEXP Rvector, R_xlen_t i)
-{
-	return IS_EMPTY_CHARSXP(STRING_ELT(Rvector, i));
-}
-static inline int Rvector_elt_is_RstringNA(SEXP Rvector, R_xlen_t i)
-{
-	return STRING_ELT(Rvector, i) == NA_STRING;
-}
-
-static inline int Rvector_elt_is_R_NilValue(SEXP Rvector, R_xlen_t i)
-{
-	return VECTOR_ELT(Rvector, i) == R_NilValue;
-}
-
-typedef int (*RVectorEltIsZeroFUN)(SEXP Rvector, R_xlen_t i);
-
-static RVectorEltIsZeroFUN select_Rvector_elt_is_zero_FUN(SEXPTYPE Rtype)
-{
-	switch (Rtype) {
-	    case INTSXP: case LGLSXP: return Rvector_elt_is_int0;
-	    case REALSXP:             return Rvector_elt_is_double0;
-	    case CPLXSXP:             return Rvector_elt_is_Rcomplex0;
-	    case RAWSXP:              return Rvector_elt_is_Rbyte0;
-	    case STRSXP:              return Rvector_elt_is_Rstring0;
-	    case VECSXP:              return Rvector_elt_is_R_NilValue;
-	}
-	error("SparseArray internal error in "
-	      "select_Rvector_elt_is_zero_FUN():\n"
-	      "    type \"%s\" is not supported", type2char(Rtype));
-}
-
-static RVectorEltIsZeroFUN select_Rvector_elt_is_NA_FUN(SEXPTYPE Rtype)
-{
-	switch (Rtype) {
-	    case INTSXP: case LGLSXP: return Rvector_elt_is_intNA;
-	    case REALSXP:             return Rvector_elt_is_doubleNA;
-	    case CPLXSXP:             return Rvector_elt_is_RcomplexNA;
-	    case STRSXP:              return Rvector_elt_is_RstringNA;
-	}
-	error("SparseArray internal error in "
-	      "select_Rvector_elt_is_NA_FUN():\n"
-	      "    type \"%s\" is not supported", type2char(Rtype));
-}
-
-static inline int same_INTEGER_vals(
-		SEXP Rvector1, R_xlen_t i1,
-		SEXP Rvector2, R_xlen_t i2)
-{
-	int val1 = Rvector1 == R_NilValue ? int1 : INTEGER(Rvector1)[i1];
-	return val1 == INTEGER(Rvector2)[i2];
-}
-
-static inline int same_NUMERIC_vals(
-		SEXP Rvector1, R_xlen_t i1,
-		SEXP Rvector2, R_xlen_t i2)
-{
-	double val1 = Rvector1 == R_NilValue ? double1 : REAL(Rvector1)[i1];
-	return val1 == REAL(Rvector2)[i2];
-}
-
-static inline int same_COMPLEX_vals(
-		SEXP Rvector1, R_xlen_t i1,
-		SEXP Rvector2, R_xlen_t i2)
-{
-	const Rcomplex *z1 = Rvector1 == R_NilValue ? &Rcomplex1
-						    : COMPLEX(Rvector1) + i1;
-	const Rcomplex *z2 = COMPLEX(Rvector2) + i2;
-	return z1->r == z2->r && z1->i == z2->i;
-}
-
-static inline int same_RAW_vals(
-		SEXP Rvector1, R_xlen_t i1,
-		SEXP Rvector2, R_xlen_t i2)
-{
-	Rbyte val1 = Rvector1 == R_NilValue ? Rbyte1 : RAW(Rvector1)[i1];
-	return val1 == RAW(Rvector2)[i2];
-}
-
-static inline int same_CHARACTER_vals(
-		SEXP Rvector1, R_xlen_t i1,
-		SEXP Rvector2, R_xlen_t i2)
-{
-	if (Rvector1 == R_NilValue)
-		error("SparseArray internal error in same_CHARACTER_vals():\n"
-		      "    lacunar leaf found in an SVT_SparseArray object "
-		      "of type \"character\"");
-	/* Compares the addresses, not the actual values. Doesn't matter as
-	   long as our primary use case is covered. Primary use case is that
-	       svt[Lindex] <- svt[Lindex]
-	   is a no-op that triggers no copy. */
-	return STRING_ELT(Rvector1, i1) == STRING_ELT(Rvector2, i2);
-}
-
-static inline int same_LIST_vals(
-		SEXP Rvector1, R_xlen_t i1,
-		SEXP Rvector2, R_xlen_t i2)
-{
-	if (Rvector1 == R_NilValue)
-		error("SparseArray internal error in same_LIST_vals():\n"
-		      "    lacunar leaf found in an SVT_SparseArray object "
-		      "of type \"list\"");
-	/* Compares the addresses, not the actual values. Doesn't matter as
-	   long as our primary use case is covered. Primary use case is that
-	       svt[Lindex] <- svt[Lindex]
-	   is a no-op that triggers no copy. */
-	return VECTOR_ELT(Rvector1, i1) == VECTOR_ELT(Rvector2, i2);
-}
-
-typedef int (*SameRVectorValsFUN)(SEXP Rvector1, R_xlen_t i1,
-				  SEXP Rvector2, R_xlen_t i2);
-
-static SameRVectorValsFUN select_same_Rvector_vals_FUN(SEXPTYPE Rtype)
-{
-	switch (Rtype) {
-	    case INTSXP: case LGLSXP: return same_INTEGER_vals;
-	    case REALSXP:             return same_NUMERIC_vals;
-	    case CPLXSXP:             return same_COMPLEX_vals;
-	    case RAWSXP:              return same_RAW_vals;
-	    case STRSXP:              return same_CHARACTER_vals;
-	    case VECSXP:              return same_LIST_vals;
-	}
-	return NULL;
-}
-
-static SEXP subassign_NULL_by_OPBuf(int dim0,
-		const OPBuf *opbuf, SEXP vals,
-		RVectorEltIsZeroFUN Rvector_elt_is_zero_FUN,
-		CopyRVectorEltFUN copy_Rvector_elt_FUN,
-		int *idx0_order_buf, unsigned short int *rxbuf1, int *rxbuf2,
-		int *idx0_to_k_map)
-{
-	int ans_nzcount = 0;
-	for (int k = 0; k < opbuf->nelt; k++) {
-		int idx0 = opbuf->idx0s[k];
-		R_xlen_t Loff = GET_OPBUF_LOFF(opbuf, k);
-		int val_is_zero = Rvector_elt_is_zero_FUN(vals, Loff);
-		if (val_is_zero) {
-			if (idx0_to_k_map[idx0] == -1)
-				continue;
-			idx0_to_k_map[idx0] = -1;
-			ans_nzcount--;
-		} else {
-			if (idx0_to_k_map[idx0] == -1)
-				ans_nzcount++;
-			idx0_to_k_map[idx0] = k;
-		}
-	}
-	if (ans_nzcount == 0)
-		return R_NilValue;
-
-	for (int k = 0; k < opbuf->nelt; k++)
-		idx0_order_buf[k] = k;
-	int ret = sort_ints(idx0_order_buf, opbuf->nelt, opbuf->idx0s, 0, 1,
-			    rxbuf1, rxbuf2);
-	/* Note that ckecking the value returned by sort_ints() is not really
-	   necessary here because sort_ints() should never fail when 'rxbuf1'
-	   and 'rxbuf2' are supplied (see implementation of _sort_ints() in
-	   S4Vectors/src/sort_utils.c for the details). We perform this check
-	   nonetheless just to be on the safe side in case the implementation
-	   of sort_ints() changes in the future. */
-	if (ret < 0)
-		error("SparseArray internal error in "
-		      "subassign_NULL_by_OPBuf():\n"
-		      "    sort_ints() returned an error");
-
-	SEXP ans_nzvals = PROTECT(allocVector(TYPEOF(vals), ans_nzcount));
-	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(ans_nzcount));
-	int *ans_nzoffs_p = INTEGER(ans_nzoffs);
-	ans_nzcount = 0;
-/*
-	for (int i = 0; i < dim0; i++) {
-		int k1 = idx0_to_k_map[i];
-		if (k1 == -1)
-			continue;
-		R_xlen_t Loff = GET_OPBUF_LOFF(opbuf, k1);
-		copy_Rvector_elt_FUN(vals, Loff,
-				     ans_nzvals, (R_xlen_t) ans_nzcount);
-		ans_nzoffs_p[ans_nzcount] = i;
-		ans_nzcount++;
-	}
-*/
-	/* Walk on the (idx0,Loff) pairs in ascending 'idx0' order. */
-	for (int k0 = 0; k0 < opbuf->nelt; k0++) {
-		int k = idx0_order_buf[k0];
-		int idx0 = opbuf->idx0s[k];
-		if (idx0_to_k_map[idx0] != k)
-			continue;
-		R_xlen_t Loff = GET_OPBUF_LOFF(opbuf, k);
-		copy_Rvector_elt_FUN(vals, Loff,
-				     ans_nzvals, (R_xlen_t) ans_nzcount);
-		ans_nzoffs_p[ans_nzcount] = idx0;
-		ans_nzcount++;
-	}
-	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs, 1);
-	UNPROTECT(2);
-	return ans;
-}
-
-/* Returns -1 if subassignment is a no-op. */
-static int compute_subassignment_nzcount(SEXP leaf, int dim0,
-		const OPBuf *opbuf, SEXP vals,
-		RVectorEltIsZeroFUN Rvector_elt_is_zero_FUN,
-		SameRVectorValsFUN same_Rvector_vals_FUN,
-		int *idx0_to_k_map)
-{
-	SEXP nzvals, nzoffs;
-	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
-	//print_idx0_to_k_map(idx0_to_k_map, dim0);
-	int out_nzcount = 0;
-	int k2 = 0, nzoff = INTEGER(nzoffs)[0];
-	int is_noop = 1;
-	for (int i = 0; i < dim0; i++) {
-		int k1 = idx0_to_k_map[i];
-		if (i != nzoff) {
-			if (k1 == -1)
-				continue;
-			R_xlen_t Loff = GET_OPBUF_LOFF(opbuf, k1);
-			int is_zero = Rvector_elt_is_zero_FUN(vals, Loff);
-			if (is_zero) {
-				idx0_to_k_map[i] = -1;
-				continue;
-			}
-			out_nzcount++;
-			is_noop = 0;
-			continue;
-		}
-		if (k1 == -1) {
-			out_nzcount++;
-		} else {
-			R_xlen_t Loff = GET_OPBUF_LOFF(opbuf, k1);
-			int is_zero = Rvector_elt_is_zero_FUN(vals, Loff);
-			if (is_zero) {
-				is_noop = 0;
-			} else {
-				out_nzcount++;
-				R_xlen_t Loff = GET_OPBUF_LOFF(opbuf, k1);
-				if (!same_Rvector_vals_FUN(nzvals, k2,
-							   vals, Loff))
-				{
-					is_noop = 0;
-				}
-			}
-		}
-		/* Move to next nzoffs[]. */
-		k2++;
-		nzoff = k2 < nzcount ? INTEGER(nzoffs)[k2] : -1;
-	}
-	if (is_noop && out_nzcount != nzcount)  /* sanity check */
-		error("SparseArray internal error in "
-		      "compute_subassignment_nzcount():\n"
-		      "    leaf subassignment is a no-op "
-		      "but nzcount(out_leaf) != nzcount(in_leaf)");
-	return is_noop ? -1 : out_nzcount;
-}
-
-static void do_subassign_nonNULL_leaf_by_OPBuf(SEXP leaf, int dim0,
-		const OPBuf *opbuf, SEXP vals,
-		SEXP ans_nzvals, SEXP ans_nzoffs,
-		RVectorEltIsZeroFUN Rvector_elt_is_zero_FUN,
-		CopyRVectorEltFUN copy_Rvector_elt_FUN,
-		const int *idx0_to_k_map)
-{
-	SEXP nzvals, nzoffs;
-	int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
-	int *ans_nzoffs_p = INTEGER(ans_nzoffs);
-	int ans_nzcount = 0;
-	int k2 = 0, nzoff = INTEGER(nzoffs)[0];
-	for (int i = 0; i < dim0; i++) {
-		int k1 = idx0_to_k_map[i];
-		if (i != nzoff) {
-			if (k1 == -1)
-				continue;
-			R_xlen_t Loff = GET_OPBUF_LOFF(opbuf, k1);
-			copy_Rvector_elt_FUN(vals, Loff,
-					ans_nzvals, (R_xlen_t) ans_nzcount);
-			ans_nzoffs_p[ans_nzcount] = i;
-			ans_nzcount++;
-			continue;
-		}
-		if (k1 == -1) {
-			copy_Rvector_elt_FUN(nzvals, k2,
-					ans_nzvals, (R_xlen_t) ans_nzcount);
-			ans_nzoffs_p[ans_nzcount] = i;
-			ans_nzcount++;
-		} else {
-			R_xlen_t Loff = GET_OPBUF_LOFF(opbuf, k1);
-			int is_zero = Rvector_elt_is_zero_FUN(vals, Loff);
-			if (!is_zero) {
-				copy_Rvector_elt_FUN(vals, Loff,
-					ans_nzvals, (R_xlen_t) ans_nzcount);
-				ans_nzoffs_p[ans_nzcount] = i;
-				ans_nzcount++;
-			}
-		}
-		/* Move to next nzoffs[]. */
-		k2++;
-		nzoff = k2 < nzcount ? INTEGER(nzoffs)[k2] : -1;
-	}
-	if (ans_nzcount != LENGTH(ans_nzoffs))  /* sanity check */
-		error("SparseArray internal error in "
-		      "do_subassign_nonNULL_leaf_by_OPBuf():\n"
-		      "    ans_nzcount != LENGTH(ans_nzoffs)");
-	return;
-}
-
-/* 'leaf' cannot be R_NilValue. */
-static SEXP subassign_nonNULL_leaf_by_OPBuf(SEXP leaf, int dim0,
-		const OPBuf *opbuf, SEXP vals,
-		RVectorEltIsZeroFUN fun1,
-		SameRVectorValsFUN fun2,
-		CopyRVectorEltFUN fun3,
-		int *idx0_to_k_map)
-{
-	int ans_nzcount = compute_subassignment_nzcount(leaf, dim0,
-				opbuf, vals, fun1, fun2, idx0_to_k_map);
-	if (ans_nzcount == -1)  /* no-op */
-		return leaf;
-	if (ans_nzcount == 0)
-		return R_NilValue;
-	SEXP ans_nzvals = PROTECT(allocVector(TYPEOF(vals), ans_nzcount));
-	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(ans_nzcount));
-	do_subassign_nonNULL_leaf_by_OPBuf(leaf, dim0,
-				opbuf, vals, ans_nzvals, ans_nzoffs,
-				fun1, fun3, idx0_to_k_map);
-	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs, 1);
-	UNPROTECT(2);
-	return ans;
-}
-
-static SEXP subassign_leaf_by_OPBuf_OLD(SEXP leaf, int dim0,
-		const OPBuf *opbuf, SEXP vals,
-		RVectorEltIsZeroFUN fun1,
-		SameRVectorValsFUN fun2,
-		CopyRVectorEltFUN fun3,
-		int *idx0_order_buf, unsigned short int *rxbuf1, int *rxbuf2,
-		int *idx0_to_k_map)
-{
-	SEXP ans;
-	/* PROTECT(ans) not necessary because reset_idx0_to_k_map() won't
-	   trigger R's garbage collector. */
-	if (leaf == R_NilValue) {
-		ans = subassign_NULL_by_OPBuf(dim0, opbuf, vals,
-					fun1, fun3,
-					idx0_order_buf, rxbuf1, rxbuf2,
-					idx0_to_k_map);
-	} else {
-		init_idx0_to_k_map(idx0_to_k_map, opbuf->idx0s, opbuf->nelt);
-		ans = subassign_nonNULL_leaf_by_OPBuf(leaf, dim0, opbuf, vals,
-					fun1, fun2, fun3, idx0_to_k_map);
-	}
-	reset_idx0_to_k_map(idx0_to_k_map, opbuf->idx0s, opbuf->nelt);
-	return ans;
+	return cumprod;
 }
 
 
@@ -658,25 +47,72 @@ static SEXP subassign_leaf_by_OPBuf_OLD(SEXP leaf, int dim0,
  * subassign_leaf_by_OPBuf()
  */
 
-static SEXP subassign_leaf_by_OPBuf(SEXP leaf, const OPBuf *opbuf,
-		SEXP Rvector, OPBuf *sorted_opbuf,
+static SEXP subassign_leaf_by_OPBuf(
+		SEXP leaf, const OPBuf *opbuf, SEXP Rvector,
+		OPBuf *sorted_opbuf,
 		int *order_buf, unsigned short int *rxbuf1, int *rxbuf2,
 		SparseVec *buf_sv)
 {
+	if (opbuf->xLoffs != NULL && sorted_opbuf->xLoffs == NULL)
+		sorted_opbuf->xLoffs = (R_xlen_t *)
+			R_alloc(sorted_opbuf->buflen, sizeof(R_xlen_t));
 	_sort_and_remove_dups_OPBuf(opbuf, sorted_opbuf,
 				    order_buf, rxbuf1, rxbuf2);
-	if (sorted_opbuf->Loffs != NULL)
-		return _subassign_leaf_with_Rvector_selection(leaf,
+	if (opbuf->Loffs != NULL)
+		return _subassign_leaf_with_Rvector_subset(leaf,
 				sorted_opbuf->idx0s, sorted_opbuf->nelt,
 				Rvector, sorted_opbuf->Loffs, buf_sv);
-	if (sorted_opbuf->xLoffs != NULL)
-		return _subassign_leaf_with_Rvector_xselection(leaf,
+	if (opbuf->xLoffs != NULL)
+		return _subassign_leaf_with_Rvector_xsubset(leaf,
 				sorted_opbuf->idx0s, sorted_opbuf->nelt,
 				Rvector, sorted_opbuf->xLoffs, buf_sv);
 	error("SparseArray internal error in "
 	      "subassign_leaf_by_OPBuf()\n"
 	      "    'sorted_opbuf->Loffs' and 'sorted_opbuf->xLoffs' are NULL");
 	return R_NilValue;  /* will never reach this */
+}
+
+
+/****************************************************************************
+ * subassign_leaf_by_Lindex()
+ *
+ * Needed to handle the 1D case which needs special treatment.
+ */
+
+static OPBuf make_OPBuf_from_Lindex(SEXP Lindex, int dim0)
+{
+	int in_len = LENGTH(Lindex);
+	OPBuf opbuf = R_alloc_OPBuf(in_len);
+	/* Walk along 'Lindex'. */
+	for (int Loff = 0; Loff < in_len; Loff++) {
+		R_xlen_t Lidx0 = 0;
+		int ret = extract_long_idx0(Lindex, (R_xlen_t) Loff, dim0,
+					    &Lidx0);
+		if (ret < 0)
+			_bad_Lindex_error(ret);
+		opbuf.idx0s[Loff] = (int) Lidx0;
+		opbuf.Loffs[Loff] = Loff;
+	}
+	opbuf.nelt = in_len;
+	return opbuf;
+}
+
+static SEXP subassign_leaf_by_Lindex(
+		SEXP leaf, SEXP Lindex, SEXP Rvector,
+		SparseVec *buf_sv)
+{
+	OPBuf opbuf = make_OPBuf_from_Lindex(Lindex, buf_sv->len);
+
+	int buflen = opbuf.nelt < buf_sv->len ? opbuf.nelt : buf_sv->len;
+	OPBuf sorted_opbuf = R_alloc_OPBuf(buflen);
+	int *order_buf = (int *) R_alloc(opbuf.nelt, sizeof(int));
+	unsigned short int *rxbuf1 = (unsigned short int *)
+		R_alloc(opbuf.nelt, sizeof(unsigned short int));
+	int *rxbuf2 = (int *) R_alloc(opbuf.nelt, sizeof(int));
+
+	return subassign_leaf_by_OPBuf(leaf, &opbuf, Rvector,
+				       &sorted_opbuf,
+				       order_buf, rxbuf1, rxbuf2, buf_sv);
 }
 
 
@@ -779,12 +215,10 @@ static int build_OPBufTree_from_Lindex(OPBufTree *opbuf_tree, SEXP Lindex,
 
 /* Recursive tree traversal of 'opbuf_tree'. */
 static SEXP REC_subassign_SVT_by_OPBufTree(OPBufTree *opbuf_tree,
-		SEXP SVT, const int *dim, int ndim, SEXP vals,
-		RVectorEltIsZeroFUN fun1,
-		SameRVectorValsFUN fun2,
-		CopyRVectorEltFUN fun3,
-		int *idx0_order_buf, unsigned short int *rxbuf1, int *rxbuf2,
-		int *idx0_to_k_map, int pardim)
+		SEXP SVT, int ndim, SEXP vals,
+		OPBuf *sorted_opbuf,
+		int *order_buf, unsigned short int *rxbuf1, int *rxbuf2,
+		SparseVec *buf_sv, int pardim)
 {
 	if (opbuf_tree->node_type == NULL_NODE)
 		return SVT;
@@ -792,11 +226,10 @@ static SEXP REC_subassign_SVT_by_OPBufTree(OPBufTree *opbuf_tree,
 	if (ndim == 1) {
 		/* Both 'opbuf_tree' and 'SVT' are leaves. */
 		OPBuf *opbuf = get_OPBufTree_leaf(opbuf_tree);
-		SEXP ans = subassign_leaf_by_OPBuf_OLD(SVT, dim[0],
-					opbuf, vals, fun1, fun2, fun3,
-					idx0_order_buf, rxbuf1, rxbuf2,
-					idx0_to_k_map);
-		/* PROTECT not really necessary since neither _free_OPBufTree()
+		SEXP ans = subassign_leaf_by_OPBuf(SVT, opbuf, vals,
+					sorted_opbuf,
+					order_buf, rxbuf1, rxbuf2, buf_sv);
+		/* PROTECT not really necessary since _free_OPBufTree()
 		   won't trigger R's garbage collector but this could change
 		   someday so we'd better not take any risk. */
 		PROTECT(ans);
@@ -805,8 +238,9 @@ static SEXP REC_subassign_SVT_by_OPBufTree(OPBufTree *opbuf_tree,
 		return ans;
 	}
 
-	/* Both 'opbuf_tree' and 'SVT' are inner nodes. */
-	int n = get_OPBufTree_nchildren(opbuf_tree);  /* = dim[ndim - 1] */
+	/* Both 'opbuf_tree' and 'SVT' are inner nodes.
+	   'n' is their outermost dimension. */
+	int n = get_OPBufTree_nchildren(opbuf_tree);
 	SEXP ans = PROTECT(NEW_LIST(n));
 	int is_empty = 1;
 	for (int i = 0; i < n; i++) {
@@ -814,10 +248,10 @@ static SEXP REC_subassign_SVT_by_OPBufTree(OPBufTree *opbuf_tree,
 		SEXP subSVT = SVT == R_NilValue ? R_NilValue
 						: VECTOR_ELT(SVT, i);
 		SEXP ans_elt = REC_subassign_SVT_by_OPBufTree(child,
-					subSVT, dim, ndim - 1, vals,
-					fun1, fun2, fun3,
-					idx0_order_buf, rxbuf1, rxbuf2,
-					idx0_to_k_map, pardim);
+					subSVT, ndim - 1, vals,
+					sorted_opbuf,
+					order_buf, rxbuf1, rxbuf2,
+					buf_sv, pardim);
 		if (ans_elt != R_NilValue) {
 			PROTECT(ans_elt);
 			SET_VECTOR_ELT(ans, i, ans_elt);
@@ -827,6 +261,52 @@ static SEXP REC_subassign_SVT_by_OPBufTree(OPBufTree *opbuf_tree,
 	}
 	UNPROTECT(1);
 	return is_empty ? R_NilValue : ans;
+}
+
+static SEXP subassign_SVT_by_Lindex(SEXP SVT, const int *dim, int ndim,
+		SEXP Lindex, SEXP vals, SparseVec *buf_sv)
+{
+	/* 1st pass: Build the OPBufTree. */
+
+	//clock_t t0 = clock();
+	OPBufTree *opbuf_tree = _get_global_opbuf_tree();
+	R_xlen_t *dimcumprod = alloc_and_compute_cumprod(dim, ndim);
+	int max_outleaf_len =
+		build_OPBufTree_from_Lindex(opbuf_tree, Lindex,
+					    dim, ndim, dimcumprod);
+	if (max_outleaf_len < 0) {
+		if (IS_STRSXP_OR_VECSXP(buf_sv->Rtype))
+			UNPROTECT(1);
+		_bad_Lindex_error(max_outleaf_len);
+	}
+
+	//double dt = (1.0 * clock() - t0) * 1000.0 / CLOCKS_PER_SEC;
+	//printf("1st pass: %2.3f ms\n", dt);
+
+	//printf("max_outleaf_len = %d\n", max_outleaf_len);
+	//_print_OPBufTree(opbuf_tree, 1);
+
+	/* 2nd pass: Subset SVT by OPBufTree. */
+
+	//t0 = clock();
+	int buflen = max_outleaf_len < buf_sv->len ? max_outleaf_len :
+						     buf_sv->len;
+	OPBuf sorted_opbuf = R_alloc_OPBuf(buflen);
+	int *order_buf = (int *) R_alloc(max_outleaf_len, sizeof(int));
+	unsigned short int *rxbuf1 = (unsigned short int *)
+		R_alloc(max_outleaf_len, sizeof(unsigned short int));
+	int *rxbuf2 = (int *) R_alloc(max_outleaf_len, sizeof(int));
+	/* Get 1-based rank of biggest dimension (ignoring the 1st dim).
+	   Parallel execution will be along that dimension. */
+	int pardim = which_max(dim + 1, ndim - 1) + 2;
+
+	return REC_subassign_SVT_by_OPBufTree(opbuf_tree,
+				 SVT, ndim, vals,
+				 &sorted_opbuf,
+				 order_buf, rxbuf1, rxbuf2,
+				 buf_sv, pardim);
+	//dt = (1.0 * clock() - t0) * 1000.0 / CLOCKS_PER_SEC;
+	//printf("2nd pass: %2.3f ms\n", dt);
 }
 
 /* --- .Call ENTRY POINT ---
@@ -858,64 +338,20 @@ SEXP C_subassign_SVT_by_Lindex(
 	if (nvals == 0)
 		return x_SVT;  /* no-op */
 
-	RVectorEltIsZeroFUN fun1;
-	if (x_has_NAbg) {
-		fun1 = select_Rvector_elt_is_NA_FUN(Rtype);
-	} else {
-		fun1 = select_Rvector_elt_is_zero_FUN(Rtype);
-	}
-	SameRVectorValsFUN fun2 = select_same_Rvector_vals_FUN(Rtype);
-	CopyRVectorEltFUN fun3 = _select_copy_Rvector_elt_FUN(Rtype);
-
 	int x_dim0 = INTEGER(x_dim)[0];
-	if (x_ndim == 1)
-		return subassign_leaf_by_Lindex(
-				x_SVT, x_dim0, x_has_NAbg,
-				Lindex, vals);
 
-	/* 1st pass: Build the OPBufTree. */
-	//clock_t t0 = clock();
-	OPBufTree *opbuf_tree = _get_global_opbuf_tree();
-	R_xlen_t *dimcumprod = (R_xlen_t *) R_alloc(x_ndim, sizeof(R_xlen_t));
-	R_xlen_t p = 1;
-	for (int along = 0; along < x_ndim; along++) {
-		p *= INTEGER(x_dim)[along];
-		dimcumprod[along] = p;
+	SparseVec buf_sv = _alloc_buf_SparseVec(Rtype, x_dim0, x_has_NAbg);
+	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
+		PROTECT(buf_sv.nzvals);
+	SEXP ans;
+	if (x_ndim == 1) {
+		ans = subassign_leaf_by_Lindex(x_SVT, Lindex, vals, &buf_sv);
+	} else {
+		ans = subassign_SVT_by_Lindex(x_SVT, INTEGER(x_dim), x_ndim,
+					      Lindex, vals, &buf_sv);
 	}
-	int max_outleaf_len =
-		build_OPBufTree_from_Lindex(opbuf_tree, Lindex,
-				INTEGER(x_dim), x_ndim, dimcumprod);
-	if (max_outleaf_len < 0) {
+	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
 		UNPROTECT(1);
-		_bad_Lindex_error(max_outleaf_len);
-	}
-
-	//double dt = (1.0 * clock() - t0) * 1000.0 / CLOCKS_PER_SEC;
-	//printf("1st pass: %2.3f ms\n", dt);
-
-	//printf("max_outleaf_len = %d\n", max_outleaf_len);
-	//_print_OPBufTree(opbuf_tree, 1);
-
-	/* 2nd pass: Subset SVT by OPBufTree. */
-	//t0 = clock();
-	int *idx0_to_k_map = (int *) R_alloc(x_dim0, sizeof(int));
-	for (int i = 0; i < x_dim0; i++)
-		idx0_to_k_map[i] = -1;
-	/* Three buffers needed by sort_ints(). */
-	int *idx0_order_buf = (int *) R_alloc(max_outleaf_len, sizeof(int));
-	unsigned short int *rxbuf1 = (unsigned short int *)
-			R_alloc(max_outleaf_len, sizeof(unsigned short int));
-	int *rxbuf2 = (int *) R_alloc(max_outleaf_len, sizeof(int));
-	/* Get 1-based rank of biggest dimension (ignoring the 1st dim).
-	   Parallel execution will be along that dimension. */
-	int pardim = which_max(INTEGER(x_dim) + 1, x_ndim - 1) + 2;
-	SEXP ans = REC_subassign_SVT_by_OPBufTree(opbuf_tree,
-				x_SVT, INTEGER(x_dim), x_ndim, vals,
-				fun1, fun2, fun3,
-				idx0_order_buf, rxbuf1, rxbuf2,
-				idx0_to_k_map, pardim);
-	//dt = (1.0 * clock() - t0) * 1000.0 / CLOCKS_PER_SEC;
-	//printf("2nd pass: %2.3f ms\n", dt);
 	return ans;
 }
 
@@ -940,16 +376,20 @@ static void check_Mindex_dim(SEXP Mindex, R_xlen_t nvals, int ndim,
 }
 
 /* --- .Call ENTRY POINT --- */
-SEXP C_subassign_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
+SEXP C_subassign_SVT_by_Mindex(
+		SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP x_na_background,
 		SEXP Mindex, SEXP vals)
 {
 	SEXPTYPE Rtype = _get_and_check_Rtype_from_Rstring(x_type,
-					"C_subassign_SVT_by_Mindex", "x_type");
+				"C_subassign_SVT_by_Mindex", "x_type");
 	if (TYPEOF(vals) != Rtype)
 		error("SparseArray internal error in "
 		      "C_subassign_SVT_by_Mindex():\n"
 		      "    SVT_SparseArray object and 'vals' "
 		      "must have the same type");
+
+	int x_has_NAbg = _get_and_check_na_background(x_na_background,
+				"C_subassign_SVT_by_Lindex", "x_na_background");
 
 	int x_ndim = LENGTH(x_dim);
 	R_xlen_t nvals = XLENGTH(vals);
@@ -958,20 +398,25 @@ SEXP C_subassign_SVT_by_Mindex(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 	if (nvals == 0)
 		return x_SVT;  /* no-op */
 
-	//RVectorEltIsZeroFUN fun1 = select_Rvector_elt_is_zero_FUN(Rtype);
-	//SameRVectorValsFUN fun2 = select_same_Rvector_vals_FUN(Rtype);
-	//CopyRVectorEltFUN fun3 = _select_copy_Rvector_elt_FUN(Rtype);
-
 	int x_dim0 = INTEGER(x_dim)[0];
-	if (x_ndim == 1)
-		return subassign_leaf_by_Lindex(x_SVT, x_dim0, 0, Mindex, vals);
 
-	/* 1st pass: Build the OPBufTree. */
-	error("C_subassign_SVT_by_Mindex() not ready yet");
+	SparseVec buf_sv = _alloc_buf_SparseVec(Rtype, x_dim0, x_has_NAbg);
+	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
+		PROTECT(buf_sv.nzvals);
 
-	/* 2nd pass: Subset SVT by OPBufTree. */
+	SEXP ans;
+	if (x_ndim == 1) {
+		ans = subassign_leaf_by_Lindex(x_SVT, Mindex, vals, &buf_sv);
+	} else {
+		/* 1st pass: Build the OPBufTree. */
+		error("C_subassign_SVT_by_Mindex() not ready yet");
 
-	return R_NilValue;
+		/* 2nd pass: Subset SVT by OPBufTree. */
+	}
+
+	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
+		UNPROTECT(1);
+	return ans;
 }
 
 
@@ -1311,24 +756,13 @@ static int check_Noffs(SEXP Noffs, const int *dim, const int *arr_dim, int ndim)
 	return 0;
 }
 
-static R_xlen_t *alloc_and_compute_cumprod(const int *x, int x_len)
-{
-	R_xlen_t *cumprod = (R_xlen_t *) R_alloc(x_len, sizeof(R_xlen_t));
-	R_xlen_t prod = 1;
-	for (int i = 0; i < x_len; i++) {
-		prod *= x[i];
-		cumprod[i] = prod;
-	}
-	return cumprod;
-}
-
 static SEXP REC_subassign_SVT_with_Rsubarr(SEXP SVT,
 		const int *dim, int ndim, SEXP Noffs,
 		SEXP Rarray, R_xlen_t arr_offset, const R_xlen_t *subarr_lens,
 		SparseVec *buf_sv)
 {
 	if (ndim == 1)
-		return _subassign_leaf_with_Rsubvec(SVT,
+		return _subassign_leaf_with_Rvector_block(SVT,
 					VECTOR_ELT(Noffs, 0), subarr_lens[0],
 					Rarray, arr_offset, buf_sv);
 	int d1 = dim[ndim - 1];

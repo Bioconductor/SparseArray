@@ -405,42 +405,47 @@ SEXP _coerce_naleaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn,
 
 
 /****************************************************************************
- * _subassign_leaf_with_Rsubvec()
- * _subassign_leaf_with_Rvector_selection()
- * _subassign_leaf_with_Rvector_xselection()
+ * _subassign_leaf_with_Rvector_block()
+ * _subassign_leaf_with_Rvector_subset()
+ * _subassign_leaf_with_Rvector_xsubset()
  */
 
-/* Can be used on a NULL or lacunar leaf. */
-SEXP _subassign_leaf_with_Rsubvec(SEXP leaf, SEXP offs, int n,
-		SEXP Rvector, R_xlen_t subvec_offset, SparseVec *buf_sv)
+/* Can be used on a NULL or lacunar leaf.
+   'offs' must be NULL or an array of 'n' offsets (non-negative integers)
+   that are strictly sorted (in ascending order). The last offset in the
+   array must be < 'buf_sv->len'. */
+SEXP _subassign_leaf_with_Rvector_block(SEXP leaf, SEXP offs, int n,
+		SEXP Rvector, R_xlen_t block_offset, SparseVec *buf_sv)
 {
 	const int *offs0;
 	if (offs == R_NilValue) {
 		if (n != buf_sv->len)
 			error("SparseArray internal error in "
-			      "_subassign_leaf_with_Rsubvec():\n"
+			      "_subassign_leaf_with_Rvector_block():\n"
 			      "    n != buf_sv->len");
 		offs0 = NULL;
 	} else {
 		if (n != LENGTH(offs))
 			error("SparseArray internal error in "
-			      "_subassign_leaf_with_Rsubvec():\n"
+			      "_subassign_leaf_with_Rvector_block():\n"
 			      "    n != LENGTH(offs)");
 		offs0 = INTEGER(offs);
 	}
 	if (leaf == R_NilValue) {
-		_write_Rsubvec_to_SV(Rvector, subvec_offset, offs0, n, buf_sv);
+		_write_Rvector_block_to_SV(Rvector, block_offset,
+					   offs0, n, buf_sv);
 	} else {
 		const SparseVec sv = leaf2SV(leaf, buf_sv->Rtype,
 					     buf_sv->len,
 					     buf_sv->na_background);
 		int neffrep;
 		if (offs0 == NULL) {
-			neffrep = _subassign_full_SV_with_Rsubvec(&sv,
-					     Rvector, subvec_offset, buf_sv);
+			neffrep = _subassign_full_SV_with_Rvector_block(&sv,
+					     Rvector, block_offset, buf_sv);
 		} else {
-			neffrep = _subassign_SV_with_Rsubvec(&sv, offs0, n,
-					     Rvector, subvec_offset, buf_sv);
+			neffrep = _subassign_SV_with_Rvector_block(&sv,
+					     offs0, n,
+					     Rvector, block_offset, buf_sv);
 		}
 		//printf("n = %d / neffrep = %d\n", n, neffrep);
 		if (neffrep == 0)
@@ -450,18 +455,23 @@ SEXP _subassign_leaf_with_Rsubvec(SEXP leaf, SEXP offs, int n,
 }
 
 /* Can be used on a NULL or lacunar leaf.
-   'offs' and 'selection' must have length 'n' (they cannot be NULL). */
-SEXP _subassign_leaf_with_Rvector_selection(SEXP leaf, const int *offs, int n,
+   Both 'offs' and 'selection' must be arrays of 'n' offsets (non-negative
+   integers).
+   The offsets in 'offs' must be strictly sorted (in ascending order) and the
+   last offset in the array must be < 'buf_sv->len'.
+   The offsets in 'selection' must be < 'LENGTH(Rvector)'. They are typically
+   unsorted. */
+SEXP _subassign_leaf_with_Rvector_subset(SEXP leaf, const int *offs, int n,
 		SEXP Rvector, const int *selection, SparseVec *buf_sv)
 {
 	if (leaf == R_NilValue) {
-		_write_Rvector_selection_to_SV(Rvector, selection, offs, n,
-					       buf_sv);
+		_write_Rvector_subset_to_SV(Rvector, selection, offs, n,
+					    buf_sv);
 	} else {
 		const SparseVec sv = leaf2SV(leaf, buf_sv->Rtype,
 					     buf_sv->len,
 					     buf_sv->na_background);
-		int neffrep = _subassign_SV_with_Rvector_selection(&sv,
+		int neffrep = _subassign_SV_with_Rvector_subset(&sv,
 					     offs, n,
 					     Rvector, selection, buf_sv);
 		//printf("n = %d / neffrep = %d\n", n, neffrep);
@@ -473,10 +483,10 @@ SEXP _subassign_leaf_with_Rvector_selection(SEXP leaf, const int *offs, int n,
 
 /* Can be used on a NULL or lacunar leaf.
    'offs' and 'xselection' must have length 'n' (they cannot be NULL). */
-SEXP _subassign_leaf_with_Rvector_xselection(SEXP leaf, const int *offs, int n,
+SEXP _subassign_leaf_with_Rvector_xsubset(SEXP leaf, const int *offs, int n,
 		SEXP Rvector, const R_xlen_t *xselection, SparseVec *buf_sv)
 {
-	error("_subassign_leaf_with_Rvector_xselection() is not ready yet");
+	error("_subassign_leaf_with_Rvector_xsubset() is not ready yet");
 	return R_NilValue;
 }
 
