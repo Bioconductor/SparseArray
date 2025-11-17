@@ -65,8 +65,8 @@ void _expand_leaf(SEXP leaf, SEXP out_Rvector, R_xlen_t out_offset)
  * _make_lacunar_leaf()
  * _make_leaf_with_single_shared_nzval()
  * _make_leaf_from_two_arrays()
- * _make_leaf_from_Rsubvec()
- * _make_naleaf_from_Rsubvec()
+ * _make_leaf_from_Rvector_block()
+ * _make_naleaf_from_Rvector_block()
  */
 
 SEXP _make_lacunar_leaf(SEXP nzoffs)
@@ -135,18 +135,18 @@ SEXP _make_leaf_from_two_arrays(SEXPTYPE Rtype,
 	return ans;
 }
 
-static SEXP make_leaf_from_selected_Rsubvec_elts(
-		SEXP Rvector, R_xlen_t subvec_offset, int subvec_len,
-		const int *selection, int n, int avoid_copy_if_all_selected)
+static SEXP make_leaf_from_Rvector_subset(SEXP Rvector,
+		const int *selection, int selection_len,
+		R_xlen_t selection_offset, int avoid_copy_if_all_selected)
 {
-	if (n == 0)
+	if (selection_len == 0)
 		return R_NilValue;
 
-	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(n));
-	memcpy(INTEGER(ans_nzoffs), selection, sizeof(int) * n);
+	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(selection_len));
+	memcpy(INTEGER(ans_nzoffs), selection, sizeof(int) * selection_len);
 
 	int all_ones = _Rvector_subset_is_filled_with_ones(Rvector,
-						selection, n, subvec_offset);
+				selection, selection_len, selection_offset);
 	if (all_ones) {
 		SEXP ans = _make_lacunar_leaf(ans_nzoffs);
 		UNPROTECT(1);
@@ -154,7 +154,7 @@ static SEXP make_leaf_from_selected_Rsubvec_elts(
 	}
 
 	if (avoid_copy_if_all_selected &&
-	    subvec_offset == 0 && n == XLENGTH(Rvector) &&
+	    selection_offset == 0 && selection_len == XLENGTH(Rvector) &&
 	    ATTRIB(Rvector) == R_NilValue)
 	{
 		/* The full 'Rvector' is selected so can be reused as-is
@@ -165,7 +165,7 @@ static SEXP make_leaf_from_selected_Rsubvec_elts(
 	}
 
 	SEXP ans_nzvals = PROTECT(
-		_subset_Rvector(Rvector, selection, n, subvec_offset)
+	  _subset_Rvector(Rvector, selection, selection_len, selection_offset)
 	);
 	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs, 0);
 	UNPROTECT(2);
@@ -173,34 +173,34 @@ static SEXP make_leaf_from_selected_Rsubvec_elts(
 }
 
 
-/* 'selection_buf' must be of length 'subvec_len' (at least).
+/* 'selection_buf' must be of length 'block_len' (at least).
    The returned leaf can be lacunar. */
-SEXP _make_leaf_from_Rsubvec(
-		SEXP Rvector, R_xlen_t subvec_offset, int subvec_len,
+SEXP _make_leaf_from_Rvector_block(
+		SEXP Rvector, R_xlen_t block_offset, int block_len,
 		int *selection_buf, int avoid_copy_if_all_nonzeros)
 {
-	/* 'n' will always be >= 0 and <= subvec_len. */
-	int n = _collect_offsets_of_nonzero_elts_in_Rvector_block(
-				Rvector, subvec_offset, subvec_len,
+	/* 'selection_len' will always be >= 0 and <= block_len. */
+	int selection_len = _collect_offsets_of_nonzero_elts_in_Rvector_block(
+				Rvector, block_offset, block_len,
 				selection_buf);
-	return make_leaf_from_selected_Rsubvec_elts(
-				Rvector, subvec_offset, subvec_len,
-				selection_buf, n, avoid_copy_if_all_nonzeros);
+	return make_leaf_from_Rvector_subset(Rvector,
+				selection_buf, selection_len, block_offset,
+				avoid_copy_if_all_nonzeros);
 }
 
-/* 'selection_buf' must be of length 'subvec_len' (at least).
+/* 'selection_buf' must be of length 'block_len' (at least).
    The returned leaf can be lacunar. */
-SEXP _make_naleaf_from_Rsubvec(
-		SEXP Rvector, R_xlen_t subvec_offset, int subvec_len,
+SEXP _make_naleaf_from_Rvector_block(
+		SEXP Rvector, R_xlen_t block_offset, int block_len,
 		int *selection_buf, int avoid_copy_if_all_nonNAs)
 {
-	/* 'n' will always be >= 0 and <= subvec_len. */
-	int n = _collect_offsets_of_nonNA_elts_in_Rvector_block(
-				Rvector, subvec_offset, subvec_len,
+	/* 'selection_len' will always be >= 0 and <= block_len. */
+	int selection_len = _collect_offsets_of_nonNA_elts_in_Rvector_block(
+				Rvector, block_offset, block_len,
 				selection_buf);
-	return make_leaf_from_selected_Rsubvec_elts(
-				Rvector, subvec_offset, subvec_len,
-				selection_buf, n, avoid_copy_if_all_nonNAs);
+	return make_leaf_from_Rvector_subset(Rvector,
+				selection_buf, selection_len, block_offset,
+				avoid_copy_if_all_nonNAs);
 }
 
 

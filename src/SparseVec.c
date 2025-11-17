@@ -43,8 +43,8 @@ SparseVec _alloc_buf_SparseVec(SEXPTYPE Rtype, int len, int na_background)
 /****************************************************************************
  * _write_Rvector_block_to_SV()
  *
- * TODO: Maybe _make_leaf_from_Rsubvec() and _make_naleaf_from_Rsubvec()
- * should use this?
+ * TODO: Maybe _make_leaf_from_Rvector_block() and
+ * _make_naleaf_from_Rvector_block() should be based on this?
  */
 
 static SEXPTYPE get_SV_write_Rtype(SEXP Rvector,
