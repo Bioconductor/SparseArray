@@ -1,10 +1,6 @@
-- Refactor subassign_leaf_by_OPBuf(). We should be able to replace the
-  subassign_NULL_by_OPBuf() and subassign_nonNULL_leaf_by_OPBuf() mess
-  with something that:
-    o Sorts the (idx0,Loff) pairs in the OPBuf by strictly increasing 'idx0s'
-      and removes duplicates. An open question is when should this step happen
-      e.g. should it happen upfront as part of the OPBufTree building process?
-    o Uses _subassign_leaf_with_vector().
+- Implement C_subassign_SVT_with_SVT(). This will allow subassignments like:
+      svt[ , , 1] <- svt[ , , 3, drop=FALSE]
+      svt[ , , 1] <- svt[ , , 3]
 
 - Make operations from the Math group work on SVT_SparseArray objects of
   type "integer".
@@ -167,12 +163,6 @@
   number (>= 0 and <= 1) that measures how sparse an object is.
   sparsity = 1 - density
 
-- Subassignments like this need to work:
-      svt[ , , 1] <- svt[ , , 3, drop=FALSE]
-      svt[ , , 1] <- svt[ , , 3]
-
-- Implement C_subassign_SVT_with_SVT().
-
 - Speed up row selection: x[row_idx, ]
   THIS in particular is VERY slow on a SVT_SparseArray object:
       set.seed(123)
@@ -233,16 +223,9 @@
   1. Implement C helper _push_vals_to_SBT_by_Mindex(), and modify coercion
      from COO_SparseArray to SVT_SparseArray to use that instead of
      C_subassign_SVT_by_Mindex(). This will probably lead to a cleaner/simpler
-     implementation. But is it faster too?
+     implementation. But will it also be faster?
 
-  2. Revisit implementation of C_subassign_SVT_by_Mindex() and
-     C_subassign_SVT_by_Lindex(): Can they use an SBT instead of the "extended
-     leaves" approach? E.g. they would use _push_vals_to_SBT_by_Mindex()
-     and _push_vals_to_SBT_by_Lindex(), respectively, then "merge" the SBT
-     with the original SVT. This will probably lead to a cleaner/simpler
-     implementation. But is it faster too?
-
-  3. Revisit implementation of C_readSparseCSV_as_SVT_SparseMatrix(): Try to
+  2. Revisit implementation of C_readSparseCSV_as_SVT_SparseMatrix(): Try to
      use an SBT instead of an ExtendableJaggedArray. Performance should not
      be impacted. Then we can get rid of the ExtendableJaggedArray thing.
 

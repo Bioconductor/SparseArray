@@ -31,11 +31,11 @@ typedef struct opbuf_t {
 	int nelt;
 } OPBuf;
 
-enum node_type { NULL_NODE, INNER_NODE, LEAF_NODE };
+enum node_types { NULL_NODE, INNER_NODE, LEAF_NODE };
 
 /* Tree of OPBuf structures (as leaves). */
 typedef struct opbuf_tree_t {
-	enum node_type node_type;
+	enum node_types node_type;
 	union {
 		struct inner_node_t {
 			int n;
@@ -103,7 +103,7 @@ void _sort_and_remove_dups_OPBuf(
 
 void _print_OPBufTree(
 	const OPBufTree *opbuf_tree,
-	int depth
+	int indent_level
 );
 
 OPBufTree *_get_global_opbuf_tree(void);

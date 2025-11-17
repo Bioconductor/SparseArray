@@ -365,7 +365,7 @@ static int build_OPBufTree_from_Lindex1(OPBufTree *opbuf_tree, SEXP Lindex,
 		SEXP x_SVT, const int *x_dim, int x_ndim, SEXP ans,
 		const R_xlen_t *dimcumprod)
 {
-	int max_outleaf_len = 0;
+	int max_opbuf_nelt = 0;
 	int out_len = LENGTH(Lindex);  /* = LENGTH(ans) */
 	R_xlen_t x_len = dimcumprod[x_ndim - 1];
 	/* Walk along 'Lindex' (and 'ans').
@@ -399,10 +399,10 @@ static int build_OPBufTree_from_Lindex1(OPBufTree *opbuf_tree, SEXP Lindex,
 		ret = _append_idx0Loff_to_host_node(host_node, idx0, Loff);
 		if (ret < 0)
 			return ret;
-		if (ret > max_outleaf_len)
-			max_outleaf_len = ret;
+		if (ret > max_opbuf_nelt)
+			max_opbuf_nelt = ret;
 	}
-	return max_outleaf_len;
+	return max_opbuf_nelt;
 }
 
 /* To use on an 'Lindex' that has a length > INT_MAX (long vector).
@@ -411,7 +411,7 @@ static int build_OPBufTree_from_Lindex2(OPBufTree *opbuf_tree, SEXP Lindex,
 		SEXP x_SVT, const int *x_dim, int x_ndim, SEXP ans,
 		const R_xlen_t *dimcumprod)
 {
-	int max_outleaf_len = 0;
+	int max_opbuf_nelt = 0;
 	R_xlen_t out_len = XLENGTH(Lindex);  /* = XLENGTH(ans) */
 	R_xlen_t x_len = dimcumprod[x_ndim - 1];
 	/* Walk along 'Lindex' (and 'ans').
@@ -451,10 +451,10 @@ static int build_OPBufTree_from_Lindex2(OPBufTree *opbuf_tree, SEXP Lindex,
 		ret = _append_idx0xLoff_to_host_node(host_node, idx0, Loff);
 		if (ret < 0)
 			return ret;
-		if (ret > max_outleaf_len)
-			max_outleaf_len = ret;
+		if (ret > max_opbuf_nelt)
+			max_opbuf_nelt = ret;
 	}
-	return max_outleaf_len;
+	return max_opbuf_nelt;
 }
 
 /* Returns the length of the longest leaf in the output tree (i.e. the
@@ -494,7 +494,7 @@ static int build_OPBufTree_from_Mindex(OPBufTree *opbuf_tree, SEXP Mindex,
 	/* _free_OPBufTree(opbuf_tree) resets 'opbuf_tree->node_type'
 	   to NULL_NODE. */
 	_free_OPBufTree(opbuf_tree);
-	int max_outleaf_len = 0;
+	int max_opbuf_nelt = 0;
 	int out_len = LENGTH(ans);  /* = nrow(Mindex) */
 	R_xlen_t Moff = (R_xlen_t) out_len * (x_ndim - 1);
 	/* Walk along 'ans'. Direction of the walk doesn't matter. */
@@ -518,10 +518,10 @@ static int build_OPBufTree_from_Mindex(OPBufTree *opbuf_tree, SEXP Mindex,
 		ret = _append_idx0Loff_to_host_node(host_node, idx0, Loff);
 		if (ret < 0)
 			return ret;
-		if (ret > max_outleaf_len)
-			max_outleaf_len = ret;
+		if (ret > max_opbuf_nelt)
+			max_opbuf_nelt = ret;
 	}
-	return max_outleaf_len;
+	return max_opbuf_nelt;
 }
 
 
@@ -611,13 +611,13 @@ SEXP C_subset_SVT_by_Lindex(
 		p *= INTEGER(x_dim)[along];
 		dimcumprod[along] = p;
 	}
-	int max_outleaf_len =
+	int max_opbuf_nelt =
 		build_OPBufTree_from_Lindex(opbuf_tree, Lindex,
 				x_SVT, INTEGER(x_dim), x_ndim, ans,
 				dimcumprod);
-	if (max_outleaf_len < 0) {
+	if (max_opbuf_nelt < 0) {
 		UNPROTECT(1);
-		_bad_Lindex_error(max_outleaf_len);
+		_bad_Lindex_error(max_opbuf_nelt);
 	}
 	if (x_SVT == R_NilValue) {
 		UNPROTECT(1);
@@ -626,10 +626,10 @@ SEXP C_subset_SVT_by_Lindex(
 	//double dt = (1.0 * clock() - t0) * 1000.0 / CLOCKS_PER_SEC;
 	//printf("1st pass: %2.3f ms\n", dt);
 
-	//printf("max_outleaf_len = %d\n", max_outleaf_len);
+	//printf("max_opbuf_nelt = %d\n", max_opbuf_nelt);
 
 	/* 2nd pass: Subset SVT by OPBufTree. */
-	if (max_outleaf_len > 0) {
+	if (max_opbuf_nelt > 0) {
 		//clock_t t0 = clock();
 		int *lookup_table = (int *) R_alloc(x_dim0, sizeof(int));
 		for (int i = 0; i < x_dim0; i++)
@@ -695,16 +695,16 @@ SEXP C_subset_SVT_by_Mindex(
 
 	/* 1st pass: Build OPBufTree. */
 	OPBufTree *opbuf_tree = _get_global_opbuf_tree();
-	int max_outleaf_len =
+	int max_opbuf_nelt =
 		build_OPBufTree_from_Mindex(opbuf_tree, Mindex,
 					    x_SVT, INTEGER(x_dim), x_ndim, ans);
-	if (max_outleaf_len < 0) {
+	if (max_opbuf_nelt < 0) {
 		UNPROTECT(1);
-		_bad_Mindex_error(max_outleaf_len);
+		_bad_Mindex_error(max_opbuf_nelt);
 	}
 
 	/* 2nd pass: Subset SVT by OPBufTree. */
-	if (max_outleaf_len > 0) {
+	if (max_opbuf_nelt > 0) {
 		int *lookup_table = (int *) R_alloc(x_dim0, sizeof(int));
 		for (int i = 0; i < x_dim0; i++)
 			lookup_table[i] = -1;

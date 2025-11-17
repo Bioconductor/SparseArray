@@ -78,12 +78,7 @@ static inline SEXP get_leaf_nzvals(SEXP leaf)
 {
 	if (!isVectorList(leaf))  // IS_LIST() is broken
 		goto on_error;
-	/* A regular leaf is a list of length 2 but we don't test for
-	   LENGTH(leaf) == 2 because we want this to work on an "extended
-	   leaf" which is represented by a list of length 3. See
-	   SparseArray_subassignment.c where "extended leaves" are explained
-	   and used. */
-	if (LENGTH(leaf) < 2)
+	if (LENGTH(leaf) != 2)
 		goto on_error;
 	return VECTOR_ELT(leaf, 0);
 
@@ -243,12 +238,6 @@ SEXP _subassign_leaf_with_Rvector_xsubset(
 	SEXP Rvector,
 	const R_xlen_t *xselection,
 	SparseVec *buf_sv
-);
-
-SEXP _subassign_leaf_with_Rvector_OLD(
-	SEXP leaf,
-	SEXP index,
-	SEXP Rvector
 );
 
 static inline SEXP SV2leaf(const SparseVec *sv)

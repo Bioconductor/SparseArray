@@ -323,7 +323,7 @@ static void print_OPBuf(OPBuf *opbuf, const char *margin)
 	return;
 }
 
-void _print_OPBufTree(const OPBufTree *opbuf_tree, int depth)
+void _print_OPBufTree(const OPBufTree *opbuf_tree, int indent_level)
 {
 	if (opbuf_tree->node_type == NULL_NODE) {
 		Rprintf("NULL\n");
@@ -333,18 +333,19 @@ void _print_OPBufTree(const OPBufTree *opbuf_tree, int depth)
 	if (opbuf_tree->node_type == LEAF_NODE) {
 		OPBuf *opbuf = get_OPBufTree_leaf(opbuf_tree);
 		Rprintf("OPBuf (buflen=%d)\n", opbuf->buflen);
-		snprintf(format, sizeof(format), "%%%ds", 2 * (depth + 1));
+		snprintf(format, sizeof(format),
+			 "%%%ds", 2 * (indent_level + 1));
 		snprintf(margin, sizeof(margin), format, "");
 		print_OPBuf(opbuf, margin);
 		return;
 	}
 	InnerNode *inner_node = opbuf_tree->node.inner_node_p;
 	Rprintf("InnerNode\n");
-	snprintf(format, sizeof(format), "%%%ds", 2 * depth);
+	snprintf(format, sizeof(format), "%%%ds", 2 * indent_level);
 	snprintf(margin, sizeof(margin), format, "");
 	for (int i = 0; i < inner_node->n; i++) {
 		Rprintf("%so child %d/%d: ", margin, i + 1, inner_node->n);
-		_print_OPBufTree(inner_node->children + i, depth + 1);
+		_print_OPBufTree(inner_node->children + i, indent_level + 1);
 	}
 	return;
 }

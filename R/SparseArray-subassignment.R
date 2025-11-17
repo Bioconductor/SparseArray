@@ -33,7 +33,7 @@ adjust_left_type <- function(x, value)
     S4Vectors:::recycleVector(value, index_len)
 }
 
-.subassign_SVT_by_Lindex <- function(x, Lindex, value, old=FALSE)
+.subassign_SVT_by_Lindex <- function(x, Lindex, value)
 {
     x <- adjust_left_type(x, value)
     stopifnot(is.vector(Lindex), is.numeric(Lindex))
@@ -43,19 +43,13 @@ adjust_left_type <- function(x, value)
         return(x)
 
     value <- .normalize_right_value(value, type(x), length(Lindex))
-
-    if (old) {
-        new_SVT <- SparseArray.Call("C_subassign_SVT_by_Lindex_OLD",
-                                    x@dim, x@type, x@SVT, Lindex, value)
-    } else {
-        new_SVT <- SparseArray.Call("C_subassign_SVT_by_Lindex",
-                                    x@dim, x@type, x@SVT, FALSE, Lindex, value)
-    }
+    new_SVT <- SparseArray.Call("C_subassign_SVT_by_Lindex",
+                                x@dim, x@type, x@SVT, FALSE, Lindex, value)
     BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
 }
 
 setMethod("subassign_Array_by_Lindex", "SVT_SparseArray",
-    function(x, Lindex, value) .subassign_SVT_by_Lindex(x, Lindex, value)
+    .subassign_SVT_by_Lindex
 )
 
 .subassign_SVT_by_Mindex <- function(x, Mindex, value)
@@ -68,11 +62,8 @@ setMethod("subassign_Array_by_Lindex", "SVT_SparseArray",
         return(x)
 
     value <- .normalize_right_value(value, type(x), nrow(Mindex))
-
-    if (storage.mode(Mindex) != "integer")
-        storage.mode(Mindex) <- "integer"
-    new_SVT <- SparseArray.Call("C_subassign_SVT_by_Mindex_OLD",
-                                x@dim, x@type, x@SVT, Mindex, value)
+    new_SVT <- SparseArray.Call("C_subassign_SVT_by_Mindex",
+                                x@dim, x@type, x@SVT, FALSE, Mindex, value)
     BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
 }
 
