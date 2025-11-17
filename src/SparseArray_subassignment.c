@@ -13,7 +13,6 @@
 #include "leaf_utils.h"
 
 #include <limits.h>  /* for INT_MAX */
-//#include <time.h>
 
 
 /* Copied from S4Arrays/src/array_selection.h */
@@ -74,50 +73,8 @@ static SEXP subassign_leaf_by_OPBuf(
 
 
 /****************************************************************************
- * subassign_leaf_by_Lindex()
- *
- * Needed to handle the 1D case which needs special treatment.
- */
-
-static OPBuf make_OPBuf_from_Lindex(SEXP Lindex, int dim0)
-{
-	int in_len = LENGTH(Lindex);
-	OPBuf opbuf = R_alloc_OPBuf(in_len);
-	/* Walk along 'Lindex'. */
-	for (int Loff = 0; Loff < in_len; Loff++) {
-		R_xlen_t Lidx0 = 0;
-		int ret = extract_long_idx0(Lindex, (R_xlen_t) Loff, dim0,
-					    &Lidx0);
-		if (ret < 0)
-			_bad_Lindex_error(ret);
-		opbuf.idx0s[Loff] = (int) Lidx0;
-		opbuf.Loffs[Loff] = Loff;
-	}
-	opbuf.nelt = in_len;
-	return opbuf;
-}
-
-static SEXP subassign_leaf_by_Lindex(
-		SEXP leaf, SEXP Lindex, SEXP Rvector,
-		SparseVec *buf_sv)
-{
-	OPBuf opbuf = make_OPBuf_from_Lindex(Lindex, buf_sv->len);
-
-	int buflen = opbuf.nelt < buf_sv->len ? opbuf.nelt : buf_sv->len;
-	OPBuf sorted_opbuf = R_alloc_OPBuf(buflen);
-	int *order_buf = (int *) R_alloc(opbuf.nelt, sizeof(int));
-	unsigned short int *rxbuf1 = (unsigned short int *)
-		R_alloc(opbuf.nelt, sizeof(unsigned short int));
-	int *rxbuf2 = (int *) R_alloc(opbuf.nelt, sizeof(int));
-
-	return subassign_leaf_by_OPBuf(leaf, &opbuf, Rvector,
-				       &sorted_opbuf,
-				       order_buf, rxbuf1, rxbuf2, buf_sv);
-}
-
-
-/****************************************************************************
- * C_subassign_SVT_by_Lindex()
+ * build_OPBufTree_from_Lindex()
+ * build_OPBufTree_from_Mindex()
  */
 
 /* 'Lidx0' is trusted to be a non-NA value >= 0 and < 'dimcumprod[ndim - 1]'.
@@ -144,11 +101,33 @@ static OPBufTree *find_host_node_for_Lidx0(OPBufTree *opbuf_tree,
 	return opbuf_tree;
 }
 
+static OPBufTree *find_host_node_for_Mindex_row(OPBufTree *opbuf_tree,
+		SEXP Mindex, int Mnrow, R_xlen_t Moff,
+		const int *dim, int ndim,
+		int *idx0, int *ret_code)
+{
+	for (int along = ndim - 1; along >= 1; along--, Moff -= Mnrow) {
+		int i, d = dim[along];
+		*ret_code = extract_idx0(Mindex, Moff, d, &i);
+		if (*ret_code < 0)
+			return NULL;
+		if (opbuf_tree->node_type == NULL_NODE)
+			_alloc_OPBufTree_children(opbuf_tree, d);
+		opbuf_tree = get_OPBufTree_child(opbuf_tree, i);
+	}
+	/* At this point 'opbuf_tree' is guaranteed to be a node of type
+	   NULL_NODE or LEAF_NODE. */
+	*ret_code = extract_idx0(Mindex, Moff, dim[0], idx0);
+	return opbuf_tree;
+}
+
+/* To use on an 'Lindex' that has a length <= INT_MAX.
+   Returns a negative value in case of error. */
 static int build_OPBufTree_from_Lindex1(OPBufTree *opbuf_tree, SEXP Lindex,
 		const int *x_dim, int x_ndim,
 		const R_xlen_t *dimcumprod)
 {
-	int max_outleaf_len = 0;
+	int max_opbuf_nelt = 0;
 	int in_len = LENGTH(Lindex);
 	R_xlen_t x_len = dimcumprod[x_ndim - 1];
 	/* Walk along 'Lindex'. */
@@ -166,17 +145,17 @@ static int build_OPBufTree_from_Lindex1(OPBufTree *opbuf_tree, SEXP Lindex,
 		ret = _append_idx0Loff_to_host_node(host_node, idx0, Loff);
 		if (ret < 0)
 			return ret;
-		if (ret > max_outleaf_len)
-			max_outleaf_len = ret;
+		if (ret > max_opbuf_nelt)
+			max_opbuf_nelt = ret;
 	}
-	return max_outleaf_len;
+	return max_opbuf_nelt;
 }
 
 static int build_OPBufTree_from_Lindex2(OPBufTree *opbuf_tree, SEXP Lindex,
 		const int *x_dim, int x_ndim,
 		const R_xlen_t *dimcumprod)
 {
-	int max_outleaf_len = 0;
+	int max_opbuf_nelt = 0;
 	R_xlen_t in_len = XLENGTH(Lindex);
 	R_xlen_t x_len = dimcumprod[x_ndim - 1];
 	/* Walk along 'Lindex'. */
@@ -190,28 +169,60 @@ static int build_OPBufTree_from_Lindex2(OPBufTree *opbuf_tree, SEXP Lindex,
 						opbuf_tree, Lidx0,
 						x_dim, x_ndim,
 						dimcumprod, &idx0);
-		ret = _append_idx0Loff_to_host_node(host_node, idx0, Loff);
+		ret = _append_idx0xLoff_to_host_node(host_node, idx0, Loff);
 		if (ret < 0)
 			return ret;
-		if (ret > max_outleaf_len)
-			max_outleaf_len = ret;
+		if (ret > max_opbuf_nelt)
+			max_opbuf_nelt = ret;
 	}
-	return max_outleaf_len;
+	return max_opbuf_nelt;
 }
 
-static int build_OPBufTree_from_Lindex(OPBufTree *opbuf_tree, SEXP Lindex,
-		const int *x_dim, int x_ndim,
-		const R_xlen_t *dimcumprod)
+static int build_OPBufTree_from_Lindex(OPBufTree *opbuf_tree,
+		SEXP Lindex, const int *x_dim, int x_ndim)
 {
 	/* _free_OPBufTree(opbuf_tree) resets 'opbuf_tree->node_type'
 	   to NULL_NODE. */
 	_free_OPBufTree(opbuf_tree);
+	R_xlen_t *dimcumprod = alloc_and_compute_cumprod(x_dim, x_ndim);
 	return XLENGTH(Lindex) <= (R_xlen_t) INT_MAX ?
 		build_OPBufTree_from_Lindex1(opbuf_tree, Lindex,
 				x_dim, x_ndim, dimcumprod) :
 		build_OPBufTree_from_Lindex2(opbuf_tree, Lindex,
 				x_dim, x_ndim, dimcumprod);
 }
+
+static int build_OPBufTree_from_Mindex(OPBufTree *opbuf_tree,
+		SEXP Mindex, int Mnrow, const int *x_dim, int x_ndim)
+{
+	/* _free_OPBufTree(opbuf_tree) resets 'opbuf_tree->node_type'
+	   to NULL_NODE. */
+	_free_OPBufTree(opbuf_tree);
+	int max_opbuf_nelt = 0;
+	R_xlen_t Moff = (R_xlen_t) Mnrow * (x_ndim - 1);
+	/* Walk along the rows of 'Mindex'. */
+	for (int Loff = 0; Loff < Mnrow; Loff++, Moff++) {
+		int idx0, ret;
+		OPBufTree *host_node = find_host_node_for_Mindex_row(
+						opbuf_tree,
+						Mindex, Mnrow, Moff,
+						x_dim, x_ndim,
+						&idx0, &ret);
+		if (ret < 0)
+			return ret;
+                ret = _append_idx0Loff_to_host_node(host_node, idx0, Loff);
+                if (ret < 0)
+                        return ret;
+                if (ret > max_opbuf_nelt)
+                        max_opbuf_nelt = ret;
+        }
+        return max_opbuf_nelt;
+}
+
+
+/****************************************************************************
+ * subassign_SVT_by_OPBufTree()
+ */
 
 /* Recursive tree traversal of 'opbuf_tree'. */
 static SEXP REC_subassign_SVT_by_OPBufTree(OPBufTree *opbuf_tree,
@@ -263,51 +274,45 @@ static SEXP REC_subassign_SVT_by_OPBufTree(OPBufTree *opbuf_tree,
 	return is_empty ? R_NilValue : ans;
 }
 
-static SEXP subassign_SVT_by_Lindex(SEXP SVT, const int *dim, int ndim,
-		SEXP Lindex, SEXP vals, SparseVec *buf_sv)
+static SEXP subassign_SVT_by_OPBufTree(SEXP SVT, const int *dim, int ndim,
+		SEXPTYPE Rtype, int na_background,
+		OPBufTree *opbuf_tree, int max_opbuf_nelt, SEXP vals)
 {
-	/* 1st pass: Build the OPBufTree. */
+	int dim0 = dim[0];
 
-	//clock_t t0 = clock();
-	OPBufTree *opbuf_tree = _get_global_opbuf_tree();
-	R_xlen_t *dimcumprod = alloc_and_compute_cumprod(dim, ndim);
-	int max_outleaf_len =
-		build_OPBufTree_from_Lindex(opbuf_tree, Lindex,
-					    dim, ndim, dimcumprod);
-	if (max_outleaf_len < 0) {
-		if (IS_STRSXP_OR_VECSXP(buf_sv->Rtype))
-			UNPROTECT(1);
-		_bad_Lindex_error(max_outleaf_len);
-	}
+	SparseVec buf_sv = _alloc_buf_SparseVec(Rtype, dim0, na_background);
+	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
+		PROTECT(buf_sv.nzvals);
 
-	//double dt = (1.0 * clock() - t0) * 1000.0 / CLOCKS_PER_SEC;
-	//printf("1st pass: %2.3f ms\n", dt);
-
-	//printf("max_outleaf_len = %d\n", max_outleaf_len);
-	//_print_OPBufTree(opbuf_tree, 1);
-
-	/* 2nd pass: Subset SVT by OPBufTree. */
-
-	//t0 = clock();
-	int buflen = max_outleaf_len < buf_sv->len ? max_outleaf_len :
-						     buf_sv->len;
+	int buflen = max_opbuf_nelt < dim0 ? max_opbuf_nelt : dim0;
 	OPBuf sorted_opbuf = R_alloc_OPBuf(buflen);
-	int *order_buf = (int *) R_alloc(max_outleaf_len, sizeof(int));
+
+	int *order_buf = (int *) R_alloc(max_opbuf_nelt, sizeof(int));
+
 	unsigned short int *rxbuf1 = (unsigned short int *)
-		R_alloc(max_outleaf_len, sizeof(unsigned short int));
-	int *rxbuf2 = (int *) R_alloc(max_outleaf_len, sizeof(int));
+			R_alloc(max_opbuf_nelt, sizeof(unsigned short int));
+
+	int *rxbuf2 = (int *) R_alloc(max_opbuf_nelt, sizeof(int));
+
 	/* Get 1-based rank of biggest dimension (ignoring the 1st dim).
 	   Parallel execution will be along that dimension. */
 	int pardim = which_max(dim + 1, ndim - 1) + 2;
 
-	return REC_subassign_SVT_by_OPBufTree(opbuf_tree,
+	SEXP ans = REC_subassign_SVT_by_OPBufTree(opbuf_tree,
 				 SVT, ndim, vals,
 				 &sorted_opbuf,
 				 order_buf, rxbuf1, rxbuf2,
-				 buf_sv, pardim);
-	//dt = (1.0 * clock() - t0) * 1000.0 / CLOCKS_PER_SEC;
-	//printf("2nd pass: %2.3f ms\n", dt);
+				 &buf_sv, pardim);
+
+	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
+		UNPROTECT(1);
+	return ans;
 }
+
+
+/****************************************************************************
+ * C_subassign_SVT_by_Lindex()
+ */
 
 /* --- .Call ENTRY POINT ---
    'Lindex' must be a numeric vector (integer or double), possibly a long one.
@@ -331,28 +336,29 @@ SEXP C_subassign_SVT_by_Lindex(
 	if (!(IS_INTEGER(Lindex) || IS_NUMERIC(Lindex)))
 		error("'Lindex' must be an integer or numeric vector");
 
-	int x_ndim = LENGTH(x_dim);
+	int ndim = LENGTH(x_dim);
 	R_xlen_t nvals = XLENGTH(vals);
 	if (XLENGTH(Lindex) != nvals)
 		error("length(Lindex) != length(vals)");
 	if (nvals == 0)
 		return x_SVT;  /* no-op */
 
-	int x_dim0 = INTEGER(x_dim)[0];
+	/* --- STEP 1: Build the OPBufTree --- */
 
-	SparseVec buf_sv = _alloc_buf_SparseVec(Rtype, x_dim0, x_has_NAbg);
-	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
-		PROTECT(buf_sv.nzvals);
-	SEXP ans;
-	if (x_ndim == 1) {
-		ans = subassign_leaf_by_Lindex(x_SVT, Lindex, vals, &buf_sv);
-	} else {
-		ans = subassign_SVT_by_Lindex(x_SVT, INTEGER(x_dim), x_ndim,
-					      Lindex, vals, &buf_sv);
-	}
-	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
-		UNPROTECT(1);
-	return ans;
+	OPBufTree *opbuf_tree = _get_global_opbuf_tree();
+	int max_opbuf_nelt = build_OPBufTree_from_Lindex(opbuf_tree, Lindex,
+							 INTEGER(x_dim), ndim);
+	if (max_opbuf_nelt < 0)
+		_bad_Lindex_error(max_opbuf_nelt);
+
+	//printf("max_opbuf_nelt = %d\n", max_opbuf_nelt);
+	//_print_OPBufTree(opbuf_tree, 1);
+
+	/* --- STEP 2: Subassign SVT by OPBufTree --- */
+
+	return subassign_SVT_by_OPBufTree(x_SVT, INTEGER(x_dim), ndim,
+			Rtype, x_has_NAbg,
+			opbuf_tree, max_opbuf_nelt, vals);
 }
 
 
@@ -366,8 +372,8 @@ static void check_Mindex_dim(SEXP Mindex, R_xlen_t nvals, int ndim,
 	SEXP Mindex_dim = GET_DIM(Mindex);
 	if (Mindex_dim == R_NilValue || LENGTH(Mindex_dim) != 2)
 		error("'%s' must be a matrix", what1);
-	if (!IS_INTEGER(Mindex))
-		error("'%s' must be an integer matrix", what1);
+        if (!(IS_INTEGER(Mindex) || IS_NUMERIC(Mindex)))
+		error("'%s' must be a numeric matrix", what1);
 	if (INTEGER(Mindex_dim)[0] != nvals)
 		error("nrow(%s) != %s", what1, what2);
 	if (INTEGER(Mindex_dim)[1] != ndim)
@@ -389,34 +395,29 @@ SEXP C_subassign_SVT_by_Mindex(
 		      "must have the same type");
 
 	int x_has_NAbg = _get_and_check_na_background(x_na_background,
-				"C_subassign_SVT_by_Lindex", "x_na_background");
+				"C_subassign_SVT_by_Mindex", "x_na_background");
 
-	int x_ndim = LENGTH(x_dim);
+	int ndim = LENGTH(x_dim);
 	R_xlen_t nvals = XLENGTH(vals);
-	check_Mindex_dim(Mindex, nvals, x_ndim,
+	check_Mindex_dim(Mindex, nvals, ndim,
 			 "Mindex", "length(vals)", "length(dim(x))");
 	if (nvals == 0)
 		return x_SVT;  /* no-op */
 
-	int x_dim0 = INTEGER(x_dim)[0];
+	/* --- STEP 1: Build the OPBufTree --- */
 
-	SparseVec buf_sv = _alloc_buf_SparseVec(Rtype, x_dim0, x_has_NAbg);
-	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
-		PROTECT(buf_sv.nzvals);
+	OPBufTree *opbuf_tree = _get_global_opbuf_tree();
+	int max_opbuf_nelt = build_OPBufTree_from_Mindex(opbuf_tree,
+					     Mindex, (int) nvals,
+					     INTEGER(x_dim), ndim);
+	if (max_opbuf_nelt < 0)
+		_bad_Mindex_error(max_opbuf_nelt);
 
-	SEXP ans;
-	if (x_ndim == 1) {
-		ans = subassign_leaf_by_Lindex(x_SVT, Mindex, vals, &buf_sv);
-	} else {
-		/* 1st pass: Build the OPBufTree. */
-		error("C_subassign_SVT_by_Mindex() not ready yet");
+	/* --- STEP 2: Subassign SVT by OPBufTree --- */
 
-		/* 2nd pass: Subset SVT by OPBufTree. */
-	}
-
-	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
-		UNPROTECT(1);
-	return ans;
+	return subassign_SVT_by_OPBufTree(x_SVT, INTEGER(x_dim), ndim,
+			Rtype, x_has_NAbg,
+			opbuf_tree, max_opbuf_nelt, vals);
 }
 
 
