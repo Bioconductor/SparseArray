@@ -139,7 +139,7 @@ static SEXP concatenate_leaves(SEXP *leaves, int nb_objects,
 		int nzcount = unzip_leaf(leaf, &nzvals, &nzoffs);
 		ans_nzcount += nzcount;
 		if (nzvals != R_NilValue &&
-		    !_all_Rvector_elts_equal_one(nzvals))
+		    !_Rvector_is_filled_with_ones(nzvals))
 			ans_is_lacunar = 0;
 	}
 

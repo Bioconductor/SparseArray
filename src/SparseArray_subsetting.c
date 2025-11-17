@@ -278,16 +278,15 @@ static SEXP subset_leaf_as_sparse(SEXP leaf, int dim0, SEXP subscript,
 		return ans;
 	}
 	/* Input leaf is standard */
-	int all_ones = _all_selected_Rsubvec_elts_equal_one(
-					     leaf_nzvals, 0,
-					     selection_buf, ans_nzcount);
+	int all_ones = _Rvector_subset_is_filled_with_ones(leaf_nzvals,
+				    selection_buf, ans_nzcount, 0);
 	if (all_ones) {
 		SEXP ans = _make_lacunar_leaf(ans_nzoffs);
 		UNPROTECT(1);
 		return ans;
 	}
 	SEXP ans_nzvals = PROTECT(
-		_subset_Rsubvec(leaf_nzvals, 0, selection_buf, ans_nzcount)
+		_subset_Rvector(leaf_nzvals, selection_buf, ans_nzcount, 0)
 	);
 	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs, 0);
 	UNPROTECT(2);

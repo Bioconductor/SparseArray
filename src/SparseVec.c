@@ -324,8 +324,8 @@ void _expand_intSV(const SparseVec *sv, int *out, int set_background)
 	}
 	const int *nzvals_p = get_intSV_nzvals_p(sv);
 	if (nzvals_p == NULL) {  /* lacunar SparseVec */
-		_set_selected_elts_to_one(INTSXP, out, 0,
-				sv->nzoffs, get_SV_nzcount(sv));
+		_set_selected_elts_to_one(INTSXP, out,
+				sv->nzoffs, get_SV_nzcount(sv), 0);
 	} else {  /* regular SparseVec */
 		_copy_int_elts_to_offsets(nzvals_p,
 				sv->nzoffs, get_SV_nzcount(sv), out);
@@ -344,8 +344,8 @@ void _expand_doubleSV(const SparseVec *sv, double *out, int set_background)
 	}
 	const double *nzvals_p = get_doubleSV_nzvals_p(sv);
 	if (nzvals_p == NULL) {  /* lacunar SparseVec */
-		_set_selected_elts_to_one(REALSXP, out, 0,
-				sv->nzoffs, get_SV_nzcount(sv));
+		_set_selected_elts_to_one(REALSXP, out,
+				sv->nzoffs, get_SV_nzcount(sv), 0);
 	} else {  /* regular SparseVec */
 		_copy_double_elts_to_offsets(nzvals_p,
 				sv->nzoffs, get_SV_nzcount(sv), out);

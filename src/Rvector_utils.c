@@ -63,17 +63,17 @@ size_t _get_Rtype_size(SEXPTYPE Rtype)
  * _set_elts_to_minus_one()
  * _set_elts_to_NA()
  *
- * _set_Rsubvec_elts_to_val()
- * _set_Rsubvec_elts_to_zero()
- * _set_Rsubvec_elts_to_one()
- * _set_Rsubvec_elts_to_minus_one()
- * _set_Rsubvec_elts_to_NA()
+ * _fill_Rvector_block_with_val()
+ * _fill_Rvector_block_with_zeros()
+ * _fill_Rvector_block_with_ones()
+ * _fill_Rvector_block_with_minus_one()
+ * _fill_Rvector_block_with_NA()
  *
- * _set_Rvector_elts_to_val()
- * _set_Rvector_elts_to_zero()
- * _set_Rvector_elts_to_one()
- * _set_Rvector_elts_to_minus_one()
- * _set_Rvector_elts_to_NA()
+ * _fill_Rvector_with_val()
+ * _fill_Rvector_with_zeros()
+ * _fill_Rvector_with_ones()
+ * _fill_Rvector_with_minus_one()
+ * _fill_Rvector_with_NA()
  */
 
 #define DEFINE_set_TYPE_elts_to_val_FUN(type)				\
@@ -208,127 +208,127 @@ void _set_elts_to_NA(SEXPTYPE Rtype, void *x, R_xlen_t offset, R_xlen_t n)
 
 
 static void set_character_elts_to_val(SEXP Rvector,
-		R_xlen_t subvec_offset, int subvec_len, const SEXP val)
+		R_xlen_t block_offset, int block_len, const SEXP val)
 {
-	R_xlen_t i = subvec_offset + subvec_len - 1;
-	for ( ; i >= subvec_offset; i--)
+	R_xlen_t i = block_offset + block_len - 1;
+	for ( ; i >= block_offset; i--)
 		SET_STRING_ELT(Rvector, i, val);
 	return;
 }
 
 static void set_list_elts_to_val(SEXP Rvector,
-		R_xlen_t subvec_offset, int subvec_len, const SEXP val)
+		R_xlen_t block_offset, int block_len, const SEXP val)
 {
-	R_xlen_t i = subvec_offset + subvec_len - 1;
-	for ( ; i >= subvec_offset; i--)
+	R_xlen_t i = block_offset + block_len - 1;
+	for ( ; i >= block_offset; i--)
 		SET_VECTOR_ELT(Rvector, i, val);
 	return;
 }
 
 /* When 'Rtype' is STRSXP or VECSXP, 'val' must be an SEXP. Otherwise, it must
    be a pointer to an int, double, Rcomplex, or Rbyte. */
-void _set_Rsubvec_elts_to_val(SEXP Rvector,
-		R_xlen_t subvec_offset, R_xlen_t subvec_len, const void *val)
+void _fill_Rvector_block_with_val(SEXP Rvector,
+		R_xlen_t block_offset, R_xlen_t block_len, const void *val)
 {
 	SEXPTYPE Rtype = TYPEOF(Rvector);
 	if (Rtype == STRSXP) {
-		set_character_elts_to_val(Rvector, subvec_offset, subvec_len,
+		set_character_elts_to_val(Rvector, block_offset, block_len,
 					  (const SEXP) val);
 		return;
 	}
 	if (Rtype == VECSXP) {
-		set_list_elts_to_val(Rvector, subvec_offset, subvec_len,
+		set_list_elts_to_val(Rvector, block_offset, block_len,
 				     (const SEXP) val);
 		return;
 	}
 	_set_elts_to_val(TYPEOF(Rvector), DATAPTR(Rvector),
-			 subvec_offset, subvec_len, val);
+			 block_offset, block_len, val);
 }
 
-void _set_Rsubvec_elts_to_zero(SEXP Rvector,
-		R_xlen_t subvec_offset, R_xlen_t subvec_len)
+void _fill_Rvector_block_with_zeros(SEXP Rvector,
+		R_xlen_t block_offset, R_xlen_t block_len)
 {
 	SEXPTYPE Rtype = TYPEOF(Rvector);
 	if (Rtype == STRSXP) {
-		set_character_elts_to_val(Rvector, subvec_offset, subvec_len,
+		set_character_elts_to_val(Rvector, block_offset, block_len,
 					  R_BlankString);
 		return;
 	}
 	if (Rtype == VECSXP) {
-		set_list_elts_to_val(Rvector, subvec_offset, subvec_len,
+		set_list_elts_to_val(Rvector, block_offset, block_len,
 				     R_NilValue);
 		return;
 	}
-	_set_elts_to_zero(Rtype, DATAPTR(Rvector), subvec_offset, subvec_len);
+	_set_elts_to_zero(Rtype, DATAPTR(Rvector), block_offset, block_len);
 	return;
 }
 
 /* Restricted to types "integer", "logical", "double", "complex", and "raw". */
-void _set_Rsubvec_elts_to_one(SEXP Rvector,
-		R_xlen_t subvec_offset, R_xlen_t subvec_len)
+void _fill_Rvector_block_with_ones(SEXP Rvector,
+		R_xlen_t block_offset, R_xlen_t block_len)
 {
 	_set_elts_to_one(TYPEOF(Rvector), DATAPTR(Rvector),
-			 subvec_offset, subvec_len);
+			 block_offset, block_len);
 	return;
 }
 
 /* Restricted to types "integer", "double", and "complex". */
-void _set_Rsubvec_elts_to_minus_one(SEXP Rvector,
-		R_xlen_t subvec_offset, R_xlen_t subvec_len)
+void _fill_Rvector_block_with_minus_one(SEXP Rvector,
+		R_xlen_t block_offset, R_xlen_t block_len)
 {
 	_set_elts_to_minus_one(TYPEOF(Rvector), DATAPTR(Rvector),
-			 subvec_offset, subvec_len);
+			 block_offset, block_len);
 	return;
 }
 
 /* Restricted to types "integer", "logical", "double", "complex",
    and "character". */
-void _set_Rsubvec_elts_to_NA(SEXP Rvector,
-		R_xlen_t subvec_offset, R_xlen_t subvec_len)
+void _fill_Rvector_block_with_NA(SEXP Rvector,
+		R_xlen_t block_offset, R_xlen_t block_len)
 {
 	SEXPTYPE Rtype = TYPEOF(Rvector);
 	if (Rtype == STRSXP) {
-		set_character_elts_to_val(Rvector, subvec_offset, subvec_len,
+		set_character_elts_to_val(Rvector, block_offset, block_len,
 					  NA_STRING);
 		return;
 	}
-	_set_elts_to_NA(Rtype, DATAPTR(Rvector), subvec_offset, subvec_len);
+	_set_elts_to_NA(Rtype, DATAPTR(Rvector), block_offset, block_len);
 	return;
 }
 
 /* When 'Rtype' is STRSXP or VECSXP, 'val' must be an SEXP. Otherwise, it must
    be a pointer to an int, double, Rcomplex, or Rbyte. */
-void _set_Rvector_elts_to_val(SEXP Rvector, const void *val)
+void _fill_Rvector_with_val(SEXP Rvector, const void *val)
 {
-	_set_Rsubvec_elts_to_val(Rvector, 0, XLENGTH(Rvector), val);
+	_fill_Rvector_block_with_val(Rvector, 0, XLENGTH(Rvector), val);
 	return;
 }
 
-void _set_Rvector_elts_to_zero(SEXP Rvector)
+void _fill_Rvector_with_zeros(SEXP Rvector)
 {
-	_set_Rsubvec_elts_to_zero(Rvector, 0, XLENGTH(Rvector));
+	_fill_Rvector_block_with_zeros(Rvector, 0, XLENGTH(Rvector));
 	return;
 }
 
 /* Restricted to types "integer", "logical", "double", "complex", and "raw". */
-void _set_Rvector_elts_to_one(SEXP Rvector)
+void _fill_Rvector_with_ones(SEXP Rvector)
 {
-	_set_Rsubvec_elts_to_one(Rvector, 0, XLENGTH(Rvector));
+	_fill_Rvector_block_with_ones(Rvector, 0, XLENGTH(Rvector));
 	return;
 }
 
 /* Restricted to types "integer", "double", and "complex". */
-void _set_Rvector_elts_to_minus_one(SEXP Rvector)
+void _fill_Rvector_with_minus_one(SEXP Rvector)
 {
-	_set_Rsubvec_elts_to_minus_one(Rvector, 0, XLENGTH(Rvector));
+	_fill_Rvector_block_with_minus_one(Rvector, 0, XLENGTH(Rvector));
 	return;
 }
 
 /* Restricted to types "integer", "logical", "double", "complex",
    and "character". */
-void _set_Rvector_elts_to_NA(SEXP Rvector)
+void _fill_Rvector_with_NA(SEXP Rvector)
 {
-	_set_Rsubvec_elts_to_NA(Rvector, 0, XLENGTH(Rvector));
+	_fill_Rvector_block_with_NA(Rvector, 0, XLENGTH(Rvector));
 	return;
 }
 
@@ -342,9 +342,9 @@ void _set_Rvector_elts_to_NA(SEXP Rvector)
 
 #define DEFINE_set_selected_TYPE_elts_to_val_FUN(type)			\
 static void set_selected_ ## type ## _elts_to_val			\
-	(type *x, const int *selection, int n, type val)		\
+	(type *x, const int *selection, int selection_len, type val)	\
 {									\
-	for (int i = 0; i < n; i++, selection++)			\
+	for (int i = 0; i < selection_len; i++, selection++)		\
 		x[*selection] = val;					\
 	return;								\
 }
@@ -354,31 +354,37 @@ DEFINE_set_selected_TYPE_elts_to_val_FUN(double)
 DEFINE_set_selected_TYPE_elts_to_val_FUN(Rcomplex)
 DEFINE_set_selected_TYPE_elts_to_val_FUN(Rbyte)
 
-#define set_selected_TYPE_elts_to_val(type, x, offset, selection, n, val) \
-	set_selected_ ## type ## _elts_to_val( \
-				SHIFT_DATAPTR(type, (x), (offset)), \
-				(selection), (n), (val))
+#define set_selected_TYPE_elts_to_val(type, x,				\
+		selection, selection_len, selection_offset, val)	\
+	set_selected_ ## type ## _elts_to_val(				\
+			SHIFT_DATAPTR(type, (x), (selection_offset)),	\
+			(selection), (selection_len), (val))
 
 /* Restricted to types "integer", "logical", "double", "complex", and "raw". */
-void _set_selected_elts_to_zero(SEXPTYPE Rtype, void *x, R_xlen_t offset,
-		const int *selection, int n)
+void _set_selected_elts_to_zero(SEXPTYPE Rtype, void *x,
+		const int *selection, int selection_len,
+		R_xlen_t selection_offset)
 {
 	switch (Rtype) {
 	    case INTSXP: case LGLSXP:
-		set_selected_TYPE_elts_to_val(int, x, offset,
-					      selection, n, int0);
+		set_selected_TYPE_elts_to_val(int, x,
+				selection, selection_len, selection_offset,
+				int0);
 		return;
 	    case REALSXP:
-		set_selected_TYPE_elts_to_val(double, x, offset,
-					      selection, n, double0);
+		set_selected_TYPE_elts_to_val(double, x,
+				selection, selection_len, selection_offset,
+				double0);
 		return;
 	    case CPLXSXP:
-		set_selected_TYPE_elts_to_val(Rcomplex, x, offset,
-					      selection, n, Rcomplex0);
+		set_selected_TYPE_elts_to_val(Rcomplex, x,
+				selection, selection_len, selection_offset,
+				Rcomplex0);
 		return;
 	    case RAWSXP:
-		set_selected_TYPE_elts_to_val(Rbyte, x, offset,
-					      selection, n, Rbyte0);
+		set_selected_TYPE_elts_to_val(Rbyte, x,
+				selection, selection_len, selection_offset,
+				Rbyte0);
 		return;
 	}
 	error("SparseArray internal error in _set_selected_elts_to_zero():\n"
@@ -387,25 +393,30 @@ void _set_selected_elts_to_zero(SEXPTYPE Rtype, void *x, R_xlen_t offset,
 }
 
 /* Restricted to types "integer", "logical", "double", "complex", and "raw". */
-void _set_selected_elts_to_one(SEXPTYPE Rtype, void *x, R_xlen_t offset,
-		const int *selection, int n)
+void _set_selected_elts_to_one(SEXPTYPE Rtype, void *x,
+		const int *selection, int selection_len,
+		R_xlen_t selection_offset)
 {
 	switch (Rtype) {
 	    case INTSXP: case LGLSXP:
-		set_selected_TYPE_elts_to_val(int, x, offset,
-					      selection, n, int1);
+		set_selected_TYPE_elts_to_val(int, x,
+				selection, selection_len, selection_offset,
+				int1);
 		return;
 	    case REALSXP:
-		set_selected_TYPE_elts_to_val(double, x, offset,
-					      selection, n, double1);
+		set_selected_TYPE_elts_to_val(double, x,
+				selection, selection_len, selection_offset,
+				double1);
 		return;
 	    case CPLXSXP:
-		set_selected_TYPE_elts_to_val(Rcomplex, x, offset,
-					      selection, n, Rcomplex1);
+		set_selected_TYPE_elts_to_val(Rcomplex, x,
+				selection, selection_len, selection_offset,
+				Rcomplex1);
 		return;
 	    case RAWSXP:
-		set_selected_TYPE_elts_to_val(Rbyte, x, offset,
-					      selection, n, Rbyte1);
+		set_selected_TYPE_elts_to_val(Rbyte, x,
+				selection, selection_len, selection_offset,
+				Rbyte1);
 		return;
 	}
 	error("SparseArray internal error in _set_selected_elts_to_one():\n"
@@ -413,48 +424,53 @@ void _set_selected_elts_to_one(SEXPTYPE Rtype, void *x, R_xlen_t offset,
 	return;
 }
 
-static void set_selected_character_elts(SEXP Rvector, R_xlen_t subvec_offset,
-		const int *selection, int n, SEXP val)
+static void set_selected_character_elts(SEXP Rvector,
+		const int *selection, int selection_len,
+		R_xlen_t selection_offset, SEXP val)
 {
-	for (int i = 0; i < n; i++, selection++)
-		SET_STRING_ELT(Rvector, subvec_offset + *selection, val);
+	for (int i = 0; i < selection_len; i++, selection++)
+		SET_STRING_ELT(Rvector, selection_offset + *selection, val);
 	return;
 }
 
-static void set_selected_list_elts(SEXP Rvector, R_xlen_t subvec_offset,
-		const int *selection, int n, SEXP val)
+static void set_selected_list_elts(SEXP Rvector,
+		const int *selection, int selection_len,
+		R_xlen_t selection_offset, SEXP val)
 {
-	for (int i = 0; i < n; i++, selection++)
-		SET_VECTOR_ELT(Rvector, subvec_offset + *selection, val);
+	for (int i = 0; i < selection_len; i++, selection++)
+		SET_VECTOR_ELT(Rvector, selection_offset + *selection, val);
 	return;
 }
 
-void _set_selected_Rsubvec_elts_to_zero(SEXP Rvector, R_xlen_t subvec_offset,
-		const int *selection, int n)
+void _fill_Rvector_subset_with_zeros(SEXP Rvector,
+		const int *selection, int selection_len,
+		R_xlen_t selection_offset)
 {
 	SEXPTYPE Rtype = TYPEOF(Rvector);
 	if (Rtype == STRSXP) {
-		set_selected_character_elts(Rvector, subvec_offset,
-				selection, n, R_BlankString);
+		set_selected_character_elts(Rvector,
+				selection, selection_len, selection_offset,
+				R_BlankString);
 		return;
 	}
 	if (Rtype == VECSXP) {
-		set_selected_list_elts(Rvector, subvec_offset,
-				selection, n, R_NilValue);
+		set_selected_list_elts(Rvector,
+				selection, selection_len, selection_offset,
+				R_NilValue);
 		return;
 	}
-	_set_selected_elts_to_zero(Rtype, DATAPTR(Rvector), subvec_offset,
-				selection, n);
+	_set_selected_elts_to_zero(Rtype, DATAPTR(Rvector),
+				selection, selection_len, selection_offset);
 	return;
 }
 
 /* Restricted to types "integer", "logical", "double", "complex", and "raw". */
-void _set_selected_Rsubvec_elts_to_one(SEXP Rvector, R_xlen_t subvec_offset,
-		const int *selection, int n)
+void _fill_Rvector_subset_with_ones(SEXP Rvector,
+		const int *selection, int selection_len,
+		R_xlen_t selection_offset)
 {
 	_set_selected_elts_to_one(TYPEOF(Rvector), DATAPTR(Rvector),
-				subvec_offset,
-				selection, n);
+				  selection, selection_len, selection_offset);
 	return;
 }
 
@@ -475,7 +491,7 @@ SEXP _new_Rvector0(SEXPTYPE Rtype, R_xlen_t len)
 	/* allocVector() does NOT initialize the vector elements, except for
 	   a character vector or a list. */
 	if (!IS_STRSXP_OR_VECSXP(Rtype))
-		_set_Rvector_elts_to_zero(ans);
+		_fill_Rvector_with_zeros(ans);
 	UNPROTECT(1);
 	return ans;
 }
@@ -489,7 +505,7 @@ SEXP _new_Rmatrix0(SEXPTYPE Rtype, int nrow, int ncol, SEXP dimnames)
 	   the latter does NOT initialize the vector elements, except for
 	   a character vector or a list. */
 	if (!IS_STRSXP_OR_VECSXP(Rtype))
-		_set_Rvector_elts_to_zero(ans);
+		_fill_Rvector_with_zeros(ans);
 	SET_DIMNAMES(ans, dimnames);
 	UNPROTECT(1);
 	return ans;
@@ -504,7 +520,7 @@ SEXP _new_Rarray0(SEXPTYPE Rtype, SEXP dim, SEXP dimnames)
 	   the latter does NOT initialize the vector elements, except for
 	   a character vector or a list. */
 	if (!IS_STRSXP_OR_VECSXP(Rtype))
-		_set_Rvector_elts_to_zero(ans);
+		_fill_Rvector_with_zeros(ans);
 	SET_DIMNAMES(ans, dimnames);
 	UNPROTECT(1);
 	return ans;
@@ -517,7 +533,7 @@ SEXP _new_Rarray0(SEXPTYPE Rtype, SEXP dim, SEXP dimnames)
 SEXP _new_Rvector1(SEXPTYPE Rtype, int len)
 {
 	SEXP ans = PROTECT(allocVector(Rtype, (R_xlen_t) len));
-	_set_Rvector_elts_to_one(ans);
+	_fill_Rvector_with_ones(ans);
 	UNPROTECT(1);
 	return ans;
 }
@@ -529,7 +545,7 @@ SEXP _new_Rvector1(SEXPTYPE Rtype, int len)
 SEXP _new_RvectorNA(SEXPTYPE Rtype, R_xlen_t len)
 {
 	SEXP ans = PROTECT(allocVector(Rtype, len));
-	_set_Rvector_elts_to_NA(ans);
+	_fill_Rvector_with_NA(ans);
 	UNPROTECT(1);
 	return ans;
 }
@@ -541,7 +557,7 @@ SEXP _new_RvectorNA(SEXPTYPE Rtype, R_xlen_t len)
 SEXP _new_RarrayNA(SEXPTYPE Rtype, SEXP dim, SEXP dimnames)
 {
 	SEXP ans = PROTECT(allocArray(Rtype, dim));
-	_set_Rvector_elts_to_NA(ans);
+	_fill_Rvector_with_NA(ans);
 	SET_DIMNAMES(ans, dimnames);
 	UNPROTECT(1);
 	return ans;
@@ -549,8 +565,8 @@ SEXP _new_RarrayNA(SEXPTYPE Rtype, SEXP dim, SEXP dimnames)
 
 
 /****************************************************************************
- * _collect_offsets_of_nonzero_Rsubvec_elts()
- * _collect_offsets_of_nonNA_Rsubvec_elts()
+ * _collect_offsets_of_nonzero_elts_in_Rvector_block()
+ * _collect_offsets_of_nonNA_elts_in_Rvector_block()
  */
 
 static int collect_offsets_of_nonzero_int_elts(
@@ -626,12 +642,12 @@ static int collect_offsets_of_nonzero_Rbyte_elts(
 }
 
 static int collect_offsets_of_nonempty_character_elts(
-		SEXP Rvector, R_xlen_t subvec_offset, int subvec_len,
+		SEXP Rvector, R_xlen_t block_offset, int block_len,
 		int *out)
 {
 	const int *out0 = out;
-	for (int i = 0; i < subvec_len; i++, subvec_offset++) {
-		SEXP vec_elt = STRING_ELT(Rvector, subvec_offset);
+	for (int i = 0; i < block_len; i++, block_offset++) {
+		SEXP vec_elt = STRING_ELT(Rvector, block_offset);
 		if (!IS_EMPTY_CHARSXP(vec_elt))
 			*(out++) = i;
 	}
@@ -639,12 +655,12 @@ static int collect_offsets_of_nonempty_character_elts(
 }
 
 static int collect_offsets_of_nonNA_character_elts(
-		SEXP Rvector, R_xlen_t subvec_offset, int subvec_len,
+		SEXP Rvector, R_xlen_t block_offset, int block_len,
 		int *out)
 {
 	const int *out0 = out;
-	for (int i = 0; i < subvec_len; i++, subvec_offset++) {
-		SEXP vec_elt = STRING_ELT(Rvector, subvec_offset);
+	for (int i = 0; i < block_len; i++, block_offset++) {
+		SEXP vec_elt = STRING_ELT(Rvector, block_offset);
 		if (vec_elt != NA_STRING)
 			*(out++) = i;
 	}
@@ -652,93 +668,94 @@ static int collect_offsets_of_nonNA_character_elts(
 }
 
 static int collect_offsets_of_nonnull_list_elts(
-		SEXP Rvector, R_xlen_t subvec_offset, int subvec_len,
+		SEXP Rvector, R_xlen_t block_offset, int block_len,
 		int *out)
 {
 	const int *out0 = out;
-	for (int i = 0; i < subvec_len; i++, subvec_offset++) {
-		SEXP vec_elt = VECTOR_ELT(Rvector, subvec_offset);
+	for (int i = 0; i < block_len; i++, block_offset++) {
+		SEXP vec_elt = VECTOR_ELT(Rvector, block_offset);
 		if (vec_elt != R_NilValue)
 			*(out++) = i;
 	}
 	return (int) (out - out0);
 }
 
-/* Only looks at the subvector of 'Rvector' made of the range of elements
-   defined by 'subvec_offset' and 'subvec_len'.
-   Offsets of nonzero elements are collected with respect to this subvector.
+/* Only looks at the block of elements in 'Rvector' defined by 'block_offset'
+   and 'block_len'. Offsets of nonzero elements are collected with respect
+   to the block i.e. the first element in the block has offset = 0.
    Caller must make sure that the 'out' array is big enough to store all
-   the collected offsets. Safe choice is to allocate an array of 'subvec_len'
+   the collected offsets. Safe choice is to allocate an array of 'block_len'
    integers.
-   Note that even though 'Rvector' can be a long vector, the subvector
-   defined by 'subvec_offset/subvec_len' cannot i.e. 'subvec_len' must be
-   supplied as an int.
+   Note that even though 'Rvector' can be a long vector, the block defined
+   by 'block_offset/block_len' cannot i.e. 'block_len' must be supplied as
+   an int.
    Returns the number of collected offsets. */
-int _collect_offsets_of_nonzero_Rsubvec_elts(
-		SEXP Rvector, R_xlen_t subvec_offset, int subvec_len,
+int _collect_offsets_of_nonzero_elts_in_Rvector_block(
+		SEXP Rvector, R_xlen_t block_offset, int block_len,
 		int *out)
 {
 	SEXPTYPE Rtype = TYPEOF(Rvector);
 	switch (Rtype) {
 	    case INTSXP: case LGLSXP:
 		return collect_offsets_of_nonzero_int_elts(
-				INTEGER(Rvector) + subvec_offset,
-				subvec_len, out);
+				INTEGER(Rvector) + block_offset,
+				block_len, out);
 	    case REALSXP:
 		return collect_offsets_of_nonzero_double_elts(
-				REAL(Rvector) + subvec_offset,
-				subvec_len, out);
+				REAL(Rvector) + block_offset,
+				block_len, out);
 	    case CPLXSXP:
 		return collect_offsets_of_nonzero_Rcomplex_elts(
-				COMPLEX(Rvector) + subvec_offset,
-				subvec_len, out);
+				COMPLEX(Rvector) + block_offset,
+				block_len, out);
 	    case RAWSXP:
 		return collect_offsets_of_nonzero_Rbyte_elts(
-				RAW(Rvector) + subvec_offset,
-				subvec_len, out);
+				RAW(Rvector) + block_offset,
+				block_len, out);
 	    case STRSXP:
 		return collect_offsets_of_nonempty_character_elts(
-				Rvector, subvec_offset,
-				subvec_len, out);
+				Rvector, block_offset,
+				block_len, out);
 	    case VECSXP:
 		return collect_offsets_of_nonnull_list_elts(
-				Rvector, subvec_offset,
-				subvec_len, out);
+				Rvector, block_offset,
+				block_len, out);
 	}
 	error("SparseArray internal error in "
-	      "_collect_offsets_of_nonzero_Rsubvec_elts():\n"
+	      "_collect_offsets_of_nonzero_elts_in_Rvector_block():\n"
 	      "    type \"%s\" is not supported", type2char(Rtype));
 	return -1;  /* will never reach this */
 }
 
-/* Similar to _collect_offsets_of_nonzero_Rsubvec_elts() above but collects
-   non-NAs instead of nonzeros. Restricted to types "integer", "logical",
-   "double", "complex", and "character". */
-int _collect_offsets_of_nonNA_Rsubvec_elts(
-		SEXP Rvector, R_xlen_t subvec_offset, int subvec_len,
+/* Similar to _collect_offsets_of_nonzero_elts_in_Rvector_block() above but
+   collects non-NAs instead of nonzeros.
+   Restricted to types "integer", "logical", "double", "complex",
+   and "character". */
+int _collect_offsets_of_nonNA_elts_in_Rvector_block(
+		SEXP Rvector, R_xlen_t block_offset, int block_len,
 		int *out)
 {
 	SEXPTYPE Rtype = TYPEOF(Rvector);
 	switch (Rtype) {
 	    case INTSXP: case LGLSXP:
 		return collect_offsets_of_nonNA_int_elts(
-				INTEGER(Rvector) + subvec_offset,
-				subvec_len, out);
+				INTEGER(Rvector) + block_offset,
+				block_len, out);
 	    case REALSXP:
 		return collect_offsets_of_nonNA_double_elts(
-				REAL(Rvector) + subvec_offset,
-				subvec_len, out);
+				REAL(Rvector) + block_offset,
+				block_len, out);
 	    case CPLXSXP:
 		return collect_offsets_of_nonNA_Rcomplex_elts(
-				COMPLEX(Rvector) + subvec_offset,
-				subvec_len, out);
+				COMPLEX(Rvector) + block_offset,
+				block_len, out);
 	    case STRSXP:
 		return collect_offsets_of_nonNA_character_elts(
-				Rvector, subvec_offset,
-				subvec_len, out);
+				Rvector, block_offset,
+				block_len, out);
 	}
 	error("SparseArray internal error in "
-	      "_collect_offsets_of_nonNA_Rsubvec_elts():\n"
+	      "_collect_offsets_of_nonNA_elts_in_Rvector_block():\n"
 	      "    type \"%s\" is not supported", type2char(Rtype));
 	return -1;  /* will never reach this */
 }
@@ -746,9 +763,9 @@ int _collect_offsets_of_nonNA_Rsubvec_elts(
 
 /****************************************************************************
  * _all_elts_equal_one()
- * _all_Rsubvec_elts_equal_one()
- * _all_Rvector_elts_equal_one()
- * _all_selected_Rsubvec_elts_equal_one()
+ * _Rvector_block_is_filled_with_ones()
+ * _Rvector_is_filled_with_ones()
+ * _Rvector_subset_is_filled_with_ones()
  */
 
 static int all_int_elts_equal_one(const int *x, int n)
@@ -804,39 +821,39 @@ int _all_elts_equal_one(SEXPTYPE Rtype, const void *x, int n)
 }
 
 /* Always returns 0 on a character vector or list at the moment. */
-int _all_Rsubvec_elts_equal_one(SEXP Rvector,
-		R_xlen_t subvec_offset, int subvec_len)
+int _Rvector_block_is_filled_with_ones(SEXP Rvector,
+		R_xlen_t block_offset, int block_len)
 {
 	SEXPTYPE Rtype = TYPEOF(Rvector);
 	switch (Rtype) {
 	    case INTSXP: case LGLSXP: {
-		const int      *x = INTEGER(Rvector) + subvec_offset;
-		return all_int_elts_equal_one(x, subvec_len);
+		const int      *x = INTEGER(Rvector) + block_offset;
+		return all_int_elts_equal_one(x, block_len);
 	    }
 	    case REALSXP: {
-		const double   *x = REAL(Rvector) + subvec_offset;
-		return all_double_elts_equal_one(x, subvec_len);
+		const double   *x = REAL(Rvector) + block_offset;
+		return all_double_elts_equal_one(x, block_len);
 	    }
 	    case CPLXSXP: {
-		const Rcomplex *x = COMPLEX(Rvector) + subvec_offset;
-		return all_Rcomplex_elts_equal_one(x, subvec_len);
+		const Rcomplex *x = COMPLEX(Rvector) + block_offset;
+		return all_Rcomplex_elts_equal_one(x, block_len);
 	    }
 	    case RAWSXP: {
-		const Rbyte    *x = RAW(Rvector) + subvec_offset;
-		return all_Rbyte_elts_equal_one(x, subvec_len);
+		const Rbyte    *x = RAW(Rvector) + block_offset;
+		return all_Rbyte_elts_equal_one(x, block_len);
 	    }
 	    case STRSXP: case VECSXP:
 		return 0;
 	}
 	error("SparseArray internal error in "
-	      "_all_Rsubvec_elts_equal_one():\n"
+	      "_Rvector_block_is_filled_with_ones():\n"
 	      "    type \"%s\" is not supported", type2char(Rtype));
 }
 
 /* Always returns 0 on a character vector or list at the moment. */
-int _all_Rvector_elts_equal_one(SEXP Rvector)
+int _Rvector_is_filled_with_ones(SEXP Rvector)
 {
-	return _all_Rsubvec_elts_equal_one(Rvector, 0, XLENGTH(Rvector));
+	return _Rvector_block_is_filled_with_ones(Rvector, 0, XLENGTH(Rvector));
 }
 
 static int all_selected_int_elts_equal_one(const int *x,
@@ -878,32 +895,37 @@ static int all_selected_Rbyte_elts_equal_one(const Rbyte *x,
 }
 
 /* Always returns 0 on a character vector or list at the moment. */
-int _all_selected_Rsubvec_elts_equal_one(SEXP Rvector, R_xlen_t subvec_offset,
-		const int *selection, int n)
+int _Rvector_subset_is_filled_with_ones(SEXP Rvector,
+		const int *selection, int selection_len,
+		R_xlen_t selection_offset)
 {
 	SEXPTYPE Rtype = TYPEOF(Rvector);
 	switch (Rtype) {
 	    case INTSXP: case LGLSXP: {
-		const int      *x = INTEGER(Rvector) + subvec_offset;
-		return all_selected_int_elts_equal_one(x, selection, n);
+		const int      *x = INTEGER(Rvector) + selection_offset;
+		return all_selected_int_elts_equal_one(x,
+					selection, selection_len);
 	    }
 	    case REALSXP: {
-		const double   *x = REAL(Rvector) + subvec_offset;
-		return all_selected_double_elts_equal_one(x, selection, n);
+		const double   *x = REAL(Rvector) + selection_offset;
+		return all_selected_double_elts_equal_one(x,
+					selection, selection_len);
 	    }
 	    case CPLXSXP: {
-		const Rcomplex *x = COMPLEX(Rvector) + subvec_offset;
-		return all_selected_Rcomplex_elts_equal_one(x, selection, n);
+		const Rcomplex *x = COMPLEX(Rvector) + selection_offset;
+		return all_selected_Rcomplex_elts_equal_one(x,
+					selection, selection_len);
 	    }
 	    case RAWSXP: {
-		const Rbyte    *x = RAW(Rvector) + subvec_offset;
-		return all_selected_Rbyte_elts_equal_one(x, selection, n);
+		const Rbyte    *x = RAW(Rvector) + selection_offset;
+		return all_selected_Rbyte_elts_equal_one(x,
+					selection, selection_len);
 	    }
 	    case STRSXP: case VECSXP:
 		return 0;
 	}
 	error("SparseArray internal error in "
-	      "_all_selected_Rsubvec_elts_equal_one():\n"
+	      "_Rvector_subset_is_filled_with_ones():\n"
 	      "    type \"%s\" is not supported", type2char(Rtype));
 	return 0;  /* will never reach this */
 }
@@ -1007,7 +1029,7 @@ void _copy_Rvector_elts(SEXP in,  R_xlen_t in_offset,
 
 
 /****************************************************************************
- * _copy_selected_Rsubvec_elts()
+ * _copy_Rvector_subset()
  */
 
 void _copy_selected_int_elts(const int *in,
@@ -1065,56 +1087,62 @@ void _copy_selected_list_elts(SEXP in, R_xlen_t in_offset,
 /* The selection is assumed to have the same length as 'out_Rvector'.
    Only for a 'selection' and 'out_Rvector' of length <= INT_MAX.
    Do NOT use on a 'selection' or 'out_Rvector' of length > INT_MAX! */
-void _copy_selected_Rsubvec_elts(
-		SEXP Rvector, R_xlen_t subvec_offset,
-		const int *selection, SEXP out_Rvector)
+void _copy_Rvector_subset(SEXP Rvector,
+		const int *selection, R_xlen_t selection_offset,
+		SEXP out_Rvector)
 {
 	SEXPTYPE Rtype = TYPEOF(Rvector);
 	int out_len = LENGTH(out_Rvector);  /* assumed to be also the length
 					       of the selection */
 	switch (Rtype) {
 	    case INTSXP: case LGLSXP:
-		_copy_selected_int_elts(INTEGER(Rvector) + subvec_offset,
+		_copy_selected_int_elts(
+				INTEGER(Rvector) + selection_offset,
 				selection, out_len, INTEGER(out_Rvector));
 		return;
 	    case REALSXP:
-		_copy_selected_double_elts(REAL(Rvector) + subvec_offset,
+		_copy_selected_double_elts(
+				REAL(Rvector) + selection_offset,
 				selection, out_len, REAL(out_Rvector));
 		return;
 	    case CPLXSXP:
-		_copy_selected_Rcomplex_elts(COMPLEX(Rvector) + subvec_offset,
+		_copy_selected_Rcomplex_elts(
+				COMPLEX(Rvector) + selection_offset,
 				selection, out_len, COMPLEX(out_Rvector));
 		return;
 	    case RAWSXP:
-		_copy_selected_Rbyte_elts(RAW(Rvector) + subvec_offset,
+		_copy_selected_Rbyte_elts(
+				RAW(Rvector) + selection_offset,
 				selection, out_len, RAW(out_Rvector));
 		return;
 	    case STRSXP:
-		_copy_selected_character_elts(Rvector, subvec_offset,
+		_copy_selected_character_elts(
+				Rvector, selection_offset,
 				selection, out_len, out_Rvector);
 		return;
 	    case VECSXP:
-		_copy_selected_list_elts(Rvector, subvec_offset,
+		_copy_selected_list_elts(
+				Rvector, selection_offset,
 				selection, out_len, out_Rvector);
 		return;
 	}
-	error("SparseArray internal error in _copy_selected_Rsubvec_elts():\n"
+	error("SparseArray internal error in _copy_Rvector_subset():\n"
 	      "    type \"%s\" is not supported", type2char(Rtype));
 }
 
 
 /****************************************************************************
- * _subset_Rsubvec()
+ * _subset_Rvector()
  */
 
 /* WARNING: 'selection' cannot contain NAs or bad things will happen. This
    is NOT checked! */
-SEXP _subset_Rsubvec(SEXP Rvector, R_xlen_t subvec_offset,
-		const int *selection, int n)
+SEXP _subset_Rvector(SEXP Rvector,
+		const int *selection, int selection_len,
+		R_xlen_t selection_offset)
 {
-	SEXP ans = PROTECT(allocVector(TYPEOF(Rvector), n));
-	_copy_selected_Rsubvec_elts(Rvector, subvec_offset,
-				    selection, ans);
+	SEXP ans = PROTECT(allocVector(TYPEOF(Rvector), selection_len));
+	_copy_Rvector_subset(Rvector, selection, selection_offset, ans);
 	UNPROTECT(1);
 	return ans;
 }
