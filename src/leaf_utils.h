@@ -163,18 +163,18 @@ SEXP _make_leaf_from_two_arrays(
 	int nzcount
 );
 
-SEXP _make_leaf_from_Rsubvec(
+SEXP _make_leaf_from_Rvector_block(
 	SEXP Rvector,
-	R_xlen_t subvec_offset,
-	int subvec_len,
+	R_xlen_t block_offset,
+	int block_len,
 	int *selection_buf,
 	int avoid_copy_if_all_nonzeros
 );
 
-SEXP _make_naleaf_from_Rsubvec(
+SEXP _make_naleaf_from_Rvector_block(
 	SEXP Rvector,
-	R_xlen_t subvec_offset,
-	int subvec_len,
+	R_xlen_t block_offset,
+	int block_len,
 	int *selection_buf,
 	int avoid_copy_if_all_nonNAs
 );

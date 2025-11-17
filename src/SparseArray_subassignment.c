@@ -517,9 +517,9 @@ static SEXP precompute_leaf_from_short_Rvector(
 		}
 	}
 	//printf("full_replacement=%d\n", left_bufs->full_replacement);
-	return _make_leaf_from_Rsubvec(left_Rvector, 0, dim0,
-				       left_bufs->offs,
-				       left_bufs->full_replacement);
+	return _make_leaf_from_Rvector_block(left_Rvector, 0, dim0,
+					     left_bufs->offs,
+					     left_bufs->full_replacement);
 }
 
 /* 'short_Rvector' must have a length >= 1.
@@ -576,8 +576,10 @@ static SEXP subassign_leaf_with_short_Rvector(SEXP leaf, int dim0,
 				short_Rvector, i2 % short_len,
 				left_Rvector, i1);
 	}
-	SEXP ans = PROTECT(_make_leaf_from_Rsubvec(left_Rvector, 0, dim0,
-						   left_bufs->offs, 0));
+	SEXP ans = PROTECT(
+		_make_leaf_from_Rvector_block(left_Rvector, 0, dim0,
+					      left_bufs->offs, 0)
+	);
 	if (ans != R_NilValue) {
 		/* Remove nonzeros introduced in 'left_bufs->Rvector'. */
 		SEXP ans_nzoffs = get_leaf_nzoffs(ans);

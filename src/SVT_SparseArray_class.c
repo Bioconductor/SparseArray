@@ -12,18 +12,17 @@
 #include <string.h>  /* for strcmp() and memcpy() */
 
 
-static void copy_nzvals_elts_to_Rsubvec(SEXP nzvals,
-		SEXP out, int out_offset, int nelt)
+static void copy_nzvals_to_Rvector_block(SEXP nzvals,
+		SEXP Rvector, int block_offset, int block_len)
 {
 	if (nzvals == R_NilValue) {
 		/* lacunar leaf */
-		_fill_Rvector_block_with_ones(out, (R_xlen_t) out_offset,
-				   (R_xlen_t) nelt);
+		_fill_Rvector_block_with_ones(Rvector,
+			(R_xlen_t) block_offset, (R_xlen_t) block_len);
 	} else {
 		/* regular leaf */
-		_copy_Rvector_elts(nzvals, 0,
-				   out, (R_xlen_t) out_offset,
-				   (R_xlen_t) nelt);
+		_copy_Rvector_elts(nzvals, 0, Rvector,
+			(R_xlen_t) block_offset, (R_xlen_t) block_len);
 	}
 	return;
 }
@@ -353,9 +352,9 @@ static int REC_extract_nzcoo_and_nzvals_from_SVT(SEXP SVT,
 	int leaf_nzcount = unzip_leaf(SVT, &leaf_nzvals, &leaf_nzoffs);
 
 	if (out_nzvals != R_NilValue)
-		copy_nzvals_elts_to_Rsubvec(leaf_nzvals,
-					    out_nzvals, *nzvals_offset,
-					    leaf_nzcount);
+		copy_nzvals_to_Rvector_block(leaf_nzvals,
+					     out_nzvals, *nzvals_offset,
+					     leaf_nzcount);
 
 	for (int k = 0; k < leaf_nzcount; k++) {
 		rowbuf[0] = INTEGER(leaf_nzoffs)[k] + 1;
@@ -513,11 +512,11 @@ static SEXP REC_build_SVT_from_Rsubarr(
 			      "    dim[0] != subarr_len");
 		SEXP ans;
 		if (ans_na_background) {
-			ans = _make_naleaf_from_Rsubvec(
+			ans = _make_naleaf_from_Rvector_block(
 					Rarray, arr_offset, dim[0],
 					offs_buf, 1);
 		} else {
-			ans = _make_leaf_from_Rsubvec(
+			ans = _make_leaf_from_Rvector_block(
 					Rarray, arr_offset, dim[0],
 					offs_buf, 1);
 		}
@@ -610,7 +609,7 @@ static int dump_leaf_to_ix(SEXP leaf,
 		return nzcount;
 
 	/* Copy 'nzvals' to 'slotx'. */
-	copy_nzvals_elts_to_Rsubvec(nzvals, slotx, ix_offset, nzcount);
+	copy_nzvals_to_Rvector_block(nzvals, slotx, ix_offset, nzcount);
 	return nzcount;
 }
 
@@ -719,8 +718,8 @@ static SEXP build_leaf_from_CsparseMatrix_col(const int *sloti, SEXP slotx,
 		SEXPTYPE ans_Rtype, int *warn, int *nzoffs_buf)
 {
 	/* 'slotx' can contain zeros. See above. */
-	SEXP ans = _make_leaf_from_Rsubvec(slotx, ix_offset, col_nzcount,
-					   nzoffs_buf, 1);
+	SEXP ans = _make_leaf_from_Rvector_block(slotx, ix_offset, col_nzcount,
+						 nzoffs_buf, 1);
 	if (ans == R_NilValue)
 		return ans;
 
