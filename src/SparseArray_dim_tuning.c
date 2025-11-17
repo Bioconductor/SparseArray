@@ -152,7 +152,7 @@ static SEXP wrap_Rvector_elt_in_scalar_leaf(SEXP in_Rvector, int k,
 {
 	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(1));
 	INTEGER(ans_nzoffs)[0] = 0;
-	int elt_is_one = _all_Rsubvec_elts_equal_one(in_Rvector, k, 1);
+	int elt_is_one = _Rvector_block_is_filled_with_ones(in_Rvector, k, 1);
 	if (elt_is_one) {
 		SEXP ans = _make_lacunar_leaf(ans_nzoffs);
 		UNPROTECT(1);
@@ -241,7 +241,7 @@ static SEXP roll_SVT_into_leaf(SEXP SVT, int ndim,
 		INTEGER(ans_nzoffs)[ans_nzcount] = i;
 		ans_nzcount++;
 	}
-	if (_all_Rvector_elts_equal_one(ans_nzvals))
+	if (_Rvector_is_filled_with_ones(ans_nzvals))
 		replace_leaf_nzvals(ans, R_NilValue);
 	UNPROTECT(1);
 	return ans;

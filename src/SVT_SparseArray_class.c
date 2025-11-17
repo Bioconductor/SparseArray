@@ -17,8 +17,8 @@ static void copy_nzvals_elts_to_Rsubvec(SEXP nzvals,
 {
 	if (nzvals == R_NilValue) {
 		/* lacunar leaf */
-		_set_Rsubvec_elts_to_one(out, (R_xlen_t) out_offset,
-					 (R_xlen_t) nelt);
+		_fill_Rvector_block_with_ones(out, (R_xlen_t) out_offset,
+				   (R_xlen_t) nelt);
 	} else {
 		/* regular leaf */
 		_copy_Rvector_elts(nzvals, 0,

@@ -55,8 +55,7 @@ static inline SEXP zip_leaf(SEXP nzvals, SEXP nzoffs,
 		if (XLENGTH(nzvals) != nzcount)
 			goto on_error;
 		if (go_lacunar_if_all_ones) {
-			int all_ones =
-				_all_Rsubvec_elts_equal_one(nzvals, 0, nzcount);
+			int all_ones = _Rvector_is_filled_with_ones(nzvals);
 			if (all_ones)
 				nzvals = R_NilValue;
 		}

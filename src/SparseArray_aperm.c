@@ -135,7 +135,7 @@ static void collect_stats_on_input_rows(SEXP SVT, int nrow, int ncol,
 			if (onecount_buf == NULL)
 				continue;
 			if (nzvals == R_NilValue ||  /* lacunar leaf */
-			    _all_Rsubvec_elts_equal_one(nzvals, k, 1))
+			    _Rvector_block_is_filled_with_ones(nzvals, k, 1))
 				onecount_buf[*nzoffs_p]++;
 		}
 	}
@@ -641,7 +641,7 @@ static inline void scan_input_leaf(SEXP leaf,
 		if (onecount_buf == NULL)
 			continue;
 		if (nzvals == R_NilValue ||  /* lacunar leaf */
-		    _all_Rsubvec_elts_equal_one(nzvals, k, 1))
+		    _Rvector_block_is_filled_with_ones(nzvals, k, 1))
 			onecount_buf[outer_idx]++;
 	}
 	return;

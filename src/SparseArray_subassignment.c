@@ -581,9 +581,9 @@ static SEXP subassign_leaf_with_short_Rvector(SEXP leaf, int dim0,
 	if (ans != R_NilValue) {
 		/* Remove nonzeros introduced in 'left_bufs->Rvector'. */
 		SEXP ans_nzoffs = get_leaf_nzoffs(ans);
-		_set_selected_Rsubvec_elts_to_zero(left_Rvector, 0,
-					     INTEGER(ans_nzoffs),
-					     LENGTH(ans_nzoffs));
+		_fill_Rvector_subset_with_zeros(left_Rvector,
+						INTEGER(ans_nzoffs),
+						LENGTH(ans_nzoffs), 0);
 	}
 	UNPROTECT(1);
 	return ans;

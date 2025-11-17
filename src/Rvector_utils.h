@@ -163,75 +163,75 @@ void _set_elts_to_NA(
 	R_xlen_t n
 );
 
-void _set_Rsubvec_elts_to_val(
+void _fill_Rvector_block_with_val(
 	SEXP Rvector,
-	R_xlen_t subvec_offset,
-	R_xlen_t subvec_len,
+	R_xlen_t block_offset,
+	R_xlen_t block_len,
 	const void *val
 );
 
-void _set_Rsubvec_elts_to_zero(
+void _fill_Rvector_block_with_zeros(
 	SEXP Rvector,
-	R_xlen_t subvec_offset,
-	R_xlen_t subvec_len
+	R_xlen_t block_offset,
+	R_xlen_t block_len
 );
 
-void _set_Rsubvec_elts_to_one(
+void _fill_Rvector_block_with_ones(
 	SEXP Rvector,
-	R_xlen_t subvec_offset,
-	R_xlen_t subvec_len
+	R_xlen_t block_offset,
+	R_xlen_t block_len
 );
 
-void _set_Rsubvec_elts_to_minus_one(
+void _fill_Rvector_block_with_minus_one(
 	SEXP Rvector,
-	R_xlen_t subvec_offset,
-	R_xlen_t subvec_len
+	R_xlen_t block_offset,
+	R_xlen_t block_len
 );
 
-void _set_Rsubvec_elts_to_NA(
+void _fill_Rvector_block_with_NA(
 	SEXP Rvector,
-	R_xlen_t subvec_offset,
-	R_xlen_t subvec_len
+	R_xlen_t block_offset,
+	R_xlen_t block_len
 );
 
-void _set_Rvector_elts_to_val(SEXP Rvector, const void *val);
+void _fill_Rvector_with_val(SEXP Rvector, const void *val);
 
-void _set_Rvector_elts_to_zero(SEXP Rvector);
+void _fill_Rvector_with_zeros(SEXP Rvector);
 
-void _set_Rvector_elts_to_one(SEXP Rvector);
+void _fill_Rvector_with_ones(SEXP Rvector);
 
-void _set_Rvector_elts_to_minus_one(SEXP Rvector);
+void _fill_Rvector_with_minus_one(SEXP Rvector);
 
-void _set_Rvector_elts_to_NA(SEXP Rvector);
+void _fill_Rvector_with_NA(SEXP Rvector);
 
 void _set_selected_elts_to_zero(
 	SEXPTYPE Rtype,
 	void *x,
-	R_xlen_t offset,
 	const int *selection,
-	int n
+	int selection_len,
+	R_xlen_t selection_offset
 );
 
 void _set_selected_elts_to_one(
 	SEXPTYPE Rtype,
 	void *x,
-	R_xlen_t offset,
 	const int *selection,
-	int n
+	int selection_len,
+	R_xlen_t selection_offset
 );
 
-void _set_selected_Rsubvec_elts_to_zero(
+void _fill_Rvector_subset_with_zeros(
 	SEXP Rvector,
-	R_xlen_t subvec_offset,
 	const int *selection,
-	int n
+	int selection_len,
+	R_xlen_t selection_offset
 );
 
-void _set_selected_Rsubvec_elts_to_one(
+void _fill_Rvector_subset_with_ones(
 	SEXP Rvector,
-	R_xlen_t subvec_offset,
 	const int *selection,
-	int n
+	int selection_len,
+	R_xlen_t selection_offset
 );
 
 SEXP _new_Rvector0(
@@ -268,17 +268,17 @@ SEXP _new_RarrayNA(
 	SEXP dimnames
 );
 
-int _collect_offsets_of_nonzero_Rsubvec_elts(
+int _collect_offsets_of_nonzero_elts_in_Rvector_block(
 	SEXP Rvector,
-	R_xlen_t subvec_offset,
-	int subvec_len,
+	R_xlen_t block_offset,
+	int block_len,
 	int *out
 );
 
-int _collect_offsets_of_nonNA_Rsubvec_elts(
+int _collect_offsets_of_nonNA_elts_in_Rvector_block(
 	SEXP Rvector,
-	R_xlen_t subvec_offset,
-	int subvec_len,
+	R_xlen_t block_offset,
+	int block_len,
 	int *out
 );
 
@@ -288,19 +288,19 @@ int _all_elts_equal_one(
 	int n
 );
 
-int _all_Rsubvec_elts_equal_one(
+int _Rvector_block_is_filled_with_ones(
 	SEXP Rvector,
-	R_xlen_t subvec_offset,
-	int subvec_len
+	R_xlen_t block_offset,
+	int block_len
 );
 
-int _all_Rvector_elts_equal_one(SEXP Rvector);
+int _Rvector_is_filled_with_ones(SEXP Rvector);
 
-int _all_selected_Rsubvec_elts_equal_one(
+int _Rvector_subset_is_filled_with_ones(
 	SEXP Rvector,
-	R_xlen_t subvec_offset,
 	const int *selection,
-	int n
+	int selection_len,
+	R_xlen_t selection_offset
 );
 
 CopyRVectorEltFUN _select_copy_Rvector_elt_FUN(SEXPTYPE Rtype);
@@ -357,18 +357,18 @@ void _copy_selected_list_elts(
 	SEXP out
 );
 
-void _copy_selected_Rsubvec_elts(
+void _copy_Rvector_subset(
 	SEXP Rvector,
-	R_xlen_t subvec_offset,
 	const int *selection,
+	R_xlen_t selection_offset,
 	SEXP out_Rvector
 );
 
-SEXP _subset_Rsubvec(
+SEXP _subset_Rvector(
 	SEXP Rvector,
-	R_xlen_t subvec_offset,
 	const int *selection,
-	int n
+	int selection_len,
+	R_xlen_t selection_offset
 );
 
 void _copy_int_elts_to_offsets(
