@@ -6,11 +6,12 @@
 
 #include <string.h>  /* for memset() and memcpy() */
 
+
 /* Initialized in R_init_SparseArray(). */
-SEXP character1;
 int intNA;
 double doubleNA;
 Rcomplex RcomplexNA;
+SEXP character0, character1, characterNA;
 
 /* The 7 types of R vectors (6 types of atomic vectors + the "list" type). */
 static const SEXPTYPE Rvector_types[] = {

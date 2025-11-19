@@ -408,29 +408,31 @@ SEXP _coerce_naleaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn,
  * _subassign_leaf_with_Rvector_block()
  * _subassign_leaf_with_Rvector_subset()
  * _subassign_leaf_with_Rvector_xsubset()
+ * _subassign_leaf_with_leaf()
  */
+
+static const int *get_offs0(SEXP offs, int n, int dim0)
+{
+	if (offs == R_NilValue) {
+		if (n != dim0)
+			error("SparseArray internal error in get_offs0():\n"
+			      "    'offs' is NULL but 'n != dim0'");
+		return NULL;
+	}
+	if (n != LENGTH(offs))
+		error("SparseArray internal error in get_offs0():\n"
+		      "    n != LENGTH(offs)");
+	return INTEGER(offs);
+}
 
 /* Can be used on a NULL or lacunar leaf.
    'offs' must be NULL or an array of 'n' offsets (non-negative integers)
-   that are strictly sorted (in ascending order). The last offset in the
+   that are sorted in strictly ascending order. The last offset in the
    array must be < 'buf_sv->len'. */
 SEXP _subassign_leaf_with_Rvector_block(SEXP leaf, SEXP offs, int n,
 		SEXP Rvector, R_xlen_t block_offset, SparseVec *buf_sv)
 {
-	const int *offs0;
-	if (offs == R_NilValue) {
-		if (n != buf_sv->len)
-			error("SparseArray internal error in "
-			      "_subassign_leaf_with_Rvector_block():\n"
-			      "    n != buf_sv->len");
-		offs0 = NULL;
-	} else {
-		if (n != LENGTH(offs))
-			error("SparseArray internal error in "
-			      "_subassign_leaf_with_Rvector_block():\n"
-			      "    n != LENGTH(offs)");
-		offs0 = INTEGER(offs);
-	}
+	const int *offs0 = get_offs0(offs, n, buf_sv->len);
 	if (leaf == R_NilValue) {
 		_write_Rvector_block_to_SV(Rvector, block_offset,
 					   offs0, n, buf_sv);
@@ -457,7 +459,7 @@ SEXP _subassign_leaf_with_Rvector_block(SEXP leaf, SEXP offs, int n,
 /* Can be used on a NULL or lacunar leaf.
    Both 'offs' and 'selection' must be arrays of 'n' offsets (non-negative
    integers).
-   The offsets in 'offs' must be strictly sorted (in ascending order) and the
+   The offsets in 'offs' must be sorted in strictly ascending order. The
    last offset in the array must be < 'buf_sv->len'.
    The offsets in 'selection' must be < 'LENGTH(Rvector)'. They are typically
    unsorted. */
@@ -488,5 +490,28 @@ SEXP _subassign_leaf_with_Rvector_xsubset(SEXP leaf, const int *offs, int n,
 {
 	error("_subassign_leaf_with_Rvector_xsubset() is not ready yet");
 	return R_NilValue;
+}
+
+/* Can be used on NULL or lacunar leaves.
+   'offs' must be NULL or an array of 'n' offsets (non-negative integers)
+   that are sorted in strictly ascending order. The last offset in the
+   array must be < 'buf_sv->len'. */
+SEXP _subassign_leaf_with_leaf(SEXP leaf1, SEXP offs, int n,
+		SEXP leaf2, SparseVec *buf_sv)
+{
+	const int *offs0 = get_offs0(offs, n, buf_sv->len);
+	if ((leaf1 == R_NilValue && leaf2 == R_NilValue) || offs0 == NULL)
+		return leaf2;
+	const SparseVec sv1 = leaf2SV(leaf1, buf_sv->Rtype,
+				      buf_sv->len,
+				      buf_sv->na_background);
+	const SparseVec sv2 = leaf2SV(leaf2, buf_sv->Rtype,
+				      n,
+				      buf_sv->na_background);
+	int neffrep = _subassign_SV_with_SV(&sv1, offs0, &sv2, buf_sv);
+	//printf("n = %d / neffrep = %d\n", n, neffrep);
+	if (neffrep == 0)
+		return leaf1;  /* no-op */
+	return SV2leaf(buf_sv);
 }
 

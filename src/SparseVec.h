@@ -35,10 +35,11 @@ typedef struct sparse_vec_t {
 	((na_background) ? ((val) == NA_STRING) \
 			 : ((val) != NA_STRING && LENGTH(val) == 0))
 
-#define APPEND_TO_NZVALS_NZOFFS(val, off, out_nzvals, out_nzoffs, out_nzcount) \
+#define APPEND_TO_NZVALS_NZOFFS(out_val, out_off,			\
+				out_nzvals, out_nzoffs, out_nzcount)	\
 {									\
-	(out_nzvals)[out_nzcount] = (val);				\
-	(out_nzoffs)[out_nzcount] = (off);				\
+	(out_nzvals)[out_nzcount] = (out_val);				\
+	(out_nzoffs)[out_nzcount] = (out_off);				\
 	(out_nzcount)++;						\
 }
 
@@ -52,7 +53,7 @@ typedef struct sparse_vec_t {
    'out_nzvals[0]'. */
 #define PROPAGATE_NZOFFS   -1  /* must be a **negative** int */
 
-/* Maybe move this to Rvector_utils.h */
+/* TODO: Maybe move this to Rvector_utils.h */
 static inline int int_equal(int x, int y)
 {
 	return x == y;
@@ -64,6 +65,10 @@ static inline int double_equal(double x, double y)
 static inline int Rcomplex_equal(Rcomplex x, Rcomplex y)
 {
 	return x.r == y.r && x.i == y.i;
+}
+static inline int Rbyte_equal(Rbyte x, Rbyte y)
+{
+	return x == y;
 }
 
 
@@ -158,16 +163,6 @@ static inline const Rbyte *get_RbyteSV_nzvals_p(const SparseVec *sv)
 	return sv->nzvals;
 }
 
-static inline SEXP get_characterSV_nzvals_p(const SparseVec *sv)
-{
-	return sv->nzvals;
-}
-
-static inline SEXP get_listSV_nzvals_p(const SparseVec *sv)
-{
-	return sv->nzvals;
-}
-
 static inline Rbyte get_RbyteSV_nzval(const SparseVec *sv, int k)
 {
 	const Rbyte *nzvals_p = get_RbyteSV_nzvals_p(sv);
@@ -194,17 +189,15 @@ static inline Rcomplex get_RcomplexSV_nzval(const SparseVec *sv, int k)
 
 static inline SEXP get_characterSV_nzval(const SparseVec *sv, int k)
 {
-	SEXP nzvals_p = get_characterSV_nzvals_p(sv);
-	return nzvals_p == NULL ? character1 : STRING_ELT(nzvals_p, k);
+	return sv->nzvals == NULL ? character1 : STRING_ELT(sv->nzvals, k);
 }
 
 static inline SEXP get_listSV_nzval(const SparseVec *sv, int k)
 {
-	SEXP nzvals_p = get_listSV_nzvals_p(sv);
-	if (nzvals_p == NULL)
+	if (sv->nzvals == NULL)
 		error("SparseArray internal error in get_listSV_nzval():\n"
 		      "    lacunar SparseVec of type \"list\" not supported");
-	return VECTOR_ELT(nzvals_p, k);
+	return VECTOR_ELT(sv->nzvals, k);
 }
 
 

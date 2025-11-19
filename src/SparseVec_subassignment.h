@@ -23,6 +23,13 @@ int _subassign_SV_with_Rvector_subset(
 	SparseVec *out_sv
 );
 
+int _subassign_SV_with_SV(
+	const SparseVec *sv1,
+	const int *offs,
+	const SparseVec *sv2,
+	SparseVec *out_sv
+);
+
 int _subassign_full_SV_with_Rvector_block(
 	const SparseVec *sv,
 	SEXP Rvector,

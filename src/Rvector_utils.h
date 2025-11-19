@@ -3,27 +3,27 @@
 
 #include <Rdefines.h>
 
-static const Rbyte Rbyte0 = 0;
-static const int int0 = 0;
-static const double double0 = 0.0;
-/* Some old versions of gcc choke on this:
-static const Rcomplex Rcomplex0 = {{double0, double0}}; */
-static const Rcomplex Rcomplex0 = {{0.0, 0.0}};
 
-static const Rbyte Rbyte1 = 1;
-static const int int1 = 1;
-static const double double1 = 1.0;
-/* Some old versions of gcc choke on this:
-static const Rcomplex Rcomplex1 = {{double1, double0}}; */
-static const Rcomplex Rcomplex1 = {{1.0, 0.0}};
-extern SEXP character1;      /* initialized in R_init_SparseArray() */
+/* Note that R does not define NA_INTEGER, NA_REAL, or NA_STRING as const
+   variables so we can't define intNA, doubleNA, RcomplexNA, or characterNA
+   as const variable either. Instead we need to define them as regular (i.e.
+   non-const) variables and initialize them in R_init_SparseArray(). */
 
-/* Unfortunately, R does not define NA_INTEGER or NA_REAL as const
-   variables so we can't define intNA, doubleNA, or RcomplexNA as
-   we do for int0/1, double0/1, or Rcomplex0/1 above. */
+static const int int0 = 0, int1 = 1;
 extern int intNA;            /* initialized in R_init_SparseArray() */
+
+static const double double0 = 0.0, double1 = 1.0;
 extern double doubleNA;      /* initialized in R_init_SparseArray() */
+
+/* Some old versions of gcc choke on this:
+static const Rcomplex Rcomplex0 = {{double0, double0}}, {{double1, double0}}; */
+static const Rcomplex Rcomplex0 = {{0.0, 0.0}}, Rcomplex1 = {{1.0, 0.0}};
 extern Rcomplex RcomplexNA;  /* initialized in R_init_SparseArray() */
+
+static const Rbyte Rbyte0 = 0, Rbyte1 = 1;
+
+/* Initialized in R_init_SparseArray() */
+extern SEXP character0, character1, characterNA;
 
 #define IS_STRSXP_OR_VECSXP(Rtype) ((Rtype) == STRSXP || (Rtype) == VECSXP)
 

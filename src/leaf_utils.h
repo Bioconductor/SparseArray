@@ -122,9 +122,19 @@ static inline int unzip_leaf(SEXP leaf, SEXP *nzvals, SEXP *nzoffs)
 	return (int) nzcount;
 }
 
+/* Can be used on a NULL or lacunar leaf. */
 static inline SparseVec leaf2SV(SEXP leaf, SEXPTYPE Rtype, int len,
 		int na_background)
 {
+	if (leaf == R_NilValue) {
+		/* There's no need to initialize 'sv.nzvals' or 'sv.nzoffs'. */
+		SparseVec sv;
+		sv.Rtype = Rtype;
+		sv.nzcount = 0;
+		sv.len = len;
+		sv.na_background = na_background;
+		return sv;
+	}
 	SEXP nzvals, nzoffs;
 	unzip_leaf(leaf, &nzvals, &nzoffs);
 	return toSparseVec(nzvals, nzoffs, Rtype, len, na_background);
@@ -236,6 +246,14 @@ SEXP _subassign_leaf_with_Rvector_xsubset(
 	int n,
 	SEXP Rvector,
 	const R_xlen_t *xselection,
+	SparseVec *buf_sv
+);
+
+SEXP _subassign_leaf_with_leaf(
+	SEXP leaf1,
+	SEXP offs,
+	int n,
+	SEXP leaf2,
 	SparseVec *buf_sv
 );
 

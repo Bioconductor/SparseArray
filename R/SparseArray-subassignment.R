@@ -171,35 +171,35 @@ setMethod("subassign_Array_by_Mindex", "SVT_SparseArray",
     BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
 }
 
-.subassign_SVT_with_SVT <- function(x, Nindex, v)
+.subassign_SVT_with_SVT <- function(x, Nindex, y)
 {
     stopifnot(is(x, "SVT_SparseArray"), is.list(Nindex))
     check_svt_version(x)
-    stopifnot(is(v, "SVT_SparseArray"))
-    check_svt_version(v)
+    stopifnot(is(y, "SVT_SparseArray"))
+    check_svt_version(y)
 
     ## Change 'x' type if necessary.
-    new_type <- type(c(vector(type(x)), vector(type(v))))
+    new_type <- type(c(vector(type(x)), vector(type(y))))
     type(x) <- new_type
 
     ## No-op (except for type change above) if array selection is empty.
     selection_dim <- S4Arrays:::get_Nindex_lengths(Nindex, x@dim)
-    if (!identical(selection_dim, unname(dim(v))))
+    if (!identical(selection_dim, unname(dim(y))))
         stop(wmsg("dimensions of right array don't ",
                   "match dimensions of array selection"))
     if (any(selection_dim == 0L))
         return(x)
 
-    ## Prepare 'Noffs' and 'v'.
+    ## Prepare 'Noffs' and 'y'.
     Norder <- S4Arrays:::get_Nindex_order(Nindex)
     Nindex <- S4Arrays:::subset_Nindex_by_Nindex(Nindex, Norder)
     Noffs <- .Nindex2Noffs(Nindex)
-    v <- S4Arrays:::subset_by_Nindex(v, Norder)
-    type(v) <- new_type
+    y <- S4Arrays:::subset_by_Nindex(y, Norder)
+    type(y) <- new_type
 
     new_SVT <- SparseArray.Call("C_subassign_SVT_with_SVT",
-                                x@dim, x@type, x@SVT, Noffs,
-                                v@dim, v@type, v@SVT)
+                                x@dim, x@type, x@SVT, FALSE, Noffs,
+                                y@dim, y@type, y@SVT, FALSE)
     BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
 }
 

@@ -226,76 +226,76 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 /* Generate code of Compare_<Ltype>SV_<Rtype>() functions.
    These functions should never be called on 'sv1' and 'y' when 'sv1'
    has a background set to zero and 'y' is NA or NaN. */
-#define FUNDEF_Compare_LtypeSV_Rtype(Ltype, Rtype)(int opcode,		\
-		const SparseVec *sv1, Rtype y,				\
-		SparseVec *out_sv)					\
-{									\
-        if (out_sv->len != sv1->len)					\
-                error("SparseArray internal error in "			\
-                      "Compare_<Ltype>SV_<Rtype>():\n"			\
-                      "    'sv1' and 'out_sv' are incompatible");	\
-	int *out_nzvals = (int *) out_sv->nzvals;			\
-	out_sv->nzcount = 0;						\
-	int out_bg_val = out_sv->na_background ? intNA : int0;		\
-	const Ltype *nzvals1_p = get_ ## Ltype ## SV_nzvals_p(sv1);	\
-	if (nzvals1_p == NULL) {  /* lacunar SparseVec */		\
-		int out_val = Compare_ ## Ltype ## _ ## Rtype		\
-					(opcode, Ltype ## 1, y);	\
-		if (out_val == out_bg_val)				\
-			return;						\
-		/* What 'out_val' is expected to be at this point    */	\
-		/* depends on 'out_bg_val':                          */	\
-		/* - If 'out_bg_val' is 'int0' then 'sv1' also       */	\
-		/*   has a background set to zero so 'y' cannot      */	\
-		/*   be NA or NaN (i.e. is.na(y) must be FALSE).     */	\
-		/*   This means that 'out_val' can only be TRUE      */	\
-		/*   (i.e. 'int1'). In particular 'out_val' cannot   */	\
-		/*   be NA (i.e. 'intNA') or FALSE (i.e. 'int0').    */	\
-		/* - If background is NA then 'out_val' can be TRUE  */	\
-		/*   or FALSE. It cannot be NA.                      */	\
-		out_nzvals[0] = out_val;				\
-		out_sv->nzcount = PROPAGATE_NZOFFS;			\
-		return;							\
-	}								\
-	/* regular SparseVec */						\
-	int nzcount1 = get_SV_nzcount(sv1);				\
-	for (int k = 0; k < nzcount1; k++) {				\
-		int out_val = Compare_ ## Ltype ## _ ## Rtype		\
-					(opcode, nzvals1_p[k], y);	\
-		if (out_val == out_bg_val)				\
-			continue;					\
-		APPEND_TO_NZVALS_NZOFFS(out_val, sv1->nzoffs[k],	\
-			out_nzvals, out_sv->nzoffs, out_sv->nzcount);	\
-	}								\
-	return;								\
+#define FUNDEF_Compare_LtypeSV_Rtype(Ltype, Rtype)(int opcode,		 \
+		const SparseVec *sv1, Rtype y,				 \
+		SparseVec *out_sv)					 \
+{									 \
+        if (out_sv->len != sv1->len)					 \
+                error("SparseArray internal error in "			 \
+                      "Compare_<Ltype>SV_<Rtype>():\n"			 \
+                      "    'sv1' and 'out_sv' are incompatible");	 \
+	int *out_nzvals = (int *) out_sv->nzvals;			 \
+	out_sv->nzcount = 0;						 \
+	int out_bg_val = out_sv->na_background ? intNA : int0;		 \
+	const Ltype *nzvals1_p = get_ ## Ltype ## SV_nzvals_p(sv1);	 \
+	if (nzvals1_p == NULL) {  /* lacunar SparseVec */		 \
+		int out_val = Compare_ ## Ltype ## _ ## Rtype		 \
+					(opcode, Ltype ## 1, y);	 \
+		if (out_val == out_bg_val)				 \
+			return;						 \
+		/* What 'out_val' is expected to be at this point    */	 \
+		/* depends on 'out_bg_val':                          */	 \
+		/* - If 'out_bg_val' is 'int0' then 'sv1' also       */	 \
+		/*   has a background set to zero so 'y' cannot      */	 \
+		/*   be NA or NaN (i.e. is.na(y) must be FALSE).     */	 \
+		/*   This means that 'out_val' can only be TRUE      */	 \
+		/*   (i.e. 'int1'). In particular 'out_val' cannot   */	 \
+		/*   be NA (i.e. 'intNA') or FALSE (i.e. 'int0').    */	 \
+		/* - If background is NA then 'out_val' can be TRUE  */	 \
+		/*   or FALSE. It cannot be NA.                      */	 \
+		out_nzvals[0] = out_val;				 \
+		out_sv->nzcount = PROPAGATE_NZOFFS;			 \
+		return;							 \
+	}								 \
+	/* regular SparseVec */						 \
+	int nzcount1 = get_SV_nzcount(sv1);				 \
+	for (int k = 0; k < nzcount1; k++) {				 \
+		int out_val = Compare_ ## Ltype ## _ ## Rtype		 \
+					(opcode, nzvals1_p[k], y);	 \
+		if (out_val == out_bg_val)				 \
+			continue;					 \
+		APPEND_TO_NZVALS_NZOFFS(out_val, sv1->nzoffs[k],	 \
+			out_nzvals, out_sv->nzoffs, out_sv->nzcount);	 \
+	}								 \
+	return;								 \
 }
 
 /* Generate code of Compare_<Ltype>SV_<Rtype>SV() functions. */
-#define FUNDEF_Compare_LtypeSV_RtypeSV(Ltype, Rtype)(int opcode,	\
-		const SparseVec *sv1, const SparseVec *sv2,		\
-		SparseVec *out_sv)					\
-{									\
-        if (out_sv->len != sv1->len || out_sv->len != sv2->len)		\
-                error("SparseArray internal error in "			\
-                      "Compare_<Ltype>SV_<Rtype>SV()():\n"		\
+#define FUNDEF_Compare_LtypeSV_RtypeSV(Ltype, Rtype)(int opcode,	 \
+		const SparseVec *sv1, const SparseVec *sv2,		 \
+		SparseVec *out_sv)					 \
+{									 \
+        if (out_sv->len != sv1->len || out_sv->len != sv2->len)		 \
+                error("SparseArray internal error in "			 \
+                      "Compare_<Ltype>SV_<Rtype>SV()():\n"		 \
                       "    'sv1', 'sv2', and 'out_sv' are incompatible"); \
-	int *out_nzvals = (int *) out_sv->nzvals;			\
-	out_sv->nzcount = 0;						\
-	int out_bg_val = out_sv->na_background ? intNA : int0;		\
-	int k1 = 0, k2 = 0, off;					\
-	Ltype x;							\
-	Rtype y;							\
-	while (next_ ## Ltype ## SV_ ## Rtype ## SV_vals		\
-		(sv1, sv2, &k1, &k2, &off, &x, &y))			\
-	{								\
-		int out_val = Compare_ ## Ltype ## _ ## Rtype		\
-					(opcode, x, y);			\
-		if (out_val == out_bg_val)				\
-			continue;					\
-		APPEND_TO_NZVALS_NZOFFS(out_val, off,			\
-			out_nzvals, out_sv->nzoffs, out_sv->nzcount);   \
-	}								\
-	return;								\
+	int *out_nzvals = (int *) out_sv->nzvals;			 \
+	out_sv->nzcount = 0;						 \
+	int out_bg_val = out_sv->na_background ? intNA : int0;		 \
+	int k1 = 0, k2 = 0, out_off;					 \
+	Ltype x;							 \
+	Rtype y;							 \
+	while (next_ ## Ltype ## SV_ ## Rtype ## SV_vals		 \
+		(sv1, sv2, &k1, &k2, &out_off, &x, &y))			 \
+	{								 \
+		int out_val = Compare_ ## Ltype ## _ ## Rtype		 \
+					(opcode, x, y);			 \
+		if (out_val == out_bg_val)				 \
+			continue;					 \
+		APPEND_TO_NZVALS_NZOFFS(out_val, out_off,		 \
+			out_nzvals, out_sv->nzoffs, out_sv->nzcount);    \
+	}								 \
+	return;								 \
 }
 
 static void Compare_RbyteSV_Rbyte
