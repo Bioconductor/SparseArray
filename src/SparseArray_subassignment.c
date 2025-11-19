@@ -422,40 +422,43 @@ SEXP C_subassign_SVT_by_Mindex(
 
 
 /****************************************************************************
+ * new_SVT()
  * make_SVT_node()
  */
 
-static SEXP shallow_copy_list(SEXP x)
-{
-	if (!isVectorList(x))  // IS_LIST() is broken
-		error("SparseArray internal error in shallow_copy_list():\n"
-		      "    'x' is not a list");
-	int x_len = LENGTH(x);
-	SEXP ans = PROTECT(NEW_LIST(x_len));
-	for (int i = 0; i < x_len; i++)
-		SET_VECTOR_ELT(ans, i, VECTOR_ELT(x, i));
-	UNPROTECT(1);
-	return ans;
-}
-
-/* 'SVT' must be R_NilValue or a list of length 'd' ('d' cannot be 0).
-   Always returns a list of length 'd'. Can be a newly allocated list
-   or 'SVT' itself. */
-static inline SEXP make_SVT_node(SEXP SVT, int d, SEXP SVT0)
+static SEXP new_SVT(int d, SEXP SVT0)
 {
 	if (d == 0)
-		error("SparseArray internal error in make_SVT_node():\n"
+		error("SparseArray internal error in new_SVT():\n"
 		      "    d == 0");
-	if (SVT == R_NilValue)
-		return NEW_LIST(d);
-	if (!isVectorList(SVT) || LENGTH(SVT) != d)
-		error("SparseArray internal error in make_SVT_node():\n"
-		      "    'SVT' is not R_NilValue or a list of length 'd'");
-	/* Shallow copy **only** if 'SVT' == corresponding node in
-	   original 'SVT0'. */
-	if (SVT == SVT0)
-		return shallow_copy_list(SVT);
+	SEXP SVT = PROTECT(NEW_LIST(d));
+	if (SVT0 != R_NilValue) {
+		if (!isVectorList(SVT0))  // IS_LIST() is broken
+			error("SparseArray internal error in new_SVT():\n"
+			      "    'SVT0' is not a list");
+		if (LENGTH(SVT0) != d)
+			error("SparseArray internal error in new_SVT():\n"
+			      "    'LENGTH(SVT0) != d'");
+		/* Shallow copy. */
+		for (int i = 0; i < d; i++)
+			SET_VECTOR_ELT(SVT, i, VECTOR_ELT(SVT0, i));
+	}
+	UNPROTECT(1);
 	return SVT;
+}
+
+/* Used by C_subassign_SVT_with_short_Rvector() only.
+   'SVT' must be R_NilValue or a list of length 'd' ('d' cannot be 0).
+   Always returns a list of length 'd'. Can be a newly allocated list
+   or 'SVT' itself.
+   TODO: C_subassign_SVT_with_short_Rvector() should be revisited and
+   use the same allocation stretegy as C_subassign_SVT_with_Rarray()
+   and C_subassign_SVT_with_SVT(). Then make_SVT_node() can go away. */
+static inline SEXP make_SVT_node(SEXP SVT, int d, SEXP SVT0)
+{
+	if (SVT != R_NilValue && SVT != SVT0)
+		return SVT;
+	return new_SVT(d, SVT);
 }
 
 
@@ -692,33 +695,17 @@ SEXP C_subassign_SVT_with_short_Rvector(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 
 
 /****************************************************************************
- * C_subassign_SVT_with_Rarray()
+ * Some helpers shared between C_subassign_SVT_with_Rarray() and
+ * C_subassign_SVT_with_SVT()
  */
-
-static SEXP check_Rarray(SEXP Rarray, int ndim, SEXPTYPE x_Rtype)
-{
-	SEXP Rarray_dim = GET_DIM(Rarray);
-	if (Rarray_dim == R_NilValue)
-		error("SparseArray internal error in check_Rarray():\n"
-		      "    'Rarray' must be an array");
-	if (LENGTH(Rarray_dim) != ndim)
-		error("SparseArray internal error in check_Rarray():\n"
-		      "    SVT_SparseArray object and 'Rarray' "
-		      "must have the same number of dimensions");
-	if (TYPEOF(Rarray) != x_Rtype)
-		error("SparseArray internal error in check_Rarray():\n"
-		      "    SVT_SparseArray object and 'Rarray' "
-		      "must have the same type");
-	return Rarray_dim;
-}
 
 static int check_offs(SEXP offs, int d)
 {
 	int n = LENGTH(offs);
 	const int *offs_p = INTEGER(offs);
 	int prev_off = -1;
-	for (int k = 0; k < n; k++) {
-		int off = offs_p[k];
+	for (int i = 0; i < n; i++) {
+		int off = offs_p[i];
 		if (off == NA_INTEGER)
 			error("subscripts contain NAs");
 		if (off < 0 || off >= d)
@@ -759,35 +746,76 @@ static int check_Noffs(SEXP Noffs, const int *dim, const int *arr_dim, int ndim)
 	return 0;
 }
 
+/* Offsets were already checked upfront by check_Noffs() above. */
+static int get_off(SEXP offs, int i)
+{
+	return offs == R_NilValue ? i : INTEGER(offs)[i];
+}
+
+static SEXP post_process_ans(SEXP ans, SEXP SVT)
+{
+	int ans_len = LENGTH(ans), is_empty = 1;
+	for (int i = 0; i < ans_len; i++) {
+		if (VECTOR_ELT(ans, i) != R_NilValue) {
+			is_empty = 0;
+			break;
+		}
+	}
+	if (is_empty)
+		return R_NilValue;
+	if (SVT == R_NilValue)
+		return ans;
+	int is_noop = 1;
+	for (int i = 0; i < ans_len; i++) {
+		if (VECTOR_ELT(ans, i) != VECTOR_ELT(SVT, i)) {
+			is_noop = 0;
+			break;
+		}
+	}
+	return is_noop ? SVT : ans;
+}
+
+
+/****************************************************************************
+ * C_subassign_SVT_with_Rarray()
+ */
+
+static SEXP check_Rarray(SEXP Rarray, int ndim, SEXPTYPE x_Rtype)
+{
+	SEXP Rarray_dim = GET_DIM(Rarray);
+	if (Rarray_dim == R_NilValue)
+		error("SparseArray internal error in check_Rarray():\n"
+		      "    'Rarray' must be an array");
+	if (LENGTH(Rarray_dim) != ndim)
+		error("SparseArray internal error in check_Rarray():\n"
+		      "    SVT_SparseArray object and 'Rarray' "
+		      "must have the same number of dimensions");
+	if (TYPEOF(Rarray) != x_Rtype)
+		error("SparseArray internal error in check_Rarray():\n"
+		      "    SVT_SparseArray object and 'Rarray' "
+		      "must have the same type");
+	return Rarray_dim;
+}
+
 static SEXP REC_subassign_SVT_with_Rsubarr(SEXP SVT,
 		const int *dim, int ndim, SEXP Noffs,
 		SEXP Rarray, R_xlen_t arr_offset, const R_xlen_t *subarr_lens,
 		SparseVec *buf_sv)
 {
+	SEXP offs = VECTOR_ELT(Noffs, ndim - 1);
 	if (ndim == 1)
 		return _subassign_leaf_with_Rvector_block(SVT,
-					VECTOR_ELT(Noffs, 0), subarr_lens[0],
+					offs, subarr_lens[0],
 					Rarray, arr_offset, buf_sv);
 	int d1 = dim[ndim - 1];
-	SEXP offs = VECTOR_ELT(Noffs, ndim - 1);
 	int d2 = offs == R_NilValue ? d1 : LENGTH(offs);
+	SEXP ans = PROTECT(new_SVT(d1, SVT));
 	R_xlen_t offset_inc = subarr_lens[ndim - 2];
-	SEXP ans = PROTECT(NEW_LIST(d1));
-	if (SVT != R_NilValue)
-		for (int i1 = 0; i1 < d1; i1++)
-			SET_VECTOR_ELT(ans, i1, VECTOR_ELT(SVT, i1));
 	for (int i2 = 0; i2 < d2; i2++, arr_offset += offset_inc) {
-		int i1;
-		if (offs == R_NilValue) {
-			i1 = i2;
-		} else {
-			i1 = INTEGER(offs)[i2];
-			if (i1 == NA_INTEGER || i1 >= d1)
-				error("subscript contains "
-				      "out-of-bound indices or NAs");
-		}
+		int i1 = get_off(offs, i2);
+		SEXP subSVT = VECTOR_ELT(ans, i1);
 		SEXP ans_elt = PROTECT(
-			REC_subassign_SVT_with_Rsubarr(VECTOR_ELT(ans, i1),
+			REC_subassign_SVT_with_Rsubarr(subSVT,
 					dim, ndim - 1, Noffs,
 					Rarray, arr_offset, subarr_lens,
 					buf_sv)
@@ -795,26 +823,9 @@ static SEXP REC_subassign_SVT_with_Rsubarr(SEXP SVT,
 		SET_VECTOR_ELT(ans, i1, ans_elt);
 		UNPROTECT(1);
 	}
-	int is_empty = 1;
-	for (int i1 = 0; i1 < d1; i1++) {
-		if (VECTOR_ELT(ans, i1) != R_NilValue) {
-			is_empty = 0;
-			break;
-		}
-	}
+	ans = post_process_ans(ans, SVT);
 	UNPROTECT(1);
-	if (is_empty)
-		return R_NilValue;
-	if (SVT == R_NilValue)
-		return ans;
-	int is_noop = 1;
-	for (int i1 = 0; i1 < d1; i1++) {
-		if (VECTOR_ELT(ans, i1) != VECTOR_ELT(SVT, i1)) {
-			is_noop = 0;
-			break;
-		}
-	}
-	return is_noop ? SVT : ans;
+	return ans;
 }
 
 /* --- .Call ENTRY POINT ---
@@ -863,12 +874,31 @@ static SEXP REC_subassign_SVT1_with_SVT2(
 		SEXP SVT1, const int *dim1, int ndim, SEXP Noffs,
 		SEXP SVT2, const int *dim2, SparseVec *buf_sv)
 {
+	if (SVT1 == R_NilValue && SVT2 == R_NilValue)
+		return R_NilValue;
+	SEXP offs = VECTOR_ELT(Noffs, ndim - 1);
 	if (ndim == 1)
-		return _subassign_leaf_with_leaf(SVT1,
-					VECTOR_ELT(Noffs, 0), dim2[0],
-					SVT2, buf_sv);
-	error("ndim > 1 not ready yet");
-	return R_NilValue;
+		return _subassign_leaf_with_leaf(SVT1, offs, dim2[0],
+						 SVT2, buf_sv);
+	int d1 = dim1[ndim - 1];
+	int d2 = dim2[ndim - 1];
+	SEXP ans = PROTECT(new_SVT(d1, SVT1));
+	for (int i2 = 0; i2 < d2; i2++) {
+		int i1 = get_off(offs, i2);
+		SEXP subSVT1 = VECTOR_ELT(ans, i1);
+		SEXP subSVT2 = SVT2 == R_NilValue ? R_NilValue :
+						    VECTOR_ELT(SVT2, i2);
+		SEXP ans_elt = PROTECT(
+			REC_subassign_SVT1_with_SVT2(subSVT1,
+					dim1, ndim - 1, Noffs,
+					subSVT2, dim2, buf_sv)
+		);
+		SET_VECTOR_ELT(ans, i1, ans_elt);
+		UNPROTECT(1);
+	}
+	ans = post_process_ans(ans, SVT1);
+	UNPROTECT(1);
+	return ans;
 }
 
 /* --- .Call ENTRY POINT ---

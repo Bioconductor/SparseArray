@@ -4,17 +4,21 @@
 #include "SparseVec_subassignment.h"
 
 
-/* IMPORTANT NOTE: This is just to make 'DEFINE_subassign_typeSV_FUN(Rbyte)'
-   and other macros defined in this file work.
-   Note that these macros contain the following line:
+/* The only reason that we define 'RbyteNA' and 'listNA' is to make
+   'DEFINE_subassign_typeSV_FUN(Rbyte)' and other macros defined in
+   this file work. Note that these macros contain the following line:
 
        type bg_val = out_sv->na_background ? type ## NA : type ## 0;
 
-   So it really doesn't matter what value we use for 'RbyteNA' because we don't
-   support NaArray objects of type raw. This means that if SparseVec 'out_sv'
-   is of type raw then 'out_sv->na_background' is guaranteed to be FALSE.
-   In other words, 'RbyteNA' will never be used! */
-#define RbyteNA 255
+   So it absolutely doesn't matter what value we set 'RbyteNA' and 'listNA'
+   to because we don't support NaArray objects of type raw or list.
+   This means that if SparseVec 'out_sv' is of type raw or list
+   then 'out_sv->na_background' is guaranteed to be FALSE.
+   In other words, 'RbyteNA' and 'listNA' will **never** be used! */
+
+#define RbyteNA Rbyte0  /* exact value doesn't matter, see above */
+#define listNA list0    /* exact value doesn't matter, see above */
+
 
 static SEXPTYPE get_SV_subassign_Rtype(SEXPTYPE expected_Rtype,
 		const SparseVec *sv, const SparseVec *out_sv)
@@ -201,14 +205,14 @@ static inline int process_subassign_characterSV_out_val(int ret,
    as 'svt1@SVT'). */
 static inline int process_subassign_listSV_out_val(int ret,
 		SEXP out_val, int out_off, SparseVec *out_sv,
-		const SparseVec *sv1, int k1)
+		SEXP bg_val, const SparseVec *sv1, int k1)
 {
 	int is_effrep = 1;
 	if (ret == 2) {
-		if (out_val == R_NilValue)
+		if (out_val == bg_val)
 			return 0;
 	} else if (ret == 3) {
-		if (out_val == R_NilValue)
+		if (out_val == bg_val)
 			return 1;
 		SEXP v1 = get_listSV_nzval(sv1, k1 - 1);
 		/* See note above about this comparison. */
@@ -266,7 +270,8 @@ static int subassign_characterSV(
 					&k1, &k, &out_off, &out_val)))
 	{
 		neffrep += process_subassign_characterSV_out_val(ret,
-				out_val, out_off, out_sv, bg_val, sv1, k1);
+				out_val, out_off, out_sv,
+				bg_val, sv1, k1);
 	}
 	return neffrep;
 }
@@ -284,7 +289,8 @@ static int subassign_listSV(
 					&k1, &k, &out_off, &out_val)))
 	{
 		neffrep += process_subassign_listSV_out_val(ret,
-				out_val, out_off, out_sv, sv1, k1);
+				out_val, out_off, out_sv,
+				list0, sv1, k1);
 	}
 	return neffrep;
 }
@@ -434,25 +440,7 @@ DEFINE_subassign_typeSV_with_SV_FUN(double, double)
 DEFINE_subassign_typeSV_with_SV_FUN(Rcomplex, Rcomplex)
 DEFINE_subassign_typeSV_with_SV_FUN(Rbyte, Rbyte)
 DEFINE_subassign_typeSV_with_SV_FUN(character, SEXP)
-
-static int subassign_listSV_with_SV(
-		const SparseVec *sv1, const int *offs,
-		const SparseVec *sv2, SparseVec *out_sv)
-{
-	out_sv->nzcount = 0;
-	int neffrep = 0, ret, k1 = 0, k = 0, k2 = 0, out_off;
-	SEXP out_val;
-	while ((ret = next_subassign_listSV_with_SV_out_val(
-				sv1, offs, sv2, R_NilValue,
-				&k1, &k, &k2, &out_off, &out_val)))
-	{
-		neffrep += process_subassign_listSV_out_val(ret,
-				out_val, out_off, out_sv,
-				sv1, k1);
-	}
-	return neffrep;
-}
-
+DEFINE_subassign_typeSV_with_SV_FUN(list, SEXP)
 
 /* 'sv1->len' and 'out_sv->len' must be the same.
    'sv1' and/or 'sv2' can be lacunar.
@@ -491,33 +479,29 @@ int _subassign_SV_with_SV(
  * subassign_full_<type>SV_with_Rvector_block()
  */
 
+static inline int next_k1(const SparseVec *sv1, int *k1, int off)
+{
+	if (*k1 < get_SV_nzcount(sv1) && sv1->nzoffs[*k1] == off) {
+		(*k1)++;
+		return 3;
+	}
+	return 2;
+}
+
 #define DEFINE_subassign_full_typeSV_with_Rvector_block_FUN(type)	  \
 static int subassign_full_ ## type ## SV_with_Rvector_block(		  \
 		const SparseVec *sv1,					  \
 		const type *vals2, SparseVec *out_sv)			  \
 {									  \
-	type *out_nzvals = (type *) out_sv->nzvals;			  \
 	type bg_val = out_sv->na_background ? type ## NA : type ## 0;	  \
 	out_sv->nzcount = 0;						  \
 	int neffrep = 0, k1 = 0;					  \
 	for (int i = 0; i < out_sv->len; i++) {				  \
-		type v2 = vals2[i];					  \
-		if (k1 < get_SV_nzcount(sv1) && sv1->nzoffs[k1] == i) {	  \
-			type v1 = get_ ## type ## SV_nzval(sv1, k1);	  \
-			k1++;						  \
-			if (type ## _equal(v2, bg_val)) {		  \
-				neffrep++;				  \
-				continue;				  \
-			}						  \
-			if (!type ## _equal(v1, v2))			  \
-				neffrep++;				  \
-		} else {						  \
-			if (type ## _equal(v2, bg_val))			  \
-				continue;				  \
-			neffrep++;					  \
-		}							  \
-		APPEND_TO_NZVALS_NZOFFS(v2, i,				  \
-			out_nzvals, out_sv->nzoffs, out_sv->nzcount);	  \
+		int ret = next_k1(sv1, &k1, i);				  \
+		type out_val = vals2[i];				  \
+		neffrep += process_subassign_ ## type ## SV_out_val(ret,  \
+				out_val, i, out_sv,			  \
+				bg_val, sv1, k1);			  \
 	}								  \
 	return neffrep;							  \
 }
@@ -527,68 +511,33 @@ DEFINE_subassign_full_typeSV_with_Rvector_block_FUN(double)
 DEFINE_subassign_full_typeSV_with_Rvector_block_FUN(Rcomplex)
 DEFINE_subassign_full_typeSV_with_Rvector_block_FUN(Rbyte)
 
-/* Note that when comparing CHARSXPs 'v1' and 'v2' below (v1 != v2), we
-   compare their **addresses**, not their **values**.
-   See note for subassign_characterSV() above for more information. */
 static int subassign_full_characterSV_with_Rvector_block(const SparseVec *sv1,
 		SEXP Rvector, R_xlen_t block_offset, SparseVec *out_sv)
 {
-	SEXP out_nzvals = (SEXP) out_sv->nzvals;  /* STRSXP */
+	SEXP bg_val = out_sv->na_background ? characterNA : character0;
 	out_sv->nzcount = 0;
 	int neffrep = 0, k1 = 0;
 	for (int i = 0; i < out_sv->len; i++) {
-		SEXP v2 = STRING_ELT(Rvector, block_offset + i);
-		if (k1 < get_SV_nzcount(sv1) && sv1->nzoffs[k1] == i) {
-			SEXP v1 = get_characterSV_nzval(sv1, k1);
-			k1++;
-			if (IS_BG_CHARSXP(v2, out_sv->na_background)) {
-				neffrep++;
-				continue;
-			}
-			/* See note above about this comparison. */
-			if (v1 != v2)
-				neffrep++;
-		} else {
-			if (IS_BG_CHARSXP(v2, out_sv->na_background))
-				continue;
-			neffrep++;
-		}
-		SET_STRING_ELT(out_nzvals, out_sv->nzcount, v2);
-		out_sv->nzoffs[out_sv->nzcount] = i;
-		out_sv->nzcount++;
+		int ret = next_k1(sv1, &k1, i);
+		SEXP out_val = STRING_ELT(Rvector, block_offset + i);
+		neffrep += process_subassign_characterSV_out_val(ret,
+				out_val, i, out_sv,
+				bg_val, sv1, k1);
 	}
 	return neffrep;
 }
 
-/* Note that when comparing VECSXP elements 'v1' and 'v2' below (v1 != v2),
-   we compare their **addresses**, not their **values**.
-   See note for subassign_listSV() above for more information. */
 static int subassign_full_listSV_with_Rvector_block(const SparseVec *sv1,
 		SEXP Rvector, R_xlen_t block_offset, SparseVec *out_sv)
 {
-	SEXP out_nzvals = (SEXP) out_sv->nzvals;  /* VECSXP */
 	out_sv->nzcount = 0;
 	int neffrep = 0, k1 = 0;
 	for (int i = 0; i < out_sv->len; i++) {
-		SEXP v2 = VECTOR_ELT(Rvector, block_offset + i);
-		if (k1 < get_SV_nzcount(sv1) && sv1->nzoffs[k1] == i) {
-			SEXP v1 = get_listSV_nzval(sv1, k1);
-			k1++;
-			if (v2 == R_NilValue) {
-				neffrep++;
-				continue;
-			}
-			/* See note above about this comparison. */
-			if (v1 != v2)
-				neffrep++;
-		} else {
-			if (v2 == R_NilValue)
-				continue;
-			neffrep++;
-		}
-		SET_VECTOR_ELT(out_nzvals, out_sv->nzcount, v2);
-		out_sv->nzoffs[out_sv->nzcount] = i;
-		out_sv->nzcount++;
+		int ret = next_k1(sv1, &k1, i);
+		SEXP out_val = VECTOR_ELT(Rvector, block_offset + i);
+		neffrep += process_subassign_listSV_out_val(ret,
+				out_val, i, out_sv,
+				list0, sv1, k1);
 	}
 	return neffrep;
 }

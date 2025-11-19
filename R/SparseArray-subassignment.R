@@ -132,6 +132,20 @@ setMethod("subassign_Array_by_Mindex", "SVT_SparseArray",
     BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
 }
 
+.adjust_right_array_dim <- function(right_array, selection_dim)
+{
+    right_dim <- unname(dim(right_array))
+    if (identical(selection_dim, right_dim))
+        return(right_array)
+    effdim_idx1 <- which(selection_dim != 1L)
+    effdim_idx2 <- which(right_dim != 1L)
+    if (!identical(selection_dim[effdim_idx1], right_dim[effdim_idx2]))
+        stop(wmsg("dimensions of right array don't ",
+                  "match dimensions of array selection"))
+    dim(right_array) <- selection_dim
+    right_array
+}
+
 .Nindex2Noffs <- function(Nindex)
 {
     stopifnot(is.list(Nindex))
@@ -153,9 +167,7 @@ setMethod("subassign_Array_by_Mindex", "SVT_SparseArray",
 
     ## No-op (except for type change above) if array selection is empty.
     selection_dim <- S4Arrays:::get_Nindex_lengths(Nindex, x@dim)
-    if (!identical(selection_dim, unname(dim(Rarray))))
-        stop(wmsg("dimensions of right array don't ",
-                  "match dimensions of array selection"))
+    Rarray <- .adjust_right_array_dim(Rarray, selection_dim)
     if (any(selection_dim == 0L))
         return(x)
 
@@ -184,9 +196,7 @@ setMethod("subassign_Array_by_Mindex", "SVT_SparseArray",
 
     ## No-op (except for type change above) if array selection is empty.
     selection_dim <- S4Arrays:::get_Nindex_lengths(Nindex, x@dim)
-    if (!identical(selection_dim, unname(dim(y))))
-        stop(wmsg("dimensions of right array don't ",
-                  "match dimensions of array selection"))
+    y <- .adjust_right_array_dim(y, selection_dim)
     if (any(selection_dim == 0L))
         return(x)
 

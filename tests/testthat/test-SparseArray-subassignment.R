@@ -199,12 +199,9 @@ test_that("SparseArray:::.subassign_SVT_with_short_Rvector()", {
 })
 
 test_that("SparseArray:::.subassign_SVT_with_Rarray() and SparseArray:::.subassign_SVT_with_SVT()", {
-    subassign_SVT_with_Rarray <- SparseArray:::.subassign_SVT_with_Rarray
-    subassign_SVT_with_SVT <- SparseArray:::.subassign_SVT_with_SVT
-
     test_subassign_SVT_with_Rarray_or_SVT <-
         function(svt0, Nindex, value, expected_type=type(value)) {
-            svt <- subassign_SVT_with_Rarray(svt0, Nindex, value)
+            svt <- SparseArray:::.subassign_SVT_with_Rarray(svt0, Nindex, value)
             expect_identical(type(svt), expected_type)
             a0 <- as.array(`type<-`(svt0, expected_type))
             a <- S4Arrays:::subassign_by_Nindex(a0, Nindex, value)
@@ -212,7 +209,7 @@ test_that("SparseArray:::.subassign_SVT_with_Rarray() and SparseArray:::.subassi
                 if (is.matrix(a)) "SVT_SparseMatrix" else "SVT_SparseArray"
             check_array_like_object(svt, expected_class, a)
             value <- SVT_SparseArray(value)
-            svt2 <- subassign_SVT_with_SVT(svt0, Nindex, value)
+            svt2 <- SparseArray:::.subassign_SVT_with_SVT(svt0, Nindex, value)
             expect_identical(svt2, svt)
         }
 
@@ -251,8 +248,48 @@ test_that("SparseArray:::.subassign_SVT_with_Rarray() and SparseArray:::.subassi
 
     ## --- 2D objects ---
 
+    svt0 <- SVT_SparseArray(dim=c(10, 6), type="integer")
+    svt1 <- `[<-`(svt0, (1:20)*3, value=1:20)
+    svt1 <- `[<-`(svt1, , 2, value=0L)
+
+    Nindex1 <- list(c(2:5, 8L), NULL)
+    value1 <- -as.matrix(svt1)[6:10, ]
+    test_subassign_SVT_with_Rarray_or_SVT(svt0, Nindex1, value1)
+    test_subassign_SVT_with_Rarray_or_SVT(svt1, Nindex1, value1)
+
+    Nindex2 <- list(NULL, 3:6)
+    value2 <- -as.matrix(svt1)[ , 2:5]
+    test_subassign_SVT_with_Rarray_or_SVT(svt0, Nindex2, value2)
+    test_subassign_SVT_with_Rarray_or_SVT(svt1, Nindex2, value2)
+
+    Nindex3 <- list(c(9L, 3:5, 3L), c(6L, 2L))
+    value3 <- -as.matrix(svt1)[6:10, 5:6]
+    test_subassign_SVT_with_Rarray_or_SVT(svt0, Nindex3, value3)
+    test_subassign_SVT_with_Rarray_or_SVT(svt1, Nindex3, value3)
+
     ## --- 3D objects ---
 
+    svt0 <- SVT_SparseArray(dim=c(6, 10, 2), type="integer")
+    svt1 <- `[<-`(svt0, (1:24)*5, value=1:24)
+    svt1 <- `[<-`(svt1, , 2:3, , value=0L)
+    svt1 <- `[<-`(svt1, c(2, 4:6), 4, 2, value=1L)
+
+    Nindex1 <- list(NULL, c(2:5, 8L), NULL)
+    value1 <- -as.array(svt1)[ , 1:5, ]
+    test_subassign_SVT_with_Rarray_or_SVT(svt0, Nindex1, value1)
+    test_subassign_SVT_with_Rarray_or_SVT(svt1, Nindex1, value1)
+
+    Nindex2 <- list(c(6:5, 1:2), 5L, NULL)
+    value2 <- as.array(svt1)[1:4, 4, ]
+    test_subassign_SVT_with_Rarray_or_SVT(svt0, Nindex2, value2)
+    test_subassign_SVT_with_Rarray_or_SVT(svt1, Nindex2, value2)
+
+    Nindex3 <- list(c(6:3, 2:5), 5:4, 2L)
+    value3 <- matrix(101:116, ncol=2)
+    test_subassign_SVT_with_Rarray_or_SVT(svt0, Nindex3, value3)
+    test_subassign_SVT_with_Rarray_or_SVT(svt1, Nindex3, value3)
+    test_subassign_SVT_with_Rarray_or_SVT(svt0, Nindex3, value3 + 0.5)
+    test_subassign_SVT_with_Rarray_or_SVT(svt1, Nindex3, value3 + 0.5)
 })
 
 test_that("subassign an SVT_SparseArray object by an Nindex", {
