@@ -210,13 +210,13 @@ static int build_OPBufTree_from_Mindex(OPBufTree *opbuf_tree,
 						&idx0, &ret);
 		if (ret < 0)
 			return ret;
-                ret = _append_idx0Loff_to_host_node(host_node, idx0, Loff);
-                if (ret < 0)
-                        return ret;
-                if (ret > max_opbuf_nelt)
-                        max_opbuf_nelt = ret;
-        }
-        return max_opbuf_nelt;
+		ret = _append_idx0Loff_to_host_node(host_node, idx0, Loff);
+		if (ret < 0)
+			return ret;
+		if (ret > max_opbuf_nelt)
+			max_opbuf_nelt = ret;
+	}
+	return max_opbuf_nelt;
 }
 
 
@@ -372,7 +372,7 @@ static void check_Mindex_dim(SEXP Mindex, R_xlen_t nvals, int ndim,
 	SEXP Mindex_dim = GET_DIM(Mindex);
 	if (Mindex_dim == R_NilValue || LENGTH(Mindex_dim) != 2)
 		error("'%s' must be a matrix", what1);
-        if (!(IS_INTEGER(Mindex) || IS_NUMERIC(Mindex)))
+	if (!(IS_INTEGER(Mindex) || IS_NUMERIC(Mindex)))
 		error("'%s' must be a numeric matrix", what1);
 	if (INTEGER(Mindex_dim)[0] != nvals)
 		error("nrow(%s) != %s", what1, what2);
@@ -724,7 +724,7 @@ static int check_offs(SEXP offs, int d)
 		if (off < 0 || off >= d)
 			error("subscripts contain out-of-bound indices");
 		if (off <= prev_off)
-			error("SparseArray internal error in check_Noffs():\n"
+			error("SparseArray internal error in check_offs():\n"
 			      "    subscripts are not strictly sorted");
 		prev_off = off;
 	}
@@ -736,22 +736,22 @@ static int check_Noffs(SEXP Noffs, const int *dim, const int *arr_dim, int ndim)
 	if (LENGTH(Noffs) != ndim)
 		error("SparseArray internal error in check_Noffs():\n"
 		      "    'Noffs' must have one list element per "
-		      "dimension in the SVT_SparseArray object");
+		      "dimension in the array to subassign");
 	for (int along = 0; along < ndim; along++) {
 		if (dim[along] == 0)
 			return 1;  /* subassignment is a no-op */
 		SEXP offs = VECTOR_ELT(Noffs, along);
-		int asd;  /* array selection dim */
+		int doas;  /* dim of array selection */
 		if (offs == R_NilValue) {
-			asd = dim[along];
+			doas = dim[along];
 		} else if (IS_INTEGER(offs)) {
-			asd = check_offs(offs, dim[along]);
+			doas = check_offs(offs, dim[along]);
 		} else {
 			error("subscripts must be integer vectors");
 		}
-		if (asd == 0)
+		if (doas == 0)
 			return 1;  /* subassignment is a no-op */
-		if (arr_dim[along] != asd)
+		if (arr_dim[along] != doas)
 			error("SparseArray internal error in check_Noffs():\n"
 			      "    dimensions of right array don't "
 			      "match dimensions of array selection");
@@ -859,19 +859,68 @@ SEXP C_subassign_SVT_with_Rarray(
  * C_subassign_SVT_with_SVT()
  */
 
+static SEXP REC_subassign_SVT1_with_SVT2(
+		SEXP SVT1, const int *dim1, int ndim, SEXP Noffs,
+		SEXP SVT2, const int *dim2, SparseVec *buf_sv)
+{
+	if (ndim == 1)
+		return _subassign_leaf_with_leaf(SVT1,
+					VECTOR_ELT(Noffs, 0), dim2[0],
+					SVT2, buf_sv);
+	error("ndim > 1 not ready yet");
+	return R_NilValue;
+}
+
 /* --- .Call ENTRY POINT ---
-   The left and right arrays ('x' and 'v') must have the same number
+   The left and right arrays ('x' and 'y') must have the same number
    of dimensions.
    'Noffs' must be a list of integer vectors (or NULLs), one along each
    dimension in the arrays. Each non-NULL list element must contain valid
    offsets (i.e. zero-based indices) along the corresponding dimension in 'x'.
    IMPORTANT: The offsets must be sorted in **strictly** ascending order.
    This is not checked! */
-SEXP C_subassign_SVT_with_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT,
-		SEXP Noffs, SEXP v_dim, SEXP v_type, SEXP v_SVT)
+SEXP C_subassign_SVT_with_SVT(
+		SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP x_na_background,
+		SEXP Noffs,
+		SEXP y_dim, SEXP y_type, SEXP y_SVT, SEXP y_na_background)
 {
-	error("not ready yet");
-	return R_NilValue;
+	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+			     "C_subassign_SVT_with_SVT", "x_type");
+	int x_has_NAbg = _get_and_check_na_background(x_na_background,
+			     "C_subassign_SVT_with_SVT", "x_na_background");
+	SEXPTYPE y_Rtype = _get_and_check_Rtype_from_Rstring(y_type,
+			     "C_subassign_SVT_with_SVT", "y_type");
+	int y_has_NAbg = _get_and_check_na_background(y_na_background,
+			     "C_subassign_SVT_with_SVT", "y_na_background");
+	if (x_Rtype != y_Rtype)
+		error("SparseArray internal error in "
+		      "C_subassign_SVT_with_SVT():\n"
+		      "    x_Rtype != y_Rtype");
+	if (x_has_NAbg != y_has_NAbg)
+		error("SparseArray internal error in "
+		      "C_subassign_SVT_with_SVT():\n"
+		      "    x_has_NAbg != y_has_NAbg");
+
+	int ndim = LENGTH(x_dim);
+	if (LENGTH(y_dim) != ndim)
+		error("SparseArray internal error in "
+		      "C_subassign_SVT_with_SVT():\n"
+		      "    LENGTH(x_dim) != LENGTH(y_dim)");
+
+	if (check_Noffs(Noffs, INTEGER(x_dim), INTEGER(y_dim), ndim))
+		return x_SVT;  /* no-op */
+
+	SparseVec buf_sv = _alloc_buf_SparseVec(x_Rtype, INTEGER(x_dim)[0],
+						x_has_NAbg);
+	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
+		PROTECT(buf_sv.nzvals);
+	SEXP ans = REC_subassign_SVT1_with_SVT2(x_SVT,
+						INTEGER(x_dim), ndim, Noffs,
+						y_SVT, INTEGER(y_dim),
+						&buf_sv);
+	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
+		UNPROTECT(1);
+	return ans;
 }
 
 
@@ -905,7 +954,7 @@ static long long init_NindexIterator(NindexIterator *Nindex_iter,
 		const int *dim, int ndim, SEXP Nindex, int margin)
 {
 	long long selection_len;
-	int along, asd;
+	int along, doas;
 	SEXP Nindex_elt;
 
 	if (!isVectorList(Nindex) || LENGTH(Nindex) != ndim)
@@ -922,16 +971,16 @@ static long long init_NindexIterator(NindexIterator *Nindex_iter,
 	for (along = 0; along < ndim; along++) {
 		Nindex_elt = VECTOR_ELT(Nindex, along);
 		if (Nindex_elt == R_NilValue) {
-			asd = dim[along];
+			doas = dim[along];
 		} else if (IS_INTEGER(Nindex_elt)) {
-			asd = LENGTH(Nindex_elt);
+			doas = LENGTH(Nindex_elt);
 		} else {
 			error("subscripts must be integer vectors");
 		}
-		selection_len *= asd;
+		selection_len *= doas;
 		if (along < margin)
 			continue;
-		Nindex_iter->selection_dim[along - margin] = asd;
+		Nindex_iter->selection_dim[along - margin] = doas;
 		Nindex_iter->selection_midx_buf[along - margin] = 0;
 	}
 	Nindex_iter->selection_len = selection_len;

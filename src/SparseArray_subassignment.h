@@ -42,10 +42,12 @@ SEXP C_subassign_SVT_with_SVT(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT,
+	SEXP x_na_background,
 	SEXP Noffs,
-	SEXP v_dim,
-	SEXP v_type,
-	SEXP v_SVT
+	SEXP y_dim,
+	SEXP y_type,
+	SEXP y_SVT,
+	SEXP y_na_background
 );
 
 #endif  /* _SPARSEARRAY_SUBASSIGNMENT_H_ */

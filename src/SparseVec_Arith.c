@@ -389,16 +389,16 @@ static void dArith_ ## Ltype ## SV_ ## Rtype ## SV(int opcode,		    \
 	double (*darith_fun)(int, Ltype, Rtype);			    \
 	darith_fun = &darith_ ## Ltype ## _ ## Rtype;			    \
 	double *out_nzvals = (double *) out_sv->nzvals;			    \
-	int out_nzcount = 0, k1 = 0, k2 = 0, off;			    \
+	int out_nzcount = 0, k1 = 0, k2 = 0, out_off;			    \
 	Ltype x;							    \
 	Rtype y;							    \
 	while (next_ ## Ltype ## SV_ ## Rtype ## SV_vals(sv1, sv2,	    \
-			&k1, &k2, &off, &x, &y))			    \
+			&k1, &k2, &out_off, &x, &y))			    \
 	{								    \
 		double out_val = darith_fun(opcode, x, y);		    \
 		if (IS_BG_DOUBLE(out_val, out_sv->na_background))	    \
 			continue;					    \
-		APPEND_TO_NZVALS_NZOFFS(out_val, off,			    \
+		APPEND_TO_NZVALS_NZOFFS(out_val, out_off,		    \
 				out_nzvals, out_sv->nzoffs, out_nzcount);   \
 	}								    \
 	out_sv->nzcount = out_nzcount;					    \
@@ -421,12 +421,12 @@ static void iArith_intSV_intSV(int opcode,
 	check_outRtype(out_sv->Rtype, INTSXP, "iArith_intSV_intSV");
 	int *out_nzvals = (int *) out_sv->nzvals;
 	int out_bg_val = out_sv->na_background ? intNA : int0;
-	int out_nzcount = 0, k1 = 0, k2 = 0, off, x, y;
-	while (next_intSV_intSV_vals(sv1, sv2, &k1, &k2, &off, &x, &y)) {
+	int out_nzcount = 0, k1 = 0, k2 = 0, out_off, x, y;
+	while (next_intSV_intSV_vals(sv1, sv2, &k1, &k2, &out_off, &x, &y)) {
 		int out_val = iarith(opcode, x, y, ovflow);
 		if (out_val == out_bg_val)
 			continue;
-		APPEND_TO_NZVALS_NZOFFS(out_val, off,
+		APPEND_TO_NZVALS_NZOFFS(out_val, out_off,
 				out_nzvals, out_sv->nzoffs, out_nzcount);
 	}
 	out_sv->nzcount = out_nzcount;

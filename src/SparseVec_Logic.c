@@ -89,12 +89,12 @@ void _Logic_intSV_intSV(int opcode,
 	int *out_nzvals = (int *) out_sv->nzvals;
 	out_sv->nzcount = 0;
 	int out_bg_val = out_sv->na_background ? intNA : int0;
-	int k1 = 0, k2 = 0, off, x, y;
-	while (next_intSV_intSV_vals(sv1, sv2, &k1, &k2, &off, &x, &y)) {
+	int k1 = 0, k2 = 0, out_off, x, y;
+	while (next_intSV_intSV_vals(sv1, sv2, &k1, &k2, &out_off, &x, &y)) {
 		int out_val = Logic_int_int(opcode, x, y);
 		if (out_val == out_bg_val)
 			continue;
-		APPEND_TO_NZVALS_NZOFFS(out_val, off,
+		APPEND_TO_NZVALS_NZOFFS(out_val, out_off,
 				out_nzvals, out_sv->nzoffs, out_sv->nzcount);
 	}
 	return;

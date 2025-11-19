@@ -74,14 +74,14 @@ static void write_Rvector_block_to_ ## type ## SV(const type *vals,	  \
 		const int *offs, int n, SparseVec *out_sv)		  \
 {									  \
 	type *out_nzvals = (type *) out_sv->nzvals;			  \
-	type out_bg_val = out_sv->na_background ? type ## NA : type ## 0; \
+	type bg_val = out_sv->na_background ? type ## NA : type ## 0;	  \
 	out_sv->nzcount = 0;						  \
 	for (int k = 0; k < n; k++) {					  \
 		type out_val = vals[k];					  \
-		if (type ## _equal(out_val, out_bg_val))		  \
+		if (type ## _equal(out_val, bg_val))			  \
 			continue;					  \
-		int off = offs == NULL ? k : offs[k];			  \
-		APPEND_TO_NZVALS_NZOFFS(out_val, off,			  \
+		int out_off = offs == NULL ? k : offs[k];		  \
+		APPEND_TO_NZVALS_NZOFFS(out_val, out_off,		  \
 			out_nzvals, out_sv->nzoffs, out_sv->nzcount);	  \
 	}								  \
 	return;								  \
@@ -100,8 +100,8 @@ static void write_Rvector_block_to_RbyteSV(const Rbyte *vals,
 		Rbyte out_val = vals[k];
 		if (out_val == Rbyte0)
 			continue;
-		int off = offs == NULL ? k : offs[k];
-		APPEND_TO_NZVALS_NZOFFS(out_val, off,
+		int out_off = offs == NULL ? k : offs[k];
+		APPEND_TO_NZVALS_NZOFFS(out_val, out_off,
 			out_nzvals, out_sv->nzoffs, out_sv->nzcount);
 	}
 	return;
@@ -117,9 +117,9 @@ static void write_Rvector_block_to_characterSV(
 		SEXP out_val = STRING_ELT(Rvector, block_offset + k);
 		if (IS_BG_CHARSXP(out_val, out_sv->na_background))
 			continue;
-		int off = offs == NULL ? k : offs[k];
+		int out_off = offs == NULL ? k : offs[k];
 		SET_STRING_ELT(out_nzvals, out_sv->nzcount, out_val);
-		out_sv->nzoffs[out_sv->nzcount] = off;
+		out_sv->nzoffs[out_sv->nzcount] = out_off;
 		out_sv->nzcount++;
 	}
 	return;
@@ -135,9 +135,9 @@ static void write_Rvector_block_to_listSV(
 		SEXP out_val = VECTOR_ELT(Rvector, block_offset + k);
 		if (out_val == R_NilValue)
 			continue;
-		int off = offs == NULL ? k : offs[k];
+		int out_off = offs == NULL ? k : offs[k];
 		SET_VECTOR_ELT(out_nzvals, out_sv->nzcount, out_val);
-		out_sv->nzoffs[out_sv->nzcount] = off;
+		out_sv->nzoffs[out_sv->nzcount] = out_off;
 		out_sv->nzcount++;
 	}
 	return;
@@ -195,20 +195,20 @@ void _write_Rvector_block_to_SV(SEXP Rvector, R_xlen_t block_offset,
  * _write_Rvector_subset_to_SV()
  */
 
-#define DEFINE_write_Rvector_subset_to_typeSV_FUN(type)		  \
+#define DEFINE_write_Rvector_subset_to_typeSV_FUN(type)			  \
 static void write_Rvector_subset_to_ ## type ## SV(			  \
 		const type *vals, const int *selection,			  \
 		const int *offs, int n, SparseVec *out_sv)		  \
 {									  \
 	type *out_nzvals = (type *) out_sv->nzvals;			  \
-	type out_bg_val = out_sv->na_background ? type ## NA : type ## 0; \
+	type bg_val = out_sv->na_background ? type ## NA : type ## 0;	  \
 	out_sv->nzcount = 0;						  \
 	for (int k = 0; k < n; k++) {					  \
 		type out_val = vals[selection[k]];			  \
-		if (type ## _equal(out_val, out_bg_val))		  \
+		if (type ## _equal(out_val, bg_val))			  \
 			continue;					  \
-		int off = offs == NULL ? k : offs[k];			  \
-		APPEND_TO_NZVALS_NZOFFS(out_val, off,			  \
+		int out_off = offs == NULL ? k : offs[k];		  \
+		APPEND_TO_NZVALS_NZOFFS(out_val, out_off,		  \
 			out_nzvals, out_sv->nzoffs, out_sv->nzcount);	  \
 	}								  \
 	return;								  \
@@ -228,8 +228,8 @@ static void write_Rvector_subset_to_RbyteSV(
 		Rbyte out_val = vals[selection[k]];
 		if (out_val == Rbyte0)
 			continue;
-		int off = offs == NULL ? k : offs[k];
-		APPEND_TO_NZVALS_NZOFFS(out_val, off,
+		int out_off = offs == NULL ? k : offs[k];
+		APPEND_TO_NZVALS_NZOFFS(out_val, out_off,
 			out_nzvals, out_sv->nzoffs, out_sv->nzcount);
 	}
 	return;
@@ -245,9 +245,9 @@ static void write_Rvector_subset_to_characterSV(
 		SEXP out_val = STRING_ELT(Rvector, selection[k]);
 		if (IS_BG_CHARSXP(out_val, out_sv->na_background))
 			continue;
-		int off = offs == NULL ? k : offs[k];
+		int out_off = offs == NULL ? k : offs[k];
 		SET_STRING_ELT(out_nzvals, out_sv->nzcount, out_val);
-		out_sv->nzoffs[out_sv->nzcount] = off;
+		out_sv->nzoffs[out_sv->nzcount] = out_off;
 		out_sv->nzcount++;
 	}
 	return;
@@ -263,9 +263,9 @@ static void write_Rvector_subset_to_listSV(
 		SEXP out_val = VECTOR_ELT(Rvector, selection[k]);
 		if (out_val == R_NilValue)
 			continue;
-		int off = offs == NULL ? k : offs[k];
+		int out_off = offs == NULL ? k : offs[k];
 		SET_VECTOR_ELT(out_nzvals, out_sv->nzcount, out_val);
-		out_sv->nzoffs[out_sv->nzcount] = off;
+		out_sv->nzoffs[out_sv->nzcount] = out_off;
 		out_sv->nzcount++;
 	}
 	return;

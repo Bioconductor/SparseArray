@@ -78,11 +78,13 @@ test_that("subassign an SVT_SparseArray object by an Mindex or Lindex", {
                                                          "SVT_SparseArray")
 })
 
-test_that("low-level SparseArray:::.subassign_SVT_by_Nindex()", {
-    subassign_SVT_by_Nindex <- SparseArray:::.subassign_SVT_by_Nindex
-    test_subassign_SVT_by_Nindex <-
+test_that("SparseArray:::.subassign_SVT_with_short_Rvector()", {
+    subassign_SVT_with_short_Rvector <-
+        SparseArray:::.subassign_SVT_with_short_Rvector
+
+    test_subassign_SVT_with_short_Rvector <-
         function(svt0, Nindex, value, expected_type=type(value)) {
-            svt <- subassign_SVT_by_Nindex(svt0, Nindex, value)
+            svt <- subassign_SVT_with_short_Rvector(svt0, Nindex, value)
             expect_identical(type(svt), expected_type)
             a0 <- as.array(`type<-`(svt0, expected_type))
             a <- S4Arrays:::subassign_by_Nindex(a0, Nindex, value)
@@ -99,102 +101,158 @@ test_that("low-level SparseArray:::.subassign_SVT_by_Nindex()", {
     Nindex2 <- list(NULL)
     Nindex3 <- list(c(10L, 3:5, 3L))
 
-    svt1 <- subassign_SVT_by_Nindex(svt0, Nindex1, as.raw(0:4))
+    svt1 <- subassign_SVT_with_short_Rvector(svt0, Nindex1, as.raw(0:4))
     a1 <- S4Arrays:::subassign_by_Nindex(a0, Nindex1, as.raw(0:4))
     check_array_like_object(svt1, "SVT_SparseArray", a1)
 
     for (Nindex in list(Nindex1, Nindex2, Nindex3)) {
         value <- c(TRUE, FALSE, TRUE, TRUE, FALSE)
-        test_subassign_SVT_by_Nindex(svt0, Nindex, value)
-        test_subassign_SVT_by_Nindex(svt1, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt0, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt1, Nindex, value)
         value <- -2:2
-        test_subassign_SVT_by_Nindex(svt0, Nindex, value)
-        test_subassign_SVT_by_Nindex(svt1, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt0, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt1, Nindex, value)
         value <- c(-pi, NaN, 0, -Inf, NA)
-        test_subassign_SVT_by_Nindex(svt0, Nindex, value)
-        test_subassign_SVT_by_Nindex(svt1, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt0, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt1, Nindex, value)
         value <- 2.44 - value * 8i
-        test_subassign_SVT_by_Nindex(svt0, Nindex, value)
-        test_subassign_SVT_by_Nindex(svt1, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt0, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt1, Nindex, value)
         value <- c("hello", "", "world", "", "!")
-        test_subassign_SVT_by_Nindex(svt0, Nindex, value)
-        test_subassign_SVT_by_Nindex(svt1, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt0, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt1, Nindex, value)
         value <- list(NULL, 11:14, NULL, factor(), list("a", complex(0), NA))
-        test_subassign_SVT_by_Nindex(svt0, Nindex, value)
-        test_subassign_SVT_by_Nindex(svt1, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt0, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt1, Nindex, value)
     }
 
     ## --- 2D objects ---
 
-    svt0 <- SVT_SparseArray(dim=c(7, 10), type="raw",
-                            dimnames=list(letters[1:7], LETTERS[1:10]))
+    svt0 <- SVT_SparseArray(dim=c(10, 7), type="raw",
+                            dimnames=list(LETTERS[1:10], letters[1:7]))
     m0 <- as.matrix(svt0)
-    Nindex1 <- list(NULL, c(6:9, 2L))
-    Nindex2 <- list(2:4, NULL)
-    Nindex3 <- list(c(6:3, 5L, 1L), c(10L, 3:5, 3L))
-    Nindex4 <- list(c(3L, 5:2), c(1L, 10L))
-    Nindex5 <- list(7L, NULL)
+    Nindex1 <- list(c(6:9, 2L), NULL)
+    Nindex2 <- list(NULL, 2:4)
+    Nindex3 <- list(c(10L, 3:5, 3L), c(6:3, 5L, 1L))
+    Nindex4 <- list(c(3L, 5:2), c(1L, 7L))
 
-    svt1 <- subassign_SVT_by_Nindex(svt0, Nindex1, as.raw(0:4))
+    svt1 <- subassign_SVT_with_short_Rvector(svt0, Nindex1, as.raw(0:4))
     m1 <- S4Arrays:::subassign_by_Nindex(m0, Nindex1, as.raw(0:4))
     check_array_like_object(svt1, "SVT_SparseMatrix", m1)
 
-    for (Nindex in list(Nindex1, Nindex2, Nindex3, Nindex4, Nindex5)) {
+    for (Nindex in list(Nindex1, Nindex2, Nindex3, Nindex4)) {
         value <- c(TRUE, FALSE, TRUE, TRUE, FALSE)
-        test_subassign_SVT_by_Nindex(svt0, Nindex, value)
-        test_subassign_SVT_by_Nindex(svt1, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt0, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt1, Nindex, value)
         value <- -2:2
-        test_subassign_SVT_by_Nindex(svt0, Nindex, value)
-        test_subassign_SVT_by_Nindex(svt1, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt0, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt1, Nindex, value)
         value <- c(-pi, NaN, 0, -Inf, NA)
-        test_subassign_SVT_by_Nindex(svt0, Nindex, value)
-        test_subassign_SVT_by_Nindex(svt1, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt0, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt1, Nindex, value)
         value <- 2.44 - value * 8i
-        test_subassign_SVT_by_Nindex(svt0, Nindex, value)
-        test_subassign_SVT_by_Nindex(svt1, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt0, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt1, Nindex, value)
         value <- c("hello", "", "world", "", "!")
-        test_subassign_SVT_by_Nindex(svt0, Nindex, value)
-        test_subassign_SVT_by_Nindex(svt1, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt0, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt1, Nindex, value)
         value <- list(NULL, 11:14, NULL, factor(), list("a", complex(0), NA))
-        test_subassign_SVT_by_Nindex(svt0, Nindex, value)
-        test_subassign_SVT_by_Nindex(svt1, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt0, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt1, Nindex, value)
     }
 
     ## --- 3D objects ---
 
-    svt0 <- SVT_SparseArray(dim=c(7, 10, 2), type="raw",
-                            dimnames=list(letters[1:7], NULL, LETTERS[1:2]))
+    svt0 <- SVT_SparseArray(dim=c(10, 2, 7), type="raw",
+                            dimnames=list(LETTERS[1:10], NULL, letters[1:7]))
     a0 <- as.array(svt0)
-    Nindex1 <- list(NULL, c(6:9, 2L), NULL)
-    Nindex2 <- list(2:4, NULL, 2L)
-    Nindex3 <- list(c(6:3, 5L, 1L), c(10L, 3:5, 3L), 2L)
-    Nindex4 <- list(c(3L, 5:2), c(1L, 10L), 2:1)
-    Nindex5 <- list(7L, NULL, NULL)
+    Nindex1 <- list(c(6:9, 2L), NULL, NULL)
+    Nindex2 <- list(NULL, 2L, 2:4)
+    Nindex3 <- list(c(10L, 3:5, 3L), 2L, c(6:3, 5L, 1L))
+    Nindex4 <- list(c(3L, 5:2), 2:1, c(1L, 7L))
+    Nindex5 <- list(NULL, NULL, c(7L, 7L))
 
-    svt1 <- subassign_SVT_by_Nindex(svt0, Nindex1, as.raw(0:4))
+    svt1 <- subassign_SVT_with_short_Rvector(svt0, Nindex1, as.raw(0:4))
     a1 <- S4Arrays:::subassign_by_Nindex(a0, Nindex1, as.raw(0:4))
     check_array_like_object(svt1, "SVT_SparseArray", a1)
 
     for (Nindex in list(Nindex1, Nindex2, Nindex3, Nindex4, Nindex5)) {
         value <- c(TRUE, FALSE, TRUE, TRUE, FALSE)
-        test_subassign_SVT_by_Nindex(svt0, Nindex, value)
-        test_subassign_SVT_by_Nindex(svt1, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt0, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt1, Nindex, value)
         value <- -2:2
-        test_subassign_SVT_by_Nindex(svt0, Nindex, value)
-        test_subassign_SVT_by_Nindex(svt1, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt0, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt1, Nindex, value)
         value <- c(-pi, NaN, 0, -Inf, NA)
-        test_subassign_SVT_by_Nindex(svt0, Nindex, value)
-        test_subassign_SVT_by_Nindex(svt1, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt0, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt1, Nindex, value)
         value <- 2.44 - value * 8i
-        test_subassign_SVT_by_Nindex(svt0, Nindex, value)
-        test_subassign_SVT_by_Nindex(svt1, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt0, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt1, Nindex, value)
         value <- c("hello", "", "world", "", "!")
-        test_subassign_SVT_by_Nindex(svt0, Nindex, value)
-        test_subassign_SVT_by_Nindex(svt1, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt0, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt1, Nindex, value)
         value <- list(NULL, 11:14, NULL, factor(), list("a", complex(0), NA))
-        test_subassign_SVT_by_Nindex(svt0, Nindex, value)
-        test_subassign_SVT_by_Nindex(svt1, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt0, Nindex, value)
+        test_subassign_SVT_with_short_Rvector(svt1, Nindex, value)
     }
+})
+
+test_that("SparseArray:::.subassign_SVT_with_Rarray() and SparseArray:::.subassign_SVT_with_SVT()", {
+    subassign_SVT_with_Rarray <- SparseArray:::.subassign_SVT_with_Rarray
+    subassign_SVT_with_SVT <- SparseArray:::.subassign_SVT_with_SVT
+
+    test_subassign_SVT_with_Rarray_or_SVT <-
+        function(svt0, Nindex, value, expected_type=type(value)) {
+            svt <- subassign_SVT_with_Rarray(svt0, Nindex, value)
+            expect_identical(type(svt), expected_type)
+            a0 <- as.array(`type<-`(svt0, expected_type))
+            a <- S4Arrays:::subassign_by_Nindex(a0, Nindex, value)
+            expected_class <-
+                if (is.matrix(a)) "SVT_SparseMatrix" else "SVT_SparseArray"
+            check_array_like_object(svt, expected_class, a)
+            value <- SVT_SparseArray(value)
+            svt2 <- subassign_SVT_with_SVT(svt0, Nindex, value)
+            expect_identical(svt2, svt)
+        }
+
+    ## --- 1D objects ---
+
+    svt0 <- SVT_SparseArray(dim=10, type="integer")
+    svt1 <- SVT_SparseArray(array(c(0L, 0L, 103:104, 0L, 0L, 107:109, 0L)))
+    Nindex1 <- list(c(2:5, 8L))
+    Nindex2 <- list(c(9L, 3:5, 3L))
+
+    for (Nindex in list(Nindex1, Nindex2)) {
+        value <- array(integer(5))
+        test_subassign_SVT_with_Rarray_or_SVT(svt0, Nindex, value)
+        test_subassign_SVT_with_Rarray_or_SVT(svt1, Nindex, value)
+        value <- array(-2:2)
+        test_subassign_SVT_with_Rarray_or_SVT(svt0, Nindex, value)
+        test_subassign_SVT_with_Rarray_or_SVT(svt1, Nindex, value)
+        value <- array(c(-pi, NaN, 0, -Inf, NA))
+        test_subassign_SVT_with_Rarray_or_SVT(svt0, Nindex, value)
+        test_subassign_SVT_with_Rarray_or_SVT(svt1, Nindex, value)
+        value <- array(2.44 - value * 8i)
+        test_subassign_SVT_with_Rarray_or_SVT(svt0, Nindex, value)
+        test_subassign_SVT_with_Rarray_or_SVT(svt1, Nindex, value)
+        value <- array(c("hello", "", "world", "", "!"))
+        test_subassign_SVT_with_Rarray_or_SVT(svt0, Nindex, value)
+        test_subassign_SVT_with_Rarray_or_SVT(svt1, Nindex, value)
+        value <- array(list(NULL, 11:14, NULL, factor(),
+                            list("a", complex(0), NA)))
+        test_subassign_SVT_with_Rarray_or_SVT(svt0, Nindex, value)
+        test_subassign_SVT_with_Rarray_or_SVT(svt1, Nindex, value)
+    }
+
+    value <- array(c(0L, -1:1, 0L, 2L, 0L, 0L, 3:4))
+    test_subassign_SVT_with_Rarray_or_SVT(svt0, list(NULL), value)
+    test_subassign_SVT_with_Rarray_or_SVT(svt1, list(NULL), value)
+
+    ## --- 2D objects ---
+
+    ## --- 3D objects ---
+
 })
 
 test_that("subassign an SVT_SparseArray object by an Nindex", {

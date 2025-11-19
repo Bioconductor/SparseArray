@@ -77,7 +77,7 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_subassign_SVT_by_Mindex, 6),
 	CALLMETHOD_DEF(C_subassign_SVT_with_short_Rvector, 5),
 	CALLMETHOD_DEF(C_subassign_SVT_with_Rarray, 6),
-	CALLMETHOD_DEF(C_subassign_SVT_with_SVT, 7),
+	CALLMETHOD_DEF(C_subassign_SVT_with_SVT, 9),
 
 /* SparseArray_abind.c */
 	CALLMETHOD_DEF(C_abind_SVT_SparseArray_objects, 4),
@@ -143,10 +143,13 @@ void R_init_SparseArray(DllInfo *info)
 	R_registerRoutines(info, NULL, callMethods, NULL, NULL);
 	R_useDynamicSymbols(info, 0);
 
-	/* 'character1' will remain PROTECT'ed for the entire R session. */
-	character1 = PROTECT(mkChar("1"));  /* CHARSXP */
 	intNA = NA_INTEGER;
 	doubleNA = RcomplexNA.r = RcomplexNA.i = NA_REAL;
+	/* 'character0' and 'character1' will remain PROTECT'ed for the
+	   entire R session. */
+	character0 = PROTECT(mkChar(""));   /* CHARSXP */
+	character1 = PROTECT(mkChar("1"));  /* CHARSXP */
+	characterNA = NA_STRING;
 	return;
 }
 
