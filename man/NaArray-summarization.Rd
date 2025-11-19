@@ -51,8 +51,8 @@
 
     \item The man pages of the various default methods defined in
           the \pkg{base} package e.g. \code{base::\link[base]{range}},
-	  \code{base::\link[base]{mean}}, \code{base::\link[base]{anyNA}},
-	  etc...
+          \code{base::\link[base]{mean}}, \code{base::\link[base]{anyNA}},
+          etc...
   }
 }
 

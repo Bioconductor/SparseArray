@@ -10,8 +10,8 @@
 
     ## svt1 | y
     if (isTRUE(y)) {
-	expect_error2(svt1 | y, "not supported")
-	expect_error2(y | svt1, "not supported")
+        expect_error2(svt1 | y, "not supported")
+        expect_error2(y | svt1, "not supported")
     } else {
         a <- a1 | y
         svt <- svt1 | y

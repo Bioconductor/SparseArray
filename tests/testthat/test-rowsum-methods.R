@@ -28,7 +28,7 @@
         expect_identical(typeof(rs1), typeof(expected))
         if (typeof(expected) == "double") {
             expect_equal(rs1, expected)
-	} else {
+        } else {
             expect_identical(rs1, expected)
         }
         expect_true(is.matrix(rs2))
