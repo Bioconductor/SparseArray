@@ -17,8 +17,8 @@
 
     ## naa1 <= y
     if (type(naa1) == "complex" || type(y) == "complex") {
-	invalid_comparison_with_complex_values(naa1 <= y)
-	invalid_comparison_with_complex_values(y >= naa1)
+        invalid_comparison_with_complex_values(naa1 <= y)
+        invalid_comparison_with_complex_values(y >= naa1)
     } else {
         a <- a1 <= y
         naa <- naa1 <= y
@@ -29,8 +29,8 @@
 
     ## naa1 >= y
     if (type(naa1) == "complex" || type(y) == "complex") {
-	invalid_comparison_with_complex_values(naa1 >= y)
-	invalid_comparison_with_complex_values(y <= naa1)
+        invalid_comparison_with_complex_values(naa1 >= y)
+        invalid_comparison_with_complex_values(y <= naa1)
     } else {
         a <- a1 >= y
         naa <- naa1 >= y

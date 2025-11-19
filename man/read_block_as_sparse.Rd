@@ -69,7 +69,7 @@ read_block_as_sparse(x, viewport)
 
     \item \code{\link[S4Arrays]{is_sparse}} in the \pkg{S4Arrays} package
           to check whether an object uses a sparse representation of the
-	  data or not.
+          data or not.
 
     \item \link{SparseArray} objects.
 

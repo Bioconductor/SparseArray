@@ -37,7 +37,7 @@ check_vector_operand_length <- function(y_len, x_dim, recycle.along,
     } else if (recycle.along == length(x_dim)) {
         which_dim <- "last (a.k.a. outermost) dimension"
     } else {
-	th <- switch(as.character(recycle.along %% 10L),
+        th <- switch(as.character(recycle.along %% 10L),
                      `2`="nd", `3`="rd", "th")
         which_dim <- paste0(recycle.along, th, " dimension")
     }
