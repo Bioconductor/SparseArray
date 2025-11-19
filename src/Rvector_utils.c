@@ -11,7 +11,7 @@
 int intNA;
 double doubleNA;
 Rcomplex RcomplexNA;
-SEXP character0, character1, characterNA;
+SEXP character0, character1, characterNA, list0;
 
 /* The 7 types of R vectors (6 types of atomic vectors + the "list" type). */
 static const SEXPTYPE Rvector_types[] = {

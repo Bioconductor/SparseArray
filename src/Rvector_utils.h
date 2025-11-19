@@ -25,6 +25,9 @@ static const Rbyte Rbyte0 = 0, Rbyte1 = 1;
 /* Initialized in R_init_SparseArray() */
 extern SEXP character0, character1, characterNA;
 
+extern SEXP list0;           /* initialized in R_init_SparseArray() */
+
+
 #define IS_STRSXP_OR_VECSXP(Rtype) ((Rtype) == STRSXP || (Rtype) == VECSXP)
 
 #define IS_EMPTY_CHARSXP(x) ((x) != NA_STRING && LENGTH(x) == 0)

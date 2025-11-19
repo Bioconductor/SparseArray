@@ -149,7 +149,8 @@ void R_init_SparseArray(DllInfo *info)
 	   entire R session. */
 	character0 = PROTECT(mkChar(""));   /* CHARSXP */
 	character1 = PROTECT(mkChar("1"));  /* CHARSXP */
-	characterNA = NA_STRING;
+	characterNA = NA_STRING;            /* CHARSXP */
+	list0 = R_NilValue;
 	return;
 }
 

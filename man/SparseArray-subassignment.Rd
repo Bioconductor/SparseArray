@@ -26,10 +26,13 @@ a[c(1:2, 8, 10, 15:17, 20, 24, 40, 56:60)] <- (1:15)*10L
 svt <- SparseArray(a)
 svt
 
-svt[5:3, c(4,2,4), 2:3] <- -99L
+svt[ , 1:2, 3] <- - svt[ , 1:2 ,1]
+
+svt[5:3, c(4,2,4), 1:2] <- 999L
 
 ## Sanity checks:
-a[5:3, c(4,2,4), 2:3] <- -99L
+a[ , 1:2, 3] <- -a[ , 1:2 ,1]
+a[5:3, c(4,2,4), 1:2] <- 999L
 stopifnot(identical(as.array(svt), a), identical(svt, SparseArray(a)))
 }
 \keyword{array}

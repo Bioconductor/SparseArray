@@ -1,7 +1,3 @@
-- Implement C_subassign_SVT_with_SVT(). This will allow subassignments like:
-      svt[ , , 1] <- svt[ , , 3, drop=FALSE]
-      svt[ , , 1] <- svt[ , , 3]
-
 - Make operations from the Math group work on SVT_SparseArray objects of
   type "integer".
 
