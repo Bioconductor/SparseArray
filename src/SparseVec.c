@@ -12,7 +12,8 @@
 
 /* IMPORTANT: The caller must immediately call 'PROTECT(sv.nzvals)' on
    the returned SparseVec struct when 'Rtype' is STRSXP or VECSXP. */
-SparseVec _alloc_buf_SparseVec(SEXPTYPE Rtype, int len, int na_background)
+SparseVec _alloc_buf_SparseVec(SEXPTYPE Rtype, int len, int na_background,
+			       int nzoffs_only)
 {
 	if (na_background && (Rtype == RAWSXP || Rtype == VECSXP))
 		error("SparseArray internal error in "
@@ -22,12 +23,15 @@ SparseVec _alloc_buf_SparseVec(SEXPTYPE Rtype, int len, int na_background)
 	sv.Rtype = Rtype;
 	if (IS_STRSXP_OR_VECSXP(Rtype)) {
 		sv.nzvals = PROTECT(allocVector(Rtype, (R_xlen_t) len));
+	} else if (nzoffs_only) {
+		sv.nzvals = NULL;
 	} else {
 		size_t Rtype_size = _get_Rtype_size(Rtype);
 		if (Rtype_size == 0)
 			error("SparseArray internal error in "
-			      "_alloc_buf_SparseVec():\n    type \"%s\" is "
-			      "not supported", type2char(Rtype));
+			      "_alloc_buf_SparseVec():\n"
+			      "    type \"%s\" is not supported",
+			      type2char(Rtype));
 		sv.nzvals = R_alloc(len, Rtype_size);
 	}
 	sv.nzoffs = (int *) R_alloc(len, sizeof(int));

@@ -226,6 +226,8 @@ new_SVT_SparseArray <- function(dim, dimnames=NULL,
 as.array.SVT_SparseArray <- function(x, ...) .from_SVT_SparseArray_to_array(x)
 setMethod("as.array", "SVT_SparseArray", as.array.SVT_SparseArray)
 
+### See build_SVT_SparseArray_from_array2() in R/SparseArray-subassignment.R
+### for an alternate implementation of this.
 .build_SVT_SparseArray_from_array <- function(x, dimnames=NULL, type=NA)
 {
     stopifnot(is.array(x))

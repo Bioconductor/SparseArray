@@ -280,7 +280,7 @@ static SEXP subassign_SVT_by_OPBufTree(SEXP SVT, const int *dim, int ndim,
 {
 	int dim0 = dim[0];
 
-	SparseVec buf_sv = _alloc_buf_SparseVec(Rtype, dim0, na_background);
+	SparseVec buf_sv = _alloc_buf_SparseVec(Rtype, dim0, na_background, 0);
 	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
 		PROTECT(buf_sv.nzvals);
 
@@ -613,9 +613,17 @@ SEXP C_subassign_SVT_with_short_Rvector(
 		return x_SVT;  /* no-op */
 
 	const int *fully = is_full_replacement(Noffs, dim, ndim);
-	SparseVec buf_sv = _alloc_buf_SparseVec(x_Rtype, dim[0], 0);
+
+	/* _subassign_leaf_with_Rvector_block(), the workhorse behind
+	   REC_subassign_SVT_with_short_Rvector(), does not always need
+	   'buf_sv.nzvals' and is able to allocate it the first time it
+	   needs it (if it ever needs it). So we set the 'nzoffs_only'
+	   argument to 1 in our _alloc_buf_SparseVec() call below. */
+	SparseVec buf_sv = _alloc_buf_SparseVec(x_Rtype, dim[0], 0, 1);
 	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
-		PROTECT(buf_sv.nzvals);
+		buf_sv.nzvals = PROTECT(
+			allocVector(buf_sv.Rtype, (R_xlen_t) buf_sv.len)
+		);
 	SEXP ans = REC_subassign_SVT_with_short_Rvector(x_SVT, dim, ndim,
 						Noffs, Rvector,
 						fully, &buf_sv);
@@ -702,9 +710,16 @@ SEXP C_subassign_SVT_with_Rarray(
 	if (check_Noffs(Noffs, dim, ndim, arr_dim))
 		return x_SVT;  /* no-op */
 
-	SparseVec buf_sv = _alloc_buf_SparseVec(x_Rtype, dim[0], x_has_NAbg);
+	/* _subassign_leaf_with_Rvector_block(), the workhorse behind
+	   REC_subassign_SVT_with_Rsubarr(), does not always need
+	   'buf_sv.nzvals' and is able to allocate it the first time it
+	   needs it (if it ever needs it). So we set the 'nzoffs_only'
+	   argument to 1 in our _alloc_buf_SparseVec() call below. */
+	SparseVec buf_sv = _alloc_buf_SparseVec(x_Rtype, dim[0], x_has_NAbg, 1);
 	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
-		PROTECT(buf_sv.nzvals);
+		buf_sv.nzvals = PROTECT(
+			allocVector(buf_sv.Rtype, (R_xlen_t) buf_sv.len)
+		);
 	R_xlen_t *subarr_lens = alloc_and_compute_cumprod(arr_dim, ndim);
 	SEXP ans = REC_subassign_SVT_with_Rsubarr(x_SVT, dim, ndim, Noffs,
 						  Rarray, 0, subarr_lens,
@@ -790,7 +805,7 @@ SEXP C_subassign_SVT_with_SVT(
 		return x_SVT;  /* no-op */
 
 	SparseVec buf_sv = _alloc_buf_SparseVec(x_Rtype, INTEGER(x_dim)[0],
-						x_has_NAbg);
+						x_has_NAbg, 0);
 	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
 		PROTECT(buf_sv.nzvals);
 	SEXP ans = REC_subassign_SVT1_with_SVT2(x_SVT,

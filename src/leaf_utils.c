@@ -425,6 +425,20 @@ static const int *get_offs0(SEXP offs, int n, int dim0)
 	return INTEGER(offs);
 }
 
+/* TODO: Maybe move this to SparseVec.c next to _alloc_buf_SparseVec(). */
+static int alloc_SV_nzvals_if_needed(SparseVec *sv)
+{
+	if (sv->nzvals != NULL)
+		return 0;
+	size_t Rtype_size = _get_Rtype_size(sv->Rtype);
+	if (Rtype_size == 0)
+		error("SparseArray internal error in "
+		      "alloc_SV_nzvals_if_needed():\n"
+		      "    type \"%s\" is not supported", type2char(sv->Rtype));
+	sv->nzvals = R_alloc(sv->len, Rtype_size);
+	return 1;
+}
+
 /* Can be used on a NULL or lacunar leaf.
    'offs' must be NULL or an array of 'n' offsets (non-negative integers)
    that are sorted in strictly ascending order. The last offset in the
@@ -438,9 +452,41 @@ SEXP _subassign_leaf_with_Rvector_block(SEXP leaf, SEXP offs, int n,
 {
 	const int *offs0 = get_offs0(offs, n, buf_sv->len);
 	if (leaf == R_NilValue) {
+		/* Taking the shortcut is not really needed because using
+		   _write_Rvector_block_to_SV() can handle this case. It's
+		   just that _make_leaf_from_Rvector_block() or
+		   _make_naleaf_from_Rvector_block() don't
+		   need 'buf_sv->nzvals'. This gives us the opportunity to
+		   use a 'buf_sv' where 'buf_sv->nzvals' is not allocated
+		   yet (i.e. is set to NULL) and to delay allocation until
+		   it's actually needed.
+		   Note that there's not measurable speed difference
+		   between taking the shortcut or not, despite the shortcut
+		   copying the nzvals data only once (directly from 'Rvector'
+		   to the returned leaf) instead of twice (first by
+		   _write_Rvector_block_to_SV() from 'Rvector'
+		   to 'buf_sv->nzvals', then by SV2leaf()
+		   from 'buf_sv->nzvals' to the returned leaf). */
+		int use_shortcut = offs0 == NULL &&
+				   (block_offset != 0 || LENGTH(Rvector) >= n);
+		if (use_shortcut) {
+			SEXP ans;
+			if (buf_sv->na_background) {
+				ans = _make_naleaf_from_Rvector_block(
+						Rvector, block_offset, n,
+						buf_sv->nzoffs, 1);
+			} else {
+				ans = _make_leaf_from_Rvector_block(
+						Rvector, block_offset, n,
+						buf_sv->nzoffs, 1);
+			}
+			return ans;
+		}
+		alloc_SV_nzvals_if_needed(buf_sv);
 		_write_Rvector_block_to_SV(Rvector, block_offset,
 					   offs0, n, buf_sv);
 	} else {
+		alloc_SV_nzvals_if_needed(buf_sv);
 		const SparseVec sv = leaf2SV(leaf, buf_sv->Rtype,
 					     buf_sv->len,
 					     buf_sv->na_background);

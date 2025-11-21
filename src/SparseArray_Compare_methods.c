@@ -199,7 +199,7 @@ SEXP C_Compare_SVT1_v2(
 	int opcode = _get_Compare_opcode(op);
 
 	int dim0 = INTEGER(x_dim)[0];
-	SparseVec buf_sv = _alloc_buf_SparseVec(LGLSXP, dim0, x_has_NAbg);
+	SparseVec buf_sv = _alloc_buf_SparseVec(LGLSXP, dim0, x_has_NAbg, 0);
 
 	return REC_Compare_SVT1_scalar(opcode,
 				x_SVT, x_Rtype, x_has_NAbg, v2,
@@ -234,7 +234,7 @@ SEXP C_Compare_SVT1_SVT2(
 
 	int dim0 = INTEGER(x_dim)[0];
 	SparseVec buf_sv = _alloc_buf_SparseVec(LGLSXP, dim0,
-						x_has_NAbg || y_has_NAbg);
+						x_has_NAbg || y_has_NAbg, 0);
 	return REC_Compare_SVT1_SVT2(opcode,
 				x_SVT, x_Rtype, x_has_NAbg,
 				y_SVT, y_Rtype, y_has_NAbg,

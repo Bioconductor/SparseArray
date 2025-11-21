@@ -84,7 +84,7 @@ SEXP C_Math_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP x_na_background,
 	double digits0 = REAL(digits)[0];
 
 	int dim0 = INTEGER(x_dim)[0];
-	SparseVec buf_sv = _alloc_buf_SparseVec(REALSXP, dim0, x_has_NAbg);
+	SparseVec buf_sv = _alloc_buf_SparseVec(REALSXP, dim0, x_has_NAbg, 0);
 
 	int newNaNs = 0;
 	SEXP ans = REC_Math_SVT(fun, x_SVT, digits0,

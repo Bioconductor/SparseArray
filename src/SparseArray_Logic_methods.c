@@ -229,7 +229,7 @@ SEXP C_Logic_NaSVT1_na(SEXP x_dim, SEXP x_type, SEXP x_NaSVT, SEXP op)
 	int opcode = _get_Logic_opcode(op);
 
 	int dim0 = INTEGER(x_dim)[0];
-	SparseVec buf_sv = _alloc_buf_SparseVec(LGLSXP, dim0, 1);
+	SparseVec buf_sv = _alloc_buf_SparseVec(LGLSXP, dim0, 1, 0);
 	return REC_Logic_SVT1_na(opcode, x_NaSVT, x_Rtype, 1,
 				 INTEGER(x_dim), LENGTH(x_dim),
 				 &buf_sv);
@@ -261,7 +261,7 @@ SEXP C_Logic_SVT1_SVT2(
 		out_na_background = opcode == OR_OPCODE;
 	}
 	SparseVec buf_sv = _alloc_buf_SparseVec(LGLSXP, dim0,
-						out_na_background);
+						out_na_background, 0);
 	return REC_Logic_SVT1_SVT2(opcode,
 				x_SVT, x_Rtype, x_has_NAbg,
 				y_SVT, y_Rtype, y_has_NAbg,
