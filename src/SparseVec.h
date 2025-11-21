@@ -363,7 +363,8 @@ DEFINE_next_LtypeSV_RtypeSV_vals_FUN(Rcomplex, Rcomplex)
 SparseVec _alloc_buf_SparseVec(
 	SEXPTYPE Rtype,
 	int len,
-	int na_background
+	int na_background,
+	int nzoffs_only
 );
 
 void _write_Rvector_block_to_SV(

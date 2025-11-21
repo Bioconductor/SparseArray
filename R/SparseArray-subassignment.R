@@ -163,6 +163,13 @@ setMethod("subassign_Array_by_Mindex", "SVT_SparseArray",
     right_array
 }
 
+.subassign_SVT_by_Noffs_with_Rarray <- function(x, Noffs, Rarray)
+{
+    new_SVT <- SparseArray.Call("C_subassign_SVT_with_Rarray",
+                                x@dim, x@type, x@SVT, FALSE, Noffs, Rarray)
+    BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
+}
+
 .subassign_SVT_with_Rarray <- function(x, Nindex, Rarray)
 {
     stopifnot(is(x, "SVT_SparseArray"), is.list(Nindex))
@@ -186,9 +193,7 @@ setMethod("subassign_Array_by_Mindex", "SVT_SparseArray",
     Rarray <- S4Arrays:::subset_by_Nindex(Rarray, Norder)
     storage.mode(Rarray) <- new_type
 
-    new_SVT <- SparseArray.Call("C_subassign_SVT_with_Rarray",
-                                x@dim, x@type, x@SVT, FALSE, Noffs, Rarray)
-    BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
+    .subassign_SVT_by_Noffs_with_Rarray(x, Noffs, Rarray)
 }
 
 .subassign_SVT_with_SVT <- function(x, Nindex, y)
@@ -274,4 +279,41 @@ setMethod("subassign_Array_by_Mindex", "SVT_SparseArray",
 setMethod("subassign_Array_by_Nindex", "SVT_SparseArray",
     .subassign_SVT_by_Nindex
 )
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### An alternate implementation of coercion from ordinary array to
+### SVT_SparseArray that uses subassignment
+###
+
+### Not used at the moment.
+### The workhorse behind coercion from array to SVT_SparseArray is
+### .build_SVT_SparseArray_from_array() defined in R/SVT_SparseArray-class.R.
+### build_SVT_SparseArray_from_array2() is an alternative to that.
+### It starts by creating an all-zero SVT_SparseArray object 'svt0' of
+### the same dimension as 'x' (the array to coerce), then it does:
+###
+###     svt0[ , , ] <- x  # 3D case
+###
+### Note that an important feature of .build_SVT_SparseArray_from_array()
+### is its ability to delay the switch to the requested 'type' as much as
+### possible i.e. until the leaves of the SVT_SparseArray object to return
+### get created at the C level. build_SVT_SparseArray_from_array2() doesn't
+### do that: it switches the type of the returned SVT_SparseArray, which is
+### not as memory efficient.
+build_SVT_SparseArray_from_array2 <- function(x, dimnames=NULL, type=NA)
+{
+    stopifnot(is.array(x))
+    if (is.null(dimnames)) {
+        ans_dimnames <- dimnames(x)
+    } else {
+        ans_dimnames <- S4Arrays:::normarg_dimnames(dimnames, dim(x))
+    }
+    svt0 <- SVT_SparseArray(dim=dim(x), dimnames=dimnames(x), type=type(x))
+    Noffs <- vector(mode="list", length=length(dim(svt0)))
+    ans <- .subassign_SVT_by_Noffs_with_Rarray(svt0, Noffs, x)
+    if (!identical(type, NA))
+        type(ans) <- type
+    ans
+}
 
