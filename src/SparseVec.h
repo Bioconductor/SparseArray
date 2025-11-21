@@ -369,7 +369,7 @@ SparseVec _alloc_buf_SparseVec(
 void _write_Rvector_block_to_SV(
 	SEXP Rvector,
 	R_xlen_t block_offset,
-	const int *offs,
+	const int *out_offs,
 	int n,
 	SparseVec *out_sv
 );
@@ -377,7 +377,7 @@ void _write_Rvector_block_to_SV(
 void _write_Rvector_subset_to_SV(
 	SEXP Rvector,
 	const int *selection,
-	const int *offs,
+	const int *out_offs,
 	int n,
 	SparseVec *out_sv
 );

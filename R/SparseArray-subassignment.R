@@ -81,6 +81,15 @@ setMethod("subassign_Array_by_Mindex", "SVT_SparseArray",
 ### either a NULL or an integer vector of valid indices along the
 ### corresponding dimension in 'x'.
 
+.Nindex2Noffs <- function(Nindex)
+{
+    stopifnot(is.list(Nindex))
+    lapply(Nindex,
+        function(subscript)
+            if (is.null(subscript)) NULL else subscript - 1L
+    )
+}
+
 ### 'Rvector' is considered "short" if it can be cleanly recycled along the
 ### first (a.k.a. leftmost or innermost) dimension of the array selection.
 ### This is a requirement of .subassign_SVT_with_short_Rvector().
@@ -90,10 +99,9 @@ setMethod("subassign_Array_by_Mindex", "SVT_SparseArray",
 ### array selection (in other words it cannot contain zeros).
 ### Returns TRUE or FALSE indicating whether 'Rvector' is considered "short"
 ### or not.
-.is_short <- function(Rvector, selection_dim)
+.is_short <- function(Rvector_len, selection_dim)
 {
-    stopifnot(is.vector(Rvector), is.integer(selection_dim))
-    Rvector_len <- length(Rvector)
+    stopifnot(isSingleInteger(Rvector_len), is.integer(selection_dim))
     if (Rvector_len == 0L)
         stop(wmsg("right value has length zero"))
     selection_dim[[1L]] %% Rvector_len == 0L
@@ -124,11 +132,20 @@ setMethod("subassign_Array_by_Mindex", "SVT_SparseArray",
     if (any(selection_dim == 0L))
         return(x)
 
-    stopifnot(.is_short(Rvector, selection_dim))
+    Rvector_len <- length(Rvector)
+    stopifnot(.is_short(Rvector_len, selection_dim))
 
-    storage.mode(Rvector) <- type(x)
+    ## Prepare 'Noffs' and 'Rvector'.
+    Norder <- S4Arrays:::get_Nindex_order(Nindex)
+    Nindex <- S4Arrays:::subset_Nindex_by_Nindex(Nindex, Norder)
+    Noffs <- .Nindex2Noffs(Nindex)
+    Norder1 <- Norder[[1L]]
+    if (!is.null(Norder1))
+        Rvector <- Rvector[((Norder1 - 1L) %% Rvector_len) + 1L]
+    storage.mode(Rvector) <- new_type
+
     new_SVT <- SparseArray.Call("C_subassign_SVT_with_short_Rvector",
-                                x@dim, x@type, x@SVT, Nindex, Rvector)
+                                x@dim, x@type, x@SVT, Noffs, Rvector)
     BiocGenerics:::replaceSlots(x, SVT=new_SVT, check=FALSE)
 }
 
@@ -144,15 +161,6 @@ setMethod("subassign_Array_by_Mindex", "SVT_SparseArray",
                   "match dimensions of array selection"))
     dim(right_array) <- selection_dim
     right_array
-}
-
-.Nindex2Noffs <- function(Nindex)
-{
-    stopifnot(is.list(Nindex))
-    lapply(Nindex,
-        function(subscript)
-            if (is.null(subscript)) NULL else subscript - 1L
-    )
 }
 
 .subassign_SVT_with_Rarray <- function(x, Nindex, Rarray)
@@ -248,7 +256,7 @@ setMethod("subassign_Array_by_Mindex", "SVT_SparseArray",
         if (any(selection_dim == 0L))
             return(x)
 
-        if (.is_short(value, selection_dim))
+        if (.is_short(length(value), selection_dim))
             return(.subassign_SVT_with_short_Rvector(x, Nindex, value))
 
         ## Turn 'value' into an ordinary array of same dimensions as

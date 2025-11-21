@@ -422,9 +422,62 @@ SEXP C_subassign_SVT_by_Mindex(
 
 
 /****************************************************************************
- * new_SVT()
- * make_SVT_node()
+ * Some helpers shared between C_subassign_SVT_with_short_Rvector(),
+ * C_subassign_SVT_with_Rarray(), and C_subassign_SVT_with_SVT()
  */
+
+static int check_offs(SEXP offs, int d)
+{
+	int n = LENGTH(offs);
+	const int *offs_p = INTEGER(offs);
+	int prev_off = -1;
+	for (int i = 0; i < n; i++) {
+		int off = offs_p[i];
+		if (off == NA_INTEGER)
+			error("subscripts contain NAs");
+		if (off < 0 || off >= d)
+			error("subscripts contain out-of-bound indices");
+		if (off <= prev_off)
+			error("SparseArray internal error in check_offs():\n"
+			      "    subscripts are not strictly sorted");
+		prev_off = off;
+	}
+	return n;
+}
+
+static int check_Noffs(SEXP Noffs, const int *dim, int ndim, const int *arr_dim)
+{
+	if (LENGTH(Noffs) != ndim)
+		error("SparseArray internal error in check_Noffs():\n"
+		      "    'Noffs' must have one list element per "
+		      "dimension in the array to subassign");
+	for (int along = 0; along < ndim; along++) {
+		if (dim[along] == 0)
+			return 1;  /* subassignment is a no-op */
+		SEXP offs = VECTOR_ELT(Noffs, along);
+		int doas;  /* dim of array selection */
+		if (offs == R_NilValue) {
+			doas = dim[along];
+		} else if (IS_INTEGER(offs)) {
+			doas = check_offs(offs, dim[along]);
+		} else {
+			error("subscripts must be integer vectors");
+		}
+		if (doas == 0)
+			return 1;  /* subassignment is a no-op */
+		if (arr_dim != NULL && arr_dim[along] != doas)
+			error("SparseArray internal error in check_Noffs():\n"
+			      "    dimensions of right array don't "
+			      "match dimensions of array selection");
+	}
+	return 0;
+}
+
+/* Offsets were already checked upfront by check_Noffs() above. */
+static int get_off(SEXP offs, int i)
+{
+	return offs == R_NilValue ? i : INTEGER(offs)[i];
+}
 
 static SEXP new_SVT(int d, SEXP SVT0)
 {
@@ -447,18 +500,27 @@ static SEXP new_SVT(int d, SEXP SVT0)
 	return SVT;
 }
 
-/* Used by C_subassign_SVT_with_short_Rvector() only.
-   'SVT' must be R_NilValue or a list of length 'd' ('d' cannot be 0).
-   Always returns a list of length 'd'. Can be a newly allocated list
-   or 'SVT' itself.
-   TODO: C_subassign_SVT_with_short_Rvector() should be revisited and
-   use the same allocation stretegy as C_subassign_SVT_with_Rarray()
-   and C_subassign_SVT_with_SVT(). Then make_SVT_node() can go away. */
-static inline SEXP make_SVT_node(SEXP SVT, int d, SEXP SVT0)
+static SEXP post_process_SVT(SEXP SVT, SEXP SVT0)
 {
-	if (SVT != R_NilValue && SVT != SVT0)
+	int SVT_len = LENGTH(SVT), is_empty = 1;
+	for (int i = 0; i < SVT_len; i++) {
+		if (VECTOR_ELT(SVT, i) != R_NilValue) {
+			is_empty = 0;
+			break;
+		}
+	}
+	if (is_empty)
+		return R_NilValue;
+	if (SVT0 == R_NilValue)
 		return SVT;
-	return new_SVT(d, SVT);
+	int is_noop = 1;
+	for (int i = 0; i < SVT_len; i++) {
+		if (VECTOR_ELT(SVT, i) != VECTOR_ELT(SVT0, i)) {
+			is_noop = 0;
+			break;
+		}
+	}
+	return is_noop ? SVT0 : SVT;
 }
 
 
@@ -466,199 +528,80 @@ static inline SEXP make_SVT_node(SEXP SVT, int d, SEXP SVT0)
  * C_subassign_SVT_with_short_Rvector()
  */
 
-typedef struct left_bufs_t {
-	CopyRVectorEltFUN copy_Rvector_elt_FUN;
-	SEXP Rvector;
-	int *offs;
-	SEXP precomputed_leaf;
-	int full_replacement;
-} LeftBufs;
-
-/* 'short_Rvector' must have a length >= 1.
-   'dim0' must be a multiple of 'short_Rvector' length. */
-static SEXP precompute_leaf_from_short_Rvector(
-		int dim0, SEXP index0, SEXP short_Rvector,
-		LeftBufs *left_bufs)
+static int *is_full_replacement(SEXP Noffs, const int *dim, int ndim)
 {
-	left_bufs->full_replacement = 1;
-	SEXP left_Rvector = left_bufs->Rvector;
-	int short_len = LENGTH(short_Rvector);
-	if (index0 == R_NilValue) {
-		if (short_len == dim0) {
-			left_Rvector = short_Rvector;
-		} else {
-			/* Copy a recycled version of 'short_Rvector'
-			   to 'left_bufs->Rvector'. 'left_bufs->Rvector' is
-			   of length 'dim0'. */
-			for (int i1 = 0; i1 < dim0; i1++) {
-				left_bufs->copy_Rvector_elt_FUN(short_Rvector,
-						i1 % short_len,
-						left_Rvector, i1);
-			}
-		}
-	} else {
-		for (int i1 = 0; i1 < dim0; i1++)
-			left_bufs->offs[i1] = 0;
-		/* Recycle and subassign 'short_Rvector' into 'left_Rvector'. */
-		int d2 = LENGTH(index0);
-		for (int i2 = 0; i2 < d2; i2++) {
-			int coord = INTEGER(index0)[i2];
-			if (INVALID_COORD(coord, dim0))
-				error("subscript contains "
-				      "out-of-bound indices or NAs");
-			int i1 = coord - 1;
-			left_bufs->copy_Rvector_elt_FUN(short_Rvector,
-						i2 % short_len,
-						left_Rvector, i1);
-			left_bufs->offs[i1] = 1;
-		}
-		for (int i1 = 0; i1 < dim0; i1++) {
-			if (left_bufs->offs[i1] == 0) {
-				left_bufs->full_replacement = 0;
-				break;
-			}
+	int *fully = (int *) R_alloc(ndim, sizeof(int));
+	int ok = 1;
+	for (int along = 0; along < ndim; along++) {
+		SEXP offs = VECTOR_ELT(Noffs, along);
+		ok = ok && (offs == R_NilValue || LENGTH(offs) == dim[along]);
+		fully[along] = ok;
+	}
+	return fully;
+}
+
+/* Recursive. */
+static SEXP REC_subassign_SVT_with_short_Rvector(SEXP SVT,
+		const int *dim, int ndim, SEXP Noffs, SEXP short_Rvector,
+		const int *fully, SparseVec *buf_sv)
+{
+	SEXP offs = VECTOR_ELT(Noffs, ndim - 1);
+	if (ndim == 1)
+		return _subassign_leaf_with_Rvector_block(SVT, offs,
+				offs == R_NilValue ? dim[0] : LENGTH(offs),
+				short_Rvector, 0, buf_sv);
+	SEXP ans_shared_elt = R_NilValue;
+	int use_shared = fully[ndim - 2];
+	if (use_shared) {
+		SEXP subSVT = SVT == R_NilValue ? R_NilValue :
+					VECTOR_ELT(SVT, get_off(offs, 0));
+		ans_shared_elt =
+			REC_subassign_SVT_with_short_Rvector(subSVT,
+					dim, ndim - 1, Noffs, short_Rvector,
+					fully, buf_sv);
+		if (ans_shared_elt != R_NilValue) {
+			PROTECT(ans_shared_elt);
+		} else if (fully[ndim - 1]) {
+			return R_NilValue;
 		}
 	}
-	//printf("full_replacement=%d\n", left_bufs->full_replacement);
-	return _make_leaf_from_Rvector_block(left_Rvector, 0, dim0,
-					     left_bufs->offs,
-					     left_bufs->full_replacement);
-}
-
-/* 'short_Rvector' must have a length >= 1.
-   The length of the selection along the first dimension must be a
-   multiple of 'short_Rvector' length. */
-static LeftBufs init_left_bufs(int dim0, SEXP index0, SEXP short_Rvector)
-{
-	SEXPTYPE Rtype = TYPEOF(short_Rvector);
-	LeftBufs left_bufs;
-	left_bufs.copy_Rvector_elt_FUN = _select_copy_Rvector_elt_FUN(Rtype);
-	if (left_bufs.copy_Rvector_elt_FUN == NULL)
-		error("SparseArray internal error in init_left_bufs():\n"
-		      "    short Rvector has invalid type");
-
-	R_xlen_t short_len = XLENGTH(short_Rvector);
-	int sd0 = index0 == R_NilValue ? dim0 : LENGTH(index0);
-	if (short_len == 0 || sd0 % short_len != 0)
-		error("SparseArray internal error in init_left_bufs():\n"
-		      "    invalid short Rvector length");
-
-	left_bufs.offs = (int *) R_alloc(dim0, sizeof(int));
-	left_bufs.Rvector = PROTECT(_new_Rvector0(Rtype, dim0));
-	SEXP leaf = PROTECT(
-		precompute_leaf_from_short_Rvector(
-					dim0, index0, short_Rvector,
-					&left_bufs)
-	);
-	left_bufs.precomputed_leaf = leaf;
-	UNPROTECT(2);
-	return left_bufs;
-}
-
-/* 'index0' must be either R_NilValue or an integer vector.
-   'short_Rvector' must have a length >= 1. */
-static SEXP subassign_leaf_with_short_Rvector(SEXP leaf, int dim0,
-		SEXP index0, SEXP short_Rvector,
-		LeftBufs *left_bufs)
-{
-	if (left_bufs->full_replacement || leaf == R_NilValue)
-		return left_bufs->precomputed_leaf;
-
-	SEXP left_Rvector = left_bufs->Rvector;
-	_expand_leaf(leaf, left_Rvector, 0);
-	int short_len = LENGTH(short_Rvector);
-	int d2 = LENGTH(index0);
+	int d1 = dim[ndim - 1];
+	int d2 = offs == R_NilValue ? d1 : LENGTH(offs);
+	SEXP ans = PROTECT(new_SVT(d1, SVT));
 	for (int i2 = 0; i2 < d2; i2++) {
-		int coord = INTEGER(index0)[i2];
-		if (INVALID_COORD(coord, dim0))
-			error("subscript contains "
-			      "out-of-bound indices or NAs");
-		int i1 = coord - 1;
-		/* Virtual recycling of 'short_Rvector'. */
-		left_bufs->copy_Rvector_elt_FUN(
-				short_Rvector, i2 % short_len,
-				left_Rvector, i1);
+		int i1 = get_off(offs, i2);
+		if (use_shared) {
+			SET_VECTOR_ELT(ans, i1, ans_shared_elt);
+			continue;
+		}
+		SEXP subSVT = VECTOR_ELT(ans, i1);
+		SEXP ans_elt = PROTECT(
+			REC_subassign_SVT_with_short_Rvector(subSVT,
+					dim, ndim - 1, Noffs, short_Rvector,
+					fully, buf_sv)
+		);
+		SET_VECTOR_ELT(ans, i1, ans_elt);
+		UNPROTECT(1);
 	}
-	SEXP ans = PROTECT(
-		_make_leaf_from_Rvector_block(left_Rvector, 0, dim0,
-					      left_bufs->offs, 0)
-	);
-	if (ans != R_NilValue) {
-		/* Remove nonzeros introduced in 'left_bufs->Rvector'. */
-		SEXP ans_nzoffs = get_leaf_nzoffs(ans);
-		_fill_Rvector_subset_with_zeros(left_Rvector,
-						INTEGER(ans_nzoffs),
-						LENGTH(ans_nzoffs), 0);
-	}
+	if (use_shared && ans_shared_elt != R_NilValue)
+		UNPROTECT(1);
+	ans = post_process_SVT(ans, SVT);
 	UNPROTECT(1);
 	return ans;
 }
 
-/* Recursive. 'ndim' must be >= 2. */
-static SEXP REC_subassign_SVT_with_short_Rvector(SEXP SVT, SEXP SVT0,
-		const int *dim, int ndim, SEXP Nindex,
-		SEXP short_Rvector, LeftBufs *left_bufs)
-{
-	SEXP subSVT0 = R_NilValue;
-	int d1 = dim[ndim - 1];
-	SEXP Nindex_elt = VECTOR_ELT(Nindex, ndim - 1);
-	int d2 = Nindex_elt == R_NilValue ? d1 : LENGTH(Nindex_elt);
-	//printf("ndim = %d: d2 = %d\n", ndim, d2);
-	for (int i2 = 0; i2 < d2; i2++) {
-		int i1;
-		if (Nindex_elt == R_NilValue) {
-			i1 = i2;
-		} else {
-			int coord = INTEGER(Nindex_elt)[i2];
-			if (INVALID_COORD(coord, d1))
-				error("subscript contains "
-				      "out-of-bound indices or NAs");
-			i1 = coord - 1;
-		}
-		//printf("ndim = %d: i1 = %d i2 = %d\n", ndim, i1, i2);
-		SEXP subSVT = VECTOR_ELT(SVT, i1);
-		if (ndim == 2) {
-			subSVT = PROTECT(
-				subassign_leaf_with_short_Rvector(
-					subSVT, dim[0],
-					VECTOR_ELT(Nindex, 0), short_Rvector,
-					left_bufs)
-			);
-		} else {
-			if (SVT0 != R_NilValue)
-				subSVT0 = VECTOR_ELT(SVT0, i1);
-			subSVT = PROTECT(
-				make_SVT_node(subSVT, dim[ndim - 2], subSVT0)
-			);
-			subSVT = PROTECT(
-				REC_subassign_SVT_with_short_Rvector(
-					subSVT, subSVT0,
-					dim, ndim - 1, Nindex,
-					short_Rvector, left_bufs)
-			);
-		}
-		SET_VECTOR_ELT(SVT, i1, subSVT);
-		UNPROTECT(ndim == 2 ? 1 : 2);
-	}
-	int is_empty = 1;
-	for (int i1 = 0; i1 < d1; i1++) {
-		if (VECTOR_ELT(SVT, i1) != R_NilValue) {
-			is_empty = 0;
-			break;
-		}
-	}
-	return is_empty ? R_NilValue : SVT;
-}
-
 /* --- .Call ENTRY POINT ---
-   'Nindex' must be an N-index, that is, a list of integer vectors (or NULLs),
-   one along each dimension in the array. */
-SEXP C_subassign_SVT_with_short_Rvector(SEXP x_dim, SEXP x_type, SEXP x_SVT,
-		SEXP Nindex, SEXP Rvector)
+   'Noffs' must be a list of integer vectors (or NULLs), one along each
+   dimension in the arrays. Each non-NULL list element must contain valid
+   offsets (i.e. zero-based indices) along the corresponding dimension in 'x'.
+   The offsets must be sorted in **strictly** ascending order. */
+SEXP C_subassign_SVT_with_short_Rvector(
+		SEXP x_dim, SEXP x_type, SEXP x_SVT,
+		SEXP Noffs, SEXP Rvector)
 {
-	SEXPTYPE Rtype = _get_and_check_Rtype_from_Rstring(x_type,
-				"C_subassign_SVT_with_short_Rvector", "x_type");
-	if (TYPEOF(Rvector) != Rtype)
+	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+			     "C_subassign_SVT_with_short_Rvector", "x_type");
+	if (TYPEOF(Rvector) != x_Rtype)
 		error("SparseArray internal error in "
 		      "C_subassign_SVT_with_short_Rvector():\n"
 		      "    SVT_SparseArray object and 'Rvector' "
@@ -666,113 +609,19 @@ SEXP C_subassign_SVT_with_short_Rvector(SEXP x_dim, SEXP x_type, SEXP x_SVT,
 
 	const int *dim = INTEGER(x_dim);
 	int ndim = LENGTH(x_dim);
-	for (int along = 0; along < ndim; along++)
-		if (dim[along] == 0)
-			return x_SVT;  /* no-op */
+	if (check_Noffs(Noffs, dim, ndim, NULL))
+		return x_SVT;  /* no-op */
 
-	int dim0 = dim[0];
-	SEXP index0 = VECTOR_ELT(Nindex, 0);
-
-	LeftBufs left_bufs = init_left_bufs(dim0, index0, Rvector);
-	PROTECT(left_bufs.Rvector);
-	PROTECT(left_bufs.precomputed_leaf);
-
-	if (ndim == 1) {
-		SEXP ans = subassign_leaf_with_short_Rvector(
-					x_SVT, dim0,
-					index0, Rvector, &left_bufs);
-		UNPROTECT(2);
-		return ans;
-	}
-
-	SEXP ans = PROTECT(make_SVT_node(x_SVT, dim[ndim - 1], x_SVT));
-	ans = REC_subassign_SVT_with_short_Rvector(ans, x_SVT,
-					dim, ndim, Nindex,
-					Rvector, &left_bufs);
-	UNPROTECT(3);
+	const int *fully = is_full_replacement(Noffs, dim, ndim);
+	SparseVec buf_sv = _alloc_buf_SparseVec(x_Rtype, dim[0], 0);
+	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
+		PROTECT(buf_sv.nzvals);
+	SEXP ans = REC_subassign_SVT_with_short_Rvector(x_SVT, dim, ndim,
+						Noffs, Rvector,
+						fully, &buf_sv);
+	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
+		UNPROTECT(1);
 	return ans;
-}
-
-
-/****************************************************************************
- * Some helpers shared between C_subassign_SVT_with_Rarray() and
- * C_subassign_SVT_with_SVT()
- */
-
-static int check_offs(SEXP offs, int d)
-{
-	int n = LENGTH(offs);
-	const int *offs_p = INTEGER(offs);
-	int prev_off = -1;
-	for (int i = 0; i < n; i++) {
-		int off = offs_p[i];
-		if (off == NA_INTEGER)
-			error("subscripts contain NAs");
-		if (off < 0 || off >= d)
-			error("subscripts contain out-of-bound indices");
-		if (off <= prev_off)
-			error("SparseArray internal error in check_offs():\n"
-			      "    subscripts are not strictly sorted");
-		prev_off = off;
-	}
-	return n;
-}
-
-static int check_Noffs(SEXP Noffs, const int *dim, const int *arr_dim, int ndim)
-{
-	if (LENGTH(Noffs) != ndim)
-		error("SparseArray internal error in check_Noffs():\n"
-		      "    'Noffs' must have one list element per "
-		      "dimension in the array to subassign");
-	for (int along = 0; along < ndim; along++) {
-		if (dim[along] == 0)
-			return 1;  /* subassignment is a no-op */
-		SEXP offs = VECTOR_ELT(Noffs, along);
-		int doas;  /* dim of array selection */
-		if (offs == R_NilValue) {
-			doas = dim[along];
-		} else if (IS_INTEGER(offs)) {
-			doas = check_offs(offs, dim[along]);
-		} else {
-			error("subscripts must be integer vectors");
-		}
-		if (doas == 0)
-			return 1;  /* subassignment is a no-op */
-		if (arr_dim[along] != doas)
-			error("SparseArray internal error in check_Noffs():\n"
-			      "    dimensions of right array don't "
-			      "match dimensions of array selection");
-	}
-	return 0;
-}
-
-/* Offsets were already checked upfront by check_Noffs() above. */
-static int get_off(SEXP offs, int i)
-{
-	return offs == R_NilValue ? i : INTEGER(offs)[i];
-}
-
-static SEXP post_process_ans(SEXP ans, SEXP SVT)
-{
-	int ans_len = LENGTH(ans), is_empty = 1;
-	for (int i = 0; i < ans_len; i++) {
-		if (VECTOR_ELT(ans, i) != R_NilValue) {
-			is_empty = 0;
-			break;
-		}
-	}
-	if (is_empty)
-		return R_NilValue;
-	if (SVT == R_NilValue)
-		return ans;
-	int is_noop = 1;
-	for (int i = 0; i < ans_len; i++) {
-		if (VECTOR_ELT(ans, i) != VECTOR_ELT(SVT, i)) {
-			is_noop = 0;
-			break;
-		}
-	}
-	return is_noop ? SVT : ans;
 }
 
 
@@ -797,6 +646,7 @@ static SEXP check_Rarray(SEXP Rarray, int ndim, SEXPTYPE x_Rtype)
 	return Rarray_dim;
 }
 
+/* Recursive. */
 static SEXP REC_subassign_SVT_with_Rsubarr(SEXP SVT,
 		const int *dim, int ndim, SEXP Noffs,
 		SEXP Rarray, R_xlen_t arr_offset, const R_xlen_t *subarr_lens,
@@ -823,7 +673,7 @@ static SEXP REC_subassign_SVT_with_Rsubarr(SEXP SVT,
 		SET_VECTOR_ELT(ans, i1, ans_elt);
 		UNPROTECT(1);
 	}
-	ans = post_process_ans(ans, SVT);
+	ans = post_process_SVT(ans, SVT);
 	UNPROTECT(1);
 	return ans;
 }
@@ -834,8 +684,7 @@ static SEXP REC_subassign_SVT_with_Rsubarr(SEXP SVT,
    'Noffs' must be a list of integer vectors (or NULLs), one along each
    dimension in the arrays. Each non-NULL list element must contain valid
    offsets (i.e. zero-based indices) along the corresponding dimension in 'x'.
-   IMPORTANT: The offsets must be sorted in **strictly** ascending order.
-   This is not checked! */
+   The offsets must be sorted in **strictly** ascending order. */
 SEXP C_subassign_SVT_with_Rarray(
 		SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP x_na_background,
 		SEXP Noffs, SEXP Rarray)
@@ -850,7 +699,7 @@ SEXP C_subassign_SVT_with_Rarray(
 
 	const int *dim = INTEGER(x_dim);
 	const int *arr_dim = INTEGER(Rarray_dim);
-	if (check_Noffs(Noffs, dim, arr_dim, ndim))
+	if (check_Noffs(Noffs, dim, ndim, arr_dim))
 		return x_SVT;  /* no-op */
 
 	SparseVec buf_sv = _alloc_buf_SparseVec(x_Rtype, dim[0], x_has_NAbg);
@@ -870,6 +719,7 @@ SEXP C_subassign_SVT_with_Rarray(
  * C_subassign_SVT_with_SVT()
  */
 
+/* Recursive. */
 static SEXP REC_subassign_SVT1_with_SVT2(
 		SEXP SVT1, const int *dim1, int ndim, SEXP Noffs,
 		SEXP SVT2, const int *dim2, SparseVec *buf_sv)
@@ -896,7 +746,7 @@ static SEXP REC_subassign_SVT1_with_SVT2(
 		SET_VECTOR_ELT(ans, i1, ans_elt);
 		UNPROTECT(1);
 	}
-	ans = post_process_ans(ans, SVT1);
+	ans = post_process_SVT(ans, SVT1);
 	UNPROTECT(1);
 	return ans;
 }
@@ -907,8 +757,7 @@ static SEXP REC_subassign_SVT1_with_SVT2(
    'Noffs' must be a list of integer vectors (or NULLs), one along each
    dimension in the arrays. Each non-NULL list element must contain valid
    offsets (i.e. zero-based indices) along the corresponding dimension in 'x'.
-   IMPORTANT: The offsets must be sorted in **strictly** ascending order.
-   This is not checked! */
+   The offsets must be sorted in **strictly** ascending order. */
 SEXP C_subassign_SVT_with_SVT(
 		SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP x_na_background,
 		SEXP Noffs,
@@ -937,7 +786,7 @@ SEXP C_subassign_SVT_with_SVT(
 		      "C_subassign_SVT_with_SVT():\n"
 		      "    LENGTH(x_dim) != LENGTH(y_dim)");
 
-	if (check_Noffs(Noffs, INTEGER(x_dim), INTEGER(y_dim), ndim))
+	if (check_Noffs(Noffs, INTEGER(x_dim), ndim, INTEGER(y_dim)))
 		return x_SVT;  /* no-op */
 
 	SparseVec buf_sv = _alloc_buf_SparseVec(x_Rtype, INTEGER(x_dim)[0],
