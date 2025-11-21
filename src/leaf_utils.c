@@ -428,7 +428,11 @@ static const int *get_offs0(SEXP offs, int n, int dim0)
 /* Can be used on a NULL or lacunar leaf.
    'offs' must be NULL or an array of 'n' offsets (non-negative integers)
    that are sorted in strictly ascending order. The last offset in the
-   array must be < 'buf_sv->len'. */
+   array must be < 'buf_sv->len'.
+   About the length of 'Rvector':
+   - If 'block_offset != 0' then its length must be >= 'block_offset + n'.
+   - If 'block_offset == 0' then 'Rvector' can be of any length (except 0
+     unless 'n' is also 0) and will be recycled if its length is < 'n'. */
 SEXP _subassign_leaf_with_Rvector_block(SEXP leaf, SEXP offs, int n,
 		SEXP Rvector, R_xlen_t block_offset, SparseVec *buf_sv)
 {
@@ -441,10 +445,13 @@ SEXP _subassign_leaf_with_Rvector_block(SEXP leaf, SEXP offs, int n,
 					     buf_sv->len,
 					     buf_sv->na_background);
 		int neffrep;
-		if (offs0 == NULL) {
+		if (n == buf_sv->len) {
+			/* Full replacement.
+			   We don't need 'offs0' even if it's not NULL. */
 			neffrep = _subassign_full_SV_with_Rvector_block(&sv,
 					     Rvector, block_offset, buf_sv);
 		} else {
+			/* 'offs0' guaranteed to be != NULL. */
 			neffrep = _subassign_SV_with_Rvector_block(&sv,
 					     offs0, n,
 					     Rvector, block_offset, buf_sv);
@@ -500,8 +507,10 @@ SEXP _subassign_leaf_with_leaf(SEXP leaf1, SEXP offs, int n,
 		SEXP leaf2, SparseVec *buf_sv)
 {
 	const int *offs0 = get_offs0(offs, n, buf_sv->len);
-	if ((leaf1 == R_NilValue && leaf2 == R_NilValue) || offs0 == NULL)
+	/* 'n == buf_sv->len' indicates full replacement. */
+	if ((leaf1 == R_NilValue && leaf2 == R_NilValue) || n == buf_sv->len)
 		return leaf2;
+	/* 'offs0' guaranteed to be != NULL. */
 	const SparseVec sv1 = leaf2SV(leaf1, buf_sv->Rtype,
 				      buf_sv->len,
 				      buf_sv->na_background);
