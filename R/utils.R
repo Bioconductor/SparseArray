@@ -1,6 +1,6 @@
 
 ### A silly trick used only to trigger an error when the function is called
-### with no arguments.
+### with arguments passed to it.
 check_unused_arguments <- function() NULL
 
 vector_of_zeros <- function(mode="logical", length=0L)
@@ -35,5 +35,14 @@ coercion_can_introduce_NAs <- function(from_type, to_type)
         stop(wmsg("'to_type' must be a single string"))
     .Call2("C_coercion_can_introduce_NAs", from_type, to_type,
                                            PACKAGE="SparseArray")
+}
+
+Nindex2Noffs <- function(Nindex)
+{
+    stopifnot(is.list(Nindex))
+    lapply(Nindex,
+        function(subscript)
+            if (is.null(subscript)) NULL else subscript - 1L
+    )
 }
 

@@ -93,9 +93,9 @@ static void write_Rvector_block_to_ ## type ## SV(			  \
 		const type *vals, int cycle_len,			  \
 		const int *out_offs, int n, SparseVec *out_sv)		  \
 {									  \
+	out_sv->nzcount = 0;						  \
 	type *out_nzvals = (type *) out_sv->nzvals;			  \
 	type bg_val = out_sv->na_background ? type ## NA : type ## 0;	  \
-	out_sv->nzcount = 0;						  \
 	for (int k = 0; k < n; k++) {					  \
 		type out_val = vals[cycle_len ? k % cycle_len : k];	  \
 		if (type ## _equal(out_val, bg_val))			  \
@@ -116,8 +116,8 @@ static void write_Rvector_block_to_characterSV(
 		SEXP Rvector, R_xlen_t block_offset, int cycle_len,
 		const int *out_offs, int n, SparseVec *out_sv)
 {
-	SEXP out_nzvals = (SEXP) out_sv->nzvals;  /* STRSXP */
 	out_sv->nzcount = 0;
+	SEXP out_nzvals = (SEXP) out_sv->nzvals;  /* STRSXP */
 	for (int k = 0; k < n; k++) {
 		int i = cycle_len ? k % cycle_len : block_offset + k;
 		SEXP out_val = STRING_ELT(Rvector, i);
@@ -135,8 +135,8 @@ static void write_Rvector_block_to_listSV(
 		SEXP Rvector, R_xlen_t block_offset, int cycle_len,
 		const int *out_offs, int n, SparseVec *out_sv)
 {
-	SEXP out_nzvals = (SEXP) out_sv->nzvals;  /* VECSXP */
 	out_sv->nzcount = 0;
+	SEXP out_nzvals = (SEXP) out_sv->nzvals;  /* VECSXP */
 	for (int k = 0; k < n; k++) {
 		int i = cycle_len ? k % cycle_len : block_offset + k;
 		SEXP out_val = VECTOR_ELT(Rvector, i);
@@ -224,9 +224,9 @@ static void write_Rvector_subset_to_ ## type ## SV(			  \
 		const type *vals, const int *selection,			  \
 		const int *out_offs, int n, SparseVec *out_sv)		  \
 {									  \
+	out_sv->nzcount = 0;						  \
 	type *out_nzvals = (type *) out_sv->nzvals;			  \
 	type bg_val = out_sv->na_background ? type ## NA : type ## 0;	  \
-	out_sv->nzcount = 0;						  \
 	for (int k = 0; k < n; k++) {					  \
 		type out_val = vals[selection[k]];			  \
 		if (type ## _equal(out_val, bg_val))			  \
@@ -247,8 +247,8 @@ static void write_Rvector_subset_to_characterSV(
 		SEXP Rvector, const int *selection,
 		const int *out_offs, int n, SparseVec *out_sv)
 {
-	SEXP out_nzvals = (SEXP) out_sv->nzvals;  /* STRSXP */
 	out_sv->nzcount = 0;
+	SEXP out_nzvals = (SEXP) out_sv->nzvals;  /* STRSXP */
 	for (int k = 0; k < n; k++) {
 		SEXP out_val = STRING_ELT(Rvector, selection[k]);
 		if (IS_BG_CHARSXP(out_val, out_sv->na_background))
@@ -265,8 +265,8 @@ static void write_Rvector_subset_to_listSV(
 		SEXP Rvector, const int *selection,
 		const int *out_offs, int n, SparseVec *out_sv)
 {
-	SEXP out_nzvals = (SEXP) out_sv->nzvals;  /* VECSXP */
 	out_sv->nzcount = 0;
+	SEXP out_nzvals = (SEXP) out_sv->nzvals;  /* VECSXP */
 	for (int k = 0; k < n; k++) {
 		SEXP out_val = VECTOR_ELT(Rvector, selection[k]);
 		if (out_val == R_NilValue)

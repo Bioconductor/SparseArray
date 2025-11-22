@@ -88,32 +88,17 @@ setMethod("subset_Array_by_Mindex", "NaArray", .subset_NaSVT_by_Mindex)
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### subset_NaSVT_by_Nindex()
 ###
-### In addition to being one of the workhorses behind `[` on an
-### NaArray object (see below), this is **the** workhorse behind the
-### extract_na_array() and extract_array() methods for NaArray objects.
-###
-### 'Nindex' must be an N-index, that is, a list of numeric vectors (or NULLs),
-### one along each dimension in the array to subset. Note that, strictly
-### speaking, the vectors in an N-index are expected to be integer vectors,
-### but subset_NaSVT_by_Nindex() can handle subscripts of type "double".
-### This differs from the 'index' argument in 'extract_array()' where the
-### subscripts **must** be integer vectors.
-###
 ### Returns an NaArray object of the same type() as 'x' (endomorphism).
 
 subset_NaSVT_by_Nindex <- function(x, Nindex, ignore.dimnames=FALSE)
 {
-    stopifnot(is(x, "NaArray"),
-              is.list(Nindex),
-              length(Nindex) == length(x@dim),
-              isTRUEorFALSE(ignore.dimnames))
+    stopifnot(is(x, "NaArray"), isTRUEorFALSE(ignore.dimnames))
     check_svt_version(x)
 
-    ## Returns 'new_dim' and 'new_NaSVT' in a list of length 2.
-    C_ans <- SparseArray.Call("C_subset_SVT_by_Nindex",
-                              x@dim, x@type, x@NaSVT, Nindex)
-    new_dim <- C_ans[[1L]]
-    new_NaSVT <- C_ans[[2L]]
+    new_dim <- S4Arrays:::get_Nindex_lengths(Nindex, x@dim)
+    Noffs <- Nindex2Noffs(Nindex)
+    new_NaSVT <- SparseArray.Call("C_subset_SVT_by_Noffs",
+                                  x@dim, x@type, x@NaSVT, Noffs)
 
     ## Compute 'new_dimnames'.
     if (is.null(dimnames(x)) || ignore.dimnames) {

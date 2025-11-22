@@ -56,7 +56,6 @@ static inline void set_Rvector_elt_to_NA(SEXP Rvector, R_xlen_t i)
  * subset_NULL_by_Lindex()
  * subset_leaf_by_Lindex()
  * subset_leaf_by_OPBuf()
- * subset_leaf_as_sparse()
  */
 
 static void build_lookup_table(int *lookup_table,
@@ -213,84 +212,6 @@ static void subset_leaf_by_OPBuf(SEXP leaf, const OPBuf *opbuf, SEXP ans,
 	if (use_lookup_table)
 		reset_lookup_table(lookup_table, nzoffs_p, nzcount);
 	return;
-}
-
-/* 'subscript' must be a numeric vector. It cannot be a long one! It is
-   expected to contain 1-based indices that are >= 1 and <= 'sv->len'.
-   NA indices will trigger an error.
-   'sv_selection' and 'out_nzoffs' must be arrays that are long enough
-   to hold at least 'LENGTH(subscript)' ints. */
-static int subset_SV(const SparseVec *sv, SEXP subscript,
-		     int *sv_selection, int *out_nzoffs, int *lookup_table)
-{
-	int out_nzcount = 0;
-	int n = LENGTH(subscript);
-	if (n == 0)
-		return out_nzcount;
-
-	int sv_nzcount = get_SV_nzcount(sv);
-
-	/* See comment preceding MAP_IDX0_TO_K() definition above. */
-	int use_lookup_table = n > 10;
-	if (use_lookup_table)
-		build_lookup_table(lookup_table, sv->nzoffs, sv_nzcount);
-	/* Walk on 'subscript'. */
-	int idx0 = 0;  // only for -Wmaybe-uninitialized
-	for (int i1 = 0; i1 < n; i1++) {
-		int ret = extract_idx0(subscript, i1, sv->len, &idx0);
-		if (ret < 0)
-			_bad_Nindex_error(ret, 1);
-		int k2 = MAP_IDX0_TO_K(idx0, sv->nzoffs, sv_nzcount);
-		if (k2 >= 0) {
-			sv_selection[out_nzcount] = k2;
-			out_nzoffs[out_nzcount] = i1;
-			out_nzcount++;
-		}
-	}
-	if (use_lookup_table)
-		reset_lookup_table(lookup_table, sv->nzoffs, sv_nzcount);
-	return out_nzcount;
-}
-
-/* Takes a non-NULL leaf (standard or lacunar), and returns a leaf
-   that can be NULL, standard, or lacunar.
-   'subscript' must be NULL or a numeric vector. It cannot be a long one!
-   It is expected to contain 1-based indices that are >= 1 and <= 'dim0'.
-   NA indices will trigger an error. */
-static SEXP subset_leaf_as_sparse(SEXP leaf, int dim0, SEXP subscript,
-		int *selection_buf, int *nzoffs_buf, int *lookup_table)
-{
-	if (subscript == R_NilValue)
-		return leaf;
-
-	SEXP leaf_nzvals = get_leaf_nzvals(leaf);
-	SparseVec sv = leaf2SV(leaf, TYPEOF(leaf_nzvals), dim0, 0);
-	int ans_nzcount = subset_SV(&sv, subscript,
-				    selection_buf, nzoffs_buf, lookup_table);
-	if (ans_nzcount == 0)
-		return R_NilValue;
-
-	SEXP ans_nzoffs = PROTECT(NEW_INTEGER(ans_nzcount));
-	memcpy(INTEGER(ans_nzoffs), nzoffs_buf, sizeof(int) * ans_nzcount);
-	if (leaf_nzvals == R_NilValue) {  /* input leaf is lacunar */
-		SEXP ans = _make_lacunar_leaf(ans_nzoffs);
-		UNPROTECT(1);
-		return ans;
-	}
-	/* Input leaf is standard */
-	int all_ones = _Rvector_subset_is_filled_with_ones(leaf_nzvals,
-				    selection_buf, ans_nzcount, 0);
-	if (all_ones) {
-		SEXP ans = _make_lacunar_leaf(ans_nzoffs);
-		UNPROTECT(1);
-		return ans;
-	}
-	SEXP ans_nzvals = PROTECT(
-		_subset_Rvector(leaf_nzvals, selection_buf, ans_nzcount, 0)
-	);
-	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs, 0);
-	UNPROTECT(2);
-	return ans;
 }
 
 
@@ -721,121 +642,119 @@ SEXP C_subset_SVT_by_Mindex(
 
 
 /****************************************************************************
- * C_subset_SVT_by_Nindex()
+ * C_subset_SVT_by_Noffs()
  */
 
-static SEXP compute_subset_dim(SEXP Nindex, SEXP x_dim)
+static void check_subset_offs(SEXP offs, int d)
 {
-	int ndim = LENGTH(x_dim);
-	if (!isVectorList(Nindex) || LENGTH(Nindex) != ndim)
-		error("'Nindex' must be a list with one list "
-		      "element along each dimension in 'x'");
-
-	SEXP ans_dim = PROTECT(duplicate(x_dim));
-	for (int along = 0; along < ndim; along++) {
-		SEXP subscript = VECTOR_ELT(Nindex, along);
-		if (subscript == R_NilValue)
-			continue;
-		if (!(IS_INTEGER(subscript) || IS_NUMERIC(subscript))) {
-			UNPROTECT(1);
-			_bad_Nindex_error(BAD_SUBSCRIPT_TYPE, along + 1);
-		}
-		R_xlen_t d = XLENGTH(subscript);
-		if (d > (R_xlen_t) INT_MAX) {
-			UNPROTECT(1);
-			_bad_Nindex_error(SUBSCRIPT_IS_TOO_LONG, along + 1);
-		}
-		INTEGER(ans_dim)[along] = (int) d;
+	int n = LENGTH(offs);
+	const int *offs_p = INTEGER(offs);
+	for (int i = 0; i < n; i++) {
+		int off = offs_p[i];
+		if (off == NA_INTEGER)
+			error("subscripts contain NAs");
+		if (off < 0 || off >= d)
+			error("subscripts contain out-of-bound indices");
 	}
-	UNPROTECT(1);
-	return ans_dim;
+	return;
 }
 
-/* Recursive tree traversal.
-   Returns R_NilValue or a list of length 'ans_dim[ndim - 1]'. */
-static SEXP REC_subset_SVT_by_Nindex(SEXP SVT, SEXP Nindex,
-		const int *x_dim, const int *ans_dim, int ndim,
-		int *selection_buf, int *nzoffs_buf, int *lookup_table)
+static int check_subset_Noffs(SEXP Noffs, const int *dim, int ndim)
+{
+	if (!isVectorList(Noffs))  // IS_LIST() is broken
+		error("SparseArray internal error in "
+		      "check_subset_Noffs():\n"
+		      "    'Noffs' must be a list");
+	if (LENGTH(Noffs) != ndim)
+		error("SparseArray internal error in "
+		      "check_subset_Noffs():\n"
+		      "    'Noffs' must have one list element per "
+		      "dimension in the array to subset");
+	int is_noop = 1;
+	for (int along = 0; along < ndim; along++) {
+		SEXP offs = VECTOR_ELT(Noffs, along);
+		if (offs == R_NilValue)
+			continue;
+		if (!IS_INTEGER(offs))
+			error("subscripts must be integer vectors");
+		is_noop = 0;
+		check_subset_offs(offs, dim[along]);
+	}
+	return is_noop;
+}
+
+/* Recursive. */
+static SEXP REC_subset_SVT_by_Noffs(SEXP SVT,
+		const int *dim, int ndim, SEXP Noffs,
+		SparseVec *buf_sv, int *lookup_table)
 {
 	if (SVT == R_NilValue)
 		return R_NilValue;
-
-	/* compute_subset_dim() already checked that 'subscript' is either
-	   NULL or a numeric vector that is not a long vector.
-	   If not NULL, 'subscript' is expected to contain 1-based indices
-	   that are >= 1 and <= 'x_dim[ndim - 1]'. NA indices will trigger
-	   an error. */
-	SEXP subscript = VECTOR_ELT(Nindex, ndim - 1);
-
-	if (ndim == 1) {
-		/* 'SVT' is a leaf (i.e. 1D SVT). */
-		return subset_leaf_as_sparse(SVT, x_dim[0], subscript,
-				selection_buf, nzoffs_buf, lookup_table);
-	}
-
-	/* 'SVT' is a regular node (list). */
-	int SVT_len = LENGTH(SVT);        /* same as 'x_dim[ndim - 1]' */
-	int ans_len = ans_dim[ndim - 1];  /* same as 'LENGTH(subscript)'
-					     if 'subscript' is not NULL */
+	SEXP offs = VECTOR_ELT(Noffs, ndim - 1);
+	if (ndim == 1)
+		return _subset_leaf(SVT, dim[0], offs, buf_sv, lookup_table);
+	int ans_len = offs == R_NilValue ? dim[ndim - 1] : LENGTH(offs);
 	SEXP ans = PROTECT(NEW_LIST(ans_len));
-	int is_empty = 1;
+	int is_empty = 1, is_noop = ans_len == dim[ndim - 1];
 	for (int i = 0; i < ans_len; i++) {
-		int idx0 = i;
-		if (subscript != R_NilValue) {
-			int ret = extract_idx0(subscript, i, SVT_len, &idx0);
-			if (ret < 0)
-				_bad_Nindex_error(ret, ndim);
-		}
-		SEXP subSVT = VECTOR_ELT(SVT, idx0);
-		SEXP ans_elt = REC_subset_SVT_by_Nindex(subSVT, Nindex,
-					 x_dim, ans_dim, ndim - 1,
-					 selection_buf, nzoffs_buf,
-					 lookup_table);
+		int off = offs == R_NilValue ? i : INTEGER(offs)[i];
+		SEXP subSVT = VECTOR_ELT(SVT, off);
+		SEXP ans_elt = REC_subset_SVT_by_Noffs(subSVT,
+					dim, ndim - 1, Noffs,
+					buf_sv, lookup_table);
 		if (ans_elt != R_NilValue) {
 			PROTECT(ans_elt);
 			SET_VECTOR_ELT(ans, i, ans_elt);
 			UNPROTECT(1);
 			is_empty = 0;
 		}
+		if (ans_elt != subSVT)
+			is_noop = 0;
 	}
 	UNPROTECT(1);
-	return is_empty ? R_NilValue : ans;
+	if (is_empty)
+		return R_NilValue;
+	return is_noop ? SVT : ans;
 }
 
 /* --- .Call ENTRY POINT ---
-   'Nindex' must be an N-index, that is, a list of numeric vectors (or NULLs),
-   one along each dimension in the array to subset. Note that, strictly
-   speaking, the vectors in an N-index are expected to be integer vectors,
-   but C_subset_SVT_by_Nindex() can handle subscripts of type "double".
-   NAs in the subscripts are forbidden (they'll trigger an error).  */
-SEXP C_subset_SVT_by_Nindex(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Nindex)
+   'Noffs' must be a list of integer vectors (or NULLs), one along each
+   dimension in the array 'x'. Each non-NULL list element must contain
+   valid offsets (i.e. zero-based indices) along the corresponding dimension
+   in 'x'. */
+SEXP C_subset_SVT_by_Noffs(
+		SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Noffs)
 {
-	/* Returned value ignored. */
-	_get_and_check_Rtype_from_Rstring(x_type,
-					  "C_subset_SVT_by_Nindex", "x_type");
+	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+				"C_subset_SVT_by_Noffs", "x_type");
 
-	SEXP ans_dim = PROTECT(compute_subset_dim(Nindex, x_dim));
-	int ans_dim0 = INTEGER(ans_dim)[0];
-	int *selection_buf = (int *) R_alloc(ans_dim0, sizeof(int));
-	int *nzoffs_buf = (int *) R_alloc(ans_dim0, sizeof(int));
-	int x_dim0 = INTEGER(x_dim)[0];
-	int *lookup_table = (int *) R_alloc(x_dim0, sizeof(int));
-	for (int i = 0; i < x_dim0; i++)
-		lookup_table[i] = -1;
-	SEXP ans_SVT = REC_subset_SVT_by_Nindex(x_SVT, Nindex,
-				 INTEGER(x_dim),
-				 INTEGER(ans_dim), LENGTH(ans_dim),
-				 selection_buf, nzoffs_buf, lookup_table);
-	if (ans_SVT != R_NilValue)
-		PROTECT(ans_SVT);
+	int ndim = LENGTH(x_dim);
+	const int *dim = INTEGER(x_dim);
+	if (check_subset_Noffs(Noffs, dim, ndim))
+		return x_SVT;  /* no-op */
 
-	SEXP ans = PROTECT(NEW_LIST(2));
-	SET_VECTOR_ELT(ans, 0, ans_dim);
-	if (ans_SVT != R_NilValue) {
-		SET_VECTOR_ELT(ans, 1, ans_SVT);
-		UNPROTECT(1);
+	int dim0 = dim[0];
+	SEXP offs0 = VECTOR_ELT(Noffs, 0);
+	int buf_sv_len = offs0 == R_NilValue ? dim0 : LENGTH(offs0);
+	/* Note that the background value does not matter in the context
+	   of N-index subsetting, because _subset_SV() -- the workhorse
+	   behind this form of subsetting -- does not make any use of it. */
+	SparseVec buf_sv = _alloc_buf_SparseVec(x_Rtype, buf_sv_len,
+						0, 0);
+	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
+		PROTECT(buf_sv.nzvals);
+	int *lookup_table = NULL;
+	/* Naive strategy. Could probably be refined. See MAP_OFF_TO_K1()
+	   in SparseVec_subsetting.c */
+	if (75 * (buf_sv_len - 1) > dim0) {
+		lookup_table = (int *) R_alloc(dim0, sizeof(int));
+		for (int i = 0; i < dim0; i++)
+			lookup_table[i] = -1;
 	}
-	UNPROTECT(2);
+	SEXP ans = REC_subset_SVT_by_Noffs(x_SVT, dim, ndim, Noffs,
+					   &buf_sv, lookup_table);
+	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
+		UNPROTECT(1);
 	return ans;
 }
 

@@ -7,6 +7,7 @@
 
 #include "Rvector_utils.h"
 #include "coerceVector2.h"
+#include "SparseVec_subsetting.h"
 #include "SparseVec_subassignment.h"
 
 #include <string.h>  /* for memcpy() */
@@ -401,6 +402,26 @@ SEXP _coerce_naleaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn,
 	}
 	UNPROTECT(2);
 	return ans;
+}
+
+
+/****************************************************************************
+ * _subset_leaf()
+ */
+
+SEXP _subset_leaf(SEXP leaf, int dim0, SEXP offs,
+		  SparseVec *buf_sv, int *lookup_table)
+{
+	if (leaf == R_NilValue || offs == R_NilValue)
+		return leaf;
+	/* Note that the background value does not matter in the context
+	   of N-index subsetting, because _subset_SV() -- the workhorse
+	   behind this form of subsetting -- does not make any use of it. */
+	const SparseVec sv = leaf2SV(leaf, buf_sv->Rtype,
+				     dim0,
+				     buf_sv->na_background);
+	_subset_SV(&sv, INTEGER(offs), buf_sv, lookup_table);
+	return SV2leaf(buf_sv);
 }
 
 

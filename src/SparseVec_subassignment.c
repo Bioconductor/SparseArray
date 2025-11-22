@@ -254,8 +254,8 @@ static int subassign_ ## type ## SV(					   \
 		const type *vals2, int cycle_len, const int *selection2,   \
 		SparseVec *out_sv)					   \
 {									   \
-	type bg_val = out_sv->na_background ? type ## NA : type ## 0;	   \
 	out_sv->nzcount = 0;						   \
+	type bg_val = out_sv->na_background ? type ## NA : type ## 0;	   \
 	int neffrep = 0, ret, k1 = 0, k = 0, out_off;			   \
 	type out_val;							   \
 	while ((ret = next_subassign_ ## type ## SV_out_val(sv1, offs, n,  \
@@ -280,8 +280,8 @@ static int subassign_characterSV(
 		const int *selection,
 		SparseVec *out_sv)
 {
-	SEXP bg_val = out_sv->na_background ? characterNA : character0;
 	out_sv->nzcount = 0;
+	SEXP bg_val = out_sv->na_background ? characterNA : character0;
 	int neffrep = 0, ret, k1 = 0, k = 0, out_off;
 	SEXP out_val;
 	while ((ret = next_subassign_characterSV_out_val(sv1, offs, n,
@@ -458,8 +458,8 @@ static int subassign_ ## type ## SV_with_SV(				   \
 		const SparseVec *sv1, const int *offs,			   \
 		const SparseVec *sv2, SparseVec *out_sv)		   \
 {									   \
-	out_type bg_val = out_sv->na_background ? type ## NA : type ## 0;  \
 	out_sv->nzcount = 0;						   \
+	out_type bg_val = out_sv->na_background ? type ## NA : type ## 0;  \
 	int neffrep = 0, ret, k1 = 0, k = 0, k2 = 0, out_off;		   \
 	out_type out_val;						   \
 	while ((ret = next_subassign_ ## type ## SV_with_SV_out_val(	   \
@@ -531,8 +531,8 @@ static int subassign_full_ ## type ## SV_with_Rvector_block(		  \
 		const SparseVec *sv1,					  \
 		const type *vals2, int cycle_len, SparseVec *out_sv)	  \
 {									  \
-	type bg_val = out_sv->na_background ? type ## NA : type ## 0;	  \
 	out_sv->nzcount = 0;						  \
+	type bg_val = out_sv->na_background ? type ## NA : type ## 0;	  \
 	int neffrep = 0, k1 = 0;					  \
 	for (int out_off = 0; out_off < out_sv->len; out_off++) {	  \
 		int ret = next_k1(sv1, &k1, out_off);			  \
@@ -554,8 +554,8 @@ static int subassign_full_characterSV_with_Rvector_block(const SparseVec *sv1,
 		SEXP Rvector, R_xlen_t block_offset, int cycle_len,
 		SparseVec *out_sv)
 {
-	SEXP bg_val = out_sv->na_background ? characterNA : character0;
 	out_sv->nzcount = 0;
+	SEXP bg_val = out_sv->na_background ? characterNA : character0;
 	int neffrep = 0, k1 = 0;
 	for (int out_off = 0; out_off < out_sv->len; out_off++) {
 		int ret = next_k1(sv1, &k1, out_off);

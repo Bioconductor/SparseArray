@@ -210,8 +210,8 @@ static void dArith_ ## Ltype ## SV_ ## Rtype ## s(int opcode,		    \
 	check_outRtype(get_SV_Rtype(out_sv), REALSXP, funname);		    \
 	double (*darith_fun)(int, Ltype, Rtype);			    \
 	darith_fun = &darith_ ## Ltype ## _ ## Rtype;			    \
-	double *out_nzvals = (double *) out_sv->nzvals;			    \
 	out_sv->nzcount = 0;						    \
+	double *out_nzvals = (double *) out_sv->nzvals;			    \
 	const Ltype *nzvals1_p = get_ ## Ltype ## SV_nzvals_p(sv1);	    \
 	if (nzvals1_p == NULL && y_len == 1) {				    \
 		/* shortcut for "lacunar SparseVec <op> scalar" case */	    \
@@ -253,8 +253,8 @@ static void iArith_intSV_ints(int opcode,
 		      "iArith_intSV_ints():\n"
 		      "    'y_len' cannot be 0 unless 'sv1->len' is 0");
 	check_outRtype(out_sv->Rtype, INTSXP, "iArith_intSV_ints");
-	int *out_nzvals = (int *) out_sv->nzvals;
 	out_sv->nzcount = 0;
+	int *out_nzvals = (int *) out_sv->nzvals;
 	int out_bg_val = out_sv->na_background ? intNA : int0;
 	const int *nzvals1_p = get_intSV_nzvals_p(sv1);
 	if (nzvals1_p == NULL && y_len == 1) {
@@ -297,8 +297,8 @@ static void dArith_ ## Ltype ## s_ ## Rtype ## SV(int opcode,		    \
 	check_outRtype(get_SV_Rtype(out_sv), REALSXP, funname);		    \
 	double (*darith_fun)(int, Ltype, Rtype);			    \
 	darith_fun = &darith_ ## Ltype ## _ ## Rtype;			    \
-	double *out_nzvals = (double *) out_sv->nzvals;			    \
 	out_sv->nzcount = 0;						    \
+	double *out_nzvals = (double *) out_sv->nzvals;			    \
 	const Rtype *nzvals2_p = get_ ## Rtype ## SV_nzvals_p(sv2);	    \
 	if (nzvals2_p == NULL && x_len == 1) {				    \
 		/* shortcut for "scalar <op> lacunar SparseVec" case */	    \
@@ -340,8 +340,8 @@ static void iArith_ints_intSV(int opcode,
 		      "iArith_ints_intSV():\n"
 		      "    'x_len' cannot be 0 unless 'sv2->len' is 0");
 	check_outRtype(out_sv->Rtype, INTSXP, "iArith_ints_intSV");
-	int *out_nzvals = (int *) out_sv->nzvals;
 	out_sv->nzcount = 0;
+	int *out_nzvals = (int *) out_sv->nzvals;
 	int out_bg_val = out_sv->na_background ? intNA : int0;
 	const int *nzvals2_p = get_intSV_nzvals_p(sv2);
 	if (nzvals2_p == NULL && x_len == 1) {

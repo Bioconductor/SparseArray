@@ -19,11 +19,11 @@ SEXP C_subset_SVT_by_Mindex(
 	SEXP Mindex
 );
 
-SEXP C_subset_SVT_by_Nindex(
+SEXP C_subset_SVT_by_Noffs(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT,
-	SEXP Nindex
+	SEXP Noffs
 );
 
 #endif  /* _SPARSEARRAY_SUBSETTING_H_ */
