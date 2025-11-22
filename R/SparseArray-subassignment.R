@@ -81,15 +81,6 @@ setMethod("subassign_Array_by_Mindex", "SVT_SparseArray",
 ### either a NULL or an integer vector of valid indices along the
 ### corresponding dimension in 'x'.
 
-.Nindex2Noffs <- function(Nindex)
-{
-    stopifnot(is.list(Nindex))
-    lapply(Nindex,
-        function(subscript)
-            if (is.null(subscript)) NULL else subscript - 1L
-    )
-}
-
 ### 'Rvector' is considered "short" if it can be cleanly recycled along the
 ### first (a.k.a. leftmost or innermost) dimension of the array selection.
 ### This is a requirement of .subassign_SVT_with_short_Rvector().
@@ -138,7 +129,7 @@ setMethod("subassign_Array_by_Mindex", "SVT_SparseArray",
     ## Prepare 'Noffs' and 'Rvector'.
     Norder <- S4Arrays:::get_Nindex_order(Nindex)
     Nindex <- S4Arrays:::subset_Nindex_by_Nindex(Nindex, Norder)
-    Noffs <- .Nindex2Noffs(Nindex)
+    Noffs <- Nindex2Noffs(Nindex)
     Norder1 <- Norder[[1L]]
     if (!is.null(Norder1))
         Rvector <- Rvector[((Norder1 - 1L) %% Rvector_len) + 1L]
@@ -189,7 +180,7 @@ setMethod("subassign_Array_by_Mindex", "SVT_SparseArray",
     ## Prepare 'Noffs' and 'Rarray'.
     Norder <- S4Arrays:::get_Nindex_order(Nindex)
     Nindex <- S4Arrays:::subset_Nindex_by_Nindex(Nindex, Norder)
-    Noffs <- .Nindex2Noffs(Nindex)
+    Noffs <- Nindex2Noffs(Nindex)
     Rarray <- S4Arrays:::subset_by_Nindex(Rarray, Norder)
     storage.mode(Rarray) <- new_type
 
@@ -216,7 +207,7 @@ setMethod("subassign_Array_by_Mindex", "SVT_SparseArray",
     ## Prepare 'Noffs' and 'y'.
     Norder <- S4Arrays:::get_Nindex_order(Nindex)
     Nindex <- S4Arrays:::subset_Nindex_by_Nindex(Nindex, Norder)
-    Noffs <- .Nindex2Noffs(Nindex)
+    Noffs <- Nindex2Noffs(Nindex)
     y <- S4Arrays:::subset_by_Nindex(y, Norder)
     type(y) <- new_type
 

@@ -426,7 +426,7 @@ SEXP C_subassign_SVT_by_Mindex(
  * C_subassign_SVT_with_Rarray(), and C_subassign_SVT_with_SVT()
  */
 
-static int check_offs(SEXP offs, int d)
+static int check_subassign_offs(SEXP offs, int d)
 {
 	int n = LENGTH(offs);
 	const int *offs_p = INTEGER(offs);
@@ -438,42 +438,48 @@ static int check_offs(SEXP offs, int d)
 		if (off < 0 || off >= d)
 			error("subscripts contain out-of-bound indices");
 		if (off <= prev_off)
-			error("SparseArray internal error in check_offs():\n"
+			error("SparseArray internal error in "
+			      "check_subassign_offs():\n"
 			      "    subscripts are not strictly sorted");
 		prev_off = off;
 	}
 	return n;
 }
 
-static int check_Noffs(SEXP Noffs, const int *dim, int ndim, const int *arr_dim)
+static int check_subassign_Noffs(SEXP Noffs, const int *dim, int ndim,
+				 const int *arr_dim)
 {
+	if (!isVectorList(Noffs))  // IS_LIST() is broken
+		error("SparseArray internal error in "
+		      "check_subassign_Noffs():\n"
+		      "    'Noffs' must be a list");
 	if (LENGTH(Noffs) != ndim)
-		error("SparseArray internal error in check_Noffs():\n"
+		error("SparseArray internal error in "
+		      "check_subassign_Noffs():\n"
 		      "    'Noffs' must have one list element per "
 		      "dimension in the array to subassign");
 	for (int along = 0; along < ndim; along++) {
-		if (dim[along] == 0)
-			return 1;  /* subassignment is a no-op */
 		SEXP offs = VECTOR_ELT(Noffs, along);
 		int doas;  /* dim of array selection */
 		if (offs == R_NilValue) {
 			doas = dim[along];
 		} else if (IS_INTEGER(offs)) {
-			doas = check_offs(offs, dim[along]);
+			doas = check_subassign_offs(offs, dim[along]);
 		} else {
 			error("subscripts must be integer vectors");
 		}
 		if (doas == 0)
 			return 1;  /* subassignment is a no-op */
 		if (arr_dim != NULL && arr_dim[along] != doas)
-			error("SparseArray internal error in check_Noffs():\n"
+			error("SparseArray internal error in "
+			      "check_subassign_Noffs():\n"
 			      "    dimensions of right array don't "
 			      "match dimensions of array selection");
 	}
 	return 0;
 }
 
-/* Offsets were already checked upfront by check_Noffs() above. */
+/* Offsets were already checked upfront by check_subassign_Noffs() above. */
 static int get_off(SEXP offs, int i)
 {
 	return offs == R_NilValue ? i : INTEGER(offs)[i];
@@ -609,7 +615,7 @@ SEXP C_subassign_SVT_with_short_Rvector(
 
 	const int *dim = INTEGER(x_dim);
 	int ndim = LENGTH(x_dim);
-	if (check_Noffs(Noffs, dim, ndim, NULL))
+	if (check_subassign_Noffs(Noffs, dim, ndim, NULL))
 		return x_SVT;  /* no-op */
 
 	const int *fully = is_full_replacement(Noffs, dim, ndim);
@@ -658,7 +664,7 @@ static SEXP check_Rarray(SEXP Rarray, int ndim, SEXPTYPE x_Rtype)
 static SEXP REC_subassign_SVT_with_Rsubarr(SEXP SVT,
 		const int *dim, int ndim, SEXP Noffs,
 		SEXP Rarray, R_xlen_t arr_offset, const R_xlen_t *subarr_lens,
-		SparseVec *buf_sv)
+		SparseVec *buf_sv, int pardim)
 {
 	SEXP offs = VECTOR_ELT(Noffs, ndim - 1);
 	if (ndim == 1)
@@ -669,14 +675,20 @@ static SEXP REC_subassign_SVT_with_Rsubarr(SEXP SVT,
 	int d2 = offs == R_NilValue ? d1 : LENGTH(offs);
 	SEXP ans = PROTECT(new_SVT(d1, SVT));
 	R_xlen_t offset_inc = subarr_lens[ndim - 2];
-	for (int i2 = 0; i2 < d2; i2++, arr_offset += offset_inc) {
+	/* Parallel execution along the biggest dimension only. */
+	//Nope, not doing this yet! Major issue is that the 'buf_sv->nzvals'
+	//and 'buf_sv->nzoffs' arrays are shared by all threads which will
+	//cause a major disaster!!!
+	//#pragma omp parallel for schedule(static) if(d2 == pardim)
+	for (int i2 = 0; i2 < d2; i2++) {
 		int i1 = get_off(offs, i2);
 		SEXP subSVT = VECTOR_ELT(ans, i1);
+		R_xlen_t subarr_offset = arr_offset + offset_inc * i2;
 		SEXP ans_elt = PROTECT(
 			REC_subassign_SVT_with_Rsubarr(subSVT,
 					dim, ndim - 1, Noffs,
-					Rarray, arr_offset, subarr_lens,
-					buf_sv)
+					Rarray, subarr_offset, subarr_lens,
+					buf_sv, pardim)
 		);
 		SET_VECTOR_ELT(ans, i1, ans_elt);
 		UNPROTECT(1);
@@ -707,7 +719,7 @@ SEXP C_subassign_SVT_with_Rarray(
 
 	const int *dim = INTEGER(x_dim);
 	const int *arr_dim = INTEGER(Rarray_dim);
-	if (check_Noffs(Noffs, dim, ndim, arr_dim))
+	if (check_subassign_Noffs(Noffs, dim, ndim, arr_dim))
 		return x_SVT;  /* no-op */
 
 	/* _subassign_leaf_with_Rvector_block(), the workhorse behind
@@ -721,9 +733,14 @@ SEXP C_subassign_SVT_with_Rarray(
 			allocVector(buf_sv.Rtype, (R_xlen_t) buf_sv.len)
 		);
 	R_xlen_t *subarr_lens = alloc_and_compute_cumprod(arr_dim, ndim);
+
+	/* Get 1-based rank of biggest dimension (ignoring the 1st dim).
+	   Parallel execution will be along that dimension. */
+	int pardim = which_max(arr_dim + 1, ndim - 1) + 2;
+
 	SEXP ans = REC_subassign_SVT_with_Rsubarr(x_SVT, dim, ndim, Noffs,
 						  Rarray, 0, subarr_lens,
-						  &buf_sv);
+						  &buf_sv, pardim);
 	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
 		UNPROTECT(1);
 	return ans;
@@ -801,7 +818,7 @@ SEXP C_subassign_SVT_with_SVT(
 		      "C_subassign_SVT_with_SVT():\n"
 		      "    LENGTH(x_dim) != LENGTH(y_dim)");
 
-	if (check_Noffs(Noffs, INTEGER(x_dim), ndim, INTEGER(y_dim)))
+	if (check_subassign_Noffs(Noffs, INTEGER(x_dim), ndim, INTEGER(y_dim)))
 		return x_SVT;  /* no-op */
 
 	SparseVec buf_sv = _alloc_buf_SparseVec(x_Rtype, INTEGER(x_dim)[0],

@@ -222,6 +222,14 @@ SEXP _coerce_naleaf(
 	int *selection_buf
 );
 
+SEXP _subset_leaf(
+	SEXP leaf,
+	int dim0,
+	SEXP offs,
+	SparseVec *buf_sv,
+	int *lookup_table
+);
+
 SEXP _subassign_leaf_with_Rvector_block(
 	SEXP leaf,
 	SEXP offs,
@@ -260,7 +268,7 @@ SEXP _subassign_leaf_with_leaf(
 static inline SEXP SV2leaf(const SparseVec *sv)
 {
 	return _make_leaf_from_two_arrays(sv->Rtype, sv->nzvals,
-                                          sv->nzoffs, sv->nzcount);
+					  sv->nzoffs, sv->nzcount);
 }
 
 #endif  /* _LEAF_UTILS_H_ */
