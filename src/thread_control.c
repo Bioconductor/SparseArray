@@ -21,7 +21,7 @@ static int get_num_procs(void)
 #endif
 }
 
-static int get_max_threads(void)
+int _get_max_threads(void)
 {
 #ifdef _OPENMP
 	return omp_get_max_threads();
@@ -52,13 +52,13 @@ SEXP C_get_num_procs(void)
 /* --- .Call ENTRY POINT --- */
 SEXP C_get_max_threads(void)
 {
-	return ScalarInteger(get_max_threads());
+	return ScalarInteger(_get_max_threads());
 }
 
 /* --- .Call ENTRY POINT --- */
 SEXP C_set_max_threads(SEXP nthread)
 {
-	int prev_max_threads = get_max_threads();
+	int prev_max_threads = _get_max_threads();
 	set_max_threads(INTEGER(nthread)[0]);
 	return ScalarInteger(prev_max_threads);
 }

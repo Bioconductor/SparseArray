@@ -10,6 +10,7 @@
 #include "misc_utils.h"
 #include "argcheck_utils.h"
 #include "OPBufTree.h"
+#include "thread_control.h"
 #include "leaf_utils.h"
 
 #include <limits.h>  /* for INT_MAX */
@@ -719,7 +720,7 @@ static SEXP make_selection_dim(SEXP Noffs, const int *dim, int ndim)
 static void REC_subset_SVT_into_Rsubarr(SEXP SVT, SEXPTYPE Rtype,
 		const int *dim, int ndim, SEXP Noffs,
 		SEXP Rarray, R_xlen_t arr_offset, const R_xlen_t *subarr_lens,
-		int *lookup_table)
+		int *lookup_table, int pardim)
 {
 	if (SVT == R_NilValue)
 		return;
@@ -732,6 +733,10 @@ static void REC_subset_SVT_into_Rsubarr(SEXP SVT, SEXPTYPE Rtype,
 	}
 	int d2 = offs == R_NilValue ? dim[ndim - 1] : LENGTH(offs);
 	R_xlen_t offset_inc = subarr_lens[ndim - 2];
+	/* If 'lookup_table == NULL' we execute the for loop in parallel but
+	   only if we're walking along the biggest dimension of 'Rarray'. */
+	#pragma omp parallel for schedule(static) \
+		if(lookup_table == NULL && ndim == pardim)
 	for (int i2 = 0; i2 < d2; i2++) {
 		int off = offs == R_NilValue ? i2 : INTEGER(offs)[i2];
 		SEXP subSVT = VECTOR_ELT(SVT, off);
@@ -739,7 +744,7 @@ static void REC_subset_SVT_into_Rsubarr(SEXP SVT, SEXPTYPE Rtype,
 		REC_subset_SVT_into_Rsubarr(subSVT, Rtype,
 					    dim, ndim - 1, Noffs,
 					    Rarray, subarr_offset, subarr_lens,
-					    lookup_table);
+					    lookup_table, pardim);
 	}
 	return;
 }
@@ -775,15 +780,22 @@ SEXP C_subset_SVT_as_Rarray(
 
 	/* Naive strategy. Could probably be refined. See MAP_OFF_TO_K1()
 	   in SparseVec_subsetting.c */
-	int *lookup_table = NULL;
-	if (75 * (INTEGER(ans_dim)[0] - 1) > dim0) {
+	int *lookup_table = NULL, max_threads = _get_max_threads();
+	if (max_threads == 0)  /* no OpenMP on Mac */
+		max_threads = 1;
+	if (60 * (INTEGER(ans_dim)[0] - 1) > (R_xlen_t) dim0 * max_threads) {
 		lookup_table = (int *) R_alloc(dim0, sizeof(int));
 		for (int i = 0; i < dim0; i++)
 			lookup_table[i] = -1;
 	}
+
+	/* Get 1-based rank of biggest dimension (ignoring the 1st dim).
+	   Parallel execution will be along that dimension. */
+	int pardim = _which_max(INTEGER(ans_dim) + 1, ndim - 1) + 2;
+
 	REC_subset_SVT_into_Rsubarr(x_SVT, x_Rtype, dim, ndim, Noffs,
 				    ans, 0, subarr_lens,
-				    lookup_table);
+				    lookup_table, pardim);
 	UNPROTECT(2);
 	return ans;
 }
