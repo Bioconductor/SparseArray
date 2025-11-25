@@ -668,7 +668,7 @@ static SEXP REC_subassign_SVT_with_Rsubarr(SEXP SVT,
 	//Nope, not doing this yet! Major issue is that the 'buf_sv->nzvals'
 	//and 'buf_sv->nzoffs' arrays are shared by all threads which will
 	//cause a major disaster!!!
-	//#pragma omp parallel for schedule(static) if(d2 == pardim)
+	//#pragma omp parallel for schedule(static) if(ndim == pardim)
 	for (int i2 = 0; i2 < d2; i2++) {
 		int off = get_off(offs, i2);
 		SEXP subSVT = VECTOR_ELT(ans, off);

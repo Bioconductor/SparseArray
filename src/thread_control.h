@@ -3,6 +3,8 @@
 
 #include <Rdefines.h>
 
+int _get_max_threads(void);
+
 SEXP C_get_num_procs(void);
 
 SEXP C_get_max_threads(void);
