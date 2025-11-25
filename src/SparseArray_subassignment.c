@@ -7,9 +7,9 @@
  ****************************************************************************/
 #include "SparseArray_subassignment.h"
 
+#include "misc_utils.h"
 #include "argcheck_utils.h"
 #include "OPBufTree.h"
-#include "thread_control.h"  /* for which_max() */
 #include "leaf_utils.h"
 
 #include <limits.h>  /* for INT_MAX */
@@ -28,17 +28,6 @@ static OPBuf R_alloc_OPBuf(int buflen)
 	opbuf.Loffs = (int *) R_alloc(buflen, sizeof(int));
 	opbuf.xLoffs = NULL;
 	return opbuf;
-}
-
-static R_xlen_t *alloc_and_compute_cumprod(const int *x, int x_len)
-{
-	R_xlen_t *cumprod = (R_xlen_t *) R_alloc(x_len, sizeof(R_xlen_t));
-	R_xlen_t prod = 1;
-	for (int i = 0; i < x_len; i++) {
-		prod *= x[i];
-		cumprod[i] = prod;
-	}
-	return cumprod;
 }
 
 
@@ -184,7 +173,7 @@ static int build_OPBufTree_from_Lindex(OPBufTree *opbuf_tree,
 	/* _free_OPBufTree(opbuf_tree) resets 'opbuf_tree->node_type'
 	   to NULL_NODE. */
 	_free_OPBufTree(opbuf_tree);
-	R_xlen_t *dimcumprod = alloc_and_compute_cumprod(x_dim, x_ndim);
+	R_xlen_t *dimcumprod = _alloc_and_compute_cumprod(x_dim, x_ndim);
 	return XLENGTH(Lindex) <= (R_xlen_t) INT_MAX ?
 		build_OPBufTree_from_Lindex1(opbuf_tree, Lindex,
 				x_dim, x_ndim, dimcumprod) :
@@ -275,12 +264,12 @@ static SEXP REC_subassign_SVT_by_OPBufTree(OPBufTree *opbuf_tree,
 }
 
 static SEXP subassign_SVT_by_OPBufTree(SEXP SVT, const int *dim, int ndim,
-		SEXPTYPE Rtype, int na_background,
+		SEXPTYPE Rtype, int bg_is_na,
 		OPBufTree *opbuf_tree, int max_opbuf_nelt, SEXP vals)
 {
 	int dim0 = dim[0];
 
-	SparseVec buf_sv = _alloc_buf_SparseVec(Rtype, dim0, na_background, 0);
+	SparseVec buf_sv = _alloc_buf_SparseVec(Rtype, dim0, bg_is_na, 0);
 	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
 		PROTECT(buf_sv.nzvals);
 
@@ -296,7 +285,7 @@ static SEXP subassign_SVT_by_OPBufTree(SEXP SVT, const int *dim, int ndim,
 
 	/* Get 1-based rank of biggest dimension (ignoring the 1st dim).
 	   Parallel execution will be along that dimension. */
-	int pardim = which_max(dim + 1, ndim - 1) + 2;
+	int pardim = _which_max(dim + 1, ndim - 1) + 2;
 
 	SEXP ans = REC_subassign_SVT_by_OPBufTree(opbuf_tree,
 				 SVT, ndim, vals,
@@ -330,7 +319,7 @@ SEXP C_subassign_SVT_by_Lindex(
 		      "    SVT_SparseArray object and 'vals' "
 		      "must have the same type");
 
-	int x_has_NAbg = _get_and_check_na_background(x_na_background,
+	int x_bg_is_na = _get_and_check_na_background(x_na_background,
 				"C_subassign_SVT_by_Lindex", "x_na_background");
 
 	if (!(IS_INTEGER(Lindex) || IS_NUMERIC(Lindex)))
@@ -357,7 +346,7 @@ SEXP C_subassign_SVT_by_Lindex(
 	/* --- STEP 2: Subassign SVT by OPBufTree --- */
 
 	return subassign_SVT_by_OPBufTree(x_SVT, INTEGER(x_dim), ndim,
-			Rtype, x_has_NAbg,
+			Rtype, x_bg_is_na,
 			opbuf_tree, max_opbuf_nelt, vals);
 }
 
@@ -394,7 +383,7 @@ SEXP C_subassign_SVT_by_Mindex(
 		      "    SVT_SparseArray object and 'vals' "
 		      "must have the same type");
 
-	int x_has_NAbg = _get_and_check_na_background(x_na_background,
+	int x_bg_is_na = _get_and_check_na_background(x_na_background,
 				"C_subassign_SVT_by_Mindex", "x_na_background");
 
 	int ndim = LENGTH(x_dim);
@@ -416,23 +405,23 @@ SEXP C_subassign_SVT_by_Mindex(
 	/* --- STEP 2: Subassign SVT by OPBufTree --- */
 
 	return subassign_SVT_by_OPBufTree(x_SVT, INTEGER(x_dim), ndim,
-			Rtype, x_has_NAbg,
+			Rtype, x_bg_is_na,
 			opbuf_tree, max_opbuf_nelt, vals);
 }
 
 
 /****************************************************************************
- * Some helpers shared between C_subassign_SVT_with_short_Rvector(),
+ * Some helpers shared by C_subassign_SVT_with_short_Rvector(),
  * C_subassign_SVT_with_Rarray(), and C_subassign_SVT_with_SVT()
  */
 
 static int check_subassign_offs(SEXP offs, int d)
 {
-	int n = LENGTH(offs);
+	int d2 = LENGTH(offs);
 	const int *offs_p = INTEGER(offs);
 	int prev_off = -1;
-	for (int i = 0; i < n; i++) {
-		int off = offs_p[i];
+	for (int i2 = 0; i2 < d2; i2++) {
+		int off = offs_p[i2];
 		if (off == NA_INTEGER)
 			error("subscripts contain NAs");
 		if (off < 0 || off >= d)
@@ -443,7 +432,7 @@ static int check_subassign_offs(SEXP offs, int d)
 			      "    subscripts are not strictly sorted");
 		prev_off = off;
 	}
-	return n;
+	return d2;
 }
 
 static int check_subassign_Noffs(SEXP Noffs, const int *dim, int ndim,
@@ -460,17 +449,17 @@ static int check_subassign_Noffs(SEXP Noffs, const int *dim, int ndim,
 		      "dimension in the array to subassign");
 	for (int along = 0; along < ndim; along++) {
 		SEXP offs = VECTOR_ELT(Noffs, along);
-		int doas;  /* dim of array selection */
+		int d2;  /* dim of array selection */
 		if (offs == R_NilValue) {
-			doas = dim[along];
+			d2 = dim[along];
 		} else if (IS_INTEGER(offs)) {
-			doas = check_subassign_offs(offs, dim[along]);
+			d2 = check_subassign_offs(offs, dim[along]);
 		} else {
 			error("subscripts must be integer vectors");
 		}
-		if (doas == 0)
+		if (d2 == 0)
 			return 1;  /* subassignment is a no-op */
-		if (arr_dim != NULL && arr_dim[along] != doas)
+		if (arr_dim != NULL && arr_dim[along] != d2)
 			error("SparseArray internal error in "
 			      "check_subassign_Noffs():\n"
 			      "    dimensions of right array don't "
@@ -480,9 +469,9 @@ static int check_subassign_Noffs(SEXP Noffs, const int *dim, int ndim,
 }
 
 /* Offsets were already checked upfront by check_subassign_Noffs() above. */
-static int get_off(SEXP offs, int i)
+static int get_off(SEXP offs, int i2)
 {
-	return offs == R_NilValue ? i : INTEGER(offs)[i];
+	return offs == R_NilValue ? i2 : INTEGER(offs)[i2];
 }
 
 static SEXP new_SVT(int d, SEXP SVT0)
@@ -575,18 +564,18 @@ static SEXP REC_subassign_SVT_with_short_Rvector(SEXP SVT,
 	int d2 = offs == R_NilValue ? d1 : LENGTH(offs);
 	SEXP ans = PROTECT(new_SVT(d1, SVT));
 	for (int i2 = 0; i2 < d2; i2++) {
-		int i1 = get_off(offs, i2);
+		int off = get_off(offs, i2);
 		if (use_shared) {
-			SET_VECTOR_ELT(ans, i1, ans_shared_elt);
+			SET_VECTOR_ELT(ans, off, ans_shared_elt);
 			continue;
 		}
-		SEXP subSVT = VECTOR_ELT(ans, i1);
+		SEXP subSVT = VECTOR_ELT(ans, off);
 		SEXP ans_elt = PROTECT(
 			REC_subassign_SVT_with_short_Rvector(subSVT,
 					dim, ndim - 1, Noffs, short_Rvector,
 					fully, buf_sv)
 		);
-		SET_VECTOR_ELT(ans, i1, ans_elt);
+		SET_VECTOR_ELT(ans, off, ans_elt);
 		UNPROTECT(1);
 	}
 	if (use_shared && ans_shared_elt != R_NilValue)
@@ -681,8 +670,8 @@ static SEXP REC_subassign_SVT_with_Rsubarr(SEXP SVT,
 	//cause a major disaster!!!
 	//#pragma omp parallel for schedule(static) if(d2 == pardim)
 	for (int i2 = 0; i2 < d2; i2++) {
-		int i1 = get_off(offs, i2);
-		SEXP subSVT = VECTOR_ELT(ans, i1);
+		int off = get_off(offs, i2);
+		SEXP subSVT = VECTOR_ELT(ans, off);
 		R_xlen_t subarr_offset = arr_offset + offset_inc * i2;
 		SEXP ans_elt = PROTECT(
 			REC_subassign_SVT_with_Rsubarr(subSVT,
@@ -690,7 +679,7 @@ static SEXP REC_subassign_SVT_with_Rsubarr(SEXP SVT,
 					Rarray, subarr_offset, subarr_lens,
 					buf_sv, pardim)
 		);
-		SET_VECTOR_ELT(ans, i1, ans_elt);
+		SET_VECTOR_ELT(ans, off, ans_elt);
 		UNPROTECT(1);
 	}
 	ans = post_process_SVT(ans, SVT);
@@ -711,7 +700,7 @@ SEXP C_subassign_SVT_with_Rarray(
 {
 	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
 			     "C_subassign_SVT_with_Rarray", "x_type");
-	int x_has_NAbg = _get_and_check_na_background(x_na_background,
+	int x_bg_is_na = _get_and_check_na_background(x_na_background,
 			     "C_subassign_SVT_with_Rarray", "x_na_background");
 
 	int ndim = LENGTH(x_dim);
@@ -727,16 +716,16 @@ SEXP C_subassign_SVT_with_Rarray(
 	   'buf_sv.nzvals' and is able to allocate it the first time it
 	   needs it (if it ever needs it). So we set the 'nzoffs_only'
 	   argument to 1 in our _alloc_buf_SparseVec() call below. */
-	SparseVec buf_sv = _alloc_buf_SparseVec(x_Rtype, dim[0], x_has_NAbg, 1);
+	SparseVec buf_sv = _alloc_buf_SparseVec(x_Rtype, dim[0], x_bg_is_na, 1);
 	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
 		buf_sv.nzvals = PROTECT(
 			allocVector(buf_sv.Rtype, (R_xlen_t) buf_sv.len)
 		);
-	R_xlen_t *subarr_lens = alloc_and_compute_cumprod(arr_dim, ndim);
+	R_xlen_t *subarr_lens = _alloc_and_compute_cumprod(arr_dim, ndim);
 
 	/* Get 1-based rank of biggest dimension (ignoring the 1st dim).
 	   Parallel execution will be along that dimension. */
-	int pardim = which_max(arr_dim + 1, ndim - 1) + 2;
+	int pardim = _which_max(arr_dim + 1, ndim - 1) + 2;
 
 	SEXP ans = REC_subassign_SVT_with_Rsubarr(x_SVT, dim, ndim, Noffs,
 						  Rarray, 0, subarr_lens,
@@ -766,8 +755,8 @@ static SEXP REC_subassign_SVT1_with_SVT2(
 	int d2 = dim2[ndim - 1];
 	SEXP ans = PROTECT(new_SVT(d1, SVT1));
 	for (int i2 = 0; i2 < d2; i2++) {
-		int i1 = get_off(offs, i2);
-		SEXP subSVT1 = VECTOR_ELT(ans, i1);
+		int off = get_off(offs, i2);
+		SEXP subSVT1 = VECTOR_ELT(ans, off);
 		SEXP subSVT2 = SVT2 == R_NilValue ? R_NilValue :
 						    VECTOR_ELT(SVT2, i2);
 		SEXP ans_elt = PROTECT(
@@ -775,7 +764,7 @@ static SEXP REC_subassign_SVT1_with_SVT2(
 					dim1, ndim - 1, Noffs,
 					subSVT2, dim2, buf_sv)
 		);
-		SET_VECTOR_ELT(ans, i1, ans_elt);
+		SET_VECTOR_ELT(ans, off, ans_elt);
 		UNPROTECT(1);
 	}
 	ans = post_process_SVT(ans, SVT1);
@@ -797,20 +786,20 @@ SEXP C_subassign_SVT_with_SVT(
 {
 	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
 			     "C_subassign_SVT_with_SVT", "x_type");
-	int x_has_NAbg = _get_and_check_na_background(x_na_background,
+	int x_bg_is_na = _get_and_check_na_background(x_na_background,
 			     "C_subassign_SVT_with_SVT", "x_na_background");
 	SEXPTYPE y_Rtype = _get_and_check_Rtype_from_Rstring(y_type,
 			     "C_subassign_SVT_with_SVT", "y_type");
-	int y_has_NAbg = _get_and_check_na_background(y_na_background,
+	int y_bg_is_na = _get_and_check_na_background(y_na_background,
 			     "C_subassign_SVT_with_SVT", "y_na_background");
 	if (x_Rtype != y_Rtype)
 		error("SparseArray internal error in "
 		      "C_subassign_SVT_with_SVT():\n"
 		      "    x_Rtype != y_Rtype");
-	if (x_has_NAbg != y_has_NAbg)
+	if (x_bg_is_na != y_bg_is_na)
 		error("SparseArray internal error in "
 		      "C_subassign_SVT_with_SVT():\n"
-		      "    x_has_NAbg != y_has_NAbg");
+		      "    x_bg_is_na != y_bg_is_na");
 
 	int ndim = LENGTH(x_dim);
 	if (LENGTH(y_dim) != ndim)
@@ -822,7 +811,7 @@ SEXP C_subassign_SVT_with_SVT(
 		return x_SVT;  /* no-op */
 
 	SparseVec buf_sv = _alloc_buf_SparseVec(x_Rtype, INTEGER(x_dim)[0],
-						x_has_NAbg, 0);
+						x_bg_is_na, 0);
 	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
 		PROTECT(buf_sv.nzvals);
 	SEXP ans = REC_subassign_SVT1_with_SVT2(x_SVT,
@@ -865,7 +854,7 @@ static long long init_NindexIterator(NindexIterator *Nindex_iter,
 		const int *dim, int ndim, SEXP Nindex, int margin)
 {
 	long long selection_len;
-	int along, doas;
+	int along, d2;
 	SEXP Nindex_elt;
 
 	if (!isVectorList(Nindex) || LENGTH(Nindex) != ndim)
@@ -882,16 +871,16 @@ static long long init_NindexIterator(NindexIterator *Nindex_iter,
 	for (along = 0; along < ndim; along++) {
 		Nindex_elt = VECTOR_ELT(Nindex, along);
 		if (Nindex_elt == R_NilValue) {
-			doas = dim[along];
+			d2 = dim[along];
 		} else if (IS_INTEGER(Nindex_elt)) {
-			doas = LENGTH(Nindex_elt);
+			d2 = LENGTH(Nindex_elt);
 		} else {
 			error("subscripts must be integer vectors");
 		}
-		selection_len *= doas;
+		selection_len *= d2;
 		if (along < margin)
 			continue;
-		Nindex_iter->selection_dim[along - margin] = doas;
+		Nindex_iter->selection_dim[along - margin] = d2;
 		Nindex_iter->selection_midx_buf[along - margin] = 0;
 	}
 	Nindex_iter->selection_len = selection_len;

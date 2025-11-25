@@ -1075,7 +1075,7 @@ static void summarize_one_NA(const SummarizeOp *summarize_op,
 	return;
 }
 
-void _postprocess_SummarizeResult(SummarizeResult *res, int na_background,
+void _postprocess_SummarizeResult(SummarizeResult *res, int bg_is_na,
 				  const SummarizeOp *summarize_op)
 {
 	/* There's nothing to do if a break condition was reached. */
@@ -1085,20 +1085,20 @@ void _postprocess_SummarizeResult(SummarizeResult *res, int na_background,
 	int opcode = summarize_op->opcode;
 	R_xlen_t zerocount = res->in_length - res->in_nzcount;
 	if (opcode == COUNTNAS_OPCODE) {
-		if (na_background)
+		if (bg_is_na)
 			res->outbuf.one_double[0] += zerocount;
 		return;
 	}
 	R_xlen_t effective_len = res->in_length;
 
 	if (summarize_op->na_rm) {
-		if (na_background)
+		if (bg_is_na)
 			effective_len = res->in_nzcount;
 		effective_len -= res->in_nacount;
 	}
 
 	if (zerocount != 0) {
-		if (na_background) {
+		if (bg_is_na) {
 			summarize_one_NA(summarize_op, res);
 		} else if (res->postprocess_one_zero) {
 			summarize_one_zero(summarize_op, res);
@@ -1142,7 +1142,7 @@ void _postprocess_SummarizeResult(SummarizeResult *res, int na_background,
 	    }
 	    case CENTERED_X2_SUM_OPCODE: case VAR1_OPCODE: case SD1_OPCODE: {
 		double center = summarize_op->center;
-		if (!na_background)
+		if (!bg_is_na)
 			res->outbuf.one_double[0] +=
 				center * center * zerocount;
 		if (opcode == CENTERED_X2_SUM_OPCODE)

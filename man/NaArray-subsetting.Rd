@@ -5,9 +5,9 @@
 
 \alias{tune_Array_dims,NaArray-method}
 
+\alias{extract_array,NaArray-method}
 \alias{extract_na_array}
 \alias{extract_na_array,NaArray-method}
-\alias{extract_array,NaArray-method}
 
 \title{Subsetting an NaArray object}
 

@@ -157,7 +157,6 @@ setReplaceMethod("type", "NaArray", .set_NaArray_type)
     ans_SVT <- SparseArray.Call("C_is_nonzero_SVT", x@dim, x@NaSVT)
     new_SVT_SparseArray(x@dim, x@dimnames, "logical", ans_SVT, check=FALSE)
 }
-
 setMethod("is_nonna", "NaArray", .is_nonna_NaSVT)
 
 ### Note that like for the length of atomic vectors in base R, the "non-NA
@@ -182,8 +181,15 @@ setMethod("nnacount", "NaArray", .nnacount_NaSVT)
 }
 setMethod("nnawhich", "NaArray", .nnawhich_NaSVT)
 
-### TODO: Implement optimized nnavals() and `nnavals<-`() methods for
-### NaArray objects.
+.nnavals_SVT <- function(x)
+{
+    stopifnot(is(x, "NaArray"))
+    check_svt_version(x)
+    SparseArray.Call("C_nzvals_SVT", x@dim, x@type, x@NaSVT)
+}
+setMethod("nnavals", "NaArray", .nnavals_SVT)
+
+### TODO: Do we need an optimized `nnavals<-`() method for NaArray objects?
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -209,6 +215,12 @@ new_NaArray <- function(dim, dimnames=NULL,
 ### Going back and forth between NaArray objects and ordinary arrays
 ###
 
+### Note that we could also use 'extract_array(from, list(NULL, ...))'
+### for this. The workhorse behind the extract_array() method for
+### NaArray objects is C_subset_SVT_as_Rarray and it should be
+### as fast as C_from_SVT_SparseArray_to_Rarray.
+### TODO: Use extract_array() for this and get rid of .Call entry point
+### C_from_SVT_SparseArray_to_Rarray.
 .from_NaArray_to_array <- function(from)
 {
     stopifnot(is(from, "NaArray"))

@@ -57,7 +57,7 @@ void _Logic_intSV_na(int opcode,
 		      "    'sv1' and 'out_sv' are incompatible");
 	int *out_nzvals = (int *) out_sv->nzvals;
 	out_sv->nzcount = 0;
-	int out_bg_val = out_sv->na_background ? intNA : int0;
+	int out_bg_val = out_sv->bg_is_na ? intNA : int0;
 	const int *nzvals1_p = get_intSV_nzvals_p(sv1);
 	if (nzvals1_p == NULL) {  /* lacunar SparseVec */
 		int out_val = Logic_int_int(opcode, int1, intNA);
@@ -88,7 +88,7 @@ void _Logic_intSV_intSV(int opcode,
 		      "    'sv1', 'sv2', and 'out_sv' are incompatible");
 	int *out_nzvals = (int *) out_sv->nzvals;
 	out_sv->nzcount = 0;
-	int out_bg_val = out_sv->na_background ? intNA : int0;
+	int out_bg_val = out_sv->bg_is_na ? intNA : int0;
 	int k1 = 0, k2 = 0, out_off, x, y;
 	while (next_intSV_intSV_vals(sv1, sv2, &k1, &k2, &out_off, &x, &y)) {
 		int out_val = Logic_int_int(opcode, x, y);

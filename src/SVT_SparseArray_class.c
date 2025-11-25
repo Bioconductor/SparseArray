@@ -34,11 +34,11 @@ static void copy_nzvals_to_Rvector_block(SEXP nzvals,
 
 /* Returns 1 if coercion to the requested type produces a NULL 'leaf',
    and 0 otherwise. */
-static int INPLACE_modify_leaf_type(SEXP leaf, int na_background,
+static int INPLACE_modify_leaf_type(SEXP leaf, int bg_is_na,
 		SEXPTYPE new_Rtype, int *warn, int *nzoffs_buf)
 {
 	SEXP new_leaf;
-	if (na_background) {
+	if (bg_is_na) {
 		new_leaf = _coerce_naleaf(leaf, new_Rtype, warn, nzoffs_buf);
 	} else {
 		new_leaf = _coerce_leaf(leaf, new_Rtype, warn, nzoffs_buf);
@@ -53,7 +53,7 @@ static int INPLACE_modify_leaf_type(SEXP leaf, int na_background,
 }
 
 /* Recursive. */
-static int REC_INPLACE_modify_SVT_type(SEXP SVT, int na_background,
+static int REC_INPLACE_modify_SVT_type(SEXP SVT, int bg_is_na,
 		const int *dim, int ndim,
 		SEXPTYPE new_Rtype, int *warn, int *nzoffs_buf)
 {
@@ -62,7 +62,7 @@ static int REC_INPLACE_modify_SVT_type(SEXP SVT, int na_background,
 
 	if (ndim == 1) {
 		/* 'SVT' is a leaf (i.e. a 1D SVT). */
-		return INPLACE_modify_leaf_type(SVT, na_background,
+		return INPLACE_modify_leaf_type(SVT, bg_is_na,
 						new_Rtype, warn, nzoffs_buf);
 	}
 
@@ -76,7 +76,7 @@ static int REC_INPLACE_modify_SVT_type(SEXP SVT, int na_background,
 	int is_empty = 1;
 	for (int i = 0; i < SVT_len; i++) {
 		SEXP subSVT = VECTOR_ELT(SVT, i);
-		int ret = REC_INPLACE_modify_SVT_type(subSVT, na_background,
+		int ret = REC_INPLACE_modify_SVT_type(subSVT, bg_is_na,
 						      dim, ndim - 1,
 						      new_Rtype,
 						      warn, nzoffs_buf);
@@ -105,13 +105,13 @@ SEXP C_set_SVT_type(
 	if (new_Rtype == x_Rtype || x_SVT == R_NilValue)
 		return x_SVT;
 
-	int x_has_NAbg = _get_and_check_na_background(x_na_background,
+	int x_bg_is_na = _get_and_check_na_background(x_na_background,
 					"C_set_SVT_type", "x_na_background");
 
 	int *nzoffs_buf = (int *) R_alloc(INTEGER(x_dim)[0], sizeof(int));
 	SEXP ans = PROTECT(duplicate(x_SVT));
 	int warn = 0;
-	int ret = REC_INPLACE_modify_SVT_type(ans, x_has_NAbg,
+	int ret = REC_INPLACE_modify_SVT_type(ans, x_bg_is_na,
 				INTEGER(x_dim), LENGTH(x_dim),
 				new_Rtype, &warn, nzoffs_buf);
 	if (ret < 0) {
@@ -427,6 +427,41 @@ SEXP C_nzwhich_SVT(SEXP x_dim, SEXP x_SVT, SEXP arr_ind)
 
 
 /****************************************************************************
+ * C_nzvals_SVT()
+ */
+
+static R_xlen_t REC_nzvals_SVT(SEXP SVT, int ndim, SEXP ans, R_xlen_t offset)
+{
+	if (SVT == R_NilValue)
+		return offset;
+	if (ndim == 1L) {
+		SEXP nzvals, nzoffs;
+		int nzcount = unzip_leaf(SVT, &nzvals, &nzoffs);
+		copy_nzvals_to_Rvector_block(nzvals, ans, offset, nzcount);
+		return offset + nzcount;
+	}
+	int SVT_len = LENGTH(SVT);
+	for (int i = 0; i < SVT_len; i++) {
+		SEXP subSVT = VECTOR_ELT(SVT, i);
+		offset = REC_nzvals_SVT(subSVT, ndim - 1, ans, offset);
+	}
+	return offset;
+}
+
+SEXP C_nzvals_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT)
+{
+	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
+				"C_nzvals_SVT", "x_type");
+	int x_ndim = LENGTH(x_dim);
+	R_xlen_t nzcount = _REC_nzcount_SVT(x_SVT, x_ndim);
+	SEXP ans = PROTECT(allocVector(x_Rtype, nzcount));
+	REC_nzvals_SVT(x_SVT, x_ndim, ans, 0);
+	UNPROTECT(1);
+	return ans;
+}
+
+
+/****************************************************************************
  * Going from SVT_SparseArray to ordinary R array
  */
 
@@ -471,11 +506,11 @@ SEXP C_from_SVT_SparseArray_to_Rarray(SEXP x_dim, SEXP x_dimnames,
 	SEXPTYPE Rtype = _get_and_check_Rtype_from_Rstring(x_type,
 			"C_from_SVT_SparseArray_to_Rarray", "x_type");
 
-	int x_has_NAbg = _get_and_check_na_background(x_na_background,
+	int x_bg_is_na = _get_and_check_na_background(x_na_background,
 			"C_from_SVT_SparseArray_to_Rarray", "x_na_background");
 
 	SEXP ans;
-	if (x_has_NAbg) {
+	if (x_bg_is_na) {
 		ans = _new_RarrayNA(Rtype, x_dim, x_dimnames);
 	} else {
 		ans = _new_Rarray0(Rtype, x_dim, x_dimnames);
@@ -501,7 +536,7 @@ SEXP C_from_SVT_SparseArray_to_Rarray(SEXP x_dim, SEXP x_dimnames,
 static SEXP REC_build_SVT_from_Rsubarr(
 		SEXP Rarray, R_xlen_t arr_offset, R_xlen_t subarr_len,
 		const int *dim, int ndim,
-		SEXPTYPE ans_Rtype, int ans_na_background,
+		SEXPTYPE ans_Rtype, int ans_bg_is_na,
 		int *warn, int *offs_buf)
 {
 	if (ndim == 1) {
@@ -511,7 +546,7 @@ static SEXP REC_build_SVT_from_Rsubarr(
 			      "REC_build_SVT_from_Rsubarr():\n"
 			      "    dim[0] != subarr_len");
 		SEXP ans;
-		if (ans_na_background) {
+		if (ans_bg_is_na) {
 			ans = _make_naleaf_from_Rvector_block(
 					Rarray, arr_offset, dim[0],
 					offs_buf, 1);
@@ -523,7 +558,7 @@ static SEXP REC_build_SVT_from_Rsubarr(
 		if (ans_Rtype == TYPEOF(Rarray) || ans == R_NilValue)
 			return ans;
 		PROTECT(ans);
-		if (ans_na_background) {
+		if (ans_bg_is_na) {
 			ans = _coerce_naleaf(ans, ans_Rtype, warn, offs_buf);
 		} else {
 			ans = _coerce_leaf(ans, ans_Rtype, warn, offs_buf);
@@ -540,7 +575,7 @@ static SEXP REC_build_SVT_from_Rsubarr(
 		SEXP ans_elt = REC_build_SVT_from_Rsubarr(
 					Rarray, arr_offset, subarr_len,
 					dim, ndim - 1,
-					ans_Rtype, ans_na_background,
+					ans_Rtype, ans_bg_is_na,
 					warn, offs_buf);
 		if (ans_elt != R_NilValue) {
 			PROTECT(ans_elt);
@@ -561,7 +596,7 @@ SEXP C_build_SVT_from_Rarray(SEXP x, SEXP ans_type, SEXP ans_na_background)
 	if (ans_Rtype == 0)
 		error("invalid requested type");
 
-	int ans_has_NAbg = _get_and_check_na_background(ans_na_background,
+	int ans_bg_is_na = _get_and_check_na_background(ans_na_background,
 				"C_build_SVT_from_Rarray", "ans_na_background");
 
 	R_xlen_t x_len = XLENGTH(x);
@@ -574,7 +609,7 @@ SEXP C_build_SVT_from_Rarray(SEXP x, SEXP ans_type, SEXP ans_na_background)
 	int warn = 0;
 	SEXP ans = REC_build_SVT_from_Rsubarr(x, 0, x_len,
 				INTEGER(x_dim), x_ndim,
-				ans_Rtype, ans_has_NAbg,
+				ans_Rtype, ans_bg_is_na,
 				&warn, offs_buf);
 	if (warn) {
 		if (ans != R_NilValue)

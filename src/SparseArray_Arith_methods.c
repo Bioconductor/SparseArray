@@ -69,7 +69,7 @@ static SEXP Arith_leaf1_v2(int opcode,
 		SparseVec *buf_sv, int *ovflow)
 {
 	const SparseVec sv1 = leaf2SV(leaf1, Rtype1,
-				      buf_sv->len, buf_sv->na_background);
+				      buf_sv->len, buf_sv->bg_is_na);
 	_Arith_sv1_v2(opcode, &sv1, v2, i2, buf_sv, ovflow);
 	if (buf_sv->nzcount == PROPAGATE_NZOFFS)
 		return _make_leaf_with_single_shared_nzval(
@@ -83,7 +83,7 @@ static SEXP Arith_v1_leaf2(int opcode,
 		SparseVec *buf_sv, int *ovflow)
 {
 	const SparseVec sv2 = leaf2SV(leaf2, Rtype2,
-				      buf_sv->len, buf_sv->na_background);
+				      buf_sv->len, buf_sv->bg_is_na);
 	_Arith_v1_sv2(opcode, v1, &sv2, buf_sv, ovflow);
 	if (buf_sv->nzcount == PROPAGATE_NZOFFS)
 		return _make_leaf_with_single_shared_nzval(
@@ -93,8 +93,8 @@ static SEXP Arith_v1_leaf2(int opcode,
 }
 
 static SEXP Arith_NULL_leaf2(int opcode,
-		SEXPTYPE Rtype1, int na_background1,
-		SEXP leaf2, SEXPTYPE Rtype2, int na_background2,
+		SEXPTYPE Rtype1, int bg1_is_na,
+		SEXP leaf2, SEXPTYPE Rtype2, int bg2_is_na,
 		SparseVec *buf_sv)
 {
 	if (leaf2 == R_NilValue)
@@ -102,8 +102,8 @@ static SEXP Arith_NULL_leaf2(int opcode,
 		      "Arith_NULL_leaf2():\n"
 		      "    'leaf2' cannot be NULL");
 	const SparseVec sv2 = leaf2SV(leaf2, Rtype2,
-				      buf_sv->len, na_background2);
-	if (na_background1) {
+				      buf_sv->len, bg2_is_na);
+	if (bg1_is_na) {
 		_Arith_na_sv2(opcode, Rtype1, &sv2, buf_sv);
 	} else {
 		if (opcode == SUB_OPCODE) {
@@ -121,8 +121,8 @@ static SEXP Arith_NULL_leaf2(int opcode,
 }
 
 static SEXP Arith_leaf1_NULL(int opcode,
-		SEXP leaf1, SEXPTYPE Rtype1, int na_background1,
-		SEXPTYPE Rtype2, int na_background2,
+		SEXP leaf1, SEXPTYPE Rtype1, int bg1_is_na,
+		SEXPTYPE Rtype2, int bg2_is_na,
 		SparseVec *buf_sv)
 {
 	if (leaf1 == R_NilValue)
@@ -130,8 +130,8 @@ static SEXP Arith_leaf1_NULL(int opcode,
 		      "Arith_leaf1_NULL():\n"
 		      "    'leaf1' cannot be NULL");
 	const SparseVec sv1 = leaf2SV(leaf1, Rtype1,
-				      buf_sv->len, na_background1);
-	if (na_background2) {
+				      buf_sv->len, bg1_is_na);
+	if (bg2_is_na) {
 		_Arith_sv1_na(opcode, &sv1, Rtype2, buf_sv);
 	} else {
 		_Arith_sv1_zero(opcode, &sv1, Rtype2, buf_sv);
@@ -144,24 +144,24 @@ static SEXP Arith_leaf1_NULL(int opcode,
 }
 
 static SEXP Arith_leaf1_leaf2(int opcode,
-		SEXP leaf1, SEXPTYPE Rtype1, int na_background1,
-		SEXP leaf2, SEXPTYPE Rtype2, int na_background2,
+		SEXP leaf1, SEXPTYPE Rtype1, int bg1_is_na,
+		SEXP leaf2, SEXPTYPE Rtype2, int bg2_is_na,
 		SparseVec *buf_sv, int *ovflow)
 {
 	if (leaf1 == R_NilValue)
 		return Arith_NULL_leaf2(opcode,
-					Rtype1, na_background1,
-					leaf2, Rtype2, na_background2,
+					Rtype1, bg1_is_na,
+					leaf2, Rtype2, bg2_is_na,
 					buf_sv);
 	if (leaf2 == R_NilValue)
 		return Arith_leaf1_NULL(opcode,
-					leaf1, Rtype1, na_background1,
-					Rtype2, na_background2,
+					leaf1, Rtype1, bg1_is_na,
+					Rtype2, bg2_is_na,
 					buf_sv);
 	const SparseVec sv1 = leaf2SV(leaf1, Rtype1,
-				      buf_sv->len, na_background1);
+				      buf_sv->len, bg1_is_na);
 	const SparseVec sv2 = leaf2SV(leaf2, Rtype2,
-				      buf_sv->len, na_background2);
+				      buf_sv->len, bg2_is_na);
 	_Arith_sv1_sv2(opcode, &sv1, &sv2, buf_sv, ovflow);
 	return SV2leaf(buf_sv);
 }
@@ -260,15 +260,15 @@ static SEXP REC_Arith_v1_SVT2(int opcode,
 }
 
 static SEXP REC_Arith_SVT1_SVT2(int opcode,
-		SEXP SVT1, SEXPTYPE Rtype1, int na_background1,
-		SEXP SVT2, SEXPTYPE Rtype2, int na_background2,
+		SEXP SVT1, SEXPTYPE Rtype1, int bg1_is_na,
+		SEXP SVT2, SEXPTYPE Rtype2, int bg2_is_na,
 		const int *dim, int ndim,
 		SparseVec *buf_sv, int *ovflow)
 {
 	if (SVT1 == R_NilValue && SVT2 == R_NilValue)
 		return R_NilValue;
 
-	if (!(na_background1 || na_background2)) {
+	if (!(bg1_is_na || bg2_is_na)) {
 		if (SVT1 == R_NilValue) {
 			if (opcode == ADD_OPCODE)
 				return _coerce_SVT(SVT2, dim, ndim, Rtype2,
@@ -284,13 +284,13 @@ static SEXP REC_Arith_SVT1_SVT2(int opcode,
 
 	if (ndim == 1) {
 		/* 'SVT1' and 'SVT2' are leaves (i.e. 1D SVTs).
-		   Additionally, if !(na_background1 || na_background2):
+		   Additionally, if !(bg1_is_na || bg2_is_na):
 		   - 'SVT1' can be NULL if 'opcode' is SUB_OPCODE;
 		   - either 'SVT1' or 'SVT2' (but not both) can be NULL
 		     if 'opcode' is MULT_OPCODE. */
 		return Arith_leaf1_leaf2(opcode,
-					 SVT1, Rtype1, na_background1,
-					 SVT2, Rtype2, na_background2,
+					 SVT1, Rtype1, bg1_is_na,
+					 SVT2, Rtype2, bg2_is_na,
 					 buf_sv, ovflow);
 	}
 
@@ -307,8 +307,8 @@ static SEXP REC_Arith_SVT1_SVT2(int opcode,
 		if (SVT2 != R_NilValue)
 			subSVT2 = VECTOR_ELT(SVT2, i);
 		SEXP ans_elt = REC_Arith_SVT1_SVT2(opcode,
-					subSVT1, Rtype1, na_background1,
-					subSVT2, Rtype2, na_background2,
+					subSVT1, Rtype1, bg1_is_na,
+					subSVT2, Rtype2, bg2_is_na,
 					dim, ndim - 1,
 					buf_sv, ovflow);
 		if (ans_elt != R_NilValue) {
@@ -345,13 +345,13 @@ SEXP C_Arith_SVT1_v2(
 {
 	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
 					"C_Arith_SVT1_v2", "x_type");
-	int x_has_NAbg = _get_and_check_na_background(x_na_background,
+	int x_bg_is_na = _get_and_check_na_background(x_na_background,
 					"C_Arith_SVT1_v2", "x_na_background");
 	SEXPTYPE ans_Rtype = _get_and_check_Rtype_from_Rstring(ans_type,
 					"C_Arith_SVT1_v2", "ans_type");
 
 	int opcode = _get_Arith_opcode(op);
-	if (!x_has_NAbg && opcode != MULT_OPCODE &&
+	if (!x_bg_is_na && opcode != MULT_OPCODE &&
 			   opcode != DIV_OPCODE &&
 			   opcode != POW_OPCODE &&
 			   opcode != MOD_OPCODE &&
@@ -376,7 +376,7 @@ SEXP C_Arith_SVT1_v2(
 		error("SparseArray internal error in "
 		      "C_Arith_SVT1_v2():\n"
 		      "    length(v2) > dim(x)[[recycle.along]]");
-	SparseVec buf_sv = _alloc_buf_SparseVec(ans_Rtype, dim0, x_has_NAbg, 0);
+	SparseVec buf_sv = _alloc_buf_SparseVec(ans_Rtype, dim0, x_bg_is_na, 0);
 
 	int ovflow = 0;
 	SEXP ans = REC_Arith_SVT1_v2(opcode,
@@ -398,14 +398,14 @@ SEXP C_Arith_v1_SVT2(SEXP v1,
 {
 	SEXPTYPE y_Rtype = _get_and_check_Rtype_from_Rstring(y_type,
 					"C_Arith_v1_SVT2", "y_type");
-	int y_has_NAbg = _get_and_check_na_background(y_na_background,
+	int y_bg_is_na = _get_and_check_na_background(y_na_background,
 					"C_Arith_v1_SVT2", "y_na_background");
 
 	SEXPTYPE ans_Rtype = _get_and_check_Rtype_from_Rstring(ans_type,
 					"C_Arith_v1_SVT2", "ans_type");
 
 	int opcode = _get_Arith_opcode(op);
-	if (!y_has_NAbg && opcode != MULT_OPCODE &&
+	if (!y_bg_is_na && opcode != MULT_OPCODE &&
 			   opcode != DIV_OPCODE &&
 			   opcode != POW_OPCODE &&
 			   opcode != MOD_OPCODE &&
@@ -416,7 +416,7 @@ SEXP C_Arith_v1_SVT2(SEXP v1,
 	}
 
 	int dim0 = INTEGER(y_dim)[0];
-	SparseVec buf_sv = _alloc_buf_SparseVec(ans_Rtype, dim0, y_has_NAbg, 0);
+	SparseVec buf_sv = _alloc_buf_SparseVec(ans_Rtype, dim0, y_bg_is_na, 0);
 
 	int ovflow = 0;
 	SEXP ans = REC_Arith_v1_SVT2(opcode,
@@ -440,17 +440,17 @@ SEXP C_Arith_SVT1_SVT2(
 	_check_array_conformability(x_dim, y_dim);
 	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
 					"C_Arith_SVT1_SVT2", "x_type");
-	int x_has_NAbg = _get_and_check_na_background(x_na_background,
+	int x_bg_is_na = _get_and_check_na_background(x_na_background,
 					"C_Arith_SVT1_SVT2", "x_na_background");
 	SEXPTYPE y_Rtype = _get_and_check_Rtype_from_Rstring(y_type,
 					"C_Arith_SVT1_SVT2", "y_type");
-        int y_has_NAbg = _get_and_check_na_background(y_na_background,
+        int y_bg_is_na = _get_and_check_na_background(y_na_background,
 					"C_Arith_SVT1_SVT2", "y_na_background");
 	SEXPTYPE ans_Rtype = _get_and_check_Rtype_from_Rstring(ans_type,
 					"C_Arith_SVT1_SVT2", "ans_type");
 
 	int opcode = _get_Arith_opcode(op);
-	if (!x_has_NAbg && !y_has_NAbg && opcode != ADD_OPCODE &&
+	if (!x_bg_is_na && !y_bg_is_na && opcode != ADD_OPCODE &&
 					  opcode != SUB_OPCODE &&
 					  opcode != MULT_OPCODE)
 	{
@@ -460,12 +460,12 @@ SEXP C_Arith_SVT1_SVT2(
 
 	int dim0 = INTEGER(x_dim)[0];
 	SparseVec buf_sv = _alloc_buf_SparseVec(ans_Rtype, dim0,
-						x_has_NAbg || y_has_NAbg, 0);
+						x_bg_is_na || y_bg_is_na, 0);
 
 	int ovflow = 0;
 	SEXP ans = REC_Arith_SVT1_SVT2(opcode,
-				x_SVT, x_Rtype, x_has_NAbg,
-				y_SVT, y_Rtype, y_has_NAbg,
+				x_SVT, x_Rtype, x_bg_is_na,
+				y_SVT, y_Rtype, y_bg_is_na,
 				INTEGER(x_dim), LENGTH(x_dim),
 				&buf_sv, &ovflow);
 	if (ans != R_NilValue)

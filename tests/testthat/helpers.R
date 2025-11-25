@@ -88,16 +88,31 @@ check_array_like_object <- function(object, expected_class, a0, strict=TRUE)
     expect_true(class(object) == expected_class)
     expect_true(validObject(object))
     expect_identical(dim(object), dim(a0))
+    a0_dimnames <- dimnames(a0)
+    if (is.list(a0_dimnames) &&
+        length(a0_dimnames) == 1L &&
+        is.null(a0_dimnames[[1L]]))
+    {
+        dimnames(a0) <- NULL
+    }
     expect_identical(dimnames(object), dimnames(a0))
     expect_identical(type(object), type(a0))
     EXPECT_FUN <- if (strict) expect_identical else expect_equal
     EXPECT_FUN(as.array(object), a0)
 }
 
+.drop_zero_length_dimnames <- function(dimnames)
+{
+    if (is.null(dimnames))
+        return(NULL)
+    lapply(dimnames, function(dn) if (length(dn) == 0L) NULL else dn)
+}
+
 check_SVT_SparseArray_object <- function(svt, a0, strict=TRUE)
 {
     Class0 <- S4Vectors:::capitalize(class(a0)[[1]])
     expected_class <- paste0("SVT_Sparse", Class0)
+    dimnames(svt) <- .drop_zero_length_dimnames(dimnames(svt))
     check_array_like_object(svt, expected_class, a0, strict=strict)
     if (strict)
         expect_identical(svt, as(a0, expected_class))
@@ -107,6 +122,7 @@ check_NaArray_object <- function(naa, a0, strict=TRUE)
 {
     Class0 <- S4Vectors:::capitalize(class(a0)[[1]])
     expected_class <- paste0("Na", Class0)
+    dimnames(naa) <- .drop_zero_length_dimnames(dimnames(naa))
     check_array_like_object(naa, expected_class, a0, strict=strict)
     if (strict)
         expect_identical(naa, as(a0, expected_class))

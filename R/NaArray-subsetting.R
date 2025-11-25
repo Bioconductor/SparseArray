@@ -86,18 +86,42 @@ setMethod("subset_Array_by_Mindex", "NaArray", .subset_NaSVT_by_Mindex)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### subset_NaSVT_by_Nindex()
+### .subset_NaSVT_as_Rarray()
 ###
-### Returns an NaArray object of the same type() as 'x' (endomorphism).
+### Equivalent to 'as.array(.subset_NaSVT_as_NaSVT(x, Nindex))' but slightly
+### more efficient.
+###
+### TODO: Add unit tests for this.
 
-subset_NaSVT_by_Nindex <- function(x, Nindex, ignore.dimnames=FALSE)
+.subset_NaSVT_as_Rarray <- function(x, Nindex, ignore.dimnames=FALSE)
 {
     stopifnot(is(x, "NaArray"), isTRUEorFALSE(ignore.dimnames))
     check_svt_version(x)
 
     new_dim <- S4Arrays:::get_Nindex_lengths(Nindex, x@dim)
     Noffs <- Nindex2Noffs(Nindex)
-    new_NaSVT <- SparseArray.Call("C_subset_SVT_by_Noffs",
+    ans <- SparseArray.Call("C_subset_SVT_as_Rarray",
+                            x@dim, x@type, x@NaSVT, TRUE, Noffs)
+    if (!ignore.dimnames)
+        dimnames(ans) <- S4Arrays:::subset_dimnames_by_Nindex(x@dimnames,
+                                                              Nindex)
+    ans
+}
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### .subset_NaSVT_as_NaSVT()
+###
+### Returns an NaArray object of the same type() as 'x' (endomorphism).
+
+.subset_NaSVT_as_NaSVT <- function(x, Nindex, ignore.dimnames=FALSE)
+{
+    stopifnot(is(x, "NaArray"), isTRUEorFALSE(ignore.dimnames))
+    check_svt_version(x)
+
+    new_dim <- S4Arrays:::get_Nindex_lengths(Nindex, x@dim)
+    Noffs <- Nindex2Noffs(Nindex)
+    new_NaSVT <- SparseArray.Call("C_subset_SVT_as_SVT",
                                   x@dim, x@type, x@NaSVT, Noffs)
 
     ## Compute 'new_dimnames'.
@@ -112,14 +136,30 @@ subset_NaSVT_by_Nindex <- function(x, Nindex, ignore.dimnames=FALSE)
                                    check=FALSE)
 }
 
-setMethod("subset_Array_by_Nindex", "NaArray",
-    function(x, Nindex) subset_NaSVT_by_Nindex(x, Nindex)
-)
-
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### extract_na_array() and extract_array() methods for NaArray objects
+### subset_Array_by_Nindex(), extract_array(), and extract_na_array() methods
+### for NaArray objects
 ###
+
+setMethod("subset_Array_by_Nindex", "NaArray",
+    function(x, Nindex, drop=TRUE)
+    {
+        ans_dim <- S4Arrays:::get_Nindex_lengths(Nindex, x@dim)
+        if (drop && sum(ans_dim != 1L) <= 1L) {
+            ans <- .subset_NaSVT_as_Rarray(x, Nindex)
+            return(S4Arrays:::drop_even_if_1D(ans))
+        }
+        ans <- .subset_NaSVT_as_NaSVT(x, Nindex)
+        if (drop)
+            ans <- drop(ans)
+        ans
+    }
+)
+
+setMethod("extract_array", "NaArray",
+    function(x, index) .subset_NaSVT_as_Rarray(x, index, ignore.dimnames=TRUE)
+)
 
 setGeneric("extract_na_array", signature="x",
     function(x, index) standardGeneric("extract_na_array")
@@ -127,17 +167,6 @@ setGeneric("extract_na_array", signature="x",
 
 ### No need to propagate the dimnames.
 setMethod("extract_na_array", "NaArray",
-    function(x, index) subset_NaSVT_by_Nindex(x, index, ignore.dimnames=TRUE)
-)
-
-### Note that the default extract_array() method would do the job but it
-### relies on single-bracket subsetting so would needlessly go thru the
-### complex .subset_NaArray() machinery above to finally call
-### subset_NaSVT_by_Nindex(). It would also propagate the dimnames which
-### extract_array() does not need to do. The method below completely bypasses
-### all this complexity by calling subset_NaSVT_by_Nindex() directly.
-setMethod("extract_array", "NaArray",
-    function(x, index)
-        as.array(subset_NaSVT_by_Nindex(x, index, ignore.dimnames=TRUE))
+    function(x, index) .subset_NaSVT_as_NaSVT(x, index, ignore.dimnames=TRUE)
 )
 

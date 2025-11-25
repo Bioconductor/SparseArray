@@ -160,7 +160,6 @@ setReplaceMethod("type", "SVT_SparseArray", .set_SVT_SparseArray_type)
     new_SVT <- SparseArray.Call("C_is_nonzero_SVT", x@dim, x@SVT)
     BiocGenerics:::replaceSlots(x, type="logical", SVT=new_SVT, check=FALSE)
 }
-
 setMethod("is_nonzero", "SVT_SparseArray", .is_nonzero_SVT)
 
 ### Note that like for the length of atomic vectors in base R, the "nonzero
@@ -171,7 +170,6 @@ setMethod("is_nonzero", "SVT_SparseArray", .is_nonzero_SVT)
     check_svt_version(x)
     SparseArray.Call("C_nzcount_SVT", x@dim, x@SVT)
 }
-
 setMethod("nzcount", "SVT_SparseArray", .nzcount_SVT)
 
 ### Returns an integer vector of length nzcount(x) if 'arr.ind=FALSE', or
@@ -184,11 +182,18 @@ setMethod("nzcount", "SVT_SparseArray", .nzcount_SVT)
         stop(wmsg("'arr.ind' must be TRUE or FALSE"))
     SparseArray.Call("C_nzwhich_SVT", x@dim, x@SVT, arr.ind)
 }
-
 setMethod("nzwhich", "SVT_SparseArray", .nzwhich_SVT)
 
-### TODO: Implement optimized nzvals() and `nzvals<-`() methods for
-### SVT_SparseArray objects.
+.nzvals_SVT <- function(x)
+{
+    stopifnot(is(x, "SVT_SparseArray"))
+    check_svt_version(x)
+    SparseArray.Call("C_nzvals_SVT", x@dim, x@type, x@SVT)
+}
+setMethod("nzvals", "SVT_SparseArray", .nzvals_SVT)
+
+### TODO: Do we need an optimized `nzvals<-`() method for SVT_SparseArray
+### objects?
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -214,6 +219,12 @@ new_SVT_SparseArray <- function(dim, dimnames=NULL,
 ### Going back and forth between SVT_SparseArray objects and ordinary arrays
 ###
 
+### Note that we could also use 'extract_array(from, list(NULL, ...))'
+### for this. The workhorse behind the extract_array() method for
+### SVT_SparseArray objects is C_subset_SVT_as_Rarray and it should be
+### as fast as C_from_SVT_SparseArray_to_Rarray.
+### TODO: Use extract_array() for this and get rid of .Call entry point
+### C_from_SVT_SparseArray_to_Rarray.
 .from_SVT_SparseArray_to_array <- function(from)
 {
     stopifnot(is(from, "SVT_SparseArray"))
@@ -452,7 +463,7 @@ setAs("COO_SparseMatrix", "SVT_SparseMatrix",
 ###
 ### Given a DelayedArray object or any out-of-memory array-like object 'x':
 ### - as.array(x) is the standard way to realize it as an ordinary array, that
-###   is, as a **dense** array);
+###   is, as a **dense** array;
 ### - as(x, "SparseArray") is the standard way to realize it in memory as a
 ###   SparseArray derivative (SVT_SparseArray or COO_SparseArray object), that
 ###   is as a **sparse** array;

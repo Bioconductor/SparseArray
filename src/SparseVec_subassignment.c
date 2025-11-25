@@ -8,12 +8,12 @@
    'DEFINE_subassign_typeSV_FUN(Rbyte)' and other macros defined in
    this file work. Note that these macros contain the following line:
 
-       type bg_val = out_sv->na_background ? type ## NA : type ## 0;
+       type bg_val = out_sv->bg_is_na ? type ## NA : type ## 0;
 
    So it absolutely doesn't matter what value we set 'RbyteNA' and 'listNA'
    to because we don't support NaArray objects of type raw or list.
    This means that if SparseVec 'out_sv' is of type raw or list
-   then 'out_sv->na_background' is guaranteed to be FALSE.
+   then 'out_sv->bg_is_na' is guaranteed to be FALSE.
    In other words, 'RbyteNA' and 'listNA' will **never** be used! */
 
 #define RbyteNA Rbyte0  /* exact value doesn't matter, see above */
@@ -255,7 +255,7 @@ static int subassign_ ## type ## SV(					   \
 		SparseVec *out_sv)					   \
 {									   \
 	out_sv->nzcount = 0;						   \
-	type bg_val = out_sv->na_background ? type ## NA : type ## 0;	   \
+	type bg_val = out_sv->bg_is_na ? type ## NA : type ## 0;	   \
 	int neffrep = 0, ret, k1 = 0, k = 0, out_off;			   \
 	type out_val;							   \
 	while ((ret = next_subassign_ ## type ## SV_out_val(sv1, offs, n,  \
@@ -281,7 +281,7 @@ static int subassign_characterSV(
 		SparseVec *out_sv)
 {
 	out_sv->nzcount = 0;
-	SEXP bg_val = out_sv->na_background ? characterNA : character0;
+	SEXP bg_val = out_sv->bg_is_na ? characterNA : character0;
 	int neffrep = 0, ret, k1 = 0, k = 0, out_off;
 	SEXP out_val;
 	while ((ret = next_subassign_characterSV_out_val(sv1, offs, n,
@@ -459,7 +459,7 @@ static int subassign_ ## type ## SV_with_SV(				   \
 		const SparseVec *sv2, SparseVec *out_sv)		   \
 {									   \
 	out_sv->nzcount = 0;						   \
-	out_type bg_val = out_sv->na_background ? type ## NA : type ## 0;  \
+	out_type bg_val = out_sv->bg_is_na ? type ## NA : type ## 0;  \
 	int neffrep = 0, ret, k1 = 0, k = 0, k2 = 0, out_off;		   \
 	out_type out_val;						   \
 	while ((ret = next_subassign_ ## type ## SV_with_SV_out_val(	   \
@@ -532,7 +532,7 @@ static int subassign_full_ ## type ## SV_with_Rvector_block(		  \
 		const type *vals2, int cycle_len, SparseVec *out_sv)	  \
 {									  \
 	out_sv->nzcount = 0;						  \
-	type bg_val = out_sv->na_background ? type ## NA : type ## 0;	  \
+	type bg_val = out_sv->bg_is_na ? type ## NA : type ## 0;	  \
 	int neffrep = 0, k1 = 0;					  \
 	for (int out_off = 0; out_off < out_sv->len; out_off++) {	  \
 		int ret = next_k1(sv1, &k1, out_off);			  \
@@ -555,7 +555,7 @@ static int subassign_full_characterSV_with_Rvector_block(const SparseVec *sv1,
 		SparseVec *out_sv)
 {
 	out_sv->nzcount = 0;
-	SEXP bg_val = out_sv->na_background ? characterNA : character0;
+	SEXP bg_val = out_sv->bg_is_na ? characterNA : character0;
 	int neffrep = 0, k1 = 0;
 	for (int out_off = 0; out_off < out_sv->len; out_off++) {
 		int ret = next_k1(sv1, &k1, out_off);

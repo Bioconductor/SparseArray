@@ -9,8 +9,8 @@
  ****************************************************************************/
 #include "SparseArray_matrixStats.h"
 
+#include "misc_utils.h"  /* for _which_max() */
 #include "argcheck_utils.h"
-#include "thread_control.h"  /* for which_max() */
 #include "Rvector_summarization.h"
 #include "SparseVec.h"
 #include "leaf_utils.h"
@@ -197,7 +197,7 @@ static inline void copy_result_to_out(const SummarizeResult *res,
 }
 
 /* Recursive. */
-static void REC_colStats_SVT(SEXP SVT, int na_background,
+static void REC_colStats_SVT(SEXP SVT, int bg_is_na,
 		const int *dim, int ndim,
 		const SummarizeOp *summarize_op,
 		void *out, SEXPTYPE out_Rtype,
@@ -205,7 +205,7 @@ static void REC_colStats_SVT(SEXP SVT, int na_background,
 		int *warn)
 {
 	if (out_ndim == 0) {
-		SummarizeResult res = _summarize_SVT(SVT, na_background,
+		SummarizeResult res = _summarize_SVT(SVT, bg_is_na,
 						     dim, ndim,
 						     summarize_op);
 		if (res.warn)
@@ -221,7 +221,7 @@ static void REC_colStats_SVT(SEXP SVT, int na_background,
 		SEXP subSVT = SVT == R_NilValue ? R_NilValue
 						: VECTOR_ELT(SVT, i);
 		void *subout = shift_dataptr(out_Rtype, out, out_inc * i);
-		REC_colStats_SVT(subSVT, na_background, dim, ndim - 1,
+		REC_colStats_SVT(subSVT, bg_is_na, dim, ndim - 1,
 				 summarize_op,
 				 subout, out_Rtype,
 				 out_incs, out_ndim - 1, pardim,
@@ -237,7 +237,7 @@ SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type,
 {
 	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
 					"C_colStats_SVT", "x_type");
-	int x_has_NAbg = _get_and_check_na_background(x_na_background,
+	int x_bg_is_na = _get_and_check_na_background(x_na_background,
 					"C_colStats_SVT", "x_na_background");
 
 	int opcode = _get_summarize_opcode(op, x_Rtype);
@@ -260,7 +260,7 @@ SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type,
 	int ans_ndim = LENGTH(ans_dim);  /* = x_ndim - d */
 	/* Get 1-based rank of biggest dimension. Parallel execution will
 	   be along that dimension. */
-	int pardim = which_max(INTEGER(ans_dim), ans_ndim) + 1;
+	int pardim = _which_max(INTEGER(ans_dim), ans_ndim) + 1;
 
 	R_xlen_t *out_incs = NULL;
 	if (ans_ndim != 0)
@@ -270,7 +270,7 @@ SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type,
 	propagate_colStats_dimnames(ans, x_dimnames, d);
 
 	int warn = 0;
-	REC_colStats_SVT(x_SVT, x_has_NAbg, INTEGER(x_dim), LENGTH(x_dim),
+	REC_colStats_SVT(x_SVT, x_bg_is_na, INTEGER(x_dim), LENGTH(x_dim),
 			 &summarize_op,
 			 DATAPTR(ans), ans_Rtype,
 			 out_incs, ans_ndim, pardim,
@@ -497,7 +497,7 @@ static inline void check_out_Rtype(SEXPTYPE out_Rtype, SEXPTYPE expected,
 
 static void update_out_for_rowAnyNAs(const SparseVec *sv, int *out)
 {
-	if (sv->na_background)
+	if (sv->bg_is_na)
 		error("SparseArray internal error in "
 		      "update_out_for_rowAnyNAs():\n"
 		      "    operation not yet supported on NaArray objects");
@@ -515,12 +515,12 @@ static void update_out_for_rowAnyNAs(const SparseVec *sv, int *out)
 
 static void update_out_for_rowCountNAs(const SparseVec *sv, double *out)
 {
-	if (!sv->na_background && sv->nzvals == NULL)  /* lacunar leaf */
+	if (!sv->bg_is_na && sv->nzvals == NULL)  /* lacunar leaf */
 		return;
 	int nzcount = get_SV_nzcount(sv);
 	SEXPTYPE Rtype = get_SV_Rtype(sv);
 	for (int k = 0; k < nzcount; k++) {
-		if (sv->na_background) {
+		if (sv->bg_is_na) {
 			if (sv->nzvals == NULL || !is_na(Rtype, sv->nzvals, k))
 				out[sv->nzoffs[k]]--;
 		} else {
@@ -599,7 +599,7 @@ static void update_out_for_double_rowMaxs(const SparseVec *sv, int narm,
 static void update_out_for_rowSums(const SparseVec *sv, int narm, double *out)
 {
 	int nzcount = get_SV_nzcount(sv);
-	if (!sv->na_background || narm) {
+	if (!sv->bg_is_na || narm) {
 		if (sv->nzvals == NULL) {
 			/* lacunar leaf */
 			for (int k = 0; k < nzcount; k++)
@@ -636,7 +636,7 @@ static void update_out_for_rowSums(const SparseVec *sv, int narm, double *out)
 static void update_out_for_rowCenteredX2Sum(const SparseVec *sv,
 		int narm, const double *center, double *out)
 {
-	if (sv->na_background)
+	if (sv->bg_is_na)
 		error("SparseArray internal error in "
 		      "update_out_for_rowCenteredX2Sum():\n"
 		      "    operation not yet supported on NaArray objects");
@@ -753,11 +753,11 @@ static void update_out_for_rowStats(const SparseVec *sv,
 	      "    operation not supported");
 }
 
-static void update_out_for_rowStats_NULL(int na_background,
+static void update_out_for_rowStats_NULL(int bg_is_na,
 		const SummarizeOp *summarize_op, const double *center,
 		void *out, int out_len, SEXPTYPE out_Rtype)
 {
-	if (!na_background)
+	if (!bg_is_na)
 		return;
 	if (summarize_op->opcode == COUNTNAS_OPCODE || summarize_op->na_rm)
 		return;
@@ -771,7 +771,7 @@ static void update_out_for_rowStats_NULL(int na_background,
  */
 
 /* Recursive. 'strata_counter' not used for anything at the moment. */
-static void REC_rowStats_SVT(SEXP SVT, int na_background,
+static void REC_rowStats_SVT(SEXP SVT, int bg_is_na,
 		const int *dim, int ndim,
 		const SummarizeOp *summarize_op, const double *center,
 		void *out, SEXPTYPE out_Rtype,
@@ -782,7 +782,7 @@ static void REC_rowStats_SVT(SEXP SVT, int na_background,
 		R_xlen_t out_len = 1;
 		for (int along = 0; along < ndim && along < out_ndim; along++)
 			out_len *= dim[along];
-		update_out_for_rowStats_NULL(na_background,
+		update_out_for_rowStats_NULL(bg_is_na,
 			summarize_op, center,
 			out, out_len, out_Rtype);
 		if (ndim >= out_ndim) {
@@ -797,7 +797,7 @@ static void REC_rowStats_SVT(SEXP SVT, int na_background,
 	if (ndim == 1) {
 		/* 'SVT' is a leaf (i.e. a 1D SVT). */
 		SparseVec sv = leaf2SV(SVT, summarize_op->in_Rtype,
-				       dim[0], na_background);
+				       dim[0], bg_is_na);
 		update_out_for_rowStats(&sv, summarize_op, center,
 					out, out_Rtype, nzcvg);
 		if (out_ndim == 1)
@@ -818,7 +818,7 @@ static void REC_rowStats_SVT(SEXP SVT, int na_background,
 		R_xlen_t *subnzcvg = NULL;
 		if (nzcvg != NULL)
 			subnzcvg = nzcvg + out_inc * i;
-		REC_rowStats_SVT(subSVT, na_background, dim, ndim - 1,
+		REC_rowStats_SVT(subSVT, bg_is_na, dim, ndim - 1,
 				 summarize_op, subcenter,
 				 subout, out_Rtype, out_incs, out_ndim,
 				 subnzcvg, strata_counter);
@@ -828,7 +828,7 @@ static void REC_rowStats_SVT(SEXP SVT, int na_background,
 	return;
 }
 
-static void rowStats_SVT(SEXP SVT, int na_background,
+static void rowStats_SVT(SEXP SVT, int bg_is_na,
 		const int *dim, int ndim,
 		const SummarizeOp *summarize_op, const double *center,
 		void *out, SEXPTYPE out_Rtype,
@@ -836,7 +836,7 @@ static void rowStats_SVT(SEXP SVT, int na_background,
 		R_xlen_t *nzcvg, R_xlen_t nstrata)
 {
 	R_xlen_t strata_counter = 0;
-	REC_rowStats_SVT(SVT, na_background, dim, ndim,
+	REC_rowStats_SVT(SVT, bg_is_na, dim, ndim,
 			 summarize_op, center,
 			 out, out_Rtype, out_incs, out_ndim,
 			 nzcvg, &strata_counter);
@@ -853,14 +853,14 @@ static void rowStats_SVT(SEXP SVT, int na_background,
  * The SVT_row*() functions
  */
 
-static void SVT_rowCountNAs(SEXP SVT, SEXPTYPE Rtype, int na_background,
+static void SVT_rowCountNAs(SEXP SVT, SEXPTYPE Rtype, int bg_is_na,
 		const int *dim, int ndim,
 		double *out, R_xlen_t out_len,
 		const R_xlen_t *out_incs, int out_ndim,
 		R_xlen_t nstrata)
 {
 	/* Initialization. */
-	double v = na_background ? (double) nstrata : 0.0;
+	double v = bg_is_na ? (double) nstrata : 0.0;
 	for (R_xlen_t i = 0; i < out_len; i++)
 		out[i] = v;
 
@@ -869,7 +869,7 @@ static void SVT_rowCountNAs(SEXP SVT, SEXPTYPE Rtype, int na_background,
 		SummarizeOp summarize_op =
 			_make_SummarizeOp(COUNTNAS_OPCODE,
 					  Rtype, 0, NA_REAL);
-		rowStats_SVT(SVT, na_background, dim, ndim,
+		rowStats_SVT(SVT, bg_is_na, dim, ndim,
 			     &summarize_op, NULL,
 			     out, REALSXP, out_incs, out_ndim,
 			     NULL, nstrata);
@@ -877,13 +877,13 @@ static void SVT_rowCountNAs(SEXP SVT, SEXPTYPE Rtype, int na_background,
 	return;
 }
 
-static void SVT_rowAnyNAs(SEXP SVT, SEXPTYPE Rtype, int na_background,
+static void SVT_rowAnyNAs(SEXP SVT, SEXPTYPE Rtype, int bg_is_na,
 		const int *dim, int ndim,
 		int *out, R_xlen_t out_len,
 		const R_xlen_t *out_incs, int out_ndim,
 		R_xlen_t nstrata)
 {
-	if (!na_background) {
+	if (!bg_is_na) {
 		/* Initialization. */
 		_set_elts_to_zero(LGLSXP, out, 0, out_len);
 
@@ -911,7 +911,7 @@ static void SVT_rowAnyNAs(SEXP SVT, SEXPTYPE Rtype, int na_background,
 	return;
 }
 
-static void postprocess_int_rowMinsMaxs(int na_background,
+static void postprocess_int_rowMinsMaxs(int bg_is_na,
 		int opcode, int narm,
 		int *out, R_xlen_t out_len,
 		const R_xlen_t *nzcvg, R_xlen_t nstrata)
@@ -920,7 +920,7 @@ static void postprocess_int_rowMinsMaxs(int na_background,
 	for (R_xlen_t i = 0; i < out_len; i++) {
 		R_xlen_t nzcvg_i = nzcvg[i];
 		if (nzcvg_i < nstrata) {
-			int background = na_background ? intNA : int0;
+			int background = bg_is_na ? intNA : int0;
 			if (opcode == MIN_OPCODE)
 				update_out_with_int_min(background, narm,
 							out + i, nzcvg_i == 0);
@@ -937,7 +937,7 @@ static void postprocess_int_rowMinsMaxs(int na_background,
 	return;
 }
 
-static void postprocess_double_rowMinsMaxs(int na_background,
+static void postprocess_double_rowMinsMaxs(int bg_is_na,
 		int opcode, int narm,
 		double *out, R_xlen_t out_len,
 		const R_xlen_t *nzcvg, R_xlen_t nstrata)
@@ -946,7 +946,7 @@ static void postprocess_double_rowMinsMaxs(int na_background,
 	for (R_xlen_t i = 0; i < out_len; i++) {
 		R_xlen_t nzcvg_i = nzcvg[i];
 		if (nzcvg_i < nstrata) {
-			double background = na_background ? doubleNA : double0;
+			double background = bg_is_na ? doubleNA : double0;
 			if (opcode == MIN_OPCODE)
 				update_out_with_double_min(background, narm,
 							out + i, nzcvg_i == 0);
@@ -960,7 +960,7 @@ static void postprocess_double_rowMinsMaxs(int na_background,
 	return;
 }
 
-static void SVT_rowMinsMaxs(SEXP SVT, SEXPTYPE Rtype, int na_background,
+static void SVT_rowMinsMaxs(SEXP SVT, SEXPTYPE Rtype, int bg_is_na,
 		const int *dim, int ndim,
 		int opcode, int narm,
 		void *out, R_xlen_t out_len, SEXPTYPE out_Rtype,
@@ -997,7 +997,7 @@ static void SVT_rowMinsMaxs(SEXP SVT, SEXPTYPE Rtype, int na_background,
 	   guaranteed to be >= 0 and <= nstrata. */
 	R_xlen_t *nzcvg = (R_xlen_t *) R_alloc(out_len, sizeof(R_xlen_t));
 	memset(nzcvg, 0, sizeof(R_xlen_t) * out_len);
-	rowStats_SVT(SVT, na_background, dim, ndim,
+	rowStats_SVT(SVT, bg_is_na, dim, ndim,
 		     &summarize_op, NULL,
 		     out, out_Rtype, out_incs, out_ndim,
 		     nzcvg, nstrata);
@@ -1005,12 +1005,12 @@ static void SVT_rowMinsMaxs(SEXP SVT, SEXPTYPE Rtype, int na_background,
 	/* Postprocessing. */
 
 	if (out_Rtype == INTSXP) {
-		postprocess_int_rowMinsMaxs(na_background,
+		postprocess_int_rowMinsMaxs(bg_is_na,
 				opcode, narm,
 				(int *) out, out_len,
 				nzcvg, nstrata);
 	} else {
-		postprocess_double_rowMinsMaxs(na_background,
+		postprocess_double_rowMinsMaxs(bg_is_na,
 				opcode, narm,
 				(double *) out, out_len,
 				nzcvg, nstrata);
@@ -1018,7 +1018,7 @@ static void SVT_rowMinsMaxs(SEXP SVT, SEXPTYPE Rtype, int na_background,
 	return;
 }
 
-static void SVT_rowSums(SEXP SVT, SEXPTYPE Rtype, int na_background,
+static void SVT_rowSums(SEXP SVT, SEXPTYPE Rtype, int bg_is_na,
 		const int *dim, int ndim,
 		int narm,
 		double *out, R_xlen_t out_len,
@@ -1033,7 +1033,7 @@ static void SVT_rowSums(SEXP SVT, SEXPTYPE Rtype, int na_background,
 		SummarizeOp summarize_op =
 			_make_SummarizeOp(SUM_OPCODE,
 					  Rtype, narm, NA_REAL);
-		rowStats_SVT(SVT, na_background, dim, ndim,
+		rowStats_SVT(SVT, bg_is_na, dim, ndim,
 			     &summarize_op, NULL,
 			     out, REALSXP, out_incs, out_ndim,
 			     NULL, nstrata);
@@ -1041,7 +1041,7 @@ static void SVT_rowSums(SEXP SVT, SEXPTYPE Rtype, int na_background,
 	return;
 }
 
-static void SVT_rowCenteredX2Sum(SEXP SVT, SEXPTYPE Rtype, int na_background,
+static void SVT_rowCenteredX2Sum(SEXP SVT, SEXPTYPE Rtype, int bg_is_na,
 		const int *dim, int ndim,
 		int narm, const double *center,
 		double *out, R_xlen_t out_len,
@@ -1063,7 +1063,7 @@ static void SVT_rowCenteredX2Sum(SEXP SVT, SEXPTYPE Rtype, int na_background,
 		SummarizeOp summarize_op =
 			_make_SummarizeOp(CENTERED_X2_SUM_OPCODE,
 					  Rtype, narm, NA_REAL);
-		rowStats_SVT(SVT, na_background, dim, ndim,
+		rowStats_SVT(SVT, bg_is_na, dim, ndim,
 			     &summarize_op, center,
 			     out, REALSXP, out_incs, out_ndim,
 			     NULL, nstrata);
@@ -1124,7 +1124,7 @@ SEXP C_rowStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type,
 {
 	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
 					"C_rowStats_SVT", "x_type");
-	int x_has_NAbg = _get_and_check_na_background(x_na_background,
+	int x_bg_is_na = _get_and_check_na_background(x_na_background,
 					"C_colStats_SVT", "x_na_background");
 
 	int opcode = _get_summarize_opcode(op, x_Rtype);
@@ -1159,20 +1159,20 @@ SEXP C_rowStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type,
 	switch (opcode) {
 	    case COUNTNAS_OPCODE:
 		check_out_Rtype(ans_Rtype, REALSXP, "C_rowStats_SVT");
-		SVT_rowCountNAs(x_SVT, x_Rtype, x_has_NAbg,
+		SVT_rowCountNAs(x_SVT, x_Rtype, x_bg_is_na,
 			INTEGER(x_dim), LENGTH(x_dim),
 			REAL(ans), LENGTH(ans),
 			out_incs, ans_ndim, nstrata);
 		break;
 	    case ANYNA_OPCODE:
 		check_out_Rtype(ans_Rtype, LGLSXP, "C_rowStats_SVT");
-		SVT_rowAnyNAs(x_SVT, x_Rtype, x_has_NAbg,
+		SVT_rowAnyNAs(x_SVT, x_Rtype, x_bg_is_na,
 			INTEGER(x_dim), LENGTH(x_dim),
 			LOGICAL(ans), LENGTH(ans),
 			out_incs, ans_ndim, nstrata);
 		break;
 	    case MIN_OPCODE: case MAX_OPCODE:
-		SVT_rowMinsMaxs(x_SVT, x_Rtype, x_has_NAbg,
+		SVT_rowMinsMaxs(x_SVT, x_Rtype, x_bg_is_na,
 			INTEGER(x_dim), LENGTH(x_dim),
 			opcode, narm,
 			DATAPTR(ans), LENGTH(ans), ans_Rtype,
@@ -1180,7 +1180,7 @@ SEXP C_rowStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type,
 		break;
 	    case SUM_OPCODE:
 		check_out_Rtype(ans_Rtype, REALSXP, "C_rowStats_SVT");
-		SVT_rowSums(x_SVT, x_Rtype, x_has_NAbg,
+		SVT_rowSums(x_SVT, x_Rtype, x_bg_is_na,
 			INTEGER(x_dim), LENGTH(x_dim),
 			narm,
 			REAL(ans), LENGTH(ans),
@@ -1188,7 +1188,7 @@ SEXP C_rowStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type,
 		break;
 	    case CENTERED_X2_SUM_OPCODE:
 		check_out_Rtype(ans_Rtype, REALSXP, "C_rowStats_SVT");
-		SVT_rowCenteredX2Sum(x_SVT, x_Rtype, x_has_NAbg,
+		SVT_rowCenteredX2Sum(x_SVT, x_Rtype, x_bg_is_na,
 			INTEGER(x_dim), LENGTH(x_dim),
 			narm, center_p,
 			REAL(ans), LENGTH(ans),

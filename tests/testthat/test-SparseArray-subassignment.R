@@ -96,13 +96,13 @@ test_that("SparseArray:::.subassign_SVT_with_short_Rvector()", {
     ## --- 1D objects ---
 
     svt0 <- SVT_SparseArray(dim=10, type="raw", dimnames=list(LETTERS[1:10]))
-    a0 <- as.array(svt0)
+    x0 <- as.array(svt0)
     Nindex1 <- list(c(6:9, 2L))
     Nindex2 <- list(NULL)
     Nindex3 <- list(c(10L, 3:5, 3L))
 
     svt1 <- subassign_SVT_with_short_Rvector(svt0, Nindex1, as.raw(0:4))
-    a1 <- S4Arrays:::subassign_by_Nindex(a0, Nindex1, as.raw(0:4))
+    a1 <- S4Arrays:::subassign_by_Nindex(x0, Nindex1, as.raw(0:4))
     check_array_like_object(svt1, "SVT_SparseArray", a1)
 
     for (Nindex in list(Nindex1, Nindex2, Nindex3)) {
@@ -198,7 +198,7 @@ test_that("SparseArray:::.subassign_SVT_with_short_Rvector()", {
     }
 })
 
-test_that("SparseArray:::.subassign_SVT_with_Rarray() and SparseArray:::.subassign_SVT_with_SVT()", {
+test_that(".subassign_SVT_with_Rarray() and .subassign_SVT_with_SVT()", {
     test_subassign_SVT_with_Rarray_or_SVT <-
         function(svt0, Nindex, value, expected_type=type(value)) {
             svt <- SparseArray:::.subassign_SVT_with_Rarray(svt0, Nindex, value)

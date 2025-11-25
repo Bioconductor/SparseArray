@@ -21,6 +21,7 @@
 \alias{is_nonna,NaArray-method}
 \alias{nnacount,NaArray-method}
 \alias{nnawhich,NaArray-method}
+\alias{nnavals,NaArray-method}
 
 \alias{as.array.NaArray}
 \alias{as.array,NaArray-method}
