@@ -216,7 +216,7 @@ static void dArith_ ## Ltype ## SV_ ## Rtype ## s(int opcode,		    \
 	if (nzvals1_p == NULL && y_len == 1) {				    \
 		/* shortcut for "lacunar SparseVec <op> scalar" case */	    \
 		double out_val = darith_fun(opcode, Ltype ## 1, y[0]);	    \
-		if (IS_BG_DOUBLE(out_val, out_sv->na_background))	    \
+		if (IS_BG_DOUBLE(out_val, out_sv->bg_is_na))		    \
 			return;						    \
 		out_nzvals[0] = out_val;				    \
 		out_sv->nzcount = PROPAGATE_NZOFFS;			    \
@@ -228,7 +228,7 @@ static void dArith_ ## Ltype ## SV_ ## Rtype ## s(int opcode,		    \
 		int nzoff1 = sv1->nzoffs[k];				    \
 		Rtype yy = y[nzoff1 % y_len];				    \
 		double out_val = darith_fun(opcode, x, yy);		    \
-		if (IS_BG_DOUBLE(out_val, out_sv->na_background))	    \
+		if (IS_BG_DOUBLE(out_val, out_sv->bg_is_na))		    \
 			continue;					    \
 		APPEND_TO_NZVALS_NZOFFS(out_val, nzoff1,		    \
 			out_nzvals, out_sv->nzoffs, out_sv->nzcount);	    \
@@ -255,7 +255,7 @@ static void iArith_intSV_ints(int opcode,
 	check_outRtype(out_sv->Rtype, INTSXP, "iArith_intSV_ints");
 	out_sv->nzcount = 0;
 	int *out_nzvals = (int *) out_sv->nzvals;
-	int out_bg_val = out_sv->na_background ? intNA : int0;
+	int out_bg_val = out_sv->bg_is_na ? intNA : int0;
 	const int *nzvals1_p = get_intSV_nzvals_p(sv1);
 	if (nzvals1_p == NULL && y_len == 1) {
 		/* shortcut for "lacunar SparseVec <op> scalar" case */
@@ -303,7 +303,7 @@ static void dArith_ ## Ltype ## s_ ## Rtype ## SV(int opcode,		    \
 	if (nzvals2_p == NULL && x_len == 1) {				    \
 		/* shortcut for "scalar <op> lacunar SparseVec" case */	    \
 		double out_val = darith_fun(opcode, x[0], Rtype ## 1);	    \
-		if (IS_BG_DOUBLE(out_val, out_sv->na_background))	    \
+		if (IS_BG_DOUBLE(out_val, out_sv->bg_is_na))		    \
 			return;						    \
 		out_nzvals[0] = out_val;				    \
 		out_sv->nzcount = PROPAGATE_NZOFFS;			    \
@@ -315,7 +315,7 @@ static void dArith_ ## Ltype ## s_ ## Rtype ## SV(int opcode,		    \
 		Ltype xx = x[nzoff2 % x_len];				    \
 		Rtype y = nzvals2_p == NULL ? Rtype ## 1 : nzvals2_p[k];    \
 		double out_val = darith_fun(opcode, xx, y);		    \
-		if (IS_BG_DOUBLE(out_val, out_sv->na_background))	    \
+		if (IS_BG_DOUBLE(out_val, out_sv->bg_is_na))		    \
 			continue;					    \
 		APPEND_TO_NZVALS_NZOFFS(out_val, nzoff2,		    \
 			out_nzvals, out_sv->nzoffs, out_sv->nzcount);	    \
@@ -342,7 +342,7 @@ static void iArith_ints_intSV(int opcode,
 	check_outRtype(out_sv->Rtype, INTSXP, "iArith_ints_intSV");
 	out_sv->nzcount = 0;
 	int *out_nzvals = (int *) out_sv->nzvals;
-	int out_bg_val = out_sv->na_background ? intNA : int0;
+	int out_bg_val = out_sv->bg_is_na ? intNA : int0;
 	const int *nzvals2_p = get_intSV_nzvals_p(sv2);
 	if (nzvals2_p == NULL && x_len == 1) {
 		/* shortcut for "scalar <op> lacunar SparseVec" case */
@@ -396,7 +396,7 @@ static void dArith_ ## Ltype ## SV_ ## Rtype ## SV(int opcode,		    \
 			&k1, &k2, &out_off, &x, &y))			    \
 	{								    \
 		double out_val = darith_fun(opcode, x, y);		    \
-		if (IS_BG_DOUBLE(out_val, out_sv->na_background))	    \
+		if (IS_BG_DOUBLE(out_val, out_sv->bg_is_na))		    \
 			continue;					    \
 		APPEND_TO_NZVALS_NZOFFS(out_val, out_off,		    \
 				out_nzvals, out_sv->nzoffs, out_nzcount);   \
@@ -420,7 +420,7 @@ static void iArith_intSV_intSV(int opcode,
 		      "    'sv1', 'sv2', and 'out_sv' are incompatible");
 	check_outRtype(out_sv->Rtype, INTSXP, "iArith_intSV_intSV");
 	int *out_nzvals = (int *) out_sv->nzvals;
-	int out_bg_val = out_sv->na_background ? intNA : int0;
+	int out_bg_val = out_sv->bg_is_na ? intNA : int0;
 	int out_nzcount = 0, k1 = 0, k2 = 0, out_off, x, y;
 	while (next_intSV_intSV_vals(sv1, sv2, &k1, &k2, &out_off, &x, &y)) {
 		int out_val = iarith(opcode, x, y, ovflow);
@@ -532,10 +532,10 @@ static void Arith_doubles_SV(int opcode,
 void _Arith_sv1_v2(int opcode, const SparseVec *sv1, SEXP v2, int i2,
 		   SparseVec *out_sv, int *ovflow)
 {
-	if (out_sv->na_background != sv1->na_background)
+	if (out_sv->bg_is_na != sv1->bg_is_na)
 		error("SparseArray internal error in "
 		      "_Arith_sv1_v2():\n"
-		      "    out_sv->na_background != sv1->na_background");
+		      "    out_sv->bg_is_na != sv1->bg_is_na");
 	SEXPTYPE Rtype2 = TYPEOF(v2);
 	int y_len = LENGTH(v2);
 	switch (Rtype2) {
@@ -566,10 +566,10 @@ void _Arith_sv1_v2(int opcode, const SparseVec *sv1, SEXP v2, int i2,
 void _Arith_v1_sv2(int opcode, SEXP v1, const SparseVec *sv2,
 		   SparseVec *out_sv, int *ovflow)
 {
-	if (out_sv->na_background != sv2->na_background)
+	if (out_sv->bg_is_na != sv2->bg_is_na)
 		error("SparseArray internal error in "
 		      "_Arith_v1_sv2():\n"
-		      "    out_sv->na_background != sv2->na_background");
+		      "    out_sv->bg_is_na != sv2->bg_is_na");
 	SEXPTYPE Rtype1 = TYPEOF(v1);
 	switch (Rtype1) {
 	    case INTSXP:
@@ -656,11 +656,11 @@ static void mult_sv1_zero(const SparseVec *sv1, SparseVec *out_sv)
 void _Arith_sv1_zero(int opcode, const SparseVec *sv1, SEXPTYPE Rtype2,
 		SparseVec *out_sv)
 {
-	if (out_sv->na_background != sv1->na_background)
+	if (out_sv->bg_is_na != sv1->bg_is_na)
 		error("SparseArray internal error in "
 		      "_Arith_sv1_zero():\n"
-		      "    out_sv->na_background != sv1->na_background");
-	if (!sv1->na_background && opcode == MULT_OPCODE) {
+		      "    out_sv->bg_is_na != sv1->bg_is_na");
+	if (!sv1->bg_is_na && opcode == MULT_OPCODE) {
 		mult_sv1_zero(sv1, out_sv);
 		return;
 	}
@@ -686,10 +686,10 @@ void _Arith_sv1_zero(int opcode, const SparseVec *sv1, SEXPTYPE Rtype2,
 void _Arith_sv1_na(int opcode, const SparseVec *sv1, SEXPTYPE Rtype2,
 		SparseVec *out_sv)
 {
-	if (!out_sv->na_background)
+	if (!out_sv->bg_is_na)
 		error("SparseArray internal error in "
 		      "_Arith_sv1_na():\n"
-		      "    'out_sv->na_background' is FALSE");
+		      "    'out_sv->bg_is_na' is FALSE");
 	switch (Rtype2) {
 	    case INTSXP: {
 		int ovflow = 0;
@@ -718,10 +718,10 @@ void _Arith_sv1_na(int opcode, const SparseVec *sv1, SEXPTYPE Rtype2,
 void _Arith_zero_sv2(int opcode, SEXPTYPE Rtype1, const SparseVec *sv2,
 		SparseVec *out_sv)
 {
-	if (out_sv->na_background != sv2->na_background)
+	if (out_sv->bg_is_na != sv2->bg_is_na)
 		error("SparseArray internal error in "
 		      "_Arith_zero_sv2():\n"
-		      "    out_sv->na_background != sv2->na_background");
+		      "    out_sv->bg_is_na != sv2->bg_is_na");
 	switch (Rtype1) {
 	    case INTSXP: {
 		int ovflow = 0;
@@ -744,10 +744,10 @@ void _Arith_zero_sv2(int opcode, SEXPTYPE Rtype1, const SparseVec *sv2,
 void _Arith_na_sv2(int opcode, SEXPTYPE Rtype1, const SparseVec *sv2,
 		SparseVec *out_sv)
 {
-	if (!out_sv->na_background)
+	if (!out_sv->bg_is_na)
 		error("SparseArray internal error in "
 		      "_Arith_na_sv2():\n"
-		      "    'out_sv->na_background' is FALSE");
+		      "    'out_sv->bg_is_na' is FALSE");
 	switch (Rtype1) {
 	    case INTSXP: {
 		int ovflow = 0;

@@ -236,7 +236,7 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
                       "    'sv1' and 'out_sv' are incompatible");	 \
 	out_sv->nzcount = 0;						 \
 	int *out_nzvals = (int *) out_sv->nzvals;			 \
-	int out_bg_val = out_sv->na_background ? intNA : int0;		 \
+	int out_bg_val = out_sv->bg_is_na ? intNA : int0;		 \
 	const Ltype *nzvals1_p = get_ ## Ltype ## SV_nzvals_p(sv1);	 \
 	if (nzvals1_p == NULL) {  /* lacunar SparseVec */		 \
 		int out_val = Compare_ ## Ltype ## _ ## Rtype		 \
@@ -281,7 +281,7 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
                       "    'sv1', 'sv2', and 'out_sv' are incompatible"); \
 	out_sv->nzcount = 0;						 \
 	int *out_nzvals = (int *) out_sv->nzvals;			 \
-	int out_bg_val = out_sv->na_background ? intNA : int0;		 \
+	int out_bg_val = out_sv->bg_is_na ? intNA : int0;		 \
 	int k1 = 0, k2 = 0, out_off;					 \
 	Ltype x;							 \
 	Rtype y;							 \

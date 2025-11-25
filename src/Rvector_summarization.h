@@ -93,7 +93,7 @@ void _summarize_Rvector(
 
 void _postprocess_SummarizeResult(
 	SummarizeResult *res,
-	int na_background,
+	int bg_is_na,
 	const SummarizeOp *summarize_op
 );
 

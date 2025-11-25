@@ -52,6 +52,7 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_is_nonzero_SVT, 2),
 	CALLMETHOD_DEF(C_nzcount_SVT, 2),
 	CALLMETHOD_DEF(C_nzwhich_SVT, 3),
+	CALLMETHOD_DEF(C_nzvals_SVT, 3),
 	CALLMETHOD_DEF(C_from_SVT_SparseArray_to_Rarray, 5),
 	CALLMETHOD_DEF(C_build_SVT_from_Rarray, 3),
 	CALLMETHOD_DEF(C_from_SVT_SparseMatrix_to_CsparseMatrix, 4),
@@ -70,7 +71,8 @@ static const R_CallMethodDef callMethods[] = {
 /* SparseArray_subsetting.c */
 	CALLMETHOD_DEF(C_subset_SVT_by_Lindex, 5),
 	CALLMETHOD_DEF(C_subset_SVT_by_Mindex, 5),
-	CALLMETHOD_DEF(C_subset_SVT_by_Noffs, 4),
+	CALLMETHOD_DEF(C_subset_SVT_as_Rarray, 5),
+	CALLMETHOD_DEF(C_subset_SVT_as_SVT, 4),
 
 /* SparseArray_subassignment.c */
 	CALLMETHOD_DEF(C_subassign_SVT_by_Lindex, 6),

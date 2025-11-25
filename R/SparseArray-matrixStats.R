@@ -150,7 +150,7 @@ stopifnot_2D_object <- function(x, method, class1, class2)
     extract_j_slice <- function(j) {
         index <- vector("list", x_ndim)
         index[[2L]] <- j
-        slice <- subset_SVT_by_Nindex(x, index, ignore.dimnames=TRUE)
+        slice <- extract_sparse_array(x, index)
         dim(slice) <- dim(x)[-2L]  # 'x_ndim - 1' dimensions
         slice
     }

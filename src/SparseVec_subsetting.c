@@ -60,12 +60,17 @@ static void reset_lookup_table(int *lookup_table,
    binary search. However, allocating and building the lookup table has a
    small cost (that is proportional to 'sv->len'), so is only worth it if
    we're going to use it to map more than one 'off' value.
-   See C_subset_SVT_by_Noffs() in SparseArray_subsetting.c for the (naive)
-   strategy that is used at the moment to decide whether to use a lookup
-   table or not. */
+   See C_subset_SVT_as_Rarray() and C_subset_SVT_as_SVT() in
+   SparseArray_subsetting.c for the (naive) strategy that is used at
+   the moment to decide whether to use a lookup table or not. */
 #define MAP_OFF_TO_K1(off, nzoffs, nzcount) \
 	lookup_table == NULL ? bsearch_off_to_k1((off), (nzoffs), (nzcount)) \
 			     : lookup_table[(off)]
+
+
+/****************************************************************************
+ * _subset_SV()
+ */
 
 #define DEFINE_subset_typeSV_FUN(type)					   \
 static void subset_ ## type ## SV(const SparseVec *sv, const int *offs,	   \
@@ -142,11 +147,10 @@ static void subset_listSV(const SparseVec *sv, const int *offs,
    and < 'sv->len'.
    'lookup_table' must be NULL or an array of 'sv->len' integers
    filled with -1.
-   Note that background values 'sv->na_background' and 'out_sv->na_background'
-   should be the same. However, we never make any use of them (background
-   does not matter in the context of N-index subsetting), so we don't bother
-   checking them.
- */
+   Note that background values 'sv->bg_is_na' and 'out_sv->bg_is_na' should
+   be the same. However, we never make any use of them (background does not
+   matter in the context of N-index subsetting), so we don't bother checking
+   them. */
 void _subset_SV(const SparseVec *sv, const int *offs,
 		SparseVec *out_sv, int *lookup_table)
 {
@@ -156,19 +160,166 @@ void _subset_SV(const SparseVec *sv, const int *offs,
 		      "    'sv' and 'out_sv' must have the same type");
 	switch (Rtype) {
 	    case INTSXP: case LGLSXP:
-		return subset_intSV(sv, offs, out_sv, lookup_table);
+		subset_intSV(sv, offs, out_sv, lookup_table);
+		return;
 	    case REALSXP:
-		return subset_doubleSV(sv, offs, out_sv, lookup_table);
+		subset_doubleSV(sv, offs, out_sv, lookup_table);
+		return;
 	    case CPLXSXP:
-		return subset_RcomplexSV(sv, offs, out_sv, lookup_table);
+		subset_RcomplexSV(sv, offs, out_sv, lookup_table);
+		return;
 	    case RAWSXP:
-		return subset_RbyteSV(sv, offs, out_sv, lookup_table);
+		subset_RbyteSV(sv, offs, out_sv, lookup_table);
+		return;
 	    case STRSXP:
-		return subset_characterSV(sv, offs, out_sv, lookup_table);
+		subset_characterSV(sv, offs, out_sv, lookup_table);
+		return;
 	    case VECSXP:
-		return subset_listSV(sv, offs, out_sv, lookup_table);
+		subset_listSV(sv, offs, out_sv, lookup_table);
+		return;
 	}
 	error("SparseArray internal error in _subset_SV():\n"
+	      "    'sv' of type \"%s\" not supported", type2char(Rtype));
+        return;  /* will never reach this */
+}
+
+
+/****************************************************************************
+ * _subset_SV_into_Rvector_block()
+ */
+
+#define DEFINE_subset_typeSV_into_Rvector_block_FUN(type)		   \
+static void subset_ ## type ## SV_into_Rvector_block(			   \
+		const SparseVec *sv, const int *offs, int n,		   \
+		type *vals, int *lookup_table)				   \
+{									   \
+	if (offs == NULL) {						   \
+		for (int k1 = 0; k1 < sv->nzcount; k1++) {		   \
+			int out_off = sv->nzoffs[k1];			   \
+			vals[out_off] = get_ ## type ## SV_nzval(sv, k1);  \
+		}							   \
+		return;							   \
+	}								   \
+	if (lookup_table != NULL)					   \
+		build_lookup_table(lookup_table, sv->nzoffs, sv->nzcount); \
+	for (int out_off = 0; out_off < n; out_off++) {			   \
+		int off = offs[out_off];				   \
+		int k1 = MAP_OFF_TO_K1(off, sv->nzoffs, sv->nzcount);	   \
+		if (k1 < 0)						   \
+			continue;					   \
+		vals[out_off] = get_ ## type ## SV_nzval(sv, k1);	   \
+	}								   \
+	if (lookup_table != NULL)					   \
+		reset_lookup_table(lookup_table, sv->nzoffs, sv->nzcount); \
+	return;								   \
+}
+
+DEFINE_subset_typeSV_into_Rvector_block_FUN(int)
+DEFINE_subset_typeSV_into_Rvector_block_FUN(double)
+DEFINE_subset_typeSV_into_Rvector_block_FUN(Rcomplex)
+DEFINE_subset_typeSV_into_Rvector_block_FUN(Rbyte)
+
+static void subset_characterSV_into_Rvector_block(
+		const SparseVec *sv, const int *offs, int n,
+		SEXP Rvector, R_xlen_t block_offset, int *lookup_table)
+{
+	if (offs == NULL) {
+		for (int k1 = 0; k1 < sv->nzcount; k1++) {
+			int out_off = sv->nzoffs[k1];
+			SEXP out_val = get_characterSV_nzval(sv, k1);
+			SET_STRING_ELT(Rvector, block_offset + out_off,
+				       out_val);
+		}
+		return;
+	}
+	if (lookup_table != NULL)
+		build_lookup_table(lookup_table, sv->nzoffs, sv->nzcount);
+	for (int out_off = 0; out_off < n; out_off++) {
+		int off = offs[out_off];
+		int k1 = MAP_OFF_TO_K1(off, sv->nzoffs, sv->nzcount);
+		if (k1 < 0)
+			continue;
+		SEXP out_val = get_characterSV_nzval(sv, k1);
+		SET_STRING_ELT(Rvector, block_offset + out_off, out_val);
+	}
+	if (lookup_table != NULL)
+		reset_lookup_table(lookup_table, sv->nzoffs, sv->nzcount);
+	return;
+}
+
+static void subset_listSV_into_Rvector_block(
+		const SparseVec *sv, const int *offs, int n,
+		SEXP Rvector, R_xlen_t block_offset, int *lookup_table)
+{
+	if (offs == NULL) {
+		for (int k1 = 0; k1 < sv->nzcount; k1++) {
+			int out_off = sv->nzoffs[k1];
+			SEXP out_val = get_listSV_nzval(sv, k1);
+			SET_VECTOR_ELT(Rvector, block_offset + out_off,
+				       out_val);
+		}
+		return;
+	}
+	if (lookup_table != NULL)
+		build_lookup_table(lookup_table, sv->nzoffs, sv->nzcount);
+	for (int out_off = 0; out_off < n; out_off++) {
+		int off = offs[out_off];
+		int k1 = MAP_OFF_TO_K1(off, sv->nzoffs, sv->nzcount);
+		if (k1 < 0)
+			continue;
+		SEXP out_val = get_listSV_nzval(sv, k1);
+		SET_VECTOR_ELT(Rvector, block_offset + out_off, out_val);
+	}
+	if (lookup_table != NULL)
+		reset_lookup_table(lookup_table, sv->nzoffs, sv->nzcount);
+	return;
+}
+
+/* 'offs' must be NULL or an array of 'n' offsets that are >= 0
+   and < 'sv->len'. */
+void _subset_SV_into_Rvector_block(const SparseVec *sv,
+		const int *offs, int n,
+		SEXP Rvector, R_xlen_t block_offset, int *lookup_table)
+{
+	SEXPTYPE Rtype = get_SV_Rtype(sv);
+	if (TYPEOF(Rvector) != Rtype)
+		error("SparseArray internal error in "
+		      "_subset_SV_into_Rvector_block():\n"
+		      "    'sv' and 'Rvector' must have the same type");
+	switch (Rtype) {
+	    case INTSXP: case LGLSXP:
+		subset_intSV_into_Rvector_block(sv, offs, n,
+				INTEGER(Rvector) + block_offset,
+				lookup_table);
+		return;
+	    case REALSXP:
+		subset_doubleSV_into_Rvector_block(sv, offs, n,
+				REAL(Rvector) + block_offset,
+				lookup_table);
+		return;
+	    case CPLXSXP:
+		subset_RcomplexSV_into_Rvector_block(sv, offs, n,
+				COMPLEX(Rvector) + block_offset,
+				lookup_table);
+		return;
+	    case RAWSXP:
+		subset_RbyteSV_into_Rvector_block(sv, offs, n,
+				RAW(Rvector) + block_offset,
+				lookup_table);
+		return;
+	    case STRSXP:
+		subset_characterSV_into_Rvector_block(sv, offs, n,
+				Rvector, block_offset,
+				lookup_table);
+		return;
+	    case VECSXP:
+		subset_listSV_into_Rvector_block(sv, offs, n,
+				Rvector, block_offset,
+				lookup_table);
+		return;
+	}
+	error("SparseArray internal error in "
+	      "_subset_SV_into_Rvector_block():\n"
 	      "    'sv' of type \"%s\" not supported", type2char(Rtype));
         return;  /* will never reach this */
 }

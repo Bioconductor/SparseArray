@@ -14,12 +14,12 @@
 
 /* Set 'nzvals' to R_NilValue to represent a lacunar SparseVec. */
 typedef struct sparse_vec_t {
-	SEXPTYPE Rtype;     /* type of the values in 'nzvals' */
-	void *nzvals;       /* NULL or array of nonzero values */
-	int *nzoffs;        /* array of offsets for the nonzero values */
-	int nzcount;        /* nb of nonzero values */
-	int len;            /* vector length (= nzcount + nb of zeros) */
-	int na_background;  /* background value is NA instead of zero */
+	SEXPTYPE Rtype;  /* type of the values in 'nzvals' */
+	void *nzvals;    /* NULL or array of nonzero values */
+	int *nzoffs;     /* array of offsets for the nonzero values */
+	int nzcount;     /* nb of nonzero values */
+	int len;         /* vector length (= nzcount + nb of zeros) */
+	int bg_is_na;    /* background value is NA instead of zero */
 } SparseVec;
 
 
@@ -28,12 +28,12 @@ typedef struct sparse_vec_t {
  * operations on SparseVec structs.
  */
 
-#define IS_BG_DOUBLE(val, na_background) \
-	((na_background) ? R_IsNA(val) : ((val) == double0))
+#define IS_BG_DOUBLE(val, bg_is_na) \
+	((bg_is_na) ? R_IsNA(val) : ((val) == double0))
 
-#define IS_BG_CHARSXP(val, na_background) \
-	((na_background) ? ((val) == NA_STRING) \
-			 : ((val) != NA_STRING && LENGTH(val) == 0))
+#define IS_BG_CHARSXP(val, bg_is_na) \
+	((bg_is_na) ? ((val) == NA_STRING) : \
+		      ((val) != NA_STRING && LENGTH(val) == 0))
 
 #define APPEND_TO_NZVALS_NZOFFS(out_val, out_off,			\
 				out_nzvals, out_nzoffs, out_nzcount)	\
@@ -81,7 +81,7 @@ static inline int Rbyte_equal(Rbyte x, Rbyte y)
    the 'Rtype' in the SparseVec even when the supplied 'nzvals' is R_NilValue
    (lacunar case). */
 static inline SparseVec toSparseVec(SEXP nzvals, SEXP nzoffs,
-		SEXPTYPE Rtype, int len, int na_background)
+		SEXPTYPE Rtype, int len, int bg_is_na)
 {
 	/* Sanity checks (should never fail). */
 	if (!IS_INTEGER(nzoffs))
@@ -90,7 +90,7 @@ static inline SparseVec toSparseVec(SEXP nzvals, SEXP nzoffs,
 	if (nzcount == 0 || nzcount > INT_MAX)
 		goto on_error;
 
-	if (na_background && Rtype == RAWSXP)
+	if (bg_is_na && Rtype == RAWSXP)
 		error("SparseArray internal error in toSparseVec():\n"
 		      "    NaArray objects of type \"raw\" are not supported");
 
@@ -119,7 +119,7 @@ static inline SparseVec toSparseVec(SEXP nzvals, SEXP nzoffs,
 	sv.nzoffs = INTEGER(nzoffs);
 	sv.nzcount = LENGTH(nzoffs);
 	sv.len = len;
-	sv.na_background = na_background;
+	sv.bg_is_na = bg_is_na;
 	return sv;
 
     on_error:
@@ -244,7 +244,7 @@ static inline int next_RbyteSV_RbyteSV_vals(
 	const SparseVec *sv1, const SparseVec *sv2,
 	int *k1, int *k2, int *off, Rbyte *val1, Rbyte *val2)
 {
-	if (sv1->na_background || sv2->na_background)
+	if (sv1->bg_is_na || sv2->bg_is_na)
 		error("SparseArray internal error in "
 		      "next_RbyteSV_RbyteSV_vals():\n"
 		      "    NaArray objects of type \"raw\" are not supported");
@@ -280,7 +280,7 @@ static inline int next_RbyteSV_ ## Rtype ## SV_vals(			\
 	const SparseVec *sv1, const SparseVec *sv2,			\
 	int *k1, int *k2, int *off, Rbyte *val1, Rtype *val2)		\
 {									\
-	if (sv1->na_background)						\
+	if (sv1->bg_is_na)						\
 		error("SparseArray internal error in "			\
 		      "next_RbyteSV_<Rtype>SV_vals():\n"		\
 		      "    NaArray objects of type \"raw\" "		\
@@ -291,7 +291,7 @@ static inline int next_RbyteSV_ ## Rtype ## SV_vals(			\
 	switch (ret) {							\
 	    case 1: {							\
 		*val1 = get_RbyteSV_nzval(sv1, *k1);			\
-		*val2 = sv2->na_background ? Rtype ## NA : Rtype ## 0;	\
+		*val2 = sv2->bg_is_na ? Rtype ## NA : Rtype ## 0;	\
 		(*k1)++;						\
 		break;							\
 	    }								\
@@ -323,12 +323,12 @@ static inline int next_ ## Ltype ## SV_ ## Rtype ## SV_vals(		\
 	switch (ret) {							\
 	    case 1: {							\
 		*val1 = get_ ## Ltype ## SV_nzval(sv1, *k1);		\
-		*val2 = sv2->na_background ? Rtype ## NA : Rtype ## 0;	\
+		*val2 = sv2->bg_is_na ? Rtype ## NA : Rtype ## 0;	\
 		(*k1)++;						\
 		break;							\
 	    }								\
 	    case 2: {							\
-		*val1 = sv1->na_background ? Ltype ## NA : Ltype ## 0;	\
+		*val1 = sv1->bg_is_na ? Ltype ## NA : Ltype ## 0;	\
 		*val2 = get_ ## Rtype ## SV_nzval(sv2, *k2);		\
 		(*k2)++;						\
 		break;							\
@@ -363,7 +363,7 @@ DEFINE_next_LtypeSV_RtypeSV_vals_FUN(Rcomplex, Rcomplex)
 SparseVec _alloc_buf_SparseVec(
 	SEXPTYPE Rtype,
 	int len,
-	int na_background,
+	int bg_is_na,
 	int nzoffs_only
 );
 

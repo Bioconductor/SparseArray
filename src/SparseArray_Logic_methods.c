@@ -46,7 +46,7 @@ static void INPLACE_logical_neg_naleaf(SEXP naleaf, SEXPTYPE Rtype)
 }
 
 static SEXP Logic_leaf1_na(int opcode,
-		SEXP leaf1, SEXPTYPE Rtype1, int na_background1,
+		SEXP leaf1, SEXPTYPE Rtype1, int bg1_is_na,
 		SEXPTYPE Rtype2,
 		SparseVec *buf_sv)
 {
@@ -55,7 +55,7 @@ static SEXP Logic_leaf1_na(int opcode,
 		      "Logic_leaf1_na():\n"
 		      "    'leaf1' cannot be NULL");
 	const SparseVec sv1 = leaf2SV(leaf1, Rtype1,
-				      buf_sv->len, na_background1);
+				      buf_sv->len, bg1_is_na);
 	_Logic_intSV_na(opcode, &sv1, Rtype2, buf_sv);
 	if (buf_sv->nzcount == PROPAGATE_NZOFFS)
 		return _make_leaf_with_single_shared_nzval(
@@ -65,34 +65,34 @@ static SEXP Logic_leaf1_na(int opcode,
 }
 
 static SEXP Logic_leaf1_leaf2(int opcode,
-		SEXP leaf1, SEXPTYPE Rtype1, int na_background1,
-		SEXP leaf2, SEXPTYPE Rtype2, int na_background2,
+		SEXP leaf1, SEXPTYPE Rtype1, int bg1_is_na,
+		SEXP leaf2, SEXPTYPE Rtype2, int bg2_is_na,
 		SparseVec *buf_sv)
 {
 	if (leaf1 == R_NilValue) {
-		if (!na_background1)
+		if (!bg1_is_na)
 			error("SparseArray internal error in "
 			      "Logic_leaf1_leaf2():\n"
-			      "    'na_background1' is expected to be TRUE");
+			      "    'bg1_is_na' is expected to be TRUE");
 		return Logic_leaf1_na(opcode,
-				      leaf2, Rtype2, na_background2,
+				      leaf2, Rtype2, bg2_is_na,
 				      Rtype1,
 				      buf_sv);
 	}
 	if (leaf2 == R_NilValue) {
-		if (!na_background2)
+		if (!bg2_is_na)
 			error("SparseArray internal error in "
 			      "Logic_leaf1_leaf2():\n"
-			      "    'na_background2' is expected to be TRUE");
+			      "    'bg2_is_na' is expected to be TRUE");
 		return Logic_leaf1_na(opcode,
-				      leaf1, Rtype1, na_background1,
+				      leaf1, Rtype1, bg1_is_na,
 				      Rtype2,
 				      buf_sv);
 	}
 	const SparseVec sv1 = leaf2SV(leaf1, Rtype1,
-				      buf_sv->len, na_background1);
+				      buf_sv->len, bg1_is_na);
 	const SparseVec sv2 = leaf2SV(leaf2, Rtype2,
-				      buf_sv->len, na_background2);
+				      buf_sv->len, bg2_is_na);
 	_Logic_intSV_intSV(opcode, &sv1, &sv2, buf_sv);
 	return SV2leaf(buf_sv);
 }
@@ -120,7 +120,7 @@ static void REC_logical_neg_NaSVT(SEXP NaSVT, SEXPTYPE Rtype,
 }
 
 static SEXP REC_Logic_SVT1_na(int opcode,
-		SEXP SVT1, SEXPTYPE Rtype1, int na_background1,
+		SEXP SVT1, SEXPTYPE Rtype1, int bg1_is_na,
 		const int *dim, int ndim,
 		SparseVec *buf_sv)
 {
@@ -130,7 +130,7 @@ static SEXP REC_Logic_SVT1_na(int opcode,
 	if (ndim == 1) {
 		/* 'SVT1' is a leaf (i.e. 1D SVT). */
 		return Logic_leaf1_na(opcode,
-				      SVT1, Rtype1, na_background1, LGLSXP,
+				      SVT1, Rtype1, bg1_is_na, LGLSXP,
 				      buf_sv);
 	}
 
@@ -141,7 +141,7 @@ static SEXP REC_Logic_SVT1_na(int opcode,
 	for (int i = 0; i < ans_len; i++) {
 		SEXP subSVT1 = VECTOR_ELT(SVT1, i);
 		SEXP ans_elt = REC_Logic_SVT1_na(opcode,
-					subSVT1, Rtype1, na_background1,
+					subSVT1, Rtype1, bg1_is_na,
 					dim, ndim - 1,
 					buf_sv);
 		if (ans_elt != R_NilValue) {
@@ -156,24 +156,24 @@ static SEXP REC_Logic_SVT1_na(int opcode,
 }
 
 static SEXP REC_Logic_SVT1_SVT2(int opcode,
-		SEXP SVT1, SEXPTYPE Rtype1, int na_background1,
-		SEXP SVT2, SEXPTYPE Rtype2, int na_background2,
+		SEXP SVT1, SEXPTYPE Rtype1, int bg1_is_na,
+		SEXP SVT2, SEXPTYPE Rtype2, int bg2_is_na,
 		const int *dim, int ndim,
 		SparseVec *buf_sv)
 {
 	if (SVT1 == R_NilValue && SVT2 == R_NilValue)
 		return R_NilValue;
 
-	if (!na_background1 && SVT1 == R_NilValue)
+	if (!bg1_is_na && SVT1 == R_NilValue)
 		return opcode == OR_OPCODE ? SVT2 : R_NilValue;
-	if (!na_background2 && SVT2 == R_NilValue)
+	if (!bg2_is_na && SVT2 == R_NilValue)
 		return opcode == OR_OPCODE ? SVT1 : R_NilValue;
 
 	if (ndim == 1)
 		/* 'SVT1' and 'SVT2' are leaves (i.e. 1D SVTs). */
 		return Logic_leaf1_leaf2(opcode,
-					 SVT1, Rtype1, na_background1,
-					 SVT2, Rtype2, na_background2,
+					 SVT1, Rtype1, bg1_is_na,
+					 SVT2, Rtype2, bg2_is_na,
 					 buf_sv);
 
 	/* Each of 'SVT1' and 'SVT2' is either a list or NULL, but they
@@ -189,8 +189,8 @@ static SEXP REC_Logic_SVT1_SVT2(int opcode,
 		if (SVT2 != R_NilValue)
 			subSVT2 = VECTOR_ELT(SVT2, i);
 		SEXP ans_elt = REC_Logic_SVT1_SVT2(opcode,
-					subSVT1, Rtype1, na_background1,
-					subSVT2, Rtype2, na_background2,
+					subSVT1, Rtype1, bg1_is_na,
+					subSVT2, Rtype2, bg2_is_na,
 					dim, ndim - 1,
 					buf_sv);
 		if (ans_elt != R_NilValue) {
@@ -244,27 +244,27 @@ SEXP C_Logic_SVT1_SVT2(
 	_check_array_conformability(x_dim, y_dim);
 	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
 				"C_Logic_SVT1_SVT2", "x_type");
-	int x_has_NAbg = _get_and_check_na_background(x_na_background,
+	int x_bg_is_na = _get_and_check_na_background(x_na_background,
 				"C_Logic_SVT1_SVT2", "x_na_background");
 	SEXPTYPE y_Rtype = _get_and_check_Rtype_from_Rstring(y_type,
 				"C_Logic_SVT1_SVT2", "y_type");
-	int y_has_NAbg = _get_and_check_na_background(y_na_background,
+	int y_bg_is_na = _get_and_check_na_background(y_na_background,
 				"C_Logic_SVT1_SVT2", "y_na_background");
 
 	int opcode = _get_Logic_opcode(op);
 
 	int dim0 = INTEGER(x_dim)[0];
-	int out_na_background = 0;
-	if (x_has_NAbg && y_has_NAbg) {
-		out_na_background = 1;
-	} else if (x_has_NAbg || y_has_NAbg) {
-		out_na_background = opcode == OR_OPCODE;
+	int out_bg_is_na = 0;
+	if (x_bg_is_na && y_bg_is_na) {
+		out_bg_is_na = 1;
+	} else if (x_bg_is_na || y_bg_is_na) {
+		out_bg_is_na = opcode == OR_OPCODE;
 	}
 	SparseVec buf_sv = _alloc_buf_SparseVec(LGLSXP, dim0,
-						out_na_background, 0);
+						out_bg_is_na, 0);
 	return REC_Logic_SVT1_SVT2(opcode,
-				x_SVT, x_Rtype, x_has_NAbg,
-				y_SVT, y_Rtype, y_has_NAbg,
+				x_SVT, x_Rtype, x_bg_is_na,
+				y_SVT, y_Rtype, y_bg_is_na,
 				INTEGER(x_dim), LENGTH(x_dim),
 				&buf_sv);
 }

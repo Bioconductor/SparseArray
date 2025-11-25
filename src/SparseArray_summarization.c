@@ -68,7 +68,7 @@ static void REC_summarize_SVT(SEXP SVT, const int *dim, int ndim,
 }
 
 static SummarizeOp replace_SummarizeOp_center_with_mean(
-		SEXP SVT, int na_background, const int *dim, int ndim,
+		SEXP SVT, int bg_is_na, const int *dim, int ndim,
 		const SummarizeOp *summarize_op)
 {
 	/* Compute 'mean(SVT)'. */
@@ -77,7 +77,7 @@ static SummarizeOp replace_SummarizeOp_center_with_mean(
 	SummarizeResult res;
 	_init_SummarizeResult(&tmp_op, &res);
 	REC_summarize_SVT(SVT, dim, ndim, &tmp_op, &res);
-	_postprocess_SummarizeResult(&res, na_background, &tmp_op);
+	_postprocess_SummarizeResult(&res, bg_is_na, &tmp_op);
 	double SVT_mean = res.outbuf.one_double[0];
 
 	/* Set 'center' with 'mean(SVT)'. */
@@ -87,7 +87,7 @@ static SummarizeOp replace_SummarizeOp_center_with_mean(
 }
 
 SummarizeResult _summarize_SVT(
-		SEXP SVT, int na_background, const int *dim, int ndim,
+		SEXP SVT, int bg_is_na, const int *dim, int ndim,
 		const SummarizeOp *summarize_op)
 {
 	SummarizeOp tmp_op;
@@ -96,7 +96,7 @@ SummarizeResult _summarize_SVT(
 	     summarize_op->opcode == SD1_OPCODE) && ISNAN(summarize_op->center))
 	{
 		tmp_op = replace_SummarizeOp_center_with_mean(
-					SVT, na_background, dim, ndim,
+					SVT, bg_is_na, dim, ndim,
 					summarize_op);
 		summarize_op = &tmp_op;
 	}
@@ -104,7 +104,7 @@ SummarizeResult _summarize_SVT(
 	SummarizeResult res;
 	_init_SummarizeResult(summarize_op, &res);
 	REC_summarize_SVT(SVT, dim, ndim, summarize_op, &res);
-	_postprocess_SummarizeResult(&res, na_background, summarize_op);
+	_postprocess_SummarizeResult(&res, bg_is_na, summarize_op);
 	return res;
 }
 
@@ -116,7 +116,7 @@ SEXP C_summarize_SVT(
 	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
 					"C_summarize_SVT", "x_type");
 
-	int x_has_NAbg = _get_and_check_na_background(x_na_background,
+	int x_bg_is_na = _get_and_check_na_background(x_na_background,
 					"C_summarize_SVT", "x_na_background");
 
 	int opcode = _get_summarize_opcode(op, x_Rtype);
@@ -132,7 +132,7 @@ SEXP C_summarize_SVT(
 
 	SummarizeOp summarize_op = _make_SummarizeOp(opcode, x_Rtype, narm,
 						     REAL(center)[0]);
-	SummarizeResult res = _summarize_SVT(x_SVT, x_has_NAbg,
+	SummarizeResult res = _summarize_SVT(x_SVT, x_bg_is_na,
 					     INTEGER(x_dim), LENGTH(x_dim),
 					     &summarize_op);
 	if (res.warn)

@@ -12,10 +12,10 @@
 
 /* IMPORTANT: The caller must immediately call 'PROTECT(sv.nzvals)' on
    the returned SparseVec struct when 'Rtype' is STRSXP or VECSXP. */
-SparseVec _alloc_buf_SparseVec(SEXPTYPE Rtype, int len, int na_background,
+SparseVec _alloc_buf_SparseVec(SEXPTYPE Rtype, int len, int bg_is_na,
 			       int nzoffs_only)
 {
-	if (na_background && (Rtype == RAWSXP || Rtype == VECSXP))
+	if (bg_is_na && (Rtype == RAWSXP || Rtype == VECSXP))
 		error("SparseArray internal error in "
 		      "_alloc_buf_SparseVec():\n    NaArray objects "
 		      "of type \"%s\" are not supported", type2char(Rtype));
@@ -37,7 +37,7 @@ SparseVec _alloc_buf_SparseVec(SEXPTYPE Rtype, int len, int na_background,
 	sv.nzoffs = (int *) R_alloc(len, sizeof(int));
 	sv.nzcount = 0;
 	sv.len = len;
-	sv.na_background = na_background;
+	sv.bg_is_na = bg_is_na;
 	if (IS_STRSXP_OR_VECSXP(Rtype))
 		UNPROTECT(1);
 	return sv;
@@ -83,7 +83,7 @@ static SEXPTYPE get_SV_write_Rtype(SEXP Rvector,
    Note that it absolutely doesn't matter what value we set 'RbyteNA'
    to because we don't support NaArray objects of type raw.
    This means that if SparseVec 'out_sv' is of type raw
-   then 'out_sv->na_background' is guaranteed to be FALSE.
+   then 'out_sv->bg_is_na' is guaranteed to be FALSE.
    In other words, 'RbyteNA' will **never** be used! */
 
 #define RbyteNA Rbyte0  /* exact value doesn't matter, see above */
@@ -95,7 +95,7 @@ static void write_Rvector_block_to_ ## type ## SV(			  \
 {									  \
 	out_sv->nzcount = 0;						  \
 	type *out_nzvals = (type *) out_sv->nzvals;			  \
-	type bg_val = out_sv->na_background ? type ## NA : type ## 0;	  \
+	type bg_val = out_sv->bg_is_na ? type ## NA : type ## 0;	  \
 	for (int k = 0; k < n; k++) {					  \
 		type out_val = vals[cycle_len ? k % cycle_len : k];	  \
 		if (type ## _equal(out_val, bg_val))			  \
@@ -121,7 +121,7 @@ static void write_Rvector_block_to_characterSV(
 	for (int k = 0; k < n; k++) {
 		int i = cycle_len ? k % cycle_len : block_offset + k;
 		SEXP out_val = STRING_ELT(Rvector, i);
-		if (IS_BG_CHARSXP(out_val, out_sv->na_background))
+		if (IS_BG_CHARSXP(out_val, out_sv->bg_is_na))
 			continue;
 		int out_off = out_offs == NULL ? k : out_offs[k];
 		SET_STRING_ELT(out_nzvals, out_sv->nzcount, out_val);
@@ -226,7 +226,7 @@ static void write_Rvector_subset_to_ ## type ## SV(			  \
 {									  \
 	out_sv->nzcount = 0;						  \
 	type *out_nzvals = (type *) out_sv->nzvals;			  \
-	type bg_val = out_sv->na_background ? type ## NA : type ## 0;	  \
+	type bg_val = out_sv->bg_is_na ? type ## NA : type ## 0;	  \
 	for (int k = 0; k < n; k++) {					  \
 		type out_val = vals[selection[k]];			  \
 		if (type ## _equal(out_val, bg_val))			  \
@@ -251,7 +251,7 @@ static void write_Rvector_subset_to_characterSV(
 	SEXP out_nzvals = (SEXP) out_sv->nzvals;  /* STRSXP */
 	for (int k = 0; k < n; k++) {
 		SEXP out_val = STRING_ELT(Rvector, selection[k]);
-		if (IS_BG_CHARSXP(out_val, out_sv->na_background))
+		if (IS_BG_CHARSXP(out_val, out_sv->bg_is_na))
 			continue;
 		int out_off = out_offs == NULL ? k : out_offs[k];
 		SET_STRING_ELT(out_nzvals, out_sv->nzcount, out_val);
@@ -324,7 +324,7 @@ void _write_Rvector_subset_to_SV(SEXP Rvector, const int *selection,
 void _expand_intSV(const SparseVec *sv, int *out, int set_background)
 {
 	if (set_background) {
-		if (sv->na_background) {
+		if (sv->bg_is_na) {
 			_set_elts_to_NA(INTSXP, out, 0, sv->len);
 		} else {
 			_set_elts_to_zero(INTSXP, out, 0, sv->len);
@@ -344,7 +344,7 @@ void _expand_intSV(const SparseVec *sv, int *out, int set_background)
 void _expand_doubleSV(const SparseVec *sv, double *out, int set_background)
 {
 	if (set_background) {
-		if (sv->na_background) {
+		if (sv->bg_is_na) {
 			_set_elts_to_NA(REALSXP, out, 0, sv->len);
 		} else {
 			_set_elts_to_zero(REALSXP, out, 0, sv->len);

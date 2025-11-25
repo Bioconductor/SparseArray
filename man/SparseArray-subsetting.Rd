@@ -3,11 +3,10 @@
 \alias{SparseArray-subsetting}
 \alias{SparseArray_subsetting}
 
+\alias{extract_array,SVT_SparseArray-method}
+\alias{extract_sparse_array,SVT_SparseArray-method}
 \alias{extract_sparse_array,COO_SparseArray-method}
 \alias{extract_array,COO_SparseArray-method}
-\alias{extract_sparse_array,SVT_SparseArray-method}
-
-\alias{extract_array,SVT_SparseArray-method}
 
 \title{Subsetting a SparseArray object}
 

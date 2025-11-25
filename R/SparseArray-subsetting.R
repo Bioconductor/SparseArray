@@ -74,13 +74,33 @@ setMethod("subset_Array_by_Mindex", "SVT_SparseArray", .subset_SVT_by_Mindex)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### subset_SVT_by_Nindex()
+### .subset_SVT_as_Rarray()
+###
+### Exomorphic N-dimensional subsetting of an SVT_SparseArray object.
+###
+### Equivalent to 'as.array(.subset_SVT_as_SVT(x, Nindex))' but slightly
+### more efficient.
+
+.subset_SVT_as_Rarray <- function(x, Nindex, ignore.dimnames=FALSE)
+{
+    stopifnot(is(x, "SVT_SparseArray"), isTRUEorFALSE(ignore.dimnames))
+    check_svt_version(x)
+
+    new_dim <- S4Arrays:::get_Nindex_lengths(Nindex, x@dim)
+    Noffs <- Nindex2Noffs(Nindex)
+    ans <- SparseArray.Call("C_subset_SVT_as_Rarray",
+                            x@dim, x@type, x@SVT, FALSE, Noffs)
+    if (!ignore.dimnames)
+        dimnames(ans) <- S4Arrays:::subset_dimnames_by_Nindex(x@dimnames,
+                                                              Nindex)
+    ans
+}
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### .subset_SVT_as_SVT()
 ###
 ### Endomorphic N-dimensional subsetting of an SVT_SparseArray object.
-###
-### In addition to being one of the workhorses behind `[` on an
-### SVT_SparseArray object (see below), this is also the workhorse behind
-### the extract_sparse_array() method for SVT_SparseArray objects.
 ###
 ### Like the 'index' argument in 'extract_array()', the 'Nindex' argument
 ### must be a **normalized** N-index, that is, a list with one list element
@@ -89,14 +109,14 @@ setMethod("subset_Array_by_Mindex", "SVT_SparseArray", .subset_SVT_by_Mindex)
 ###
 ### Returns an SVT_SparseArray object of the same type() as 'x' (endomorphism).
 
-subset_SVT_by_Nindex <- function(x, Nindex, ignore.dimnames=FALSE)
+.subset_SVT_as_SVT <- function(x, Nindex, ignore.dimnames=FALSE)
 {
     stopifnot(is(x, "SVT_SparseArray"), isTRUEorFALSE(ignore.dimnames))
     check_svt_version(x)
 
     new_dim <- S4Arrays:::get_Nindex_lengths(Nindex, x@dim)
     Noffs <- Nindex2Noffs(Nindex)
-    new_SVT <- SparseArray.Call("C_subset_SVT_by_Noffs",
+    new_SVT <- SparseArray.Call("C_subset_SVT_as_SVT",
                                 x@dim, x@type, x@SVT, Noffs)
 
     ## Compute 'new_dimnames'.
@@ -111,26 +131,34 @@ subset_SVT_by_Nindex <- function(x, Nindex, ignore.dimnames=FALSE)
                                    check=FALSE)
 }
 
-setMethod("subset_Array_by_Nindex", "SVT_SparseArray",
-    function(x, Nindex) subset_SVT_by_Nindex(x, Nindex)
-)
-
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### extract_sparse_array() and extract_array() methods for SVT_SparseArray
-### objects
+### subset_Array_by_Nindex(), extract_array(), and extract_sparse_array()
+### methods for SVT_SparseArray objects
 ###
+
+setMethod("subset_Array_by_Nindex", "SVT_SparseArray",
+    function(x, Nindex, drop=TRUE)
+    {
+        ans_dim <- S4Arrays:::get_Nindex_lengths(Nindex, x@dim)
+        if (drop && sum(ans_dim != 1L) <= 1L) {
+            ans <- .subset_SVT_as_Rarray(x, Nindex)
+            return(S4Arrays:::drop_even_if_1D(ans))
+        }
+        ans <- .subset_SVT_as_SVT(x, Nindex)
+        if (drop)
+            ans <- drop(ans)
+        ans
+    }
+)
+
+setMethod("extract_array", "SVT_SparseArray",
+    function(x, index) .subset_SVT_as_Rarray(x, index, ignore.dimnames=TRUE)
+)
 
 ### No need to propagate the dimnames.
 setMethod("extract_sparse_array", "SVT_SparseArray",
-    function(x, index) subset_SVT_by_Nindex(x, index, ignore.dimnames=TRUE)
-)
-
-### TODO: Come up with a C implementation that avoids the intermediate
-### SVT representation.
-setMethod("extract_array", "SVT_SparseArray",
-    function(x, index)
-        as.array(subset_SVT_by_Nindex(x, index, ignore.dimnames=TRUE))
+    function(x, index) .subset_SVT_as_SVT(x, index, ignore.dimnames=TRUE)
 )
 
 

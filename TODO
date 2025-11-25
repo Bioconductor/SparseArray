@@ -99,12 +99,14 @@
 - Implement which() methods for SparseArray and NaArray objects of type
   logical.
 
-- Implement fast nzvals() getter/setter for SVT_SparseMatrix objects and
-  fast nnavals() getter/setter for NaArray objects. Default methods work
-  fine but are not as fast as they could be.
+- Do we need to implement a fast nzvals() setter for SVT_SparseMatrix objects
+  and a fast nnavals() setter for NaArray objects? Default methods work fine
+  and are fast but could specialized methods be faster?
 
-- Add unit tests for is_nonzero() and the nz*() functions, and for is_nonna()
-  and the nna*() functions.
+- Add unit tests for nzwhich() and nzvals() methods for COO_SparseArray
+  and SVT_SparseArray objects, and for nnawhich() and nnavals() methods
+  for NaArray objects. More generally we need unit tests for all the
+  is_nonzero(), nz*(), is_nonna(), and nna*() methods.
 
 - Implement readMatrixMarket(), similar to Matrix::readMM() but should
   return a COO_SparseMatrix object instead of a dgTMatrix object. Note that
@@ -127,12 +129,6 @@
 - Support names() getter and setter on a 1D SparseArray or NaArray object
   as a shortcut for 'dimnames()[[1L]]' and 'dimnames()[[1L]] <- value'
   respectively. This is to mimic the R base array API.
-
-- Add nzvals() methods for COO_SparseArray and SVT_SparseArray objects.
-  Uncomment nzvals() examples in vignette and SparseArray-class.Rd
-
-- Add unit tests for nzwhich() and nzvals() methods for COO_SparseArray
-  and SVT_SparseArray objects.
 
 - Fix rbind() between an SVT_SparseMatrix and an ordinary vector or matrix:
     > rbind(SVT_SparseArray(dim=6:5), logical(5))

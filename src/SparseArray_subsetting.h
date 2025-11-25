@@ -19,7 +19,15 @@ SEXP C_subset_SVT_by_Mindex(
 	SEXP Mindex
 );
 
-SEXP C_subset_SVT_by_Noffs(
+SEXP C_subset_SVT_as_Rarray(
+	SEXP x_dim,
+	SEXP x_type,
+	SEXP x_SVT,
+	SEXP x_na_background,
+	SEXP Noffs
+);
+
+SEXP C_subset_SVT_as_SVT(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT,

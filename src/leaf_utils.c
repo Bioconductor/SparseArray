@@ -407,29 +407,7 @@ SEXP _coerce_naleaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn,
 
 /****************************************************************************
  * _subset_leaf()
- */
-
-SEXP _subset_leaf(SEXP leaf, int dim0, SEXP offs,
-		  SparseVec *buf_sv, int *lookup_table)
-{
-	if (leaf == R_NilValue || offs == R_NilValue)
-		return leaf;
-	/* Note that the background value does not matter in the context
-	   of N-index subsetting, because _subset_SV() -- the workhorse
-	   behind this form of subsetting -- does not make any use of it. */
-	const SparseVec sv = leaf2SV(leaf, buf_sv->Rtype,
-				     dim0,
-				     buf_sv->na_background);
-	_subset_SV(&sv, INTEGER(offs), buf_sv, lookup_table);
-	return SV2leaf(buf_sv);
-}
-
-
-/****************************************************************************
- * _subassign_leaf_with_Rvector_block()
- * _subassign_leaf_with_Rvector_subset()
- * _subassign_leaf_with_Rvector_xsubset()
- * _subassign_leaf_with_leaf()
+ * _subset_leaf_into_Rvector_block()
  */
 
 static const int *get_offs0(SEXP offs, int n, int dim0)
@@ -445,6 +423,55 @@ static const int *get_offs0(SEXP offs, int n, int dim0)
 		      "    n != LENGTH(offs)");
 	return INTEGER(offs);
 }
+
+/* Can be used on a NULL or lacunar leaf.
+   'offs' must be NULL or an array of 'buf_sv->len' offsets that are >= 0
+   and < 'dim0'. */
+SEXP _subset_leaf(SEXP leaf, int dim0, SEXP offs,
+		  SparseVec *buf_sv, int *lookup_table)
+{
+	if (leaf == R_NilValue || offs == R_NilValue)
+		return leaf;
+	/* Note that the background value does not matter in the context
+	   of N-index subsetting, because _subset_SV() -- the workhorse
+	   behind this form of subsetting -- does not make any use of it. */
+	const SparseVec sv = leaf2SV(leaf, buf_sv->Rtype,
+				     dim0, 0);  // we set 'bg_is_na' to 0
+	_subset_SV(&sv, INTEGER(offs), buf_sv, lookup_table);
+	return SV2leaf(buf_sv);
+}
+
+/* Can be used on a NULL or lacunar leaf.
+   'offs' must be NULL or an array of 'n' offsets that are >= 0 and < 'dim0'.
+   The destination is the block of 'n' elements in 'Rvector' that starts
+   at offset 'block_offset'.
+   IMPORTANT: The destination block is assumed to have been previously
+   initialized with zeros (or NAs). */
+void _subset_leaf_into_Rvector_block(SEXP leaf, SEXPTYPE Rtype, int dim0,
+		SEXP offs, int n,
+		SEXP Rvector, R_xlen_t block_offset, int *lookup_table)
+{
+	const int *offs0 = get_offs0(offs, n, dim0);
+	if (leaf == R_NilValue)
+		return;
+	/* Note that the background value does not matter in the context
+	   of N-index subsetting, because _subset_SV_into_Rvector_block()
+	   -- the workhorse behind this form of subsetting -- does not make
+	   any use of it. */
+	const SparseVec sv = leaf2SV(leaf, Rtype,
+				     dim0, 0);  // we set 'bg_is_na' to 0
+	_subset_SV_into_Rvector_block(&sv, offs0, n,
+			Rvector, block_offset, lookup_table);
+	return;
+}
+
+
+/****************************************************************************
+ * _subassign_leaf_with_Rvector_block()
+ * _subassign_leaf_with_Rvector_subset()
+ * _subassign_leaf_with_Rvector_xsubset()
+ * _subassign_leaf_with_leaf()
+ */
 
 /* TODO: Maybe move this to SparseVec.c next to _alloc_buf_SparseVec(). */
 static int alloc_SV_nzvals_if_needed(SparseVec *sv)
@@ -492,7 +519,7 @@ SEXP _subassign_leaf_with_Rvector_block(SEXP leaf, SEXP offs, int n,
 				   (block_offset != 0 || LENGTH(Rvector) >= n);
 		if (use_shortcut) {
 			SEXP ans;
-			if (buf_sv->na_background) {
+			if (buf_sv->bg_is_na) {
 				ans = _make_naleaf_from_Rvector_block(
 						Rvector, block_offset, n,
 						buf_sv->nzoffs, 1);
@@ -510,7 +537,7 @@ SEXP _subassign_leaf_with_Rvector_block(SEXP leaf, SEXP offs, int n,
 		alloc_SV_nzvals_if_needed(buf_sv);
 		const SparseVec sv = leaf2SV(leaf, buf_sv->Rtype,
 					     buf_sv->len,
-					     buf_sv->na_background);
+					     buf_sv->bg_is_na);
 		int neffrep;
 		if (n == buf_sv->len) {
 			/* Full replacement.
@@ -546,7 +573,7 @@ SEXP _subassign_leaf_with_Rvector_subset(SEXP leaf, const int *offs, int n,
 	} else {
 		const SparseVec sv = leaf2SV(leaf, buf_sv->Rtype,
 					     buf_sv->len,
-					     buf_sv->na_background);
+					     buf_sv->bg_is_na);
 		int neffrep = _subassign_SV_with_Rvector_subset(&sv,
 					     offs, n,
 					     Rvector, selection, buf_sv);
@@ -580,10 +607,10 @@ SEXP _subassign_leaf_with_leaf(SEXP leaf1, SEXP offs, int n,
 	/* 'offs0' guaranteed to be != NULL. */
 	const SparseVec sv1 = leaf2SV(leaf1, buf_sv->Rtype,
 				      buf_sv->len,
-				      buf_sv->na_background);
+				      buf_sv->bg_is_na);
 	const SparseVec sv2 = leaf2SV(leaf2, buf_sv->Rtype,
 				      n,
-				      buf_sv->na_background);
+				      buf_sv->bg_is_na);
 	int neffrep = _subassign_SV_with_SV(&sv1, offs0, &sv2, buf_sv);
 	//printf("n = %d / neffrep = %d\n", n, neffrep);
 	if (neffrep == 0)
