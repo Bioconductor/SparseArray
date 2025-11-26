@@ -712,6 +712,18 @@ static SEXP make_selection_dim(SEXP Noffs, const int *dim, int ndim)
 	return selection_dim;
 }
 
+/* Returns NULL if lookup table is not considered needed. */
+static int *make_lookup_table(int dim0, SEXP Noffs, double cutoff_offs0_len)
+{
+	SEXP offs0 = VECTOR_ELT(Noffs, 0);
+	if (offs0 == R_NilValue || LENGTH(offs0) <= cutoff_offs0_len)
+		return NULL;
+	int *lookup_table = (int *) R_alloc(dim0, sizeof(int));
+	for (int i = 0; i < dim0; i++)
+		lookup_table[i] = -1;
+	return lookup_table;
+}
+
 
 /****************************************************************************
  * C_subset_SVT_as_Rarray()
@@ -780,14 +792,11 @@ SEXP C_subset_SVT_as_Rarray(
 
 	/* Naive strategy. Could probably be refined. See MAP_OFF_TO_K1()
 	   in SparseVec_subsetting.c */
-	int *lookup_table = NULL, max_threads = _get_max_threads();
+	int max_threads = _get_max_threads();
 	if (max_threads == 0)  /* no OpenMP on Mac */
 		max_threads = 1;
-	if (60 * (INTEGER(ans_dim)[0] - 1) > (R_xlen_t) dim0 * max_threads) {
-		lookup_table = (int *) R_alloc(dim0, sizeof(int));
-		for (int i = 0; i < dim0; i++)
-			lookup_table[i] = -1;
-	}
+	double cutoff_offs0_len = 1 + (dim0 / 60.0) * max_threads;
+	int *lookup_table = make_lookup_table(dim0, Noffs, cutoff_offs0_len);
 
 	/* Get 1-based rank of biggest dimension (ignoring the 1st dim).
 	   Parallel execution will be along that dimension. */
@@ -864,14 +873,12 @@ SEXP C_subset_SVT_as_SVT(SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP Noffs)
 						0, 0);
 	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
 		PROTECT(buf_sv.nzvals);
+
 	/* Naive strategy. Could probably be refined. See MAP_OFF_TO_K1()
 	   in SparseVec_subsetting.c */
-	int *lookup_table = NULL;
-	if (75 * (buf_sv.len - 1) > dim0) {
-		lookup_table = (int *) R_alloc(dim0, sizeof(int));
-		for (int i = 0; i < dim0; i++)
-			lookup_table[i] = -1;
-	}
+	double cutoff_offs0_len = 1 + dim0 / 75.0;
+	int *lookup_table = make_lookup_table(dim0, Noffs, cutoff_offs0_len);
+
 	SEXP ans = REC_subset_SVT_as_SVT(x_SVT, dim, ndim, Noffs,
 					 &buf_sv, lookup_table);
 	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))

@@ -1,3 +1,8 @@
+- Use extract_array() in as.array() methods for SVT_SparseArray and
+  NaArray objects. See comments above the .from_SVT_SparseArray_to_array()
+  and .from_NaArray_to_array() functions in R/SVT_SparseArray-class.R and
+  R/NaArray-class.R
+
 - Make operations from the Math group work on SVT_SparseArray objects of
   type "integer".
 
