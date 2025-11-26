@@ -217,8 +217,9 @@ new_NaArray <- function(dim, dimnames=NULL,
 
 ### Note that we could also use 'extract_array(from, list(NULL, ...))'
 ### for this. The workhorse behind the extract_array() method for
-### NaArray objects is C_subset_SVT_as_Rarray and it should be
-### as fast as C_from_SVT_SparseArray_to_Rarray.
+### NaArray objects is C_subset_SVT_as_Rarray which uses
+### multithreading in the 'extract_array(from, index=list(NULL, ...))'
+### case, so it should be faster than C_from_SVT_SparseArray_to_Rarray.
 ### TODO: Use extract_array() for this and get rid of .Call entry point
 ### C_from_SVT_SparseArray_to_Rarray.
 .from_NaArray_to_array <- function(from)
