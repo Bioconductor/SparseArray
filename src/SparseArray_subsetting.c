@@ -712,7 +712,7 @@ static SEXP make_selection_dim(SEXP Noffs, const int *dim, int ndim)
 	return selection_dim;
 }
 
-/* Returns NULL if lookup table is not considered needed. */
+/* Returns NULL if lookup table is not needed or not considered worth it. */
 static int *make_lookup_table(int dim0, SEXP Noffs, double cutoff_offs0_len)
 {
 	SEXP offs0 = VECTOR_ELT(Noffs, 0);
