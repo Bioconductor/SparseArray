@@ -14,8 +14,9 @@
 
 setGeneric("is_nonna", function(x) standardGeneric("is_nonna"))
 
-### Works on any vector-like or array-like object that supports is.na().
-setMethod("is_nonna", "ANY", function(x) !is.na(x))
+### Works on any vector-like or array-like object that supports is.na()
+### and is.nan().
+setMethod("is_nonna", "ANY", function(x) !is.na(x) | is.nan(x))
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

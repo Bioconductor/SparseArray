@@ -77,17 +77,6 @@ static SEXPTYPE get_SV_write_Rtype(SEXP Rvector,
 	return Rtype;
 }
 
-/* The only reason that we define 'RbyteNA' is to make
-   'DEFINE_write_Rvector_block_to_typeSV_FUN(Rbyte)' and
-   'DEFINE_write_Rvector_subset_to_typeSV_FUN(Rbyte)' work.
-   Note that it absolutely doesn't matter what value we set 'RbyteNA'
-   to because we don't support NaArray objects of type raw.
-   This means that if SparseVec 'out_sv' is of type raw
-   then 'out_sv->bg_is_na' is guaranteed to be FALSE.
-   In other words, 'RbyteNA' will **never** be used! */
-
-#define RbyteNA Rbyte0  /* exact value doesn't matter, see above */
-
 #define DEFINE_write_Rvector_block_to_typeSV_FUN(type)			  \
 static void write_Rvector_block_to_ ## type ## SV(			  \
 		const type *vals, int cycle_len,			  \
@@ -95,10 +84,9 @@ static void write_Rvector_block_to_ ## type ## SV(			  \
 {									  \
 	out_sv->nzcount = 0;						  \
 	type *out_nzvals = (type *) out_sv->nzvals;			  \
-	type bg_val = out_sv->bg_is_na ? type ## NA : type ## 0;	  \
 	for (int k = 0; k < n; k++) {					  \
 		type out_val = vals[cycle_len ? k % cycle_len : k];	  \
-		if (type ## _equal(out_val, bg_val))			  \
+		if (is_ ## type ## _bg(out_val, out_sv->bg_is_na))	  \
 			continue;					  \
 		int out_off = out_offs == NULL ? k : out_offs[k];	  \
 		APPEND_TO_NZVALS_NZOFFS(out_val, out_off,		  \
@@ -226,10 +214,9 @@ static void write_Rvector_subset_to_ ## type ## SV(			  \
 {									  \
 	out_sv->nzcount = 0;						  \
 	type *out_nzvals = (type *) out_sv->nzvals;			  \
-	type bg_val = out_sv->bg_is_na ? type ## NA : type ## 0;	  \
 	for (int k = 0; k < n; k++) {					  \
 		type out_val = vals[selection[k]];			  \
-		if (type ## _equal(out_val, bg_val))			  \
+		if (is_ ## type ## _bg(out_val, out_sv->bg_is_na))	  \
 			continue;					  \
 		int out_off = out_offs == NULL ? k : out_offs[k];	  \
 		APPEND_TO_NZVALS_NZOFFS(out_val, out_off,		  \

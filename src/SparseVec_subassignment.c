@@ -5,10 +5,11 @@
 
 
 /* The only reason that we define 'RbyteNA' and 'listNA' is to make
-   'DEFINE_subassign_typeSV_FUN(Rbyte)' and other macros defined in
-   this file work. Note that these macros contain the following line:
+   'DEFINE_subassign_typeSV_with_SV_FUN(Rbyte)' and
+   'DEFINE_subassign_typeSV_with_SV_FUN(list)' work. Note that the
+   DEFINE_subassign_typeSV_with_SV_FUN() macro contains the following line:
 
-       type bg_val = out_sv->bg_is_na ? type ## NA : type ## 0;
+       out_type bg_val = out_sv->bg_is_na ? type ## NA : type ## 0;
 
    So it absolutely doesn't matter what value we set 'RbyteNA' and 'listNA'
    to because we don't support NaArray objects of type raw or list.
@@ -140,18 +141,35 @@ static inline int next_subassign_listSV_out_val(
  * Inline functions process_subassign_<type>SV_out_val()
  */
 
+static inline int int_equal(int x, int y)
+{
+	return x == y;
+}
+static inline int double_equal(double x, double y)
+{
+	return x == y;
+}
+static inline int Rcomplex_equal(Rcomplex x, Rcomplex y)
+{
+	return x.r == y.r && x.i == y.i;
+}
+static inline int Rbyte_equal(Rbyte x, Rbyte y)
+{
+	return x == y;
+}
+
 #define DEFINE_process_subassign_typeSV_out_val_FUN(type)		   \
 static inline int process_subassign_ ## type ## SV_out_val(int ret,	   \
 		type out_val, int out_off, SparseVec *out_sv,		   \
-		type bg_val, const SparseVec *sv1, int k1)		   \
+		const SparseVec *sv1, int k1)				   \
 {									   \
 	int is_effrep = 0;						   \
 	if (ret == 2) {							   \
-		if (type ## _equal(out_val, bg_val))			   \
+		if (is_ ## type ## _bg(out_val, out_sv->bg_is_na))	   \
 			return 0;  /* zero replaces zero */		   \
 		is_effrep = 1;     /* nonzero replaces zero */		   \
 	} else if (ret == 3) {						   \
-		if (type ## _equal(out_val, bg_val))			   \
+		if (is_ ## type ## _bg(out_val, out_sv->bg_is_na))	   \
 			return 1;  /* zero replaces nonzero */		   \
 		/* nonzero replaces nonzero */				   \
 		type v1 = get_ ## type ## SV_nzval(sv1, k1 - 1);	   \
@@ -183,14 +201,14 @@ DEFINE_process_subassign_typeSV_out_val_FUN(Rbyte)
    leaf is not modified by the subassignment. */
 static inline int process_subassign_characterSV_out_val(int ret,
 		SEXP out_val, int out_off, SparseVec *out_sv,
-		SEXP bg_val, const SparseVec *sv1, int k1)
+		const SparseVec *sv1, int k1)
 {
 	int is_effrep = 1;
 	if (ret == 2) {
-		if (out_val == bg_val)
+		if (is_character_bg(out_val, out_sv->bg_is_na))
 			return 0;
 	} else if (ret == 3) {
-		if (out_val == bg_val)
+		if (is_character_bg(out_val, out_sv->bg_is_na))
 			return 1;
 		SEXP v1 = get_characterSV_nzval(sv1, k1 - 1);
 		/* See note above about this comparison. */
@@ -223,14 +241,14 @@ static inline int process_subassign_characterSV_out_val(int ret,
    as 'svt1@SVT'). */
 static inline int process_subassign_listSV_out_val(int ret,
 		SEXP out_val, int out_off, SparseVec *out_sv,
-		SEXP bg_val, const SparseVec *sv1, int k1)
+		const SparseVec *sv1, int k1)
 {
 	int is_effrep = 1;
 	if (ret == 2) {
-		if (out_val == bg_val)
+		if (is_list_bg(out_val, out_sv->bg_is_na))
 			return 0;
 	} else if (ret == 3) {
-		if (out_val == bg_val)
+		if (is_list_bg(out_val, out_sv->bg_is_na))
 			return 1;
 		SEXP v1 = get_listSV_nzval(sv1, k1 - 1);
 		/* See note above about this comparison. */
@@ -255,7 +273,6 @@ static int subassign_ ## type ## SV(					   \
 		SparseVec *out_sv)					   \
 {									   \
 	out_sv->nzcount = 0;						   \
-	type bg_val = out_sv->bg_is_na ? type ## NA : type ## 0;	   \
 	int neffrep = 0, ret, k1 = 0, k = 0, out_off;			   \
 	type out_val;							   \
 	while ((ret = next_subassign_ ## type ## SV_out_val(sv1, offs, n,  \
@@ -264,7 +281,7 @@ static int subassign_ ## type ## SV(					   \
 	{								   \
 		neffrep += process_subassign_ ## type ## SV_out_val(ret,   \
 				out_val, out_off, out_sv,		   \
-				bg_val, sv1, k1);			   \
+				sv1, k1);				   \
 	}								   \
 	return neffrep;							   \
 }
@@ -281,7 +298,6 @@ static int subassign_characterSV(
 		SparseVec *out_sv)
 {
 	out_sv->nzcount = 0;
-	SEXP bg_val = out_sv->bg_is_na ? characterNA : character0;
 	int neffrep = 0, ret, k1 = 0, k = 0, out_off;
 	SEXP out_val;
 	while ((ret = next_subassign_characterSV_out_val(sv1, offs, n,
@@ -290,7 +306,7 @@ static int subassign_characterSV(
 	{
 		neffrep += process_subassign_characterSV_out_val(ret,
 				out_val, out_off, out_sv,
-				bg_val, sv1, k1);
+				sv1, k1);
 	}
 	return neffrep;
 }
@@ -310,7 +326,7 @@ static int subassign_listSV(
 	{
 		neffrep += process_subassign_listSV_out_val(ret,
 				out_val, out_off, out_sv,
-				list0, sv1, k1);
+				sv1, k1);
 	}
 	return neffrep;
 }
@@ -459,7 +475,7 @@ static int subassign_ ## type ## SV_with_SV(				   \
 		const SparseVec *sv2, SparseVec *out_sv)		   \
 {									   \
 	out_sv->nzcount = 0;						   \
-	out_type bg_val = out_sv->bg_is_na ? type ## NA : type ## 0;  \
+	out_type bg_val = out_sv->bg_is_na ? type ## NA : type ## 0;	   \
 	int neffrep = 0, ret, k1 = 0, k = 0, k2 = 0, out_off;		   \
 	out_type out_val;						   \
 	while ((ret = next_subassign_ ## type ## SV_with_SV_out_val(	   \
@@ -468,7 +484,7 @@ static int subassign_ ## type ## SV_with_SV(				   \
 	{								   \
 		neffrep += process_subassign_ ## type ## SV_out_val(ret,   \
 				out_val, out_off, out_sv,		   \
-				bg_val, sv1, k1);			   \
+				sv1, k1);				   \
 	}								   \
 	return neffrep;							   \
 }
@@ -532,7 +548,6 @@ static int subassign_full_ ## type ## SV_with_Rvector_block(		  \
 		const type *vals2, int cycle_len, SparseVec *out_sv)	  \
 {									  \
 	out_sv->nzcount = 0;						  \
-	type bg_val = out_sv->bg_is_na ? type ## NA : type ## 0;	  \
 	int neffrep = 0, k1 = 0;					  \
 	for (int out_off = 0; out_off < out_sv->len; out_off++) {	  \
 		int ret = next_k1(sv1, &k1, out_off);			  \
@@ -540,7 +555,7 @@ static int subassign_full_ ## type ## SV_with_Rvector_block(		  \
 		type out_val = vals2[i];				  \
 		neffrep += process_subassign_ ## type ## SV_out_val(ret,  \
 				out_val, out_off, out_sv,		  \
-				bg_val, sv1, k1);			  \
+				sv1, k1);				  \
 	}								  \
 	return neffrep;							  \
 }
@@ -555,7 +570,6 @@ static int subassign_full_characterSV_with_Rvector_block(const SparseVec *sv1,
 		SparseVec *out_sv)
 {
 	out_sv->nzcount = 0;
-	SEXP bg_val = out_sv->bg_is_na ? characterNA : character0;
 	int neffrep = 0, k1 = 0;
 	for (int out_off = 0; out_off < out_sv->len; out_off++) {
 		int ret = next_k1(sv1, &k1, out_off);
@@ -564,7 +578,7 @@ static int subassign_full_characterSV_with_Rvector_block(const SparseVec *sv1,
 		SEXP out_val = STRING_ELT(Rvector, i);
 		neffrep += process_subassign_characterSV_out_val(ret,
 				out_val, out_off, out_sv,
-				bg_val, sv1, k1);
+				sv1, k1);
 	}
 	return neffrep;
 }
@@ -582,7 +596,7 @@ static int subassign_full_listSV_with_Rvector_block(const SparseVec *sv1,
 		SEXP out_val = VECTOR_ELT(Rvector, i);
 		neffrep += process_subassign_listSV_out_val(ret,
 				out_val, out_off, out_sv,
-				list0, sv1, k1);
+				sv1, k1);
 	}
 	return neffrep;
 }

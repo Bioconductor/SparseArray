@@ -30,8 +30,6 @@ extern SEXP list0;           /* initialized in R_init_SparseArray() */
 
 #define IS_STRSXP_OR_VECSXP(Rtype) ((Rtype) == STRSXP || (Rtype) == VECSXP)
 
-#define IS_EMPTY_CHARSXP(x) ((x) != NA_STRING && LENGTH(x) == 0)
-
 #define RCOMPLEX_IS_NA_OR_NaN(z) (ISNAN((z)->r) || ISNAN((z)->i))
 
 typedef void (*CopyRVectorEltFUN)(
@@ -42,6 +40,79 @@ typedef void (*CopyRVectorEltFUN)(
 /****************************************************************************
  * Inline functions
  */
+
+static inline int is_int0(int x)
+{
+	return x == int0;
+}
+static inline int is_int1(int x)
+{
+	return x == int1;
+}
+static inline int is_intNA(int x)
+{
+	return x == intNA;
+}
+
+static inline int is_double0(double x)
+{
+	return x == double0;
+}
+static inline int is_double1(double x)
+{
+	return x == double1;
+}
+static inline int is_doubleNA(double x)
+{
+	return R_IsNA(x);  // do NOT use ISNAN()!
+}
+
+static inline int is_Rcomplex0(Rcomplex x)
+{
+	return x.r == double0 && x.i == double0;
+}
+static inline int is_Rcomplex1(Rcomplex x)
+{
+	return x.r == double1 && x.i == double0;
+}
+static inline int is_RcomplexNA(Rcomplex x)
+{
+	return R_IsNA(x.r) || R_IsNA(x.i);  // do NOT use ISNAN()!
+}
+
+static inline int is_Rbyte0(Rbyte x)
+{
+	return x == Rbyte0;
+}
+static inline int is_Rbyte1(Rbyte x)
+{
+	return x == Rbyte1;
+}
+
+/* 'x' must be a CHARSXP.
+   Note that we're comparing the CHARSXPs' addresses, not their values.
+   However, this is much faster, but also, and most importantly, it's
+   equivalent to comparing their values. That's because CHARSXPs with the
+   same value are expected to have the same address, thanks to R's global
+   CHARSXP cache. */
+static inline int is_character0(SEXP x)
+{
+	return x == character0;   /* comparing CHARSXPs' addresses */
+}
+static inline int is_character1(SEXP x)
+{
+	return x == character1;   /* comparing CHARSXPs' addresses */
+}
+static inline int is_characterNA(SEXP x)
+{
+	return x == characterNA;  /* comparing CHARSXPs' addresses */
+}
+
+static inline int is_list0(SEXP x)
+{
+	return x == list0;
+}
+
 
 /* Should be the same as doing (char *) (x) + sizeof(type) * (offset). */
 #define SHIFT_DATAPTR(type, x, offset) (type *) (x) + (offset)
