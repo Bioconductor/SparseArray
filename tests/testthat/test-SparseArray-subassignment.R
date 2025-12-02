@@ -374,17 +374,17 @@ test_that("subassign an SVT_SparseArray object by an Nindex", {
     svt <- `[<-`(svt0, i, j, , value=0L)
     check_array_like_object(svt, "SVT_SparseArray", a)
 
-    ## Inject fixed nonzero at random positions in a column:
+    ## Inject fixed nonzero value at random positions in a column:
     a <- `[<-`(a0, i, 8, 1, value=-555L)
     svt <- `[<-`(svt0, i, 8, 1, value=-555L)
     check_array_like_object(svt, "SVT_SparseArray", a)
 
-    ## Inject fixed nonzero at random positions in a row:
+    ## Inject fixed nonzero value at random positions in a row:
     a <- `[<-`(a0, 17, j, 1, value=-555L)
     svt <- `[<-`(svt0, 17, j, 1, value=-555L)
     check_array_like_object(svt, "SVT_SparseArray", a)
 
-    ## Inject fixed nonzero val at random positions:
+    ## Inject fixed nonzero value at random positions:
     a <- `[<-`(a0, i, j, 1, value=-555L)
     svt <- `[<-`(svt0, i, j, 1, value=-555L)
     check_array_like_object(svt, "SVT_SparseArray", a)

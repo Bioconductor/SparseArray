@@ -67,16 +67,10 @@
 
 - NaArray objects:
 
-  1. Only subassignment by an L-index (subassign_Array_by_Lindex) is supported
-     at the moment. Implement other forms of subassignment:
-       o by M-index (subassign_Array_by_Mindex)
-       o by N-index (subassign_Array_by_Nindex)
-     Add unit tests for subassignment of NaArray objects.
-
-  2. Implement methods rowAnyNAs(), rowMins, rowMaxs(), rowMeans(), rowVars(),
+  1. Implement methods rowAnyNAs(), rowMins, rowMaxs(), rowMeans(), rowVars(),
      and rowSds(). Add unit tests.
 
-  3. Add vignette for NaArray objects.
+  2. Add vignette for NaArray objects.
 
 - Support single cell normalization & PCA on an SVT_SparseMatrix object
   as described in the "HDF5Array performance" vignette in HDF5Array.

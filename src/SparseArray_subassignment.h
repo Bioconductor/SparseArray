@@ -25,6 +25,7 @@ SEXP C_subassign_SVT_with_short_Rvector(
 	SEXP x_dim,
 	SEXP x_type,
 	SEXP x_SVT,
+	SEXP x_na_background,
 	SEXP Noffs,
 	SEXP Rvector
 );

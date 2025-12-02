@@ -97,6 +97,14 @@ check_array_like_object <- function(object, expected_class, a0, strict=TRUE)
     }
     expect_identical(dimnames(object), dimnames(a0))
     expect_identical(type(object), type(a0))
+    if (is(object, "NaArray") && type(a0) == "complex") {
+        ## It's enough for the Re() or Im() component of a complex value to be
+        ## NA (in the is.na() & !is.nan() sense) for the complex value to be
+        ## itself considered an NA (in the is.na() & !is.nan() sense). So we
+        ## normalize complex NAs by making sure that their Re() and Im()
+        ## components are both NAs.
+        a0[is.na(a0) & !is.nan(a0)] <- NA_complex_
+    }
     EXPECT_FUN <- if (strict) expect_identical else expect_equal
     EXPECT_FUN(as.array(object), a0)
 }

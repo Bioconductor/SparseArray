@@ -20,6 +20,9 @@
 \description{
   A set of functions for direct manipulation of the non-NA elements
   of an array-like object.
+
+  Note that, for all these functions, a non-NA element is an element
+  for which \code{is.na()} is FALSE or \code{is.nan()} is TRUE.
 }
 
 \usage{
@@ -105,6 +108,9 @@ nnavals(x) <- value
 }
 
 \examples{
+m <- rbind(c(NA, 0, 3.25, NaN), c(NA, NaN, NA, 1))
+is_nonna(m)  # the NaN values are considered non-NA elements
+
 a <- array(NA_integer_, dim=c(5, 12, 2))
 a[sample(length(a), 20)] <- (-9):10
 
@@ -142,6 +148,7 @@ a
 
 ## Sanity checks:
 stopifnot(
+  identical(as.matrix(is_nonna(NaArray(m))), is_nonna(m)),
   identical(nnaidx, which(!is.na(a))),
   identical(Mnnaidx, which(!is.na(a), arr.ind=TRUE, useNames=FALSE)),
   identical(nnavals(a), a[nnaidx]),

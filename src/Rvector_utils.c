@@ -570,86 +570,45 @@ SEXP _new_RarrayNA(SEXPTYPE Rtype, SEXP dim, SEXP dimnames)
  * _collect_offsets_of_nonNA_elts_in_Rvector_block()
  */
 
-static int collect_offsets_of_nonzero_int_elts(
-		const int *x, int n, int *out)
-{
-	const int *out0 = out;
-	for (int i = 0; i < n; i++)
-		if (x[i] != int0)
-			*(out++) = i;
-	return (int) (out - out0);
+#define DEFINE_collect_offsets_of_nonzero_type_elts_FUN(type)	\
+static int collect_offsets_of_nonzero_ ## type ## _elts(	\
+		const type *x, int n, int *out)			\
+{								\
+	const int *out0 = out;					\
+	for (int i = 0; i < n; i++)				\
+		if (!is_ ## type ## 0(x[i]))			\
+			*(out++) = i;				\
+	return (int) (out - out0);				\
 }
 
-static int collect_offsets_of_nonNA_int_elts(
-		const int *x, int n, int *out)
-{
-	const int *out0 = out;
-	for (int i = 0; i < n; i++)
-		if (x[i] != NA_INTEGER)
-			*(out++) = i;
-	return (int) (out - out0);
+#define DEFINE_collect_offsets_of_nonNA_type_elts_FUN(type)	\
+static int collect_offsets_of_nonNA_ ## type ## _elts(		\
+		const type *x, int n, int *out)			\
+{								\
+	const int *out0 = out;					\
+	for (int i = 0; i < n; i++)				\
+		if (!is_ ## type ## NA(x[i]))			\
+			*(out++) = i;				\
+	return (int) (out - out0);				\
 }
 
-static int collect_offsets_of_nonzero_double_elts(
-		const double *x, int n, int *out)
-{
-	const int *out0 = out;
-	for (int i = 0; i < n; i++)
-		if (x[i] != double0)
-			*(out++) = i;
-	return (int) (out - out0);
-}
+DEFINE_collect_offsets_of_nonzero_type_elts_FUN(int)
+DEFINE_collect_offsets_of_nonzero_type_elts_FUN(double)
+DEFINE_collect_offsets_of_nonzero_type_elts_FUN(Rcomplex)
+DEFINE_collect_offsets_of_nonzero_type_elts_FUN(Rbyte)
 
-static int collect_offsets_of_nonNA_double_elts(
-		const double *x, int n, int *out)
-{
-	const int *out0 = out;
-	for (int i = 0; i < n; i++)
-		if (!R_IsNA(x[i]))  // do NOT use ISNAN()!
-			*(out++) = i;
-	return (int) (out - out0);
-}
+DEFINE_collect_offsets_of_nonNA_type_elts_FUN(int)
+DEFINE_collect_offsets_of_nonNA_type_elts_FUN(double)
+DEFINE_collect_offsets_of_nonNA_type_elts_FUN(Rcomplex)
 
-static int collect_offsets_of_nonzero_Rcomplex_elts(
-		const Rcomplex *x, int n, int *out)
-{
-	const int *out0 = out;
-	for (int i = 0; i < n; i++, x++) {
-		if (x->r != Rcomplex0.r || x->i != Rcomplex0.i)
-			*(out++) = i;
-	}
-	return (int) (out - out0);
-}
-
-static int collect_offsets_of_nonNA_Rcomplex_elts(
-		const Rcomplex *x, int n, int *out)
-{
-	const int *out0 = out;
-	for (int i = 0; i < n; i++, x++) {
-		if (!(R_IsNA(x->r) || R_IsNA(x->i)))
-			*(out++) = i;
-	}
-	return (int) (out - out0);
-}
-
-static int collect_offsets_of_nonzero_Rbyte_elts(
-		const Rbyte *x, int n, int *out)
-{
-	const int *out0 = out;
-	for (int i = 0; i < n; i++)
-		if (x[i] != Rbyte0)
-			*(out++) = i;
-	return (int) (out - out0);
-}
-
-static int collect_offsets_of_nonempty_character_elts(
+static int collect_offsets_of_nonzero_character_elts(
 		SEXP Rvector, R_xlen_t block_offset, int block_len,
 		int *out)
 {
 	const int *out0 = out;
 	for (int i = 0; i < block_len; i++, block_offset++) {
 		SEXP vec_elt = STRING_ELT(Rvector, block_offset);
-		if (!IS_EMPTY_CHARSXP(vec_elt))
+		if (!is_character0(vec_elt))
 			*(out++) = i;
 	}
 	return (int) (out - out0);
@@ -662,20 +621,20 @@ static int collect_offsets_of_nonNA_character_elts(
 	const int *out0 = out;
 	for (int i = 0; i < block_len; i++, block_offset++) {
 		SEXP vec_elt = STRING_ELT(Rvector, block_offset);
-		if (vec_elt != NA_STRING)
+		if (!is_characterNA(vec_elt))
 			*(out++) = i;
 	}
 	return (int) (out - out0);
 }
 
-static int collect_offsets_of_nonnull_list_elts(
+static int collect_offsets_of_nonzero_list_elts(
 		SEXP Rvector, R_xlen_t block_offset, int block_len,
 		int *out)
 {
 	const int *out0 = out;
 	for (int i = 0; i < block_len; i++, block_offset++) {
 		SEXP vec_elt = VECTOR_ELT(Rvector, block_offset);
-		if (vec_elt != R_NilValue)
+		if (!is_list0(vec_elt))
 			*(out++) = i;
 	}
 	return (int) (out - out0);
@@ -714,11 +673,11 @@ int _collect_offsets_of_nonzero_elts_in_Rvector_block(
 				RAW(Rvector) + block_offset,
 				block_len, out);
 	    case STRSXP:
-		return collect_offsets_of_nonempty_character_elts(
+		return collect_offsets_of_nonzero_character_elts(
 				Rvector, block_offset,
 				block_len, out);
 	    case VECSXP:
-		return collect_offsets_of_nonnull_list_elts(
+		return collect_offsets_of_nonzero_list_elts(
 				Rvector, block_offset,
 				block_len, out);
 	}
@@ -772,7 +731,7 @@ int _collect_offsets_of_nonNA_elts_in_Rvector_block(
 static int all_int_elts_equal_one(const int *x, int n)
 {
 	for (int i = 0; i < n; i++)
-		if (x[i] != int1)
+		if (!is_int1(x[i]))
 			return 0;
 	return 1;
 }
@@ -780,15 +739,15 @@ static int all_int_elts_equal_one(const int *x, int n)
 static int all_double_elts_equal_one(const double *x, int n)
 {
 	for (int i = 0; i < n; i++)
-		if (x[i] != double1)
+		if (!is_double1(x[i]))
 			return 0;
 	return 1;
 }
 
 static int all_Rcomplex_elts_equal_one(const Rcomplex *x, int n)
 {
-	for (int i = 0; i < n; i++, x++)
-		if (x->r != Rcomplex1.r || x->i != Rcomplex1.i)
+	for (int i = 0; i < n; i++)
+		if (!is_Rcomplex1(x[i]))
 			return 0;
 	return 1;
 }
@@ -796,7 +755,7 @@ static int all_Rcomplex_elts_equal_one(const Rcomplex *x, int n)
 static int all_Rbyte_elts_equal_one(const Rbyte *x, int n)
 {
 	for (int i = 0; i < n; i++)
-		if (x[i] != Rbyte1)
+		if (!is_Rbyte1(x[i]))
 			return 0;
 	return 1;
 }
@@ -861,7 +820,7 @@ static int all_selected_int_elts_equal_one(const int *x,
 		const int *selection, int n)
 {
 	for (int k = 0; k < n; k++, selection++)
-		if (x[*selection] != int1)
+		if (!is_int1(x[*selection]))
 			return 0;
 	return 1;
 }
@@ -870,7 +829,7 @@ static int all_selected_double_elts_equal_one(const double *x,
 		const int *selection, int n)
 {
 	for (int k = 0; k < n; k++, selection++)
-		if (x[*selection] != double1)
+		if (!is_double1(x[*selection]))
 			return 0;
 	return 1;
 }
@@ -878,11 +837,9 @@ static int all_selected_double_elts_equal_one(const double *x,
 static int all_selected_Rcomplex_elts_equal_one(const Rcomplex *x,
 		const int *selection, int n)
 {
-	for (int k = 0; k < n; k++, selection++) {
-		const Rcomplex *z = x + *selection;
-		if (z->r != Rcomplex1.r || z->i != Rcomplex1.i)
+	for (int k = 0; k < n; k++, selection++)
+		if (!is_Rcomplex1(x[*selection]))
 			return 0;
-	}
 	return 1;
 }
 
@@ -890,7 +847,7 @@ static int all_selected_Rbyte_elts_equal_one(const Rbyte *x,
 		const int *selection, int n)
 {
 	for (int k = 0; k < n; k++, selection++)
-		if (x[*selection] != Rbyte1)
+		if (!is_Rbyte1(x[*selection]))
 			return 0;
 	return 1;
 }

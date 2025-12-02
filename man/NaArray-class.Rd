@@ -98,10 +98,25 @@ NaArray(x, dim=NULL, dimnames=NULL, type=NA)
   Like with \link{SVT_SparseArray} objects, the non-NA data in an NaArray
   object is stored in a \emph{Sparse Vector Tree}.
   See \code{?\link{SVT_SparseArray}} for more information.
+
+  Most of the \emph{matrix and array standard API} defined in base R should
+  work on NaArray objects, including \code{dim()}, \code{length()},
+  \code{dimnames()}, \code{`dimnames<-`()}, \code{[}, \code{drop()},
+  \code{`[<-`} (subassignment), \code{t()}, \code{rbind()}, \code{cbind()},
+  etc...
+
+  NaArray objects also support \code{type()}, \code{`type<-`()},
+  \code{is_nonna()}, \code{nnacount()}, \code{nnawhich()}, \code{nnavals()},
+  \code{`nnavals<-`()}, \code{arbind()}, and \code{acbind()}.
+
+
 }
 
 \value{
   An NaArray or NaMatrix object.
+
+  The \code{type()} of the input object is preserved, except if a
+  different one was requested via the \code{type} argument.
 }
 
 \seealso{
@@ -115,6 +130,8 @@ NaArray(x, dim=NULL, dimnames=NULL, type=NA)
           NaArray object (e.g. transposition).
 
     \item \link{NaArray_subsetting} for subsetting an NaArray object.
+
+    \item \link{NaArray_subassignment} for NaArray subassignment.
 
     \item \link{NaArray_abind} for combining 2D or multidimensional
           NaArray objects.

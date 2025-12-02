@@ -89,15 +89,16 @@ SparseArray(x, type=NA)
   \link{SVT_SparseArray} or \link{SVT_SparseMatrix} object) is called
   a \emph{SparseArray derivative}.
 
-  Most of the \emph{standard matrix and array API} defined in base R should
+  Most of the \emph{matrix and array standard API} defined in base R should
   work on SparseArray derivatives, including \code{dim()}, \code{length()},
   \code{dimnames()}, \code{`dimnames<-`()}, \code{[}, \code{drop()},
   \code{`[<-`} (subassignment), \code{t()}, \code{rbind()}, \code{cbind()},
   etc...
 
   SparseArray derivatives also support \code{type()}, \code{`type<-`()},
-  \code{is_sparse()}, \code{nzcount()}, \code{nzwhich()}, \code{nzvals()},
-  \code{`nzvals<-`()}, \code{sparsity()}, \code{arbind()}, and \code{acbind()}.
+  \code{is_sparse()}, \code{is_nonzero()}, \code{nzcount()}, \code{nzwhich()},
+  \code{nzvals()}, \code{`nzvals<-`()}, \code{sparsity()}, \code{arbind()},
+  and \code{acbind()}.
 }
 
 \value{

@@ -236,23 +236,22 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
                       "    'sv1' and 'out_sv' are incompatible");	 \
 	out_sv->nzcount = 0;						 \
 	int *out_nzvals = (int *) out_sv->nzvals;			 \
-	int out_bg_val = out_sv->bg_is_na ? intNA : int0;		 \
 	const Ltype *nzvals1_p = get_ ## Ltype ## SV_nzvals_p(sv1);	 \
 	if (nzvals1_p == NULL) {  /* lacunar SparseVec */		 \
 		int out_val = Compare_ ## Ltype ## _ ## Rtype		 \
 					(opcode, Ltype ## 1, y);	 \
-		if (out_val == out_bg_val)				 \
+		if (is_int_bg(out_val, out_sv->bg_is_na))		 \
 			return;						 \
 		/* What 'out_val' is expected to be at this point    */	 \
-		/* depends on 'out_bg_val':                          */	 \
-		/* - If 'out_bg_val' is 'int0' then 'sv1' also       */	 \
+		/* depends on 'out_sv->bg_is_na':                    */	 \
+		/* - If 'out_sv->bg_is_na' is 0 then 'sv1' also      */	 \
 		/*   has a background set to zero so 'y' cannot      */	 \
 		/*   be NA or NaN (i.e. is.na(y) must be FALSE).     */	 \
 		/*   This means that 'out_val' can only be TRUE      */	 \
 		/*   (i.e. 'int1'). In particular 'out_val' cannot   */	 \
 		/*   be NA (i.e. 'intNA') or FALSE (i.e. 'int0').    */	 \
-		/* - If background is NA then 'out_val' can be TRUE  */	 \
-		/*   or FALSE. It cannot be NA.                      */	 \
+		/* - If 'out_sv->bg_is_na' is 1 then 'out_val' can   */	 \
+		/*   be TRUE or FALSE. It cannot be NA.              */	 \
 		out_nzvals[0] = out_val;				 \
 		out_sv->nzcount = PROPAGATE_NZOFFS;			 \
 		return;							 \
@@ -262,7 +261,7 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 	for (int k = 0; k < nzcount1; k++) {				 \
 		int out_val = Compare_ ## Ltype ## _ ## Rtype		 \
 					(opcode, nzvals1_p[k], y);	 \
-		if (out_val == out_bg_val)				 \
+		if (is_int_bg(out_val, out_sv->bg_is_na))		 \
 			continue;					 \
 		APPEND_TO_NZVALS_NZOFFS(out_val, sv1->nzoffs[k],	 \
 			out_nzvals, out_sv->nzoffs, out_sv->nzcount);	 \
@@ -281,7 +280,6 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
                       "    'sv1', 'sv2', and 'out_sv' are incompatible"); \
 	out_sv->nzcount = 0;						 \
 	int *out_nzvals = (int *) out_sv->nzvals;			 \
-	int out_bg_val = out_sv->bg_is_na ? intNA : int0;		 \
 	int k1 = 0, k2 = 0, out_off;					 \
 	Ltype x;							 \
 	Rtype y;							 \
@@ -290,7 +288,7 @@ static inline int Compare_Rcomplex_Rcomplex(int opcode, Rcomplex x, Rcomplex y)
 	{								 \
 		int out_val = Compare_ ## Ltype ## _ ## Rtype		 \
 					(opcode, x, y);			 \
-		if (out_val == out_bg_val)				 \
+		if (is_int_bg(out_val, out_sv->bg_is_na))		 \
 			continue;					 \
 		APPEND_TO_NZVALS_NZOFFS(out_val, out_off,		 \
 			out_nzvals, out_sv->nzoffs, out_sv->nzcount);    \

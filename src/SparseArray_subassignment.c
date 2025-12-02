@@ -591,7 +591,7 @@ static SEXP REC_subassign_SVT_with_short_Rvector(SEXP SVT,
    offsets (i.e. zero-based indices) along the corresponding dimension in 'x'.
    The offsets must be sorted in **strictly** ascending order. */
 SEXP C_subassign_SVT_with_short_Rvector(
-		SEXP x_dim, SEXP x_type, SEXP x_SVT,
+		SEXP x_dim, SEXP x_type, SEXP x_SVT, SEXP x_na_background,
 		SEXP Noffs, SEXP Rvector)
 {
 	SEXPTYPE x_Rtype = _get_and_check_Rtype_from_Rstring(x_type,
@@ -601,6 +601,10 @@ SEXP C_subassign_SVT_with_short_Rvector(
 		      "C_subassign_SVT_with_short_Rvector():\n"
 		      "    SVT_SparseArray object and 'Rvector' "
 		      "must have the same type");
+
+	int x_bg_is_na = _get_and_check_na_background(x_na_background,
+			     "C_subassign_SVT_with_short_Rvector",
+			     "x_na_background");
 
 	const int *dim = INTEGER(x_dim);
 	int ndim = LENGTH(x_dim);
@@ -614,7 +618,7 @@ SEXP C_subassign_SVT_with_short_Rvector(
 	   'buf_sv.nzvals' and is able to allocate it the first time it
 	   needs it (if it ever needs it). So we set the 'nzoffs_only'
 	   argument to 1 in our _alloc_buf_SparseVec() call below. */
-	SparseVec buf_sv = _alloc_buf_SparseVec(x_Rtype, dim[0], 0, 1);
+	SparseVec buf_sv = _alloc_buf_SparseVec(x_Rtype, dim[0], x_bg_is_na, 1);
 	if (IS_STRSXP_OR_VECSXP(buf_sv.Rtype))
 		buf_sv.nzvals = PROTECT(
 			allocVector(buf_sv.Rtype, (R_xlen_t) buf_sv.len)

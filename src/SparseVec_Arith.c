@@ -255,12 +255,11 @@ static void iArith_intSV_ints(int opcode,
 	check_outRtype(out_sv->Rtype, INTSXP, "iArith_intSV_ints");
 	out_sv->nzcount = 0;
 	int *out_nzvals = (int *) out_sv->nzvals;
-	int out_bg_val = out_sv->bg_is_na ? intNA : int0;
 	const int *nzvals1_p = get_intSV_nzvals_p(sv1);
 	if (nzvals1_p == NULL && y_len == 1) {
 		/* shortcut for "lacunar SparseVec <op> scalar" case */
 		int out_val = iarith(opcode, int1, y[0], ovflow);
-		if (out_val == out_bg_val)
+		if (is_int_bg(out_val, out_sv->bg_is_na))
 			return;
 		out_nzvals[0] = out_val;
 		out_sv->nzcount = PROPAGATE_NZOFFS;
@@ -273,7 +272,7 @@ static void iArith_intSV_ints(int opcode,
 		int nzoff1 = sv1->nzoffs[k];
 		int yy = y[nzoff1 % y_len];
 		int out_val = iarith(opcode, x, yy, ovflow);
-		if (out_val == out_bg_val)
+		if (is_int_bg(out_val, out_sv->bg_is_na))
 			continue;
 		APPEND_TO_NZVALS_NZOFFS(out_val, nzoff1,
 				out_nzvals, out_sv->nzoffs, out_sv->nzcount);
@@ -342,12 +341,11 @@ static void iArith_ints_intSV(int opcode,
 	check_outRtype(out_sv->Rtype, INTSXP, "iArith_ints_intSV");
 	out_sv->nzcount = 0;
 	int *out_nzvals = (int *) out_sv->nzvals;
-	int out_bg_val = out_sv->bg_is_na ? intNA : int0;
 	const int *nzvals2_p = get_intSV_nzvals_p(sv2);
 	if (nzvals2_p == NULL && x_len == 1) {
 		/* shortcut for "scalar <op> lacunar SparseVec" case */
 		int out_val = iarith(opcode, x[0], int1, ovflow);
-		if (out_val == out_bg_val)
+		if (is_int_bg(out_val, out_sv->bg_is_na))
 			return;
 		out_nzvals[0] = out_val;
 		out_sv->nzcount = PROPAGATE_NZOFFS;
@@ -360,7 +358,7 @@ static void iArith_ints_intSV(int opcode,
 		int xx = x[nzoff2 % x_len];
 		int y = nzvals2_p == NULL ? int1 : nzvals2_p[k];
 		int out_val = iarith(opcode, xx, y, ovflow);
-		if (out_val == out_bg_val)
+		if (is_int_bg(out_val, out_sv->bg_is_na))
 			continue;
 		APPEND_TO_NZVALS_NZOFFS(out_val, nzoff2,
 				out_nzvals, out_sv->nzoffs, out_sv->nzcount);
@@ -420,11 +418,10 @@ static void iArith_intSV_intSV(int opcode,
 		      "    'sv1', 'sv2', and 'out_sv' are incompatible");
 	check_outRtype(out_sv->Rtype, INTSXP, "iArith_intSV_intSV");
 	int *out_nzvals = (int *) out_sv->nzvals;
-	int out_bg_val = out_sv->bg_is_na ? intNA : int0;
 	int out_nzcount = 0, k1 = 0, k2 = 0, out_off, x, y;
 	while (next_intSV_intSV_vals(sv1, sv2, &k1, &k2, &out_off, &x, &y)) {
 		int out_val = iarith(opcode, x, y, ovflow);
-		if (out_val == out_bg_val)
+		if (is_int_bg(out_val, out_sv->bg_is_na))
 			continue;
 		APPEND_TO_NZVALS_NZOFFS(out_val, out_off,
 				out_nzvals, out_sv->nzoffs, out_nzcount);

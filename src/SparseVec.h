@@ -53,22 +53,31 @@ typedef struct sparse_vec_t {
    'out_nzvals[0]'. */
 #define PROPAGATE_NZOFFS   -1  /* must be a **negative** int */
 
-/* TODO: Maybe move this to Rvector_utils.h */
-static inline int int_equal(int x, int y)
+/* We don't support NaArray objects of type raw or list so it's ok to ignore
+   argument 'bg_is_na' in is_Rbyte_bg() and is_list_bg(). */
+static inline int is_int_bg(int x, int bg_is_na)
 {
-	return x == y;
+	return bg_is_na ? is_intNA(x) : is_int0(x);
 }
-static inline int double_equal(double x, double y)
+static inline int is_double_bg(double x, int bg_is_na)
 {
-	return x == y;
+	return bg_is_na ? is_doubleNA(x) : is_double0(x);
 }
-static inline int Rcomplex_equal(Rcomplex x, Rcomplex y)
+static inline int is_Rcomplex_bg(Rcomplex x, int bg_is_na)
 {
-	return x.r == y.r && x.i == y.i;
+	return bg_is_na ? is_RcomplexNA(x) : is_Rcomplex0(x);
 }
-static inline int Rbyte_equal(Rbyte x, Rbyte y)
+static inline int is_Rbyte_bg(Rbyte x, int bg_is_na)
 {
-	return x == y;
+	return is_Rbyte0(x);  /* 'bg_is_na' is ignored */
+}
+static inline int is_character_bg(SEXP x, int bg_is_na)
+{
+	return bg_is_na ? is_characterNA(x) : is_character0(x);
+}
+static inline int is_list_bg(SEXP x, int bg_is_na)
+{
+	return is_list0(x);  /* 'bg_is_na' is ignored */
 }
 
 
