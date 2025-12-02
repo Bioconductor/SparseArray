@@ -38,11 +38,13 @@ test_that(".subset_SVT_as_Rarray() and .subset_SVT_as_SVT()", {
             }
         }
 
-    ## --- 1D objects ---
+    ## --- 1D object ---
 
     x0 <- array(as.raw(c(0L, 72:73, 0L, 75L, 0L, 0L, 78:80)),
                 dimnames=list(LETTERS[1:10]))
     Nindex_list <- list(list(NULL),
+                        list(seq_along(x0)),
+                        list(rev(seq_along(x0))),
                         list(c(6:9, 2L)),
                         list(c(10L, 3:5, 3L)),
                         list(integer(0)))
@@ -60,10 +62,12 @@ test_that(".subset_SVT_as_Rarray() and .subset_SVT_as_SVT()", {
     type(svt0) <- "list"
     test_subset_SVT_as_Rarray_or_SVT(svt0, Nindex_list, as.array(svt0))
 
-    ## --- 2D objects ---
+    ## --- 2D object ---
 
     m0 <- rbind(a=x0, b=as.raw(0), c=rev(x0))
     Nindex_list <- list(list(NULL, NULL),
+                        list(NULL, seq_len(ncol(m0))),
+                        list(NULL, rev(seq_len(ncol(m0)))),
                         list(2L, NULL),
                         list(NULL, c(10L, 3:5, 3L)),
                         list(integer(0), 6:9))
@@ -81,7 +85,7 @@ test_that(".subset_SVT_as_Rarray() and .subset_SVT_as_SVT()", {
     type(svt0) <- "list"
     test_subset_SVT_as_Rarray_or_SVT(svt0, Nindex_list, as.array(svt0))
 
-    ## --- 3D objects ---
+    ## --- 3D object ---
 
     a0 <- array(0L, c(7, 10, 3),
                 dimnames=list(NULL, letters[1:10], LETTERS[1:3]))

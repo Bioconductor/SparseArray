@@ -28,7 +28,83 @@ test_that("NaArray subsetting by an Mindex or Lindex", {
     }
 })
 
-test_that("NaArray subsetting by an Nindex", {
+test_that(".subset_NaSVT_as_Rarray() and .subset_NaSVT_as_NaSVT", {
+    test_subset_NaSVT_as_Rarray_or_NaSVT <-
+        function(naa0, Nindex_list, a0) {
+            for (Nindex in Nindex_list) {
+                a <- S4Arrays:::subset_by_Nindex(a0, Nindex, drop=FALSE)
+                expect_identical(
+                    SparseArray:::.subset_NaSVT_as_Rarray(naa0, Nindex), a)
+                naa <- SparseArray:::.subset_NaSVT_as_NaSVT(naa0, Nindex)
+                check_NaArray_object(naa, a)
+            }
+        }
+
+    ## --- 1D object ---
+
+    x0 <- array(c(0L, 72:73, 0L, 75L, 0L, 0L, 78:80),
+                dimnames=list(LETTERS[1:10]))
+    Nindex_list <- list(list(NULL),
+                        list(seq_along(x0)),
+                        list(rev(seq_along(x0))),
+                        list(c(6:9, 2L)),
+                        list(c(10L, 3:5, 3L)),
+                        list(integer(0)))
+
+    naa0 <- NaArray(x0)
+    test_subset_NaSVT_as_Rarray_or_NaSVT(naa0, Nindex_list, x0)
+    type(naa0) <- "double"
+    test_subset_NaSVT_as_Rarray_or_NaSVT(naa0, Nindex_list, as.array(naa0))
+    type(naa0) <- "complex"
+    test_subset_NaSVT_as_Rarray_or_NaSVT(naa0, Nindex_list, as.array(naa0))
+    type(naa0) <- "character"
+    test_subset_NaSVT_as_Rarray_or_NaSVT(naa0, Nindex_list, as.array(naa0))
+
+    ## --- 2D object ---
+
+    m0 <- rbind(a=x0, b=0L, c=rev(x0))
+    Nindex_list <- list(list(NULL, NULL),
+                        list(NULL, seq_len(ncol(m0))),
+                        list(NULL, rev(seq_len(ncol(m0)))),
+                        list(2L, NULL),
+                        list(NULL, c(10L, 3:5, 3L)),
+                        list(integer(0), 6:9))
+
+    naa0 <- NaArray(m0)
+    test_subset_NaSVT_as_Rarray_or_NaSVT(naa0, Nindex_list, m0)
+    type(naa0) <- "double"
+    test_subset_NaSVT_as_Rarray_or_NaSVT(naa0, Nindex_list, as.array(naa0))
+    type(naa0) <- "complex"
+    test_subset_NaSVT_as_Rarray_or_NaSVT(naa0, Nindex_list, as.array(naa0))
+    type(naa0) <- "character"
+    test_subset_NaSVT_as_Rarray_or_NaSVT(naa0, Nindex_list, as.array(naa0))
+
+    ## --- 3D object ---
+
+    a0 <- array(0L, c(7, 10, 3),
+                dimnames=list(NULL, letters[1:10], LETTERS[1:3]))
+    a0[ , 2, 1] <- a0[c(1:2, 6), 4, 1] <- 1L
+    a0[ , 8, 1] <- 81:87
+    a0[ , -1, 3] <- 308:370
+    Nindex_list <- list(list(NULL, NULL, NULL),
+                        list(NULL, c(4:3, 8L), 1L),
+                        list(7L, NULL, NULL),
+                        list(NULL, NULL, 1L),
+                        list(1:5, c(4:3, 8L, 1:3), c(1L, 3:2)))
+
+    naa0 <- NaArray(a0)
+    test_subset_NaSVT_as_Rarray_or_NaSVT(naa0, Nindex_list, a0)
+    type(naa0) <- "double"
+    test_subset_NaSVT_as_Rarray_or_NaSVT(naa0, Nindex_list, as.array(naa0))
+    type(naa0) <- "complex"
+    test_subset_NaSVT_as_Rarray_or_NaSVT(naa0, Nindex_list, as.array(naa0))
+    # Can't test for this at the moment because coercing a lacunar leaf
+    # to "character" is not supported yet!
+    #type(naa0) <- "character"
+    #test_subset_NaSVT_as_Rarray_or_NaSVT(naa0, Nindex_list, as.array(naa0))
+})
+
+test_that("N-dimensional subsetting of an NaArray objects via [", {
     a1 <- a2 <- array(NA_integer_, c(7, 10, 3),
                       dimnames=list(NULL, letters[1:10], LETTERS[1:3]))
     a2[ , 2, 1] <- a2[c(1:2, 6), 4, 1] <- 1L

@@ -824,9 +824,10 @@ static SEXP REC_subset_SVT_as_SVT(SEXP SVT,
 	SEXP offs = VECTOR_ELT(Noffs, ndim - 1);
 	if (ndim == 1)
 		return _subset_leaf(SVT, dim[0], offs, buf_sv, lookup_table);
-	int d2 = offs == R_NilValue ? dim[ndim - 1] : LENGTH(offs);
+	int d1 = dim[ndim - 1];  /* = LENGTH(SVT) */
+	int d2 = offs == R_NilValue ? d1 : LENGTH(offs);
 	SEXP ans = PROTECT(NEW_LIST(d2));
-	int is_empty = 1, is_noop = d2 == dim[ndim - 1];
+	int is_empty = 1, is_noop = d1 == d2;
 	for (int i2 = 0; i2 < d2; i2++) {
 		int off = offs == R_NilValue ? i2 : INTEGER(offs)[i2];
 		SEXP subSVT = VECTOR_ELT(SVT, off);
@@ -839,7 +840,7 @@ static SEXP REC_subset_SVT_as_SVT(SEXP SVT,
 			UNPROTECT(1);
 			is_empty = 0;
 		}
-		if (ans_elt != subSVT)
+		if (offs != i2 || ans_elt != subSVT)
 			is_noop = 0;
 	}
 	UNPROTECT(1);
