@@ -97,3 +97,23 @@ SEXP C_test(void)
 	return R_NilValue;
 }
 
+#ifdef _OPENMP
+/* <Rinternals.h> defines macro match that seems to break <omp.h> with
+   some versions of Clang.
+   See https://github.com/Bioconductor/SparseArray/issues/9 */
+#undef match
+#include <omp.h>
+#endif
+
+SEXP C_simple_omp_parallel_for_loop(SEXP nloop)
+{
+	#pragma omp parallel for schedule(static)
+	for (int i = 0; i < INTEGER(nloop)[0]; i++) {
+#ifdef _OPENMP
+		int thread_num = omp_get_thread_num();
+		printf("thread_num = %d\n", thread_num);
+#endif
+	}
+	return R_NilValue;
+}
+
