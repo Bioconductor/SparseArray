@@ -40,6 +40,8 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_get_num_procs, 0),
 	CALLMETHOD_DEF(C_get_max_threads, 0),
 	CALLMETHOD_DEF(C_set_max_threads, 1),
+	CALLMETHOD_DEF(C_get_initial_device, 0),
+	CALLMETHOD_DEF(C_pause_resource, 2),
 
 /* sparseMatrix_utils.c */
 	CALLMETHOD_DEF(C_colMins_dgCMatrix, 2),
@@ -136,6 +138,7 @@ static const R_CallMethodDef callMethods[] = {
 
 /* test.c */
 	CALLMETHOD_DEF(C_test, 0),
+	CALLMETHOD_DEF(C_simple_omp_parallel_for_loop, 1),
 
 	{NULL, NULL, 0}
 };

@@ -38,6 +38,22 @@ static void set_max_threads(int nthread)
 	return;
 }
 
+static int get_initial_device(void)
+{
+#ifdef _OPENMP
+	return omp_get_initial_device();
+#endif
+	return 0;
+}
+
+static int pause_resource(omp_pause_resource_t kind, int device_num)
+{
+#ifdef _OPENMP
+	return omp_pause_resource(kind, device_num);
+#endif
+	return 0;
+}
+
 
 /****************************************************************************
  * .Call ENTRY POINTS
@@ -61,5 +77,19 @@ SEXP C_set_max_threads(SEXP nthread)
 	int prev_max_threads = _get_max_threads();
 	set_max_threads(INTEGER(nthread)[0]);
 	return ScalarInteger(prev_max_threads);
+}
+
+/* --- .Call ENTRY POINT --- */
+SEXP C_get_initial_device(void)
+{
+	return ScalarInteger(get_initial_device());
+}
+
+/* --- .Call ENTRY POINT --- */
+SEXP C_pause_resource(SEXP hard_pause, SEXP device_num)
+{
+	int h = LOGICAL(hard_pause)[0];
+	omp_pause_resource_t kind = h ? omp_pause_hard : omp_pause_soft;
+	return ScalarInteger(pause_resource(kind, INTEGER(device_num)[0]));
 }
 
