@@ -42,16 +42,20 @@ static int get_initial_device(void)
 {
 #ifdef _OPENMP
 	return omp_get_initial_device();
-#endif
+#else
 	return 0;
+#endif
 }
 
-static int pause_resource(omp_pause_resource_t kind, int device_num)
+static int pause_resource(int hard_pause, int device_num)
 {
 #ifdef _OPENMP
+	omp_pause_resource_t kind = hard_pause ? omp_pause_hard :
+						 omp_pause_soft;
 	return omp_pause_resource(kind, device_num);
-#endif
+#else
 	return 0;
+#endif
 }
 
 
@@ -88,8 +92,7 @@ SEXP C_get_initial_device(void)
 /* --- .Call ENTRY POINT --- */
 SEXP C_pause_resource(SEXP hard_pause, SEXP device_num)
 {
-	int h = LOGICAL(hard_pause)[0];
-	omp_pause_resource_t kind = h ? omp_pause_hard : omp_pause_soft;
-	return ScalarInteger(pause_resource(kind, INTEGER(device_num)[0]));
+	int h = LOGICAL(hard_pause)[0], d = INTEGER(device_num)[0];
+	return ScalarInteger(pause_resource(h, d));
 }
 
