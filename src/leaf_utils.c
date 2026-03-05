@@ -10,7 +10,6 @@
 #include "SparseVec_subsetting.h"
 #include "SparseVec_subassignment.h"
 
-#include <R_ext/Altrep.h>  /* only for DATAPTR_RW() */
 #include <string.h>  /* for memcpy() */
 
 
@@ -130,7 +129,7 @@ SEXP _make_leaf_from_two_arrays(SEXPTYPE Rtype,
 			return ans;
 		}
 		ans_nzvals = PROTECT(allocVector(Rtype, nzcount));
-		memcpy(DATAPTR_RW(ans_nzvals), nzvals_p, Rtype_size * nzcount);
+		memcpy(DATAPTR(ans_nzvals), nzvals_p, Rtype_size * nzcount);
 	}
 	SEXP ans = zip_leaf(ans_nzvals, ans_nzoffs, 0);
 	UNPROTECT(2);
@@ -157,7 +156,7 @@ static SEXP make_leaf_from_Rvector_subset(SEXP Rvector,
 
 	if (avoid_copy_if_all_selected &&
 	    selection_offset == 0 && selection_len == XLENGTH(Rvector) &&
-	    !ANY_ATTRIB(Rvector))
+	    ATTRIB(Rvector) == R_NilValue)
 	{
 		/* The full 'Rvector' is selected so can be reused as-is
 		   with no need to copy the selected elements to a new SEXP. */

@@ -5,7 +5,6 @@
 
 #include "Rvector_utils.h"
 
-#include <R_ext/Altrep.h>  /* only for DATAPTR_RW() */
 #include <limits.h>  /* for INT_MAX */
 
 
@@ -123,7 +122,7 @@ static inline SparseVec toSparseVec(SEXP nzvals, SEXP nzoffs,
 		if (IS_STRSXP_OR_VECSXP(Rtype)) {
 			sv.nzvals = nzvals;
 		} else {
-			sv.nzvals = DATAPTR_RW(nzvals);
+			sv.nzvals = DATAPTR(nzvals);
 		}
 	}
 	sv.nzoffs = INTEGER(nzoffs);

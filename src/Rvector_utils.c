@@ -4,7 +4,6 @@
  ****************************************************************************/
 #include "Rvector_utils.h"
 
-#include <R_ext/Altrep.h>  /* only for DATAPTR_RW() */
 #include <string.h>  /* for memset() and memcpy() */
 
 
@@ -243,7 +242,7 @@ void _fill_Rvector_block_with_val(SEXP Rvector,
 				     (const SEXP) val);
 		return;
 	}
-	_set_elts_to_val(TYPEOF(Rvector), DATAPTR_RW(Rvector),
+	_set_elts_to_val(TYPEOF(Rvector), DATAPTR(Rvector),
 			 block_offset, block_len, val);
 }
 
@@ -261,7 +260,7 @@ void _fill_Rvector_block_with_zeros(SEXP Rvector,
 				     R_NilValue);
 		return;
 	}
-	_set_elts_to_zero(Rtype, DATAPTR_RW(Rvector), block_offset, block_len);
+	_set_elts_to_zero(Rtype, DATAPTR(Rvector), block_offset, block_len);
 	return;
 }
 
@@ -269,7 +268,7 @@ void _fill_Rvector_block_with_zeros(SEXP Rvector,
 void _fill_Rvector_block_with_ones(SEXP Rvector,
 		R_xlen_t block_offset, R_xlen_t block_len)
 {
-	_set_elts_to_one(TYPEOF(Rvector), DATAPTR_RW(Rvector),
+	_set_elts_to_one(TYPEOF(Rvector), DATAPTR(Rvector),
 			 block_offset, block_len);
 	return;
 }
@@ -278,7 +277,7 @@ void _fill_Rvector_block_with_ones(SEXP Rvector,
 void _fill_Rvector_block_with_minus_one(SEXP Rvector,
 		R_xlen_t block_offset, R_xlen_t block_len)
 {
-	_set_elts_to_minus_one(TYPEOF(Rvector), DATAPTR_RW(Rvector),
+	_set_elts_to_minus_one(TYPEOF(Rvector), DATAPTR(Rvector),
 			 block_offset, block_len);
 	return;
 }
@@ -294,7 +293,7 @@ void _fill_Rvector_block_with_NA(SEXP Rvector,
 					  NA_STRING);
 		return;
 	}
-	_set_elts_to_NA(Rtype, DATAPTR_RW(Rvector), block_offset, block_len);
+	_set_elts_to_NA(Rtype, DATAPTR(Rvector), block_offset, block_len);
 	return;
 }
 
@@ -461,7 +460,7 @@ void _fill_Rvector_subset_with_zeros(SEXP Rvector,
 				R_NilValue);
 		return;
 	}
-	_set_selected_elts_to_zero(Rtype, DATAPTR_RW(Rvector),
+	_set_selected_elts_to_zero(Rtype, DATAPTR(Rvector),
 				selection, selection_len, selection_offset);
 	return;
 }
@@ -471,7 +470,7 @@ void _fill_Rvector_subset_with_ones(SEXP Rvector,
 		const int *selection, int selection_len,
 		R_xlen_t selection_offset)
 {
-	_set_selected_elts_to_one(TYPEOF(Rvector), DATAPTR_RW(Rvector),
+	_set_selected_elts_to_one(TYPEOF(Rvector), DATAPTR(Rvector),
 				  selection, selection_len, selection_offset);
 	return;
 }

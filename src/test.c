@@ -111,9 +111,6 @@ SEXP C_simple_omp_parallel_for_loop(SEXP nloop)
 	for (int i = 0; i < INTEGER(nloop)[0]; i++) {
 #ifdef _OPENMP
 		int thread_num = omp_get_thread_num();
-		/* Can't use Rprintf() here because it's not thread-safe (it
-		   can trigger R's garbage collector which itself is not
-		   thread-safe). */
 		printf("thread_num = %d\n", thread_num);
 #endif
 	}

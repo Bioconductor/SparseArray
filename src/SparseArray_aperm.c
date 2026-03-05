@@ -721,7 +721,7 @@ static SEXP REC_grow_output_tree(const int *dim, int ndim,
 	const type *nzvals_p = NULL;  /* -Wmaybe-uninitialized */	\
 	type v;								\
 	if (nzvals != R_NilValue) {  /* standard leaf */		\
-		nzvals_p = DATAPTR_RO(nzvals);				\
+		nzvals_p = (const type *) DATAPTR(nzvals);		\
 	} else {  /* lacunar leaf */					\
 		v = type ## 1;						\
 	}								\

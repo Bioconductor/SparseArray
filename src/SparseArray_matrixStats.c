@@ -16,7 +16,6 @@
 #include "leaf_utils.h"
 #include "SparseArray_summarization.h"
 
-#include <R_ext/Altrep.h>  /* only for DATAPTR_RW() */
 #include <string.h>  /* for memcpy() and memset() */
 
 
@@ -273,7 +272,7 @@ SEXP C_colStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type,
 	int warn = 0;
 	REC_colStats_SVT(x_SVT, x_bg_is_na, INTEGER(x_dim), LENGTH(x_dim),
 			 &summarize_op,
-			 DATAPTR_RW(ans), ans_Rtype,
+			 DATAPTR(ans), ans_Rtype,
 			 out_incs, ans_ndim, pardim,
 			 &warn);
 	if (warn)
@@ -1176,7 +1175,7 @@ SEXP C_rowStats_SVT(SEXP x_dim, SEXP x_dimnames, SEXP x_type,
 		SVT_rowMinsMaxs(x_SVT, x_Rtype, x_bg_is_na,
 			INTEGER(x_dim), LENGTH(x_dim),
 			opcode, narm,
-			DATAPTR_RW(ans), LENGTH(ans), ans_Rtype,
+			DATAPTR(ans), LENGTH(ans), ans_Rtype,
 			out_incs, ans_ndim, nstrata);
 		break;
 	    case SUM_OPCODE:

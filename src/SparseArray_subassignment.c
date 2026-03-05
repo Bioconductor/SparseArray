@@ -966,13 +966,13 @@ static inline int next_coords0(NindexIterator *Nindex_iter)
 		midx_p++;
 		coords0_p++;
 	}
-	//printf("coords0: ");
+	printf("coords0: ");
 	coords0_p = Nindex_iter->coords0_buf;
 	for (along = Nindex_iter->margin; along < Nindex_iter->ndim; along++) {
-		//printf(" %3d", *coords0_p);
+		printf(" %3d", *coords0_p);
 		coords0_p++;
 	}
-	//printf("\n");
+	printf("\n");
 	return 1;
 }
 
