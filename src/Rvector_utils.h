@@ -2,6 +2,10 @@
 #define _RVECTOR_UTILS_H_
 
 #include <Rdefines.h>
+#include <Rversion.h>
+#if R_VERSION < R_Version(4, 6, 0)
+# define DATAPTR_RW(x) DATAPTR(x)
+#endif
 
 
 /* Note that R does not define NA_INTEGER, NA_REAL, or NA_STRING as const
