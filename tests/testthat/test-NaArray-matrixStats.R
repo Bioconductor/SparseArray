@@ -1,4 +1,4 @@
-
+### Used to test the col/rowAnyNAs() methods.
 .test_NaArray_matrixStats_method1 <- function(a, naa, generic)
 {
     FUN <- match.fun(generic)
@@ -10,7 +10,34 @@
     expect_identical(current, expected)
 }
 
-.test_NaArray_matrixStats_method2 <- function(a, naa, generic, dims)
+### Used to test the col/rowMedians() methods.
+.test_NaArray_matrixStats_method2 <- function(a, svt, generic)
+{
+    FUN <- match.fun(generic)
+    ## Note that the col/rowMedians() methods for matrices defined in
+    ## the matrixStats package return NaNs instead of NAs on "empty"
+    ## columns (or rows), that is, on the columns (or rows) of a zero-row
+    ## (or zero-column) matrix, or on columns (or rows) filled with NAs
+    ## and when 'na.rm=TRUE' is used. This deviates from stats::median().
+    ## FUN2() is a wrapper to colMedians() or rowMedians() that replaces
+    ## NaNs with NAs in the returned vector.
+    FUN2 <- function(...) {ans <- FUN(...); ans[is.nan(ans)] <- NA_real_; ans}
+    expected <- FUN2(a, useNames=FALSE)
+    current <- FUN(svt, useNames=FALSE)
+    expect_identical(current, expected)
+    expected <- FUN2(a, na.rm=TRUE, useNames=FALSE)
+    current <- FUN(svt, na.rm=TRUE, useNames=FALSE)
+    expect_identical(current, expected)
+    expected <- FUN2(a, useNames=TRUE)
+    current <- FUN(svt, useNames=TRUE)
+    expect_identical(current, expected)
+    expected <- FUN2(a, na.rm=TRUE, useNames=TRUE)
+    current <- FUN(svt, na.rm=TRUE, useNames=TRUE)
+    expect_identical(current, expected)
+}
+
+### Used to test all the other col/row*() methods.
+.test_NaArray_matrixStats_method3 <- function(a, naa, generic, dims)
 {
     FUN <- match.fun(generic)
     op <- sub("^(col|row)", "", generic)
@@ -128,6 +155,10 @@ test_that("colAnyNAs()/rowAnyNAs() methods for 2D NaArray objects", {
     .test_NaArray_matrixStats_method1(m5, nam5, "rowAnyNAs")
 })
 
+test_that("colMedians/rowMedians() methods for 2D NaArray objects", {
+    ## TODO! (when these methods are actually implemented)
+})
+
 test_that("other matrixStats methods for 2D NaArray objects", {
     ## input of type() "integer"
     m1 <- matrix(c( 0L, 0L,  NA, 0L, NA,
@@ -136,30 +167,30 @@ test_that("other matrixStats methods for 2D NaArray objects", {
                    15L, 0L,  0L, 0L, NA), nrow=4, byrow=TRUE,
                  dimnames=list(LETTERS[1:4], letters[1:5]))
     nam1 <- as(m1, "NaArray")
-    .test_NaArray_matrixStats_method2(m1, nam1, "colAnys")
-    #.test_NaArray_matrixStats_method2(m1, nam1, "rowAnys")
-    .test_NaArray_matrixStats_method2(m1, nam1, "colAlls")
-    #.test_NaArray_matrixStats_method2(m1, nam1, "rowAlls")
-    .test_NaArray_matrixStats_method2(m1, nam1, "colMins")
-    .test_NaArray_matrixStats_method2(m1, nam1, "rowMins")
-    .test_NaArray_matrixStats_method2(m1, nam1, "colMaxs")
-    .test_NaArray_matrixStats_method2(m1, nam1, "rowMaxs")
-    .test_NaArray_matrixStats_method2(m1, nam1, "colRanges")
-    .test_NaArray_matrixStats_method2(m1, nam1, "rowRanges")
-    .test_NaArray_matrixStats_method2(m1, nam1, "colSums")
-    .test_NaArray_matrixStats_method2(m1, nam1, "rowSums")
-    .test_NaArray_matrixStats_method2(m1, nam1, "colProds")
-    #.test_NaArray_matrixStats_method2(m1, nam1, "rowProds")
-    .test_NaArray_matrixStats_method2(m1, nam1, "colMeans")
-    #.test_NaArray_matrixStats_method2(m1, nam1, "rowMeans")
-    .test_NaArray_matrixStats_method2(m1, nam1, "colSums2")
-    .test_NaArray_matrixStats_method2(m1, nam1, "rowSums2")
-    .test_NaArray_matrixStats_method2(m1, nam1, "colMeans2")
-    #.test_NaArray_matrixStats_method2(m1, nam1, "rowMeans2")
-    .test_NaArray_matrixStats_method2(m1, nam1, "colVars")
-    #.test_NaArray_matrixStats_method2(m1, nam1, "rowVars")
-    .test_NaArray_matrixStats_method2(m1, nam1, "colSds")
-    #.test_NaArray_matrixStats_method2(m1, nam1, "rowSds")
+    .test_NaArray_matrixStats_method3(m1, nam1, "colAnys")
+    #.test_NaArray_matrixStats_method3(m1, nam1, "rowAnys")
+    .test_NaArray_matrixStats_method3(m1, nam1, "colAlls")
+    #.test_NaArray_matrixStats_method3(m1, nam1, "rowAlls")
+    .test_NaArray_matrixStats_method3(m1, nam1, "colMins")
+    .test_NaArray_matrixStats_method3(m1, nam1, "rowMins")
+    .test_NaArray_matrixStats_method3(m1, nam1, "colMaxs")
+    .test_NaArray_matrixStats_method3(m1, nam1, "rowMaxs")
+    .test_NaArray_matrixStats_method3(m1, nam1, "colRanges")
+    .test_NaArray_matrixStats_method3(m1, nam1, "rowRanges")
+    .test_NaArray_matrixStats_method3(m1, nam1, "colSums")
+    .test_NaArray_matrixStats_method3(m1, nam1, "rowSums")
+    .test_NaArray_matrixStats_method3(m1, nam1, "colProds")
+    #.test_NaArray_matrixStats_method3(m1, nam1, "rowProds")
+    .test_NaArray_matrixStats_method3(m1, nam1, "colMeans")
+    #.test_NaArray_matrixStats_method3(m1, nam1, "rowMeans")
+    .test_NaArray_matrixStats_method3(m1, nam1, "colSums2")
+    .test_NaArray_matrixStats_method3(m1, nam1, "rowSums2")
+    .test_NaArray_matrixStats_method3(m1, nam1, "colMeans2")
+    #.test_NaArray_matrixStats_method3(m1, nam1, "rowMeans2")
+    .test_NaArray_matrixStats_method3(m1, nam1, "colVars")
+    #.test_NaArray_matrixStats_method3(m1, nam1, "rowVars")
+    .test_NaArray_matrixStats_method3(m1, nam1, "colSds")
+    #.test_NaArray_matrixStats_method3(m1, nam1, "rowSds")
     m0 <- m1[0, ]
     nam0 <- nam1[0, ]
     expected <- rep(NA_integer_, 5L)
@@ -184,31 +215,31 @@ test_that("other matrixStats methods for 2D NaArray objects", {
     ## input of type() "logical"
     m2 <- is.na(m1)
     nam2 <- as(m2, "NaArray")
-    .test_NaArray_matrixStats_method2(m2, nam2, "colAnys")
-    #.test_NaArray_matrixStats_method2(m2, nam2, "rowAnys")
-    .test_NaArray_matrixStats_method2(m2, nam2, "colAlls")
-    #.test_NaArray_matrixStats_method2(m2, nam2, "rowAlls")
+    .test_NaArray_matrixStats_method3(m2, nam2, "colAnys")
+    #.test_NaArray_matrixStats_method3(m2, nam2, "rowAnys")
+    .test_NaArray_matrixStats_method3(m2, nam2, "colAlls")
+    #.test_NaArray_matrixStats_method3(m2, nam2, "rowAlls")
     storage.mode(m2) <- "integer"
-    .test_NaArray_matrixStats_method2(m2, nam2, "colMins")
-    .test_NaArray_matrixStats_method2(m2, nam2, "rowMins")
-    .test_NaArray_matrixStats_method2(m2, nam2, "colMaxs")
-    .test_NaArray_matrixStats_method2(m2, nam2, "rowMaxs")
-    .test_NaArray_matrixStats_method2(m2, nam2, "colRanges")
-    .test_NaArray_matrixStats_method2(m2, nam2, "rowRanges")
-    .test_NaArray_matrixStats_method2(m2, nam2, "colSums")
-    .test_NaArray_matrixStats_method2(m2, nam2, "rowSums")
-    .test_NaArray_matrixStats_method2(m2, nam2, "colProds")
-    #.test_NaArray_matrixStats_method2(m2, nam2, "rowProds")
-    .test_NaArray_matrixStats_method2(m2, nam2, "colMeans")
-    #.test_NaArray_matrixStats_method2(m2, nam2, "rowMeans")
-    .test_NaArray_matrixStats_method2(m2, nam2, "colSums2")
-    .test_NaArray_matrixStats_method2(m2, nam2, "rowSums2")
-    .test_NaArray_matrixStats_method2(m2, nam2, "colMeans2")
-    #.test_NaArray_matrixStats_method2(m2, nam2, "rowMeans2")
-    .test_NaArray_matrixStats_method2(m2, nam2, "colVars")
-    #.test_NaArray_matrixStats_method2(m2, nam2, "rowVars")
-    .test_NaArray_matrixStats_method2(m2, nam2, "colSds")
-    #.test_NaArray_matrixStats_method2(m2, nam2, "rowSds")
+    .test_NaArray_matrixStats_method3(m2, nam2, "colMins")
+    .test_NaArray_matrixStats_method3(m2, nam2, "rowMins")
+    .test_NaArray_matrixStats_method3(m2, nam2, "colMaxs")
+    .test_NaArray_matrixStats_method3(m2, nam2, "rowMaxs")
+    .test_NaArray_matrixStats_method3(m2, nam2, "colRanges")
+    .test_NaArray_matrixStats_method3(m2, nam2, "rowRanges")
+    .test_NaArray_matrixStats_method3(m2, nam2, "colSums")
+    .test_NaArray_matrixStats_method3(m2, nam2, "rowSums")
+    .test_NaArray_matrixStats_method3(m2, nam2, "colProds")
+    #.test_NaArray_matrixStats_method3(m2, nam2, "rowProds")
+    .test_NaArray_matrixStats_method3(m2, nam2, "colMeans")
+    #.test_NaArray_matrixStats_method3(m2, nam2, "rowMeans")
+    .test_NaArray_matrixStats_method3(m2, nam2, "colSums2")
+    .test_NaArray_matrixStats_method3(m2, nam2, "rowSums2")
+    .test_NaArray_matrixStats_method3(m2, nam2, "colMeans2")
+    #.test_NaArray_matrixStats_method3(m2, nam2, "rowMeans2")
+    .test_NaArray_matrixStats_method3(m2, nam2, "colVars")
+    #.test_NaArray_matrixStats_method3(m2, nam2, "rowVars")
+    .test_NaArray_matrixStats_method3(m2, nam2, "colSds")
+    #.test_NaArray_matrixStats_method3(m2, nam2, "rowSds")
     m0 <- m2[0, ]
     nam0 <- nam2[0, ]
     expected <- rep(NA_integer_, 5L)
@@ -244,16 +275,16 @@ test_that("matrixStats methods for 3D NaArray objects", {
     test_3D_colrowMinsMaxs(naa3)
 
     ## dims == 1 (default)
-    .test_NaArray_matrixStats_method2(a, naa3, "colSums")
-    .test_NaArray_matrixStats_method2(a, naa3, "rowSums")
-    .test_NaArray_matrixStats_method2(a, naa3, "colMeans")
-    #.test_NaArray_matrixStats_method2(a, naa3, "rowMeans")
+    .test_NaArray_matrixStats_method3(a, naa3, "colSums")
+    .test_NaArray_matrixStats_method3(a, naa3, "rowSums")
+    .test_NaArray_matrixStats_method3(a, naa3, "colMeans")
+    #.test_NaArray_matrixStats_method3(a, naa3, "rowMeans")
 
     ## dims == 2
-    .test_NaArray_matrixStats_method2(a, naa3, "colSums", dims=2)
-    .test_NaArray_matrixStats_method2(a, naa3, "rowSums", dims=2)
-    .test_NaArray_matrixStats_method2(a, naa3, "colMeans", dims=2)
-    #.test_NaArray_matrixStats_method2(a, naa3, "rowMeans", dims=2)
+    .test_NaArray_matrixStats_method3(a, naa3, "colSums", dims=2)
+    .test_NaArray_matrixStats_method3(a, naa3, "rowSums", dims=2)
+    .test_NaArray_matrixStats_method3(a, naa3, "colMeans", dims=2)
+    #.test_NaArray_matrixStats_method3(a, naa3, "rowMeans", dims=2)
 })
 
 test_that("more torturing of the *Mins()/*Maxs() methods for NaArray", {

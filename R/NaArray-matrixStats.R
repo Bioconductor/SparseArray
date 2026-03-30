@@ -408,42 +408,6 @@ setMethod("colMeans2", "NaArray", .colMeans2_NaArray)
 ### colVars/rowVars and colSds/rowSds
 ###
 
-### Equivalent to 'var(c(x, integer(padding)), ...)' but doesn't actually
-### realize the padding with zeros.
-.padded_var <- function(x, padding=0L, na.rm=FALSE, center=NULL)
-{
-    if (na.rm)
-        x <- x[!is.na(x)]
-    nvals <- length(x) + padding
-    if (nvals <= 1L)
-        return(NA_real_)
-    if (is.null(center)) {
-        center <- sum(x) / nvals
-    } else {
-        stopifnot(isSingleNumberOrNA(center))
-    }
-    delta <- x - center
-    s <- sum(delta * delta) + center * center * padding
-    s / (nvals - 1L)
-}
-
-### Returns a numeric vector of length 'ncol(x)'.
-.normarg_center <- function(center, x, na.rm=FALSE)
-{
-    if (is.null(center))
-        return(colMeans(x, na.rm=na.rm))
-    if (!is.numeric(center))
-        stop(wmsg("'center' must be NULL or a numeric vector"))
-    x_ncol <- ncol(x)
-    if (length(center) != x_ncol) {
-        if (length(center) != 1L)
-            stop(wmsg("'center' must have one element per row ",
-                      "or column in the SparseMatrix object"))
-        center <- rep.int(center, x_ncol)
-    }
-    center
-}
-
 .colVars_NaArray <-
     function(x, rows=NULL, cols=NULL, na.rm=FALSE, center=NULL,
                 dims=1, ..., useNames=NA)
@@ -467,8 +431,8 @@ setMethod("colVars", "NaArray", .colVars_NaArray)
         center <- sums / nvals
     }
     centered_X2_sums <- .rowStats_NaArray("centered_X2_sum",
-                                              x, na.rm=na.rm, center=center,
-                                              dims=dims, useNames=useNames)
+                                          x, na.rm=na.rm, center=center,
+                                          dims=dims, useNames=useNames)
     centered_X2_sums / (nvals - 1)
 }
 #setMethod("rowVars", "NaArray", .rowVars_NaArray)
@@ -501,75 +465,9 @@ setMethod("colSds", "NaArray", .colSds_NaArray)
 ### colMedians/rowMedians
 ###
 ### TODO: How hard would it be to replace current "pure R" implementation
-### with C implementation available thru .Call ENTRY POINT C_colStats_SVT ?
+### with a C implementation available via .Call ENTRY POINT C_colStats_SVT ?
 
-### All values in 'x' are **assumed** to be >= 0 but we don't check this!
-### 'padding' is expected to be < length(x).
-.positive_padded_median <- function(x, padding=0L)
-{
-    x_len <- length(x)
-    stopifnot(padding < x_len)
-    n <- x_len + padding
-    if (n %% 2L == 1L) {
-        middle <- (n + 1L) %/% 2L
-        partial <- middle - padding
-        return(sort(x, partial=partial)[partial])
-    }
-    i1 <- n %/% 2L - padding
-    i2 <- i1 + 1L
-    mean(sort(x, partial=i2)[i1:i2])
-}
-
-### Equivalent to 'median(c(x, integer(padding)), ...)' but doesn't actually
-### realize the padding with zeros.
-.padded_median <- function(x, padding=0L, na.rm=FALSE)
-{
-    if (na.rm) {
-        x <- x[!is.na(x)]
-    } else {
-        if (anyNA(x))
-            return(NA_real_)
-    }
-    n <- length(x) + padding
-    if (n == 0L)
-        return(NA_real_)
-    if (padding > length(x))
-        return(0)
-
-    ## Handle case where we have more positive values than non-positive values.
-    pos_idx <- which(x > 0L)
-    pos_count <- length(pos_idx)
-    nonpos_count <- n - pos_count
-    if (pos_count > nonpos_count) {
-        ans <- .positive_padded_median(x[pos_idx], padding=nonpos_count)
-        return(ans)
-    }
-
-    ## Handle case where we have more negative values than non-negative values.
-    neg_count <- length(x) - pos_count
-    nonneg_count <- n - neg_count
-    if (neg_count > nonneg_count) {
-        ans <- - .positive_padded_median(-x[-pos_idx], padding=nonneg_count)
-        return(ans)
-    }
-
-    if (n %% 2L == 1L)
-        return(0)
-
-    half <- n %/% 2L
-    if (pos_count == half) {
-        right <- min(x[pos_idx])
-    } else {
-        right <- 0
-    }
-    if (neg_count == half) {
-        left <- max(x[-pos_idx])
-    } else {
-        left <- 0
-    }
-    (left + right) * 0.5
-}
-
+### Not ready! Need to implement na_padded_median() first.
 .colMedians_NaMatrix <- function(x, na.rm=FALSE, useNames=NA)
 {
     stopifnot(is(x, "NaMatrix"))
@@ -586,12 +484,13 @@ setMethod("colSds", "NaArray", .colSds_NaArray)
         if (!is.null(x@NaSVT)) {
             ans <- vapply(seq_along(x@NaSVT),
                 function(i) {
-                    lv <- x@NaSVT[[i]]
-                    if (is.null(lv))
+                    leaf <- x@NaSVT[[i]]
+                    if (is.null(leaf))
                         return(ans[[i]])
-                    lv_vals <- lv[[2L]]
-                    padding <- x_nrow - length(lv_vals)
-                    .padded_median(lv_vals, padding, na.rm=na.rm)
+                    leaf_nnavals <- get_leaf_nzvals(leaf, x@type)
+                    padding <- x_nrow - length(leaf_nnavals)
+                    stop("not ready!")
+                    #na_padded_median(leaf_nnavals, padding, na.rm=na.rm)
                 }, numeric(1), USE.NAMES=FALSE)
         }
     }
