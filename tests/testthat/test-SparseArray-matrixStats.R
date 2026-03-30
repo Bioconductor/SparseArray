@@ -1,5 +1,5 @@
-
-.test_matrixStats_method1 <- function(a, svt, generic)
+### Used to test the col/rowAnyNAs() methods.
+.test_SparseArray_matrixStats_method1 <- function(a, svt, generic)
 {
     coo <- as(svt, "COO_SparseArray")
     FUN <- match.fun(generic)
@@ -13,7 +13,39 @@
     expect_identical(FUN(coo, useNames=TRUE), current)
 }
 
-.test_matrixStats_method2 <- function(a, svt, generic, dims)
+### Used to test the col/rowMedians() methods.
+.test_SparseArray_matrixStats_method2 <- function(a, svt, generic)
+{
+    coo <- as(svt, "COO_SparseArray")
+    FUN <- match.fun(generic)
+    ## Note that the col/rowMedians() methods for matrices defined in
+    ## the matrixStats package return NaNs instead of NAs on "empty"
+    ## columns (or rows), that is, on the columns (or rows) of a zero-row
+    ## (or zero-column) matrix, or on columns (or rows) filled with NAs
+    ## and when 'na.rm=TRUE' is used. This deviates from stats::median().
+    ## FUN2() is a wrapper to colMedians() or rowMedians() that replaces
+    ## NaNs with NAs in the returned vector.
+    FUN2 <- function(...) {ans <- FUN(...); ans[is.nan(ans)] <- NA_real_; ans}
+    expected <- FUN2(a, useNames=FALSE)
+    current <- FUN(svt, useNames=FALSE)
+    expect_identical(current, expected)
+    expect_identical(FUN(coo, useNames=FALSE), current)
+    expected <- FUN2(a, na.rm=TRUE, useNames=FALSE)
+    current <- FUN(svt, na.rm=TRUE, useNames=FALSE)
+    expect_identical(current, expected)
+    expect_identical(FUN(coo, na.rm=TRUE, useNames=FALSE), current)
+    expected <- FUN2(a, useNames=TRUE)
+    current <- FUN(svt, useNames=TRUE)
+    expect_identical(current, expected)
+    expect_identical(FUN(coo, useNames=TRUE), current)
+    expected <- FUN2(a, na.rm=TRUE, useNames=TRUE)
+    current <- FUN(svt, na.rm=TRUE, useNames=TRUE)
+    expect_identical(current, expected)
+    expect_identical(FUN(coo, na.rm=TRUE, useNames=TRUE), current)
+}
+
+### Used to test all the other col/row*() methods.
+.test_SparseArray_matrixStats_method3 <- function(a, svt, generic, dims)
 {
     coo <- as(svt, "COO_SparseArray")
     FUN <- match.fun(generic)
@@ -72,70 +104,106 @@ test_that("colAnyNAs/rowAnyNAs() methods for 2D SparseArray objects", {
                    0L, 8L,  -1L), nrow=2, byrow=TRUE,
                  dimnames=list(LETTERS[1:2], letters[1:3]))
     svt1 <- as(m1, "SVT_SparseArray")
-    .test_matrixStats_method1(m1, svt1, "colAnyNAs")
-    .test_matrixStats_method1(m1, svt1, "rowAnyNAs")
+    .test_SparseArray_matrixStats_method1(m1, svt1, "colAnyNAs")
+    .test_SparseArray_matrixStats_method1(m1, svt1, "rowAnyNAs")
     m1[1, 2] <- NA
     svt1 <- as(m1, "SVT_SparseArray")
-    .test_matrixStats_method1(m1, svt1, "colAnyNAs")
-    .test_matrixStats_method1(m1, svt1, "rowAnyNAs")
+    .test_SparseArray_matrixStats_method1(m1, svt1, "colAnyNAs")
+    .test_SparseArray_matrixStats_method1(m1, svt1, "rowAnyNAs")
 
     ## input of type() "logical"
     m2 <- matrix(c(FALSE, FALSE, TRUE,
                    FALSE,  TRUE, TRUE), nrow=2, byrow=TRUE,
                  dimnames=list(LETTERS[1:2], letters[1:3]))
     svt2 <- as(m2, "SVT_SparseArray")
-    .test_matrixStats_method1(m2, svt2, "colAnyNAs")
-    .test_matrixStats_method1(m2, svt2, "rowAnyNAs")
+    .test_SparseArray_matrixStats_method1(m2, svt2, "colAnyNAs")
+    .test_SparseArray_matrixStats_method1(m2, svt2, "rowAnyNAs")
     m2[1, 2] <- NA
     svt2 <- as(m2, "SVT_SparseArray")
-    .test_matrixStats_method1(m2, svt2, "colAnyNAs")
-    .test_matrixStats_method1(m2, svt2, "rowAnyNAs")
+    .test_SparseArray_matrixStats_method1(m2, svt2, "colAnyNAs")
+    .test_SparseArray_matrixStats_method1(m2, svt2, "rowAnyNAs")
 
     ## input of type() "double"
     m3 <- matrix(c(0,    0,  pi,
                    0, 0.25, 1e3), nrow=2, byrow=TRUE,
                  dimnames=list(LETTERS[1:2], letters[1:3]))
     svt3 <- as(m3, "SVT_SparseArray")
-    .test_matrixStats_method1(m3, svt3, "colAnyNAs")
-    .test_matrixStats_method1(m3, svt3, "rowAnyNAs")
+    .test_SparseArray_matrixStats_method1(m3, svt3, "colAnyNAs")
+    .test_SparseArray_matrixStats_method1(m3, svt3, "rowAnyNAs")
     m3[1, 2] <- svt3[1, 2] <- NaN
-    .test_matrixStats_method1(m3, svt3, "colAnyNAs")
-    .test_matrixStats_method1(m3, svt3, "rowAnyNAs")
+    .test_SparseArray_matrixStats_method1(m3, svt3, "colAnyNAs")
+    .test_SparseArray_matrixStats_method1(m3, svt3, "rowAnyNAs")
     m3[1, 2] <- svt3[1, 2] <- NA
-    .test_matrixStats_method1(m3, svt3, "colAnyNAs")
-    .test_matrixStats_method1(m3, svt3, "rowAnyNAs")
+    .test_SparseArray_matrixStats_method1(m3, svt3, "colAnyNAs")
+    .test_SparseArray_matrixStats_method1(m3, svt3, "rowAnyNAs")
 
     ## input of type() "complex"
     m4 <- matrix(c(0,    0,  pi,
                    0, 2-5i, 1e3), nrow=2, byrow=TRUE,
                  dimnames=list(LETTERS[1:2], letters[1:3]))
     svt4 <- as(m4, "SVT_SparseArray")
-    .test_matrixStats_method1(m4, svt4, "colAnyNAs")
-    .test_matrixStats_method1(m4, svt4, "rowAnyNAs")
+    .test_SparseArray_matrixStats_method1(m4, svt4, "colAnyNAs")
+    .test_SparseArray_matrixStats_method1(m4, svt4, "rowAnyNAs")
     m4[1, 2] <- NaN       # 1st type of "complex" NaN
     svt4 <- as(m4, "SVT_SparseArray")
-    .test_matrixStats_method1(m4, svt4, "colAnyNAs")
-    .test_matrixStats_method1(m4, svt4, "rowAnyNAs")
+    .test_SparseArray_matrixStats_method1(m4, svt4, "colAnyNAs")
+    .test_SparseArray_matrixStats_method1(m4, svt4, "rowAnyNAs")
     m4[1, 2] <- NaN * 1i  # 2nd type of "complex" NaN
     svt4 <- as(m4, "SVT_SparseArray")
-    .test_matrixStats_method1(m4, svt4, "colAnyNAs")
-    .test_matrixStats_method1(m4, svt4, "rowAnyNAs")
+    .test_SparseArray_matrixStats_method1(m4, svt4, "colAnyNAs")
+    .test_SparseArray_matrixStats_method1(m4, svt4, "rowAnyNAs")
     m4[1, 2] <- NA
     svt4 <- as(m4, "SVT_SparseArray")
-    .test_matrixStats_method1(m4, svt4, "colAnyNAs")
-    .test_matrixStats_method1(m4, svt4, "rowAnyNAs")
+    .test_SparseArray_matrixStats_method1(m4, svt4, "colAnyNAs")
+    .test_SparseArray_matrixStats_method1(m4, svt4, "rowAnyNAs")
 
     ## input of type() "character"
     m5 <- matrix(c("",     "", "Hello",
                    "", "dear", "world"), nrow=2, byrow=TRUE,
                  dimnames=list(LETTERS[1:2], letters[1:3]))
     svt5 <- as(m5, "SVT_SparseArray")
-    .test_matrixStats_method1(m5, svt5, "colAnyNAs")
-    .test_matrixStats_method1(m5, svt5, "rowAnyNAs")
+    .test_SparseArray_matrixStats_method1(m5, svt5, "colAnyNAs")
+    .test_SparseArray_matrixStats_method1(m5, svt5, "rowAnyNAs")
     m5[1, 2] <- NA
     svt5 <- as(m5, "SVT_SparseArray")
-    .test_matrixStats_method1(m5, svt5, "colAnyNAs")
-    .test_matrixStats_method1(m5, svt5, "rowAnyNAs")
+    .test_SparseArray_matrixStats_method1(m5, svt5, "colAnyNAs")
+    .test_SparseArray_matrixStats_method1(m5, svt5, "rowAnyNAs")
+})
+
+test_that("colMedians/rowMedians() methods for 2D SparseArray objects", {
+    ## input of type() "integer"
+    m1 <- matrix(c(  0L, 0L, 20L, 0L, 10L, NA, 0L,
+                     NA, 0L, -3L, 1L, 11L, NA, 5L,
+                     0L, 0L,  0L, 0L,  0L, NA, NA,
+                    15L, 0L, 10L, 0L,  0L, NA, 5L), nrow=4, byrow=TRUE,
+                 dimnames=list(LETTERS[1:4], letters[1:7]))
+    svt1 <- as(m1, "SVT_SparseArray")
+    .test_SparseArray_matrixStats_method2(m1, svt1, "colMedians")
+    .test_SparseArray_matrixStats_method2(m1, svt1, "rowMedians")
+
+    set.seed(123)
+    svt2 <- poissonSparseMatrix(10, 450, density=0.12)
+    svt2[4:9, 4] <- 1L
+    svt2[ , 448] <- c(8L, -2L, -2L, 5L, 1L, 3L, 0L, 6L, 9L, 15L)
+    m2 <- as.matrix(svt2)
+    .test_SparseArray_matrixStats_method2(m2, svt2, "colMedians")
+    .test_SparseArray_matrixStats_method2(m2, svt2, "rowMedians")
+    svt3 <- - svt2
+    m3 <- - m2
+    .test_SparseArray_matrixStats_method2(m3, svt3, "colMedians")
+    .test_SparseArray_matrixStats_method2(m3, svt3, "rowMedians")
+
+    ## input of type() "double"
+    set.seed(123)
+    m4 <- matrix(runif(2000, min=-2.5, max=2.5), nrow=10)
+    svt4 <- as(m4, "SVT_SparseArray")
+    .test_SparseArray_matrixStats_method2(m4, svt4, "colMedians")
+    .test_SparseArray_matrixStats_method2(m4, svt4, "rowMedians")
+
+    m4[sample(length(m4), 40)] <- c(NA, NaN, Inf, -Inf)
+    svt4 <- as(m4, "SVT_SparseArray")
+    .test_SparseArray_matrixStats_method2(m4, svt4, "colMedians")
+    .test_SparseArray_matrixStats_method2(m4, svt4, "rowMedians")
 })
 
 test_that("other matrixStats methods for 2D SparseArray objects", {
@@ -146,30 +214,30 @@ test_that("other matrixStats methods for 2D SparseArray objects", {
                    15L, 0L,  0L, 0L, NA), nrow=4, byrow=TRUE,
                  dimnames=list(LETTERS[1:4], letters[1:5]))
     svt1 <- as(m1, "SVT_SparseArray")
-    .test_matrixStats_method2(m1, svt1, "colAnys")
-    .test_matrixStats_method2(m1, svt1, "rowAnys")
-    .test_matrixStats_method2(m1, svt1, "colAlls")
-    .test_matrixStats_method2(m1, svt1, "rowAlls")
-    .test_matrixStats_method2(m1, svt1, "colMins")
-    .test_matrixStats_method2(m1, svt1, "rowMins")
-    .test_matrixStats_method2(m1, svt1, "colMaxs")
-    .test_matrixStats_method2(m1, svt1, "rowMaxs")
-    .test_matrixStats_method2(m1, svt1, "colRanges")
-    .test_matrixStats_method2(m1, svt1, "rowRanges")
-    .test_matrixStats_method2(m1, svt1, "colSums")
-    .test_matrixStats_method2(m1, svt1, "rowSums")
-    .test_matrixStats_method2(m1, svt1, "colProds")
-    .test_matrixStats_method2(m1, svt1, "rowProds")
-    .test_matrixStats_method2(m1, svt1, "colMeans")
-    .test_matrixStats_method2(m1, svt1, "rowMeans")
-    .test_matrixStats_method2(m1, svt1, "colSums2")
-    .test_matrixStats_method2(m1, svt1, "rowSums2")
-    .test_matrixStats_method2(m1, svt1, "colMeans2")
-    .test_matrixStats_method2(m1, svt1, "rowMeans2")
-    .test_matrixStats_method2(m1, svt1, "colVars")
-    .test_matrixStats_method2(m1, svt1, "rowVars")
-    .test_matrixStats_method2(m1, svt1, "colSds")
-    .test_matrixStats_method2(m1, svt1, "rowSds")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "colAnys")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "rowAnys")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "colAlls")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "rowAlls")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "colMins")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "rowMins")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "colMaxs")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "rowMaxs")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "colRanges")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "rowRanges")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "colSums")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "rowSums")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "colProds")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "rowProds")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "colMeans")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "rowMeans")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "colSums2")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "rowSums2")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "colMeans2")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "rowMeans2")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "colVars")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "rowVars")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "colSds")
+    .test_SparseArray_matrixStats_method3(m1, svt1, "rowSds")
     m0 <- m1[0, ]
     svt0 <- svt1[0, ]
     expected <- rep(NA_integer_, 5L)
@@ -194,31 +262,31 @@ test_that("other matrixStats methods for 2D SparseArray objects", {
     ## input of type() "logical"
     m2 <- is.na(m1)
     svt2 <- as(m2, "SVT_SparseArray")
-    .test_matrixStats_method2(m2, svt2, "colAnys")
-    .test_matrixStats_method2(m2, svt2, "rowAnys")
-    .test_matrixStats_method2(m2, svt2, "colAlls")
-    .test_matrixStats_method2(m2, svt2, "rowAlls")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "colAnys")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "rowAnys")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "colAlls")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "rowAlls")
     storage.mode(m2) <- "integer"
-    .test_matrixStats_method2(m2, svt2, "colMins")
-    .test_matrixStats_method2(m2, svt2, "rowMins")
-    .test_matrixStats_method2(m2, svt2, "colMaxs")
-    .test_matrixStats_method2(m2, svt2, "rowMaxs")
-    .test_matrixStats_method2(m2, svt2, "colRanges")
-    .test_matrixStats_method2(m2, svt2, "rowRanges")
-    .test_matrixStats_method2(m2, svt2, "colSums")
-    .test_matrixStats_method2(m2, svt2, "rowSums")
-    .test_matrixStats_method2(m2, svt2, "colProds")
-    .test_matrixStats_method2(m2, svt2, "rowProds")
-    .test_matrixStats_method2(m2, svt2, "colMeans")
-    .test_matrixStats_method2(m2, svt2, "rowMeans")
-    .test_matrixStats_method2(m2, svt2, "colSums2")
-    .test_matrixStats_method2(m2, svt2, "rowSums2")
-    .test_matrixStats_method2(m2, svt2, "colMeans2")
-    .test_matrixStats_method2(m2, svt2, "rowMeans2")
-    .test_matrixStats_method2(m2, svt2, "colVars")
-    .test_matrixStats_method2(m2, svt2, "rowVars")
-    .test_matrixStats_method2(m2, svt2, "colSds")
-    .test_matrixStats_method2(m2, svt2, "rowSds")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "colMins")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "rowMins")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "colMaxs")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "rowMaxs")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "colRanges")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "rowRanges")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "colSums")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "rowSums")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "colProds")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "rowProds")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "colMeans")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "rowMeans")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "colSums2")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "rowSums2")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "colMeans2")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "rowMeans2")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "colVars")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "rowVars")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "colSds")
+    .test_SparseArray_matrixStats_method3(m2, svt2, "rowSds")
     m0 <- m2[0, ]
     svt0 <- svt2[0, ]
     expected <- rep(NA_integer_, 5L)
@@ -256,16 +324,16 @@ test_that("matrixStats methods for 3D SparseArray objects", {
     test_3D_colrowMinsMaxs(coo3)
 
     ## dims == 1 (default)
-    .test_matrixStats_method2(a, svt3, "colSums")
-    .test_matrixStats_method2(a, svt3, "rowSums")
-    .test_matrixStats_method2(a, svt3, "colMeans")
-    .test_matrixStats_method2(a, svt3, "rowMeans")
+    .test_SparseArray_matrixStats_method3(a, svt3, "colSums")
+    .test_SparseArray_matrixStats_method3(a, svt3, "rowSums")
+    .test_SparseArray_matrixStats_method3(a, svt3, "colMeans")
+    .test_SparseArray_matrixStats_method3(a, svt3, "rowMeans")
 
     ## dims == 2
-    .test_matrixStats_method2(a, svt3, "colSums", dims=2)
-    .test_matrixStats_method2(a, svt3, "rowSums", dims=2)
-    .test_matrixStats_method2(a, svt3, "colMeans", dims=2)
-    .test_matrixStats_method2(a, svt3, "rowMeans", dims=2)
+    .test_SparseArray_matrixStats_method3(a, svt3, "colSums", dims=2)
+    .test_SparseArray_matrixStats_method3(a, svt3, "rowSums", dims=2)
+    .test_SparseArray_matrixStats_method3(a, svt3, "colMeans", dims=2)
+    .test_SparseArray_matrixStats_method3(a, svt3, "rowMeans", dims=2)
 
 })
 
