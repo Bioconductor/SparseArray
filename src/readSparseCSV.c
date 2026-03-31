@@ -114,11 +114,14 @@ static SEXP dump_env_as_list_or_R_NilValue(SEXP env, int ans_len)
 		key = PROTECT(idx0_to_key(i));
 #if R_VERSION < R_Version(4, 6, 0)
 		ans_elt = findVar(install(translateChar(key)), env);
+		if (ans_elt == R_UnboundValue)
+			ans_elt = R_NilValue;
 #else
-		ans_elt = R_getVar(install(translateChar(key)), env, FALSE);
+		ans_elt = R_getVarEx(install(translateChar(key)), env,
+				     FALSE, R_NilValue);
 #endif
 		UNPROTECT(1);
-		if (ans_elt == R_UnboundValue)
+		if (ans_elt == R_NilValue)
 			continue;
 		SET_VECTOR_ELT(ans, i, ans_elt);
 		is_empty = 0;
