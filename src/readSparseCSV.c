@@ -11,6 +11,7 @@
 #include "ExtendableJaggedArray.h"
 
 #include <R_ext/Connections.h>
+#include <Rversion.h>
 
 #include <string.h>  /* for memcpy() */
 
@@ -111,7 +112,11 @@ static SEXP dump_env_as_list_or_R_NilValue(SEXP env, int ans_len)
 	is_empty = 1;
 	for (i = 0; i < ans_len; i++) {
 		key = PROTECT(idx0_to_key(i));
+#if R_VERSION < R_Version(4, 6, 0)
 		ans_elt = findVar(install(translateChar(key)), env);
+#else
+		ans_elt = R_getVar(install(translateChar(key)), env, FALSE);
+#endif
 		UNPROTECT(1);
 		if (ans_elt == R_UnboundValue)
 			continue;
