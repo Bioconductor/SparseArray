@@ -1,3 +1,74 @@
+VERSION 1.12.0
+--------------
+
+NEW FEATURES
+
+    o Subassignment of an SVT_SparseArray object with a right value that is
+      also an SVT_SparseArray object is finally supported. For example this
+      allows things like
+
+        x[3:6, , 1] <- y
+        x[ , 11:15, 1] <- x[ , 1:5, 3]
+
+      (where 'x' and 'y' are both SVT_SparseArray objects) to operate
+      natively on the sparse representation and therefore to be very fast
+      and very memory-efficient.
+
+    o NaArray objects now support subassignment by an N-index, not just by an
+      L-index or M-index. Like SVT_SparseArray objects, the replacement value
+      (a.k.a. right value) can be a "short" vector, an ordinary array, or
+      another NaArray object.
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+    o A significant refactoring of the code behind subsetting and subassignment
+      of an SVT_SparseArray object results in code that is simpler, cleaner,
+      and faster. In particular, the following speed improvements were obtained
+      compared to SparseArray 1.10.0:
+      - N-dimensional subsetting of an SVT_SparseArray object is 2 to 5 times
+        faster.
+      - Subassignment of an SVT_SparseArray object by a matrix subscript
+        (a.k.a. M-index) is twice faster and uses about 20% less memory.
+      - Subassignment of an SVT_SparseArray object with a "short" vector
+        on the right e.g.
+          svt[i, j, k] <- 0
+        or
+          svt[i, j, k] <- c(4, 0, -1, 1)
+        where each of i, j, k is either missing or a vector of subscripts
+        is faster.
+
+    o Revisited and optimized implementation of the extract_array() method
+      for SVT_SparseArray arrays. Old implementation was doing:
+
+          as.array(.subset_SVT_as_SVT(x, index))
+
+      New implementation is based on new internal helper .subset_SVT_as_Rarray()
+      which avoids the intermediate SVT_SparseArray representation. With these
+      improvements, extract_array() is now 3 to 4 times faster than in
+      SparseArray 1.10.0.
+      As a consequence extracting a single row from an SVT_SparseMatrix
+      object 'x' with
+
+          x[i, ]
+
+      is now 15% to 20% faster.
+
+    o The extract_array() methods for SVT_SparseArray and NaArray objects
+      are now multithreaded when the number of rows to extract is "small".
+
+    o Speed up nzvals() on SVT_SparseMatrix objects and nnavals() on NaArray
+      objects by overriding the default methods with specific methods
+      implemented in C. This yields a 15x to 20x speedup.
+
+BUG FIXES
+
+    o Fix col/rowMedians() methods for SparseArray objects.
+
+    o Fix mishandling of NaN elements in is_nonna(), nnacount(), nnawhich(),
+      and nnavals() default methods. Clarify the meaning of non-NA element
+      in the man page for these functions.
+
+
 VERSION 1.10.0
 --------------
 
