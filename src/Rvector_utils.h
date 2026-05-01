@@ -8,29 +8,46 @@
 #endif
 
 
-/* Note that R does not define NA_INTEGER, NA_REAL, or NA_STRING as const
-   variables so we can't define intNA, doubleNA, RcomplexNA, or characterNA
-   as const variable either. Instead we need to define them as regular (i.e.
-   non-const) variables and initialize them in R_init_SparseArray(). */
+/****************************************************************************
+ * A bunch of global constants
+ *
+ * Some of them initialized here (e.g. int0), others initialized in
+ * src/R_init_SparseArray.c (e.g. intNA or character1).
+ *
+ * About intNA, doubleNA, RcomplexNA, characterNA: R does not define
+ * NA_INTEGER, NA_REAL, or NA_STRING as const variables so we can't define
+ * intNA, doubleNA, RcomplexNA, or characterNA as const variable either.
+ * Instead we need to define them as regular (i.e. non-const) variables and
+ * initialize them in src/R_init_SparseArray.c
+ *
+ * About character0, character1, list0: Also initialized in
+ * src/R_init_SparseArray.c
+ */
 
 static const int int0 = 0, int1 = 1;
-extern int intNA;            /* initialized in R_init_SparseArray() */
+extern int intNA;            /* initialized in src/R_init_SparseArray.c */
 
 static const double double0 = 0.0, double1 = 1.0;
-extern double doubleNA;      /* initialized in R_init_SparseArray() */
+extern double doubleNA;      /* initialized in src/R_init_SparseArray.c */
 
 /* Some old versions of gcc choke on this:
 static const Rcomplex Rcomplex0 = {{double0, double0}}, {{double1, double0}}; */
 static const Rcomplex Rcomplex0 = {{0.0, 0.0}}, Rcomplex1 = {{1.0, 0.0}};
-extern Rcomplex RcomplexNA;  /* initialized in R_init_SparseArray() */
+extern Rcomplex RcomplexNA;  /* initialized in src/R_init_SparseArray.c */
 
 static const Rbyte Rbyte0 = 0, Rbyte1 = 1;
 
-/* Initialized in R_init_SparseArray() */
-extern SEXP character0, character1, characterNA;
+/* Initialized by C_init_character0_character1() in src/R_init_SparseArray.c */
+extern SEXP character0, character1;
 
-extern SEXP list0;           /* initialized in R_init_SparseArray() */
+extern SEXP characterNA;     /* initialized in src/R_init_SparseArray.c */
 
+extern SEXP list0;           /* initialized in src/R_init_SparseArray.c */
+
+
+/****************************************************************************
+ * Macros & typedefs
+ */
 
 #define IS_STRSXP_OR_VECSXP(Rtype) ((Rtype) == STRSXP || (Rtype) == VECSXP)
 

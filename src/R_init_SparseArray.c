@@ -25,6 +25,9 @@
 #include "readSparseCSV.h"
 #include "test.h"
 
+
+/* Initialize global variables character0 and character1 declared in
+   src/Rvector_utils.h */
 static SEXP C_init_character0_character1(SEXP strings01)
 {
 	const char *errmsg = "SparseArray internal error in "
@@ -32,19 +35,18 @@ static SEXP C_init_character0_character1(SEXP strings01)
 			     "    'strings01' must be 'c(\"\", \"1\")'";
 	if (!(IS_CHARACTER(strings01) && LENGTH(strings01) == 2))
 		error("%s", errmsg);
-	SEXP character0 = STRING_ELT(strings01, 0);  /* CHARSXP */
-	SEXP character1 = STRING_ELT(strings01, 1);  /* CHARSXP */
+	character0 = STRING_ELT(strings01, 0);  /* CHARSXP */
+	character1 = STRING_ELT(strings01, 1);  /* CHARSXP */
 	/* Some sanity checks.
 	   Note that we're comparing the CHARSXPs' addresses, not their values.
 	   However, this is much faster, but also, and most importantly, it's
 	   equivalent to comparing their values. That's because CHARSXPs with
 	   the same value are expected to have the same address, thanks to R's
-	   global CHARSXP cache. */
-	SEXP tmp0 = PROTECT(mkChar(""));
-	SEXP tmp1 = PROTECT(mkChar("1"));
-	if (tmp0 != character0 || tmp1 != character1)
+	   global CHARSXP cache.
+	   Also, because of this caching, there's no need to PROTECT() the
+	   address returned by mkChar(). */
+	if (character0 != mkChar("") || character1 != mkChar("1"))
 		error("%s", errmsg);
-	UNPROTECT(2);
 	return R_NilValue;
 }
 
@@ -174,6 +176,7 @@ void R_init_SparseArray(DllInfo *info)
 	R_registerRoutines(info, NULL, callMethods, NULL, NULL);
 	R_useDynamicSymbols(info, 0);
 
+	/* Initialize global variables declared in src/Rvector_utils.h */
 	intNA = NA_INTEGER;
 	doubleNA = RcomplexNA.r = RcomplexNA.i = NA_REAL;
 	characterNA = NA_STRING;            /* CHARSXP */
