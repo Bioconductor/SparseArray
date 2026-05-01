@@ -8,11 +8,14 @@
 #include <string.h>  /* for memset() and memcpy() */
 
 
-/* Initialized in R_init_SparseArray(). */
+/* Initialized by R_init_SparseArray() in src/R_init_SparseArray.c */
 int intNA;
 double doubleNA;
 Rcomplex RcomplexNA;
-SEXP character0, character1, characterNA, list0;
+SEXP characterNA, list0;
+
+/* Initialized by C_init_character0_character1() in src/R_init_SparseArray.c */
+SEXP character0, character1;
 
 /* The 7 types of R vectors (6 types of atomic vectors + the "list" type). */
 static const SEXPTYPE Rvector_types[] = {

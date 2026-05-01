@@ -25,6 +25,29 @@
 #include "readSparseCSV.h"
 #include "test.h"
 
+static SEXP C_init_character0_character1(SEXP strings01)
+{
+	const char *errmsg = "SparseArray internal error in "
+			     "C_init_character0_character1():\n"
+			     "    'strings01' must be 'c(\"\", \"1\")'";
+	if (!(IS_CHARACTER(strings01) && LENGTH(strings01) == 2))
+		error("%s", errmsg);
+	SEXP character0 = STRING_ELT(strings01, 0);  /* CHARSXP */
+	SEXP character1 = STRING_ELT(strings01, 1);  /* CHARSXP */
+	/* Some sanity checks.
+	   Note that we're comparing the CHARSXPs' addresses, not their values.
+	   However, this is much faster, but also, and most importantly, it's
+	   equivalent to comparing their values. That's because CHARSXPs with
+	   the same value are expected to have the same address, thanks to R's
+	   global CHARSXP cache. */
+	SEXP tmp0 = PROTECT(mkChar(""));
+	SEXP tmp1 = PROTECT(mkChar("1"));
+	if (tmp0 != character0 || tmp1 != character1)
+		error("%s", errmsg);
+	UNPROTECT(2);
+	return R_NilValue;
+}
+
 #define CALLMETHOD_DEF(fun, numArgs) {#fun, (DL_FUNC) &fun, numArgs}
 
 static const R_CallMethodDef callMethods[] = {
@@ -140,6 +163,9 @@ static const R_CallMethodDef callMethods[] = {
 	CALLMETHOD_DEF(C_test, 0),
 	CALLMETHOD_DEF(C_simple_omp_parallel_for_loop, 1),
 
+/* this file */
+	CALLMETHOD_DEF(C_init_character0_character1, 1),
+
 	{NULL, NULL, 0}
 };
 
@@ -150,10 +176,6 @@ void R_init_SparseArray(DllInfo *info)
 
 	intNA = NA_INTEGER;
 	doubleNA = RcomplexNA.r = RcomplexNA.i = NA_REAL;
-	/* 'character0' and 'character1' will remain PROTECT'ed for the
-	   entire R session. */
-	character0 = PROTECT(mkChar(""));   /* CHARSXP */
-	character1 = PROTECT(mkChar("1"));  /* CHARSXP */
 	characterNA = NA_STRING;            /* CHARSXP */
 	list0 = R_NilValue;
 	return;
