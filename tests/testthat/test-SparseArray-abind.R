@@ -92,6 +92,90 @@ test_that("cbind() on SVT_SparseMatrix objects", {
     expect_identical(svt, as(m, "SVT_SparseMatrix"))
 })
 
+test_that("rbind() on mix of SVT_SparseMatrix objects and ordinary matrices", {
+    dumb_rbind2_SVTs <- function(x, y) {
+        ans <- as(rbind(as.matrix(x), as.matrix(y)), "SVT_SparseMatrix")
+        ## Because a 0-row or 0-col ordinary matrix refuses to have its
+        ## rownames or colnames set to character(0), only to NULL, as.matrix()
+        ## on a 0-row SVT_SparseMatrix object will always return a matrix
+        ## where rownames() is NULL.
+        if (is.null(rownames(ans)) && !(is.null(rownames(x)) &&
+                                        is.null(rownames(y))))
+        {
+            rownames(ans) <- character(nrow(ans))
+        }
+        ans
+    }
+
+    svt0 <- SVT_SparseArray(dim=c(2, 5))
+    svt1 <- SVT_SparseArray(rbind(c(FALSE, FALSE, FALSE, TRUE, FALSE),
+                                  c(FALSE, TRUE, FALSE, TRUE, FALSE)),
+                            dimnames=list(letters[1:2], LETTERS[1:5]))
+
+    m1 <- matrix(ncol=5)         # 1x5 logical matrix
+    m2 <- matrix(11:25, ncol=5)  # 3x5 integer matrix
+    m3 <- m2[0, ]                # 0x5 integer matrix
+
+    for (svt in list(svt0, svt0[0, ], svt1, svt1[0, ])) {
+        expected <- dumb_rbind2_SVTs(svt, m1)
+        expect_identical(rbind(svt, m1), expected)
+        expect_identical(rbind(NULL, svt, NULL, m1, NULL), expected)
+        expect_identical(rbind(m1[0, ], svt, m1), expected)
+
+        expected <- dumb_rbind2_SVTs(m2, svt)
+        expect_identical(rbind(m2, svt), expected)
+        expect_identical(rbind(NULL, m2, NULL, svt, NULL), expected)
+        expect_identical(rbind(m2, svt, m2[0, ]), expected)
+
+        expected <- dumb_rbind2_SVTs(svt, m3)
+        expect_identical(rbind(svt, m3), expected)
+        expect_identical(rbind(m3, svt), expected)
+        expect_identical(rbind(NULL, m3, NULL, svt, NULL, m3, NULL), expected)
+    }
+})
+
+test_that("cbind() on mix of SVT_SparseMatrix objects and ordinary matrices", {
+    dumb_cbind2_SVTs <- function(x, y) {
+        ans <- as(cbind(as.matrix(x), as.matrix(y)), "SVT_SparseMatrix")
+        ## Because a 0-row or 0-col ordinary matrix refuses to have its
+        ## rownames or colnames set to character(0), only to NULL, as.matrix()
+        ## on a 0-col SVT_SparseMatrix object will always return a matrix
+        ## where colnames() is NULL.
+        if (is.null(colnames(ans)) && !(is.null(colnames(x)) &&
+                                        is.null(colnames(y))))
+        {
+            colnames(ans) <- character(ncol(ans))
+        }
+        ans
+    }
+
+    svt0 <- SVT_SparseArray(dim=c(5, 2))
+    svt1 <- SVT_SparseArray(cbind(c(FALSE, FALSE, FALSE, TRUE, FALSE),
+                                  c(FALSE, TRUE, FALSE, TRUE, FALSE)),
+                            dimnames=list(letters[1:5], LETTERS[1:2]))
+
+    m1 <- matrix(nrow=5)         # 5x1 logical matrix
+    m2 <- matrix(11:25, nrow=5)  # 5x3 integer matrix
+    m3 <- m2[ , 0]               # 5x0 integer matrix
+
+    for (svt in list(svt0, svt0[ , 0], svt1, svt1[ , 0])) {
+        expected <- dumb_cbind2_SVTs(svt, m1)
+        expect_identical(cbind(svt, m1), expected)
+        expect_identical(cbind(NULL, svt, NULL, m1, NULL), expected)
+        expect_identical(cbind(m1[ , 0], svt, m1), expected)
+
+        expected <- dumb_cbind2_SVTs(m2, svt)
+        expect_identical(cbind(m2, svt), expected)
+        expect_identical(cbind(NULL, m2, NULL, svt, NULL), expected)
+        expect_identical(cbind(m2, svt, m2[ , 0]), expected)
+
+        expected <- dumb_cbind2_SVTs(svt, m3)
+        expect_identical(cbind(svt, m3), expected)
+        expect_identical(cbind(m3, svt), expected)
+        expect_identical(cbind(NULL, m3, NULL, svt, NULL, m3, NULL), expected)
+    }
+})
+
 test_that("arbind() on 3D SVT_SparseArray objects", {
     a1 <- .TEST_arrays[[1]]
     a2 <- .TEST_arrays[[2]]

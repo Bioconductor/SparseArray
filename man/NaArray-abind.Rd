@@ -7,10 +7,6 @@
 
 \alias{abind,NaArray-method}
 
-\alias{rbind,NaArray-method}
-\alias{cbind,NaArray-method}
-\alias{bindROWS,NaArray-method}
-
 \title{Combine multidimensional NaArray objects}
 
 \description{
