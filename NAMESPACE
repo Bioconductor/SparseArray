@@ -111,7 +111,6 @@ exportMethods(
     Compare,
 
     ## Methods for generics defined in the BiocGenerics package:
-    cbind, rbind,
     pmin, pmax,
     type, "type<-",
 
@@ -123,9 +122,6 @@ exportMethods(
     colSums2, rowSums2, colMeans2, rowMeans2,
     colVars, rowVars, colSds, rowSds,
     colMedians, rowMedians,
-
-    ## Methods for generics defined in the S4Vectors package:
-    bindROWS,
 
     ## Methods for generics defined in the S4Arrays package:
     rowsum, colsum, aperm, abind, tune_Array_dims, extract_array, is_sparse

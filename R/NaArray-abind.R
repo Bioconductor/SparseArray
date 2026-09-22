@@ -47,24 +47,3 @@
 
 setMethod("abind", "NaArray", .abind_NaArray_objects)
 
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### rbind(), cbind()
-###
-
-### TODO: The methods below are defined for NaArray objects but it seems
-### that they could as well be defined more generally for Array objects.
-
-### The generics have the 'deparse.level' argument. We ignore it.
-setMethod("rbind", "NaArray", function(...) arbind(...))
-setMethod("cbind", "NaArray", function(...) acbind(...))
-
-### Arguments 'use.names', 'ignore.mcols', and 'check' are ignored.
-setMethod("bindROWS", "NaArray",
-    function(x, objects=list(), use.names=TRUE, ignore.mcols=FALSE, check=TRUE)
-    {
-        args <- c(list(x), unname(objects))
-        do.call(rbind, args)
-    }
-)
-

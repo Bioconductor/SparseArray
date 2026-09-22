@@ -7,10 +7,6 @@
 
 \alias{abind,SparseArray-method}
 
-\alias{rbind,SparseArray-method}
-\alias{cbind,SparseArray-method}
-\alias{bindROWS,SparseArray-method}
-
 \title{Combine multidimensional SparseArray objects}
 
 \description{
