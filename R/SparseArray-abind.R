@@ -1,10 +1,13 @@
 ### =========================================================================
-### Combining multidimensional SparseArray objects
+### Bind SparseArray objects with abind()
 ### -------------------------------------------------------------------------
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### abind()
+###
+### Note that making abind() work on SparseArray objects also makes arbind(),
+### acbind(), rbind(), cbind(), and bindROWS() work on these objects.
 ###
 
 .abind_COO_SparseArray_objects <- function(objects, dims, along, ans_dimnames)

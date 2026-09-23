@@ -6,6 +6,9 @@
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### abind()
 ###
+### Note that making abind() work on NaArray objects also makes arbind(),
+### acbind(), rbind(), cbind(), and bindROWS() work on these objects.
+###
 
 .abind_NaArray_objects <- function(..., along=NULL, rev.along=NULL)
 {
