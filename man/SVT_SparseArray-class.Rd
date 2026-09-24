@@ -208,6 +208,9 @@ vector  vector          vector  vector  vector  vector}
 
     \item And so on...
   }
+
+  NOTE TO DEVELOPERS: Please refer to src/leaf_utils.h in the package for
+  additional details about SVT leaf representation.
 }
 
 \seealso{

@@ -15,10 +15,11 @@
    strictly ascending offset.
    A leaf is represented by an SEXP that is either R_NilValue or a list of
    length 2. R_NilValue is used to represent an empty leaf. Otherwise, a
-   list of 2 parallel dense vectors is used:
+   list of 2 parallel non-empty dense vectors is used:
      - nzvals: a vector (atomic or list) of nonzero values (zeros are
                not allowed);
-     - nzoffs: an integer vector of offsets (i.e. 0-based positions).
+     - nzoffs: an integer vector of offsets (i.e. 0-based positions) that is
+               strictly sorted.
    The common length of 'nzvals' and 'nzoffs' is called the "nonzero count"
    (a.k.a. nzcount) and it should always be >= 1. Note that we do not
    support "long leaves" so 'nzcount' will always be <= INT_MAX.
