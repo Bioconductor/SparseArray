@@ -12,6 +12,8 @@
 
 .abind_COO_SparseArray_objects <- function(objects, dims, along, ans_dimnames)
 {
+    objects <- S4Arrays:::coerce_abind_input_objects(objects, "COO_SparseArray")
+
     ## Compute 'ans_dim'.
     ans_dim <- S4Arrays:::combine_dims_along(dims, along)
 
@@ -38,6 +40,9 @@
 ### NOT exported but used in the DelayedArray package!
 abind_SVT_SparseArray_objects <- function(objects, along, ans_dimnames)
 {
+    objects <- S4Arrays:::coerce_abind_input_objects(objects, "SVT_SparseArray")
+    lapply(objects, check_svt_version)
+
     ## Compute 'ans_type'.
     ans_type <- type(unlist(
         lapply(objects, function(object) vector(type(object)))
@@ -55,36 +60,24 @@ abind_SVT_SparseArray_objects <- function(objects, along, ans_dimnames)
 
 .abind_SparseArray_objects <- function(..., along=NULL, rev.along=NULL)
 {
-    objects <- S4Vectors:::delete_NULLs(list(...))
+    objects <- S4Arrays:::homogenize_abind_input_objects(list(...),
+                                           along=along, rev.along=rev.along)
     if (length(objects) == 0L)
         return(NULL)
 
-    ndims <- vapply(objects, function(object) length(dim(object)), integer(1))
-    N <- max(ndims)
-    along <- S4Arrays:::get_along(N, along=along, rev.along=rev.along)
-    ans_ndim <- max(N, along)
-    objects <- S4Arrays:::add_missing_dims(objects, ans_ndim)
-
-    ## Check dim compatibility.
-    dims <- S4Arrays:::get_dims_to_bind(objects, along)
-    if (is.character(dims))
-        stop(wmsg(dims))
-    x <- objects[[1L]]
+    ## Note that unary abind() is not necessarily a no-op because
+    ## homogenize_abind_input_objects() can add dimensions to the input object.
     if (length(objects) == 1L)
-        return(x)
+        return(objects[[1L]])
 
     ## Compute 'ans_dimnames'.
+    dims <- attr(objects, "dims")
+    along <- attr(objects, "along")
     ans_dimnames <- S4Arrays:::combine_dimnames_along(objects, dims, along)
 
-    if (is(x, "COO_SparseArray"))
-        return(.abind_COO_SparseArray_objects(objects, dims, along,
-                                              ans_dimnames))
-    if (is(x, "SVT_SparseArray")) {
-        check_svt_version(x)
-        return(abind_SVT_SparseArray_objects(objects, along,
-                                             ans_dimnames))
-    }
-    stop(wmsg(class(x)[[1L]], " objects are not supported"))
+    if (any(vapply(objects, is, logical(1), "SVT_SparseArray")))
+        return(abind_SVT_SparseArray_objects(objects, along, ans_dimnames))
+    .abind_COO_SparseArray_objects(objects, dims, along, ans_dimnames)
 }
 
 setMethod("abind", "SparseArray", .abind_SparseArray_objects)

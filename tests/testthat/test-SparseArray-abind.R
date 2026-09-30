@@ -306,8 +306,7 @@ test_that("abind() default method on SparseArray objects", {
     check_array_like_object(svt, "SVT_SparseArray", a)
     expect_identical(svt, as(a, "SVT_SparseArray"))
 
-    expected_words <- c("all", "objects", "must", "be",
-                        "supplied", "via", "list")
+    expected_words <- c("passing", "objects", "to", "bind", "in", "list")
     expect_error3(abind(svt1, svt_objects), expected_words, ignore.case=TRUE)
     expect_error3(abind(svt_objects, svt1), expected_words, ignore.case=TRUE)
 

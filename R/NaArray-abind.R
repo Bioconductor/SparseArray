@@ -12,25 +12,20 @@
 
 .abind_NaArray_objects <- function(..., along=NULL, rev.along=NULL)
 {
-    objects <- S4Vectors:::delete_NULLs(list(...))
+    objects <- S4Arrays:::homogenize_abind_input_objects(list(...),
+                                           along=along, rev.along=rev.along)
     if (length(objects) == 0L)
         return(NULL)
 
-    ndims <- vapply(objects, function(object) length(dim(object)), integer(1))
-    N <- max(ndims)
-    along <- S4Arrays:::get_along(N, along=along, rev.along=rev.along)
-    ans_ndim <- max(N, along)
-    objects <- S4Arrays:::add_missing_dims(objects, ans_ndim)
-
-    ## Check dim compatibility.
-    dims <- S4Arrays:::get_dims_to_bind(objects, along)
-    if (is.character(dims))
-        stop(wmsg(dims))
     x <- objects[[1L]]
+    ## Note that unary abind() is not necessarily a no-op because
+    ## homogenize_abind_input_objects() can add dimensions to the input object.
     if (length(objects) == 1L)
         return(x)
 
     ## Compute 'ans_dimnames'.
+    dims <- attr(objects, "dims")
+    along <- attr(objects, "along")
     ans_dimnames <- S4Arrays:::combine_dimnames_along(objects, dims, along)
 
     ## Compute 'ans_type'.
