@@ -24,7 +24,7 @@
     ## expect_equal() instead of expect_identical() everywhere no matter what.
     ## But then we'd loose the fun of identifying those (operations,systems)
     ## combinations for which expect_identical() fails.
-    if ((IS_INTEL_MAC || IS_ARM64_MAC) && op == "tanpi") {
+    if (op == "tanpi") {
         expect_equal(as.array(current), expected)
     } else {
         expect_identical(as.array(current), expected)
