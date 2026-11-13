@@ -15,6 +15,16 @@ coercion_can_introduce_zeros <- function(from_type, to_type)
                                              PACKAGE="SparseArray")
 }
 
+coercion_can_introduce_ones <- function(from_type, to_type)
+{
+    if (!isSingleString(from_type))
+        stop(wmsg("'from_type' must be a single string"))
+    if (!isSingleString(to_type))
+        stop(wmsg("'to_type' must be a single string"))
+    .Call2("C_coercion_can_introduce_ones", from_type, to_type,
+                                            PACKAGE="SparseArray")
+}
+
 coercion_can_introduce_NAs <- function(from_type, to_type)
 {
     if (!isSingleString(from_type))

@@ -369,7 +369,9 @@ SEXP _coerce_leaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn,
 	SEXP ans = PROTECT(zip_leaf(ans_nzvals, nzoffs, 0));
 	/* The above coercion can introduce zeros in 'ans_nzvals' e.g. when
 	   going from double/complex to int/raw. We need to remove them. */
-	if (_coercion_can_introduce_zeros(TYPEOF(nzvals), new_Rtype)) {
+	if (_coercion_can_introduce_zeros(TYPEOF(nzvals), new_Rtype) ||
+	    _coercion_can_introduce_ones(TYPEOF(nzvals), new_Rtype))
+	{
 		int ret = _INPLACE_remove_zeros_from_leaf(ans, selection_buf);
 		if (ret == 0) {
 			ans = R_NilValue;
@@ -392,8 +394,8 @@ SEXP _coerce_naleaf(SEXP leaf, SEXPTYPE new_Rtype, int *warn,
 	int w = 0;
 	SEXP ans_nzvals = PROTECT(_coerceVector2(nzvals, new_Rtype, &w));
 	SEXP ans = PROTECT(zip_leaf(ans_nzvals, nzoffs, 0));
-	if (w) {
-		*warn = 1;
+	if (w || _coercion_can_introduce_ones(TYPEOF(nzvals), new_Rtype)) {
+		if (w) *warn = 1;
 		int ret = _INPLACE_remove_NAs_from_leaf(ans, selection_buf);
 		if (ret == 0) {
 			ans = R_NilValue;

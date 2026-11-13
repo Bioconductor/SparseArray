@@ -38,6 +38,7 @@ void _CoercionWarning(int warn)
 
 /****************************************************************************
  * C_coercion_can_introduce_zeros()
+ * C_coercion_can_introduce_ones()
  * C_coercion_can_introduce_NAs()
  */
 
@@ -52,6 +53,14 @@ int _coercion_can_introduce_zeros(SEXPTYPE from_Rtype, SEXPTYPE to_Rtype)
 	if (from_Rtype == CPLXSXP)
 		return to_Rtype == INTSXP || to_Rtype == REALSXP;
 	return 0;
+}
+
+int _coercion_can_introduce_ones(SEXPTYPE from_Rtype, SEXPTYPE to_Rtype)
+{
+	if (to_Rtype == from_Rtype ||
+	    to_Rtype == CPLXSXP || to_Rtype == STRSXP || to_Rtype == VECSXP)
+		return 0;
+	return from_Rtype == REALSXP || from_Rtype == CPLXSXP;
 }
 
 int _coercion_can_introduce_NAs(SEXPTYPE from_Rtype, SEXPTYPE to_Rtype)
@@ -74,6 +83,17 @@ SEXP C_coercion_can_introduce_zeros(SEXP from_type, SEXP to_type)
 				"C_coercion_can_introduce_zeros", "to_type");
 	return ScalarLogical(_coercion_can_introduce_zeros(from_Rtype,
 							   to_Rtype));
+}
+
+/* --- .Call ENTRY POINT --- */
+SEXP C_coercion_can_introduce_ones(SEXP from_type, SEXP to_type)
+{
+	SEXPTYPE from_Rtype = _get_and_check_Rtype_from_Rstring(from_type,
+				"C_coercion_can_introduce_ones", "from_type");
+	SEXPTYPE to_Rtype = _get_and_check_Rtype_from_Rstring(to_type,
+				"C_coercion_can_introduce_ones", "to_type");
+	return ScalarLogical(_coercion_can_introduce_ones(from_Rtype,
+							  to_Rtype));
 }
 
 /* --- .Call ENTRY POINT --- */

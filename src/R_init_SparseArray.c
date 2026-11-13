@@ -56,6 +56,7 @@ static const R_CallMethodDef callMethods[] = {
 
 /* coerceVector2.c */
 	CALLMETHOD_DEF(C_coercion_can_introduce_zeros, 2),
+	CALLMETHOD_DEF(C_coercion_can_introduce_ones, 2),
 	CALLMETHOD_DEF(C_coercion_can_introduce_NAs, 2),
 
 /* OPBufTree.c */

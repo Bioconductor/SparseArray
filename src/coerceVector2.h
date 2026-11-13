@@ -15,6 +15,16 @@ SEXP C_coercion_can_introduce_zeros(
 	SEXP to_type
 );
 
+int _coercion_can_introduce_ones(
+	SEXPTYPE from_Rtype,
+	SEXPTYPE to_Rtype
+);
+
+SEXP C_coercion_can_introduce_ones(
+	SEXP from_type,
+	SEXP to_type
+);
+
 int _coercion_can_introduce_NAs(
 	SEXPTYPE from_Rtype,
 	SEXPTYPE to_Rtype
