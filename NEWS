@@ -1,3 +1,27 @@
+VERSION 1.14.0
+--------------
+
+NEW FEATURES
+
+    o rbind() and cbind() work on a mix of SparseMatrix derivatives
+      and ordinary matrices.
+
+BUG FIXES
+
+    o Fix the following stack imbalance warning:
+
+        nms <- asNamespace("SparseArray")
+        # Warning: stack imbalance in '<-', 2 then 4
+
+    o Small tweak to type() setter.
+      Changing the type of an SVT_SparseArray object can replace non-one values
+      with one values. For example this can happen when changing the type from
+      double to integer or from complex to double. When this happens, some SVT
+      leaves in the object might need to be turned into lacunar leaves.
+      This change makes sure that changing the type of an SVT_SparseArray object
+      switches the leaves that need it to lacunar representation.
+
+
 VERSION 1.12.0
 --------------
 
